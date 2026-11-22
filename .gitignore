@@ -1,0 +1,24 @@
+# Keep user-provided and game-extracted assets out of the public repository.
+data/raw/
+data/private/
+assets/raw/
+assets/private/
+private/
+*.nds
+*.gba
+*.rom
+*.sav
+*.xdelta
+*.bps
+*.ups
+*.ips
+*Dumps*.zip
+*Dump*.zip
+*.tar.gz
+.env
+.env.*
+!.env.example
+__pycache__/
+node_modules/
+dist/
+build/

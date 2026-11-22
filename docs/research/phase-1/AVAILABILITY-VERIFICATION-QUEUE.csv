@@ -1,0 +1,17 @@
+species_name,dump_id,dump_obtainable,dump_location_rows,verified_availability_class,verification_status,candidate_evidence
+Bulbasaur,1,True,1,NOT VERIFIED,research required,
+Pikachu,25,True,33,NOT VERIFIED,research required,
+Mew,151,False,0,NOT VERIFIED,research required,
+Mewtwo,150,True,0,NOT VERIFIED,research required,
+Articuno,144,True,0,NOT VERIFIED,research required,
+Zapdos,145,True,0,NOT VERIFIED,research required,
+Moltres,146,True,0,NOT VERIFIED,research required,
+Raikou,243,True,0,NOT VERIFIED,research required,
+Entei,244,True,0,NOT VERIFIED,research required,
+Suicune,245,True,0,NOT VERIFIED,research required,
+Rayquaza,384,True,0,NOT VERIFIED,research required,
+Zekrom,644,True,0,story-only/temporary,verified by official support article,https://support.pokemmo.com/knowledgebase/article/catching-zekrom
+Keldeo,647,True,0,NOT VERIFIED,research required,
+Shaymin,492,True,0,NOT VERIFIED,research required,
+Heatran,485,True,0,NOT VERIFIED,research required,
+Meloetta,648,True,0,NOT VERIFIED,research required,

@@ -1,0 +1,16 @@
+case_id,test,observed,result,source,source_date,required_action,priority
+DUMP-001,Lickitung catch rate,108: catch_rate=75,PASS snapshot vs official Oct30 2026,official Oct 30 changelog,2026-10-30,value is 75; formula not thereby verified,P0
+DUMP-002,Hail vs Snowscape metadata,skills.json Hail exists; Snowscape absent; 171 missing Snowscape refs,FAIL / requires merge,official Oct 30 changelog,2026-10-30,do not silently erase learnset or invent Snowscape metadata,P0
+DUMP-003,Zorua restored,Zorua #570 has Lostlorn Forest data; encounter percentages shown as ???,PARTIAL,official July31 follow-up,2026-07-31,show unknown percentages instead of 0 or invented rate,P0
+DUMP-004,Altering Cave current Pokémon,"2 static cave rows, both Unown",FAIL as live current table,official July29 + Oct30,2026-10-30,separate dynamic rotations feed; never derive current cave roster from dump,P0
+DUMP-005,Legendary availability,Zekrom/Mewtwo/Articuno/Raikou/Keldeo obtainable=true and 0 wild entries,FLAG MISLEADING,official+mechanics verification,2026-11-22,"differentiate temporary story, roamers, special, permanent raid; verify each",P0
+DUMP-006,Duplicated mono-types,406 Pokémon records repeat same type,NORMALIZATION,dump,2026-11-22,collapse repeat to one visible chip,P0
+DUMP-007,National sprite coverage,icons + normal front battle sprites cover IDs 1–649,PASS,dump,2026-11-22,form-specific filenames still need manifest,P0
+DUMP-008,Gendered sprite paths,Unfezant 521; Frillish 592; Jellicent 593 lack id-0.png,SPECIAL HANDLING,dump,2026-11-22,use file existence/manifest and gender-aware fallback,P0
+DUMP-009,Missing move metadata,185 learnset records no matching skills ID (171 Snowscape),FAIL / requires source patch,dump,2026-11-22,the other 14 are special/event/boss moves; suppress as normal learnset only after validation,P0
+DUMP-010,Defog HM locations,new Kanto/Hoenn/Johto/Unova HM ball locations not in Pokédex encounter dataset,SOURCE ADDITION,official Nov 19,2026-11-19,add item/guide data with patch citation; verify user walkthroughs,P1
+DUMP-011,Halloween content,Halloween ended 2026-11-13 23:59 UTC,EVENT EXPIRED,official Halloween 2026,2026-11-13,"event-only encounters and boosts show historical, not active",P0
+DUMP-012,Unknown extraction date,dump contains no embedded stable game version/date,UNVERIFIED FRESHNESS,dump,2026-11-22,compute patch fingerprint and add extraction manifest before declaring current,P0
+DUMP-013,Cross-tool encounter consistency,encounter methods include strings Special/Lure/???/-- alongside percentages,TYPE CHECK,dump,2026-11-22,do not parse all rate strings as numbers; preserve enum reason,P0
+DUMP-014,Costume forms,14 costume form entries; some not released,REQUIRES PER-FORM FILTER,dump + official July29,2026-11-22,display costumes separately from species; verify all release flags and event provenance,P1
+DUMP-015,Move/tier PvP shifts,move/tiers in dump not independently patch stamped,UNVERIFIED,showdown + official,2026-11-22,no automatic tiers from generic cartridges; verify current ladder and updates,P1

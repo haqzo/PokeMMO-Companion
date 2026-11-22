@@ -1,0 +1,37 @@
+{
+  "project": "PokeMMO Companion",
+  "baseline_utc_date": "2026-11-22",
+  "implementation_lead": "Claude",
+  "research_testing_leads": "User and ChatGPT",
+  "build_authorized": false,
+  "platforms": [
+    "Windows",
+    "Linux KDE Plasma Wayland",
+    "Linux KDE Plasma X11"
+  ],
+  "ui": "Small launcher, independent floating tool windows, responsive sprite-card Pokédex grid",
+  "no_goals": [
+    "encounter counter",
+    "client injection",
+    "memory reading",
+    "automated gameplay",
+    "unverified live status",
+    "unapproved data scraping"
+  ],
+  "initial_tools": [
+    "Pokédex",
+    "verified type/nature quick reference",
+    "Alpha/Swarm alerts",
+    "legendary roadmap",
+    "Altering Cave tracker"
+  ],
+  "future_tools": [
+    "damage and catch calculators only with validated formulas",
+    "team builder",
+    "breeding planner",
+    "storyline guide"
+  ],
+  "data_policy": "Field-level verification sources, patch date, confidence and source freshness; no invented rates; current-game changelogs override stale resources",
+  "asset_policy": "No PokeMMO client-derived assets or source dumps in public repository",
+  "release_gate": "Approval of UI design, data and calculator tests, and floating-window QA on both Windows and Linux"
+}
