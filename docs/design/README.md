@@ -17,6 +17,11 @@ One ordinary desktop Companion main window beside/on another monitor, with optio
 9. [Breeding Planner familiar three-column preview and planning tree](08-BREEDING-PLANNER-DETAILED-SPEC.md)
 10. [Breeding mechanics: source register and current-game QA gates](09-BREEDING-RESEARCH-AND-TEST-GATES.md)
 
+11. [Live workspace with Reports, Legendaries and Altering Cave](10-LIVE-WORKSPACE-SPEC.md)
+12. [Alpha and Swarm reports, toasts and notification history](11-ALPHA-SWARM-REPORTS-AND-TOASTS.md)
+13. [Legendary Roadmap and Altering Cave detailed layouts](12-LEGENDARIES-AND-ALTERING-CAVE.md)
+14. [Source reliability, data contracts and validation gates](13-LIVE-DATA-PROVIDERS-AND-QA.md)
+
 ## Open approvals
 - Exact actual Better Default preset colours and layout measurements still need locally readable theme package, not inferred hex codes.
 - Confirm final design layout after user review; no generated previews unless requested.
