@@ -4,6 +4,9 @@
 ## Current implementation direction
 The user now wants one broad, usable **v0.1.0 development preview** before the first video review. Start with [v0.1.0 build plan](../build/00-V0.1.0-FIRST-PASS-PLAN.md) and [Claude implementation handoff](../build/01-CLAUDE-V0.1.0-KICKOFF.md). Older design-phase gates calling for *more design before any code* are superseded by this newer instruction. Source/data correctness and platform limitations still apply.
 
+## Updated v0.1.0 reality check (22 Nov 2026)
+The older 649-species browse requirement is a **complete reference index, not a claim about PokeMMO's in-game Dex**. The user's new in-game recording documents different in-game counters/availability. The reviewed v0.1.0 build must be corrected against [the three-video audit](../reviews/2026-11-22-three-video-audit.md) and [Claude correction handoff](../build/04-V0.1.0-VIDEO-CORRECTION-PASS.md). Do not silently treat 649 as today's game release roster or assume user ownership from sprites.
+
 ## Approved high-level direction
 One ordinary desktop Companion main window beside/on another monitor, with optional separately pinned and translucent popout tools over PokeMMO; five grouped main destinations; alternate vertical/horizontal navigation; source-backed official News/Events on Home; Alpha/Swarm OS notifications, custom toasts and internal history; three meaningful layout densities per tool; calm styling derived from Better Default. No encounter counter.
 

@@ -2,7 +2,7 @@
 
 A research-first, PokeMMO-specific companion planned for **Windows and Linux**.
 
-**Status:** v0.1.0 **development preview implemented on `develop`** (not a release). See the [implementation report](docs/build/03-V0.1.0-IMPLEMENTATION-REPORT.md) for what works, what is intentionally withheld, and test results.
+**Status:** v0.1.0 development preview implemented on `develop` (not a release). First KDE/in-game three-video review identified key accuracy, Pokédex, popout and Home UI issues; [see the timestamped audit](docs/reviews/2026-11-22-three-video-audit.md) and [Claude correction assignment](docs/build/04-V0.1.0-VIDEO-CORRECTION-PASS.md). Fixes in that handoff are not yet implemented. The prior implementation report link was broken and is pending correction.
 
 ## Vision
 A compact, collapsible launcher and clean, independently movable/resizable floating tools alongside PokeMMO. The Pokédex should use a responsive, searchable **sprite-card grid** instead of long rows, with verified species details, obtainable status, encounters, moves, evolution and forms.
