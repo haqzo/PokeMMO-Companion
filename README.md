@@ -9,6 +9,9 @@ A compact, collapsible launcher and clean, independently movable/resizable float
 
 Planned research areas: Alpha/Swarm notifications, Legendary rotations, Altering Cave, PokeMMO-specific calculators, team/breeding tools and optional region walkthroughs. We will not add an encounter counter because PokeMMO already has one.
 
+## Design and research
+[Design specification](docs/design/README.md) — current approved product direction and proposed detailed UX for Home, windows, notifications and Pokédex.
+
 ## Research
 **[Read the research library](docs/research/README.md)** for PokeMMO changelog cross-checks, archive audit findings, data provenance rules, QA cases and Claude's pre-build handoff.
 
