@@ -13,6 +13,10 @@ One ordinary desktop Companion main window beside/on another monitor, with optio
 6. [Better Default 1.8.0 style and semantic token plan](05-BETTER-DEFAULT-STYLE-TOKENS.md)
 7. [Detailed responsive Pokédex design and golden UI tests](06-POKEDEX-DETAILED-SPEC.md)
 
+8. [Tools landing page and grouped workspace](07-TOOLS-WORKSPACE-SPEC.md)
+9. [Breeding Planner familiar three-column preview and planning tree](08-BREEDING-PLANNER-DETAILED-SPEC.md)
+10. [Breeding mechanics: source register and current-game QA gates](09-BREEDING-RESEARCH-AND-TEST-GATES.md)
+
 ## Open approvals
 - Exact actual Better Default preset colours and layout measurements still need locally readable theme package, not inferred hex codes.
 - Confirm final design layout after user review; no generated previews unless requested.
