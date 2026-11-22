@@ -14,6 +14,7 @@ from .services.dex import DexService
 from .services.guides import GuideService
 from .services.bookmarks import BookmarkService
 from .services.items import ItemService
+from .services.importer import sync_existing_import
 from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
 from .services.news import NewsService
@@ -55,6 +56,17 @@ class AppContext:
         self.storage = Storage(self.paths.db, self.paths.backups)
         self.settings = Settings(self.storage)
         self.bus = EventBus()
+        # An older installed private dump can lack the newer Item Library catalog.
+        # Rebuild it from the SAME previously selected local source, once, before
+        # the services load. Never require a second manual import or bundle assets.
+        try:
+            sync = sync_existing_import(self.paths, progress=log.info)
+            if sync["state"] == "synchronized":
+                log.info("Private PokeMMO data synchronized: %s", sync)
+            elif sync["state"] not in ("current", "not-installed"):
+                log.warning("Private PokeMMO data sync deferred: %s", sync)
+        except Exception:
+            log.exception("Local PokeMMO data sync failed; existing data preserved")
         self.dex = DexService(self.paths)
         self.guides = GuideService(self.storage, self.paths)
         self.items = ItemService(self.paths, self.storage)
