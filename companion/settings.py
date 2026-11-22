@@ -9,7 +9,9 @@ from typing import Any
 
 from .storage import Storage
 
-TOOLS = ("pokedex", "storyline", "reports", "typechart", "breeding", "legendaries", "cave", "natures")
+TOOLS = ("pokedex", "storyline", "reports", "typechart", "breeding", "legendaries", "cave", "natures",
+         "notes", "items", "showcase", "customguide", "locations", "box")
+LANGUAGES = ("en", "es", "zh")
 MODES = ("compact", "standard", "expanded")
 ROUTES = ("off", "toast", "os", "both")
 
@@ -57,9 +59,19 @@ DEFAULTS: dict[str, Any] = {
     "nav.quick_access": [{"kind": "tool", "id": "typechart"}, {"kind": "tool", "id": "breeding"},
                          {"kind": "guide", "id": "current"}],
     # Pokédex
-    "pokedex.scope": "pokemmo",              # pokemmo | reference (all 649 Gen I–V)
+    "pokedex.scope": "reference",            # reference (all 649, default) | pokemmo (hide species YOU marked "Not listed")
     "pokedex.density": "standard",           # compact | standard | large
     "pokedex.progress_run": None,            # run id whose manual registration is shown, or None (= not tracked)
+    # Language (UI strings; game item names from your own client strings when available). English fallback.
+    "app.language": "en",
+    "app.toolbar": ["language"],             # optional toolbar actions: language, notes (quick new note)
+    # Connected tools
+    "notes.popout_note": None,               # note shown by the Notes popout in Compact / Standard mode
+    "notes.sort": "updated",                 # updated | created | title
+    "items.filters": {},
+    "showcase.active": None,                 # showcase id shown by the Showcase popout
+    "customguide.active": None,              # custom guide shown by the Guide steps popout
+    "box.view": "grid",                      # grid | list
 }
 
 for _tool in TOOLS:
@@ -83,6 +95,9 @@ _ENUMS = {
     "notify.toast_corner": ("top-left", "top-right", "bottom-left", "bottom-right"),
     "pokedex.scope": ("pokemmo", "reference"),
     "pokedex.density": ("compact", "standard", "large"),
+    "app.language": LANGUAGES,
+    "notes.sort": ("updated", "created", "title"),
+    "box.view": ("grid", "list"),
 }
 _RANGES = {
     "appearance.text_scale": (80, 160),
@@ -95,7 +110,7 @@ for _tool in TOOLS:
     _ENUMS[f"window.{_tool}.mode"] = MODES
     _RANGES[f"window.{_tool}.bg_opacity"] = (35, 100)      # legibility floor
     _RANGES[f"window.{_tool}.window_opacity"] = (40, 100)
-    _RANGES[f"window.{_tool}.text_scale"] = (70, 180)
+    _RANGES[f"window.{_tool}.text_scale"] = (60, 200)     # text-size popover: 60–200 %
 
 
 class SettingsError(ValueError):
@@ -145,6 +160,16 @@ def validate(key: str, value: Any) -> Any:
             if mode in MODES and isinstance(g, dict):
                 out[mode] = {"w": max(220, min(4000, int(g.get("w", 400)))), "h": max(160, min(3000, int(g.get("h", 400))))}
         return out
+    if key == "app.toolbar":
+        allowed = ("language", "notes")
+        if not isinstance(value, list) or any(v not in allowed for v in value):
+            raise SettingsError(f"toolbar items must be among {allowed}")
+        return list(dict.fromkeys(value))
+    if key in ("notes.popout_note", "showcase.active", "customguide.active") and value is not None and not (
+            isinstance(value, str) and len(value) <= 24):
+        raise SettingsError(f"{key} must be an id or null")
+    if key == "items.filters" and not isinstance(value, dict):
+        raise SettingsError("items.filters must be an object")
     if key == "pokedex.progress_run" and value is not None and not isinstance(value, str):
         raise SettingsError("progress run must be a run id or null")
     if key == "app.last_route" and not (isinstance(value, str) and value.startswith("#/") and len(value) < 300):

@@ -13,13 +13,21 @@ from ..storage import SCHEMA_VERSION, Storage, utcnow
 
 FORMAT = "pokemmo-companion-backup"
 TABLES = ["runs", "run_regions", "step_status", "favourites", "notes", "documents", "legendary_progress",
-          "cave_observations", "dex_progress", "roster_checks"]
+          "cave_observations", "dex_progress", "roster_checks",
+          # v3 connected tools
+          "lib_notes", "note_links", "item_user", "owned_pokemon", "showcases", "custom_guides", "custom_guide_steps",
+          "guide_cycles", "guide_cycle_marks", "media", "dex_observations"]
+# Tables copied verbatim on import (stable string ids; merge keeps existing rows with the same key).
+GENERIC = {"lib_notes": ("id",), "note_links": ("note_id", "kind", "ref"), "item_user": ("item_id",),
+           "owned_pokemon": ("id",), "showcases": ("id",), "custom_guides": ("id",), "custom_guide_steps": ("id",),
+           "guide_cycles": ("id",), "guide_cycle_marks": ("cycle_id", "step_id"), "media": ("id",), "dex_observations": ("id",)}
 
 
 def export_all(db: Storage) -> dict:
     data = {t: db.query(f"SELECT * FROM {t}") for t in TABLES}
     settings = {k: v for k, v in db.all_settings().items() if not k.startswith("news.")}
-    return {"format": FORMAT, "format_version": 1, "app_version": __version__, "schema": SCHEMA_VERSION,
+    return {"format": FORMAT, "format_version": 1,
+            "media_note": "Image files (Box photos, guide pictures) stay in the data folder's media/ directory and are not inside this JSON.", "app_version": __version__, "schema": SCHEMA_VERSION,
             "exported_at": utcnow(), "tables": data, "settings": settings}
 
 
@@ -89,6 +97,15 @@ def import_all(db: Storage, payload: dict, mode: str = "merge") -> dict:
             c.execute("INSERT OR IGNORE INTO cave_observations(id, observed_at, crystal, species, method, notes, source, created_at) "
                       "VALUES(?,?,?,?,?,?,?,?)", (r["id"], r["observed_at"], r.get("crystal"), r.get("species"),
                                                  r.get("method"), r.get("notes"), r["source"], r["created_at"]))
+        for t, keys in GENERIC.items():
+            cols = [r[1] for r in c.execute(f"PRAGMA table_info({t})").fetchall()]
+            for r in tables.get(t, []):
+                row = {k: v for k, v in r.items() if k in cols}
+                if "run_id" in row and row["run_id"]:
+                    row["run_id"] = rid(row["run_id"])
+                verb = "INSERT OR REPLACE" if mode == "replace" else "INSERT OR IGNORE"
+                c.execute(f"{verb} INTO {t}({', '.join(row)}) VALUES({', '.join('?' * len(row))})", tuple(row.values()))
+                stats[t] = stats.get(t, 0) + 1
         if mode == "replace":
             for k, v in payload.get("settings", {}).items():
                 c.execute("INSERT OR REPLACE INTO settings(key, value, updated_at) VALUES(?,?,?)",

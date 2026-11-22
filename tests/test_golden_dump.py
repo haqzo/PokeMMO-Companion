@@ -40,18 +40,18 @@ def test_dump_004_altering_cave_not_a_rotation(dex):
 
 
 def test_dump_005_obtainable_flag_is_not_wild(dex):
-    for sid, cls in ((644, "story_temporary"), (146, "roaming")):
+    for sid, cls in ((644, "storyline_temporary"), (146, "roamer")):
         sp = dex.species[sid]
         assert sp["obtainable_flag"] is True and sp["locations"] == []
-        assert dex.detail(sid, set(), None)["availability"]["classes"] == [cls]
-    # Virizion/Keldeo: dump says obtainable=true, but they are reported absent from PokeMMO's Pokédex
-    for sid in (640, 647):
-        assert dex.species[sid]["obtainable_flag"] is True and dex.availability(sid)["in_game_dex"] == "no"
+        assert dex.detail(sid, set(), None)["availability"]["classes"][0] == cls
+    # the raw flag never decides anything: Virizion is a permanent raid, Keldeo a temporary mode
+    assert dex.availability(640)["classes"][0] == "perma_raid" and dex.availability(647)["classes"][0] == "temporary_koth"
 
 
 def test_dump_derived_families_are_labelled(dex):
-    assert dex.availability(1)["basis"] == "dump-wild"
-    fam = [sid for sid in range(1, 650) if dex.availability(sid)["basis"] == "dump-family"]
+    a = dex.availability(1)
+    assert a["classes"][0] == "wild" and a["methods"][0]["basis"] == "dump" and a["evidence"] == "DUMP_ONLY"
+    fam = [sid for sid in range(1, 650) if dex.availability(sid)["methods"][0]["basis"] == "dump" and dex.availability(sid)["classes"][0] == "evolution"]
     assert fam and all(dex.species[s]["locations"] == [] for s in fam)
     assert dex.availability(138)["classes"][0] == "fossil"  # registry wins over dump
 

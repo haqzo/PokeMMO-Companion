@@ -12,6 +12,8 @@ from .config import Paths, make_paths
 from .events import EventBus
 from .services.dex import DexService
 from .services.guides import GuideService
+from .services.items import ItemService
+from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
 from .services.news import NewsService
 from .services.notify import Notifier
@@ -54,6 +56,12 @@ class AppContext:
         self.bus = EventBus()
         self.dex = DexService(self.paths)
         self.guides = GuideService(self.storage, self.paths)
+        self.items = ItemService(self.paths, self.storage)
+        self.notes = NotesService(self.storage)
+        self.box = BoxService(self.storage, self.dex)
+        self.showcases = ShowcaseService(self.storage, self.box)
+        self.cguides = CustomGuideService(self.storage)
+        self.media = MediaService(self.storage, self.paths)
         self.news = NewsService(self.storage)
         self.notifier = Notifier()
         self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier)

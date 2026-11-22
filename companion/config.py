@@ -58,12 +58,17 @@ class Paths:
         return self.private / "guides"
 
     @property
+    def media(self) -> Path:
+        """Images the user attached (Box photos, guide step pictures). Local only."""
+        return self.root / "media"
+
+    @property
     def logs(self) -> Path:
         return self.root / "logs"
 
     def ensure(self) -> "Paths":
         for p in (self.root, self.backups, self.private, self.dex_dir, self.assets_dir,
-                  self.guides_dir, self.logs):
+                  self.guides_dir, self.logs, self.media):
             p.mkdir(parents=True, exist_ok=True)
         return self
 

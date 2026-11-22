@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -76,6 +76,50 @@ MIGRATIONS: dict[int, list[str]] = {
         "ALTER TABLE reports ADD COLUMN region TEXT",
         "ALTER TABLE reports ADD COLUMN location TEXT",
         "ALTER TABLE reports ADD COLUMN source_url TEXT",
+    ],
+    # v3 (accuracy + foundations pass): shared local data contracts for the connected tools —
+    # global Notes with entity links, Item Library user state, individual owned Pokémon (curated
+    # Box), Showcase layouts, custom Guides with repeatable cycles, media references and the
+    # user's own dated in-game counter observations. Additive only; per-species notes stay.
+    3: [
+        """CREATE TABLE IF NOT EXISTS lib_notes (
+               id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '',
+               tags TEXT NOT NULL DEFAULT '[]', pinned INTEGER NOT NULL DEFAULT 0, colour TEXT,
+               archived_at TEXT, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS note_links (
+               note_id TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, label TEXT,
+               created_at TEXT NOT NULL, PRIMARY KEY (note_id, kind, ref))""",
+        "CREATE INDEX IF NOT EXISTS note_links_ref ON note_links(kind, ref)",
+        """CREATE TABLE IF NOT EXISTS item_user (
+               item_id INTEGER PRIMARY KEY, favourite INTEGER NOT NULL DEFAULT 0, owned_qty INTEGER,
+               updated_at TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS owned_pokemon (
+               id TEXT PRIMARY KEY, run_id TEXT, species_id INTEGER NOT NULL, data TEXT NOT NULL DEFAULT '{}',
+               status TEXT NOT NULL DEFAULT 'kept', showcase_ok INTEGER NOT NULL DEFAULT 1,
+               created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)""",
+        """CREATE TABLE IF NOT EXISTS showcases (
+               id TEXT PRIMARY KEY, name TEXT NOT NULL, template TEXT NOT NULL DEFAULT 'grid',
+               entries TEXT NOT NULL DEFAULT '[]', options TEXT NOT NULL DEFAULT '{}',
+               created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS custom_guides (
+               id TEXT PRIMARY KEY, title TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'custom', region TEXT,
+               location TEXT, recurring INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL DEFAULT '',
+               source TEXT, archived_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS custom_guide_steps (
+               id TEXT PRIMARY KEY, guide_id TEXT NOT NULL, position INTEGER NOT NULL, depth INTEGER NOT NULL DEFAULT 0,
+               kind TEXT NOT NULL DEFAULT 'check', text TEXT NOT NULL DEFAULT '', links TEXT NOT NULL DEFAULT '[]',
+               media_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS guide_cycles (
+               id TEXT PRIMARY KEY, guide_id TEXT NOT NULL, run_id TEXT, number INTEGER NOT NULL,
+               started_at TEXT NOT NULL, completed_at TEXT, note TEXT)""",
+        """CREATE TABLE IF NOT EXISTS guide_cycle_marks (
+               cycle_id TEXT NOT NULL, step_id TEXT NOT NULL, done_at TEXT NOT NULL, PRIMARY KEY (cycle_id, step_id))""",
+        """CREATE TABLE IF NOT EXISTS media (
+               id TEXT PRIMARY KEY, filename TEXT NOT NULL, mime TEXT NOT NULL, bytes INTEGER NOT NULL,
+               sha256 TEXT NOT NULL, label TEXT, created_at TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS dex_observations (
+               id TEXT PRIMARY KEY, run_id TEXT, observed_at TEXT NOT NULL, counters TEXT NOT NULL,
+               client_note TEXT, created_at TEXT NOT NULL)""",
     ],
 }
 

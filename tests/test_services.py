@@ -366,55 +366,105 @@ def test_existing_toast_corner_choice_is_kept(ctx):
     assert ctx.settings.get("notify.toast_corner") == "bottom-left"
 
 
-# availability registry -------------------------------------------------------
-DISPUTED = {640: "no", 641: "no", 642: "no", 645: "no", 647: "no", 644: "yes",
-            638: "unknown", 639: "unknown", 643: "unknown", 646: "unknown", 648: "unknown", 649: "unknown"}
+# availability registry (v3: separate axes, docs/research/phase-4) -------------------
+PERMA_RAID = {638: "Guidance Chamber", 639: "Victory Road", 640: "Pinwheel Forest", 485: "Stark Mountain", 488: "Anville Town", 648: "Anville Town"}
 
 
-@pytest.mark.parametrize("sid,state", DISPUTED.items())
-def test_disputed_gen5_legendaries_are_not_all_treated_alike(ctx, sid, state):
+@pytest.mark.parametrize("sid,loc", PERMA_RAID.items())
+def test_permanent_raid_legendaries_are_available_not_unavailable(ctx, sid, loc):
     av = ctx.dex.availability(sid)
-    assert av["in_game_dex"] == state and av["basis"] == "registry" and av["source"]
+    assert av["classes"][0] == "perma_raid" and av["permanent"] is True and "raid" in av["tags"]
+    assert loc in av["methods"][0]["location"] and av["methods"][0]["sources"]
+    assert "unavailable" not in av["classes"]
+
+
+def test_virizion_regression_never_unavailable(ctx):
+    av = ctx.dex.availability(640)
+    assert av["membership"]["state"] != "no" and av["eligibility"]["owned"] == "yes"
+    assert av["evidence"] in ("OFFICIAL", "CORROBORATED")
+    assert any(src["id"] == "changelog-lny-2026" for src in av["methods"][0]["sources"])
+
+
+@pytest.mark.parametrize("sid", [641, 642, 645, 647])
+def test_uncertain_legends_are_unknown_not_absent(ctx, sid):
+    av = ctx.dex.availability(sid)
+    assert av["membership"]["state"] == "unknown" and "unavailable" not in av["classes"]
+
+
+def test_temporary_modes_never_count_as_permanent(ctx):
+    for sid, method in ((644, "storyline_temporary"), (384, "temporary_koth"), (647, "temporary_koth"), (483, "event")):
+        av = ctx.dex.availability(sid)
+        assert av["classes"][0] == method and av["permanent"] is False and av["eligibility"]["owned"] != "yes", sid
 
 
 def test_zekrom_is_story_temporary_not_wild(ctx):
     av = ctx.dex.availability(644)
-    assert av["classes"] == ["story_temporary"] and av["evidence"] == "OFFICIAL"
+    assert av["classes"] == ["storyline_temporary"] and av["evidence"] == "OFFICIAL"
 
 
 def test_roamers_are_roaming(ctx):
     for sid in (144, 145, 146, 243, 244, 245):
-        assert ctx.dex.availability(sid)["classes"] == ["roaming"]
+        av = ctx.dex.availability(sid)
+        assert av["classes"][0] == "roamer" and av["permanent"] is True
 
 
-def test_registry_never_uses_dump_obtainable_flag():
+def test_shaymin_is_seasonal(ctx):
+    av = ctx.dex.availability(492)
+    assert av["classes"][0] == "seasonal_raid" and av["permanent"] is False
+
+
+def test_registry_schema_and_sources_are_complete():
     import json as _json
     from companion.config import BUNDLED_DATA_DIR
     reg = _json.loads((BUNDLED_DATA_DIR / "pokemmo_availability.json").read_text())
+    assert reg["format"] == 3 and reg["registry_version"] and reg["checked_at"]
     for sid, e in reg["species"].items():
-        assert e["in_game_dex"] in ("yes", "no", "unknown") and e["evidence"] in reg["evidence_levels"]
-        assert set(e["classes"]) <= set(reg["states"]["classes"]), sid
+        assert e["membership"] in reg["membership_states"], sid
+        for m in e["methods"]:
+            assert m["method"] in reg["methods"] and m["confidence"] in reg["evidence_levels"], sid
+            assert m["verified_at"] and all(x in reg["sources"] for x in m["sources"]), sid
+        assert set(e.get("eligibility", {})) <= set(reg["eligibility_metrics"])
+    # observations are dated readings, never a rule
+    assert all(o["observed_at"] and "never" in o["note"] for o in reg["observations"])
+    assert "640" in reg["regressions"]
+
+
+def test_patch_review_flags_stale_records(ctx):
+    ctx.dex.registry = {**ctx.dex.registry, "patches": ctx.dex.registry["patches"] + [
+        {"id": "future", "title": "Future raid patch", "date": "2099-01-01", "affects": ["perma_raid"]}]}
+    av = ctx.dex.availability(640)
+    assert av["needs_review"] and av["methods"][0]["review"]["patch"] == "Future raid patch"
 
 
 def test_user_in_game_check_overrides_and_reports_conflict(client, ctx):
-    code, r = client.call("PUT", "/api/dex/roster/640", {"in_dex": "yes"})
-    assert code == 200 and r["availability"]["in_game_dex"] == "yes" and r["availability"]["basis"] == "your-check"
-    assert "registry says 'no'" in r["availability"]["conflict"]
-    client.call("PUT", "/api/dex/roster/640", {"in_dex": "clear"})
-    assert ctx.dex.availability(640)["in_game_dex"] == "no"
+    ctx.dex.registry["species"]["25"] = {"membership": "yes", "methods": []}
+    code, r = client.call("PUT", "/api/dex/roster/25", {"in_dex": "no"})
+    assert code == 200 and r["availability"]["membership"]["state"] == "no" and r["availability"]["membership"]["basis"] == "your-check"
+    assert "registry says 'yes'" in r["availability"]["membership"]["conflict"]
+    client.call("PUT", "/api/dex/roster/25", {"in_dex": "clear"})
+    assert ctx.dex.availability(25)["membership"]["state"] == "yes"
 
 
-def test_roster_report_counts_against_observed_denominator(client):
+def test_report_does_not_subtract_counters(client):
     code, r = client.call("GET", "/api/dex/roster")
-    assert code == 200 and r["observed"]["seen_denominator"] == 604 and r["expected_not_in_dex"] == 45
-    assert r["identified_not_in_dex"] == 5 and r["still_to_identify"] == 40
-    assert {x["id"] for x in r["not_in_dex"]} == {640, 641, 642, 645, 647}
+    assert code == 200 and r["reference_species"] == 649
+    assert "still_to_identify" not in r and "expected_not_in_dex" not in r
+    assert r["registry_observations"][0]["counters"]["seen"] == 604
+    assert r["permanent"] + r["not_permanent"] + r["unverified"] == 649
 
 
-def test_default_scope_hides_reported_absent_species(client):
+def test_user_observation_is_recorded_and_validated(client):
+    code, _ = client.call("POST", "/api/dex/observations", {"observed_at": "2026-11-22", "counters": {"seen": {"have": 700, "max": 604}}})
+    assert code == 400
+    code, o = client.call("POST", "/api/dex/observations", {"observed_at": "2026-11-22", "counters": {"seen": {"have": 436, "max": 604}}})
+    assert code == 200
+    _, r = client.call("GET", "/api/dex/roster")
+    assert r["your_observations"][0]["counters"]["seen"]["have"] == 436
+
+
+def test_default_scope_is_full_reference(client):
     code, r = client.call("GET", "/api/dex/species")
-    absent = {s["id"] for s in r["species"] if s["dex"] == "no"}
-    assert absent == {640, 641, 642, 645, 647} and len(r["species"]) == 649  # reference still available
+    assert len(r["species"]) == 649 and not any(s["dex"] == "no" for s in r["species"])
 
 
 def test_manual_registration_is_per_run_and_counted(client, ctx):
@@ -424,7 +474,7 @@ def test_manual_registration_is_per_run_and_counted(client, ctx):
     client.call("PUT", f"/api/dex/progress/{a['id']}/1", {"status": "seen"})
     _, ca = client.call("GET", f"/api/dex/progress/{a['id']}/counts")
     _, cb = client.call("GET", f"/api/dex/progress/{b['id']}/counts")
-    assert (ca["seen"], ca["owned"], ca["caught_ot"], ca["caught_alpha"]) == (2, 1, 1, 1) and ca["scope_size"] == 644
+    assert (ca["seen"], ca["owned"], ca["caught_ot"], ca["caught_alpha"]) == (2, 1, 1, 1) and ca["scope_size"] == 649
     assert cb["seen"] == 0
     _, lst = client.call("GET", f"/api/dex/species?run={a['id']}")
     pika = [s for s in lst["species"] if s["id"] == 25][0]

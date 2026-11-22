@@ -20,7 +20,7 @@ def test_v1_database_migrates_to_v2_with_backup_and_keeps_data(tmp_path):
     con.execute("INSERT INTO step_status(run_id, step_id, status, updated_at) VALUES('r1','kanto:m:starter','done','t')")
     con.commit(); con.close()
     s = Storage(db, tmp_path / "b")
-    assert s.migrated_from == 1 and s.backup_created and "pre-migration-v1-to-v2" in s.backup_created
+    assert s.migrated_from == 1 and s.backup_created and "pre-migration-v1-to-v3" in s.backup_created
     assert s.query_one("SELECT character_name FROM runs WHERE id='r1'")["character_name"] == "Old"
     assert s.query_one("SELECT status FROM step_status WHERE run_id='r1'")["status"] == "done"
     s.execute("INSERT INTO dex_progress(run_id, species_id, status, updated_at) VALUES('r1', 1, 'seen', 't')")
@@ -146,7 +146,7 @@ def test_bootstrap_and_bad_setting(client):
 def test_species_index_is_649_without_import(client):
     code, b = client.call("GET", "/api/dex/species")
     assert code == 200 and len(b["species"]) == 649 and b["status"]["imported"] is False
-    assert sum(1 for s_ in b["species"] if s_["dex"] != "no") == 644  # PokeMMO scope hides reported-absent species
+    assert all(s_["dex"] != "no" for s_ in b["species"])  # nothing is hidden by the registry
     assert [s["types"] for s in b["species"] if s["id"] == 25][0] == ["electric"]
 
 

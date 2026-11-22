@@ -20,9 +20,13 @@ OVERLAYS = {
            "note": "Lickitung catch rate 45 → 75. Dump value matches."}],
 }
 
-CLASS_LABELS = {"wild": "Wild", "evolution_or_breeding": "Evolve / breed", "gift": "Gift", "fossil": "Fossil",
-                "roaming": "Roamer", "raid": "Raid", "event_or_time_limited": "Event", "story_temporary": "Story (temporary)",
-                "contested_temporary": "Contested", "unavailable": "Not in PokeMMO", "unknown": "Unverified"}
+CONF_RANK = {"OFFICIAL": 5, "CORROBORATED": 4, "REPORTED": 3, "WALKTHROUGH": 2, "DUMP_ONLY": 1, "UNVERIFIED": 0}
+# Which method decides the headline label when several apply (permanent routes first).
+METHOD_ORDER = ["perma_raid", "wild", "roamer", "gift", "fossil", "evolution", "breeding", "seasonal_raid", "event",
+                "temporary_koth", "storyline_temporary", "trade", "unavailable", "unknown"]
+FILTER_TAGS = {"permanent": "Available permanently", "wild": "Wild", "raid": "Raids", "roaming": "Roaming",
+               "temporary": "Special / temporary", "event": "Event", "gift_fossil": "Gift / fossil", "evolution": "Evolve / breed",
+               "unverified": "Unverified", "needs_review": "Needs review", "listed": "Listed (your check)", "not_listed": "Not listed (your check)"}
 PROGRESS_LEVELS = ["unregistered", "seen", "owned", "caught_ot"]
 
 
@@ -68,6 +72,7 @@ class DexService:
             for members in fam.values():
                 if any(self.species[m].get("locations") for m in members):
                     self._wild_family |= members
+            self._build_locations()
 
     @property
     def imported(self) -> bool:
@@ -95,40 +100,80 @@ class DexService:
                 return sid
         return None
 
-    def availability(self, sid: int) -> dict:
-        """Combine authored registry, the user's own in-game checks and dump-derived classes.
+    def _source(self, sid_: str) -> dict:
+        src = self.registry.get("sources", {}).get(sid_) or {}
+        return {"id": sid_, "title": src.get("title", sid_), "url": src.get("url"), "kind": src.get("kind"), "checked": src.get("checked")}
 
-        Precedence for the in-game-dex axis: your dated in-game check > authored registry >
-        dump family reachability > unknown. Conflicts are reported, not hidden."""
+    def _review(self, method: str, verified_at: str | None) -> dict | None:
+        """A record is stale when a later patch is known to affect its kind of acquisition."""
+        for p in self.registry.get("patches", []):
+            if method in p.get("affects", []) and verified_at and verified_at[:len(p["date"])] < p["date"]:
+                return {"patch": p["title"], "date": p["date"], "url": p.get("url")}
+        return None
+
+    def availability(self, sid: int) -> dict:
+        """Separate axes (docs/research/phase-4): in-game Pokédex membership, acquisition methods,
+        counter eligibility, and the user's own check. No axis is derived from another."""
         sp = self.species.get(sid)
         reg = self.registry["species"].get(str(sid))
         check = self.user_checks.get(sid)
-        out: dict = {"in_game_dex": "unknown", "basis": "none", "classes": ["unknown"], "evidence": "UNVERIFIED",
-                     "source": None, "url": None, "note": None, "user_check": check, "conflict": None}
-        if reg:
-            out.update(in_game_dex=reg["in_game_dex"], basis="registry", classes=list(reg["classes"]),
-                       evidence=reg["evidence"], source=reg.get("source"), url=reg.get("url"), note=reg.get("note"))
-        elif sp:
-            if sp.get("locations"):
-                out.update(in_game_dex="yes", basis="dump-wild", classes=["wild"], evidence="DUMP_ONLY",
-                           source="Wild rows in your installed dump (extraction date unknown)")
-            elif sid in self._wild_family:
-                out.update(in_game_dex="yes", basis="dump-family", classes=["evolution_or_breeding"], evidence="DUMP_ONLY",
-                           source="Evolution family has wild rows in your installed dump")
-            else:
-                out.update(source="No wild rows in your dump for this family; acquisition needs checking")
-        else:
-            out.update(source="Install your PokeMMO data to derive encounter classes")
+        labels = self.registry.get("methods", {})
+        dump_date = (self.manifest or {}).get("dump_date")
+        methods: list[dict] = []
+        for m in (reg or {}).get("methods", []):
+            methods.append({**{k: v for k, v in m.items() if k != "sources"}, "label": labels.get(m["method"], m["method"]),
+                            "basis": "registry", "sources": [self._source(x) for x in m.get("sources", [])],
+                            "review": self._review(m["method"], m.get("verified_at"))})
+        have = {m["method"] for m in methods}
+        if sp and "wild" not in have and sp.get("locations"):
+            methods.append({"method": "wild", "label": labels.get("wild", "Wild"), "basis": "dump", "confidence": "DUMP_ONLY",
+                            "detail": f"{len({l['area'] for l in sp['locations']})} locations in your installed dump",
+                            "regions": sorted({l["region"] for l in sp["locations"]}), "verified_at": dump_date,
+                            "sources": [{"id": "dump", "title": "Your installed PokeMMO dump" + (f" (files dated {dump_date})" if dump_date else " (date unknown)"),
+                                         "url": None, "kind": "dump"}],
+                            "review": self._review("wild", dump_date) if dump_date else None})
+        elif sp and not have and sid in self._wild_family:
+            methods.append({"method": "evolution", "label": labels.get("evolution", "Evolution"), "basis": "dump", "confidence": "DUMP_ONLY",
+                            "detail": "Its evolution family has wild rows in your dump (evolve or breed)", "verified_at": dump_date,
+                            "sources": [{"id": "dump", "title": "Your installed PokeMMO dump", "url": None, "kind": "dump"}], "review": None})
+        if not methods:
+            methods.append({"method": "unknown", "label": labels.get("unknown", "Unverified"), "basis": "none", "confidence": "UNVERIFIED",
+                            "detail": ("No wild rows in your dump for this family; acquisition needs a source" if sp else
+                                       "Install your PokeMMO data to see dump-derived encounters"), "sources": [], "review": None})
+        methods.sort(key=lambda m: METHOD_ORDER.index(m["method"]) if m["method"] in METHOD_ORDER else 99)
+        perm_set = set(self.registry.get("permanent_methods", []))
+        known = [m for m in methods if m["method"] != "unknown"]
+        permanent = True if any(m["method"] in perm_set for m in known) else (None if not known else False)
+        membership = {"state": (reg or {}).get("membership", "unknown"), "basis": "registry" if reg else "none",
+                      "checked_at": None, "conflict": None}
         if check:
-            if reg and reg["in_game_dex"] in ("yes", "no") and reg["in_game_dex"] != check["in_dex"]:
-                out["conflict"] = (f"Your in-game check ({check['checked_at'][:10]}) says '{check['in_dex']}', the registry says "
-                                   f"'{reg['in_game_dex']}'. Your current in-game observation is used.")
-            out.update(in_game_dex=check["in_dex"], basis="your-check")
-        label = CLASS_LABELS.get(out["classes"][0], "Unverified")
-        if out["in_game_dex"] == "no":
-            label = "Not in PokeMMO Pokédex"
-        out["label"] = label
-        return out
+            if membership["state"] in ("yes", "no") and membership["state"] != check["in_dex"]:
+                membership["conflict"] = (f"Your in-game check ({check['checked_at'][:10]}) says '{check['in_dex']}', the registry says "
+                                          f"'{membership['state']}'. Your observation is used.")
+            membership.update(state=check["in_dex"], basis="your-check", checked_at=check["checked_at"])
+        metrics = self.registry.get("eligibility_metrics", [])
+        elig = {k: ((reg or {}).get("eligibility") or {}).get(k, "unknown") for k in metrics}
+        tags = set()
+        if permanent:
+            tags.add("permanent")
+        for m in methods:
+            tags.add({"wild": "wild", "perma_raid": "raid", "seasonal_raid": "raid", "roamer": "roaming", "temporary_koth": "temporary",
+                      "storyline_temporary": "temporary", "event": "event", "gift": "gift_fossil", "fossil": "gift_fossil",
+                      "evolution": "evolution", "breeding": "evolution", "unknown": "unverified"}.get(m["method"], "other"))
+            if m.get("review"):
+                tags.add("needs_review")
+        if membership["basis"] == "your-check":
+            tags.add("listed" if membership["state"] == "yes" else "not_listed")
+        tags.discard("other")
+        best = max((m.get("confidence", "UNVERIFIED") for m in methods), key=lambda c: CONF_RANK.get(c, 0))
+        head = methods[0]
+        label = head["label"] + (f" · {head['location']}" if head.get("location") else "")
+        return {"membership": membership, "methods": methods, "eligibility": elig, "permanent": permanent, "tags": sorted(tags),
+                "evidence": best, "label": label, "short": head["label"], "note": (reg or {}).get("note"), "user_check": check,
+                "needs_review": "needs_review" in tags,
+                # compatibility with v0.1 callers
+                "in_game_dex": membership["state"], "classes": [m["method"] for m in methods], "conflict": membership["conflict"],
+                "basis": membership["basis"] if membership["basis"] == "your-check" else head["basis"]}
 
     # ------------------------------------------------------------ queries
     def summaries(self, favourites: set[int], progress: dict[int, dict] | None = None) -> list[dict]:
@@ -138,7 +183,8 @@ class DexService:
             av = self.availability(sid)
             entry = {"id": sid, "name": base["name"], "types": base["types"], "gen": base["gen"],
                      "fav": sid in favourites, "icon": self.sprite_url(sid, "icon"),
-                     "dex": av["in_game_dex"], "avail": av["label"], "classes": av["classes"], "evidence": av["evidence"]}
+                     "dex": av["membership"]["state"], "avail": av["short"], "avail_long": av["label"], "classes": av["classes"],
+                     "tags": av["tags"], "evidence": av["evidence"], "permanent": av["permanent"]}
             if progress is not None:
                 entry["progress"] = progress.get(sid) or {"status": "unregistered"}
             if sp:
@@ -159,25 +205,39 @@ class DexService:
             out.append(entry)
         return out
 
-    def roster_report(self) -> dict:
-        """Difference report: Companion roster vs the owner's observed in-game denominators."""
-        rows = [{"id": sid, "name": self.index[sid]["name"], **{k: v for k, v in self.availability(sid).items()
-                                                                 if k in ("in_game_dex", "basis", "evidence", "label", "source")}}
-                for sid in self.index]
-        no = [r for r in rows if r["in_game_dex"] == "no"]
-        unknown = [r for r in rows if r["in_game_dex"] == "unknown"]
-        yes = [r for r in rows if r["in_game_dex"] == "yes"]
-        obs = self.registry["observed_in_game"]
-        expected_missing = len(self.index) - obs["seen_denominator"]
+    def roster_report(self, observations: list[dict] | None = None) -> dict:
+        """Availability report by axis. Observed in-game counters are listed as dated observations only —
+        nothing is subtracted from them to 'find missing species'."""
+        rows = []
+        for sid in self.index:
+            av = self.availability(sid)
+            rows.append({"id": sid, "name": self.index[sid]["name"], "membership": av["membership"]["state"],
+                         "membership_basis": av["membership"]["basis"], "label": av["label"], "methods": av["classes"],
+                         "permanent": av["permanent"], "evidence": av["evidence"], "tags": av["tags"],
+                         "conflict": av["membership"]["conflict"], "icon": self.sprite_url(sid)})
+        def pick(fn):
+            return [r for r in rows if fn(r)]
+        method_counts: dict[str, int] = {}
+        for r in rows:
+            for m in set(r["methods"]):
+                method_counts[m] = method_counts.get(m, 0) + 1
         return {"registry_version": self.registry["registry_version"], "checked_at": self.registry["checked_at"],
-                "reference_species": len(self.index), "observed": obs, "expected_not_in_dex": expected_missing,
-                "identified_not_in_dex": len(no), "still_to_identify": max(0, expected_missing - len(no)),
-                "counts": {"yes": len(yes), "no": len(no), "unknown": len(unknown)},
-                "not_in_dex": no, "unknown": unknown,
-                "note": ("PokeMMO's in-game Pokédex (owner video, 22 Nov 2026) counts "
-                         f"{obs['seen_denominator']} species for Seen; the Gen I–V reference has {len(self.index)}. "
-                         f"{len(no)} of the {expected_missing} uncounted species are identified so far. "
-                         "Use 'Check in game' on unverified species to record what your client shows.")}
+                "reference_species": len(self.index),
+                "membership": {"your_listed": len(pick(lambda r: r["membership_basis"] == "your-check" and r["membership"] == "yes")),
+                               "your_not_listed": len(pick(lambda r: r["membership_basis"] == "your-check" and r["membership"] == "no")),
+                               "unchecked": len(pick(lambda r: r["membership_basis"] != "your-check"))},
+                "permanent": len(pick(lambda r: r["permanent"])), "not_permanent": len(pick(lambda r: r["permanent"] is False)),
+                "unverified": len(pick(lambda r: r["permanent"] is None)), "method_counts": method_counts,
+                "method_labels": self.registry.get("methods", {}),
+                "authored": pick(lambda r: str(r["id"]) in self.registry["species"]),
+                "needs_review": pick(lambda r: "needs_review" in r["tags"]), "conflicts": pick(lambda r: r["conflict"]),
+                "your_checks": pick(lambda r: r["membership_basis"] == "your-check"),
+                "registry_observations": self.registry.get("observations", []), "your_observations": observations or [],
+                "sources": self.registry.get("sources", {}), "patches": self.registry.get("patches", []),
+                "dump_date": (self.manifest or {}).get("dump_date"),
+                "note": ("The Gen I–V reference has 649 species. PokeMMO's in-game counters (Seen, Owned, Caught OT, Alpha, Shiny, "
+                         "Costumes) each follow their own eligibility rules and change with patches, so the Companion does not force "
+                         "a total. Record what your client shows, and mark species “Listed / Not listed” as you check them.")}
 
     def detail(self, sid: int, favourites: set[int], note: str | None) -> dict | None:
         base = self.index.get(sid)
@@ -238,6 +298,45 @@ class DexService:
                     walk(e["to"], depth + 1, {"method": e["method"], "value": e["value"], "item": e["item"]})
         walk(root, 0, None)
         return out
+
+    # ------------------------------------------------------------ locations
+    def _build_locations(self) -> None:
+        idx: dict[str, dict] = {}
+        for sid, sp in self.species.items():
+            for l in sp.get("locations", []):
+                key = f"{l['region']}:{l.get('location_id') or l['area']}"
+                loc = idx.setdefault(key, {"id": key, "region": l["region"], "name": l["area"], "location_id": l.get("location_id"),
+                                           "rows": [], "species": set(), "methods": set(), "seasons": set(), "horde": False})
+                loc["rows"].append({**l, "species_id": sid})
+                loc["species"].add(sid)
+                loc["methods"].add(l["method"])
+                if l.get("season"):
+                    loc["seasons"].add(l["season"])
+                loc["horde"] = loc["horde"] or l["horde3"] or l["horde5"]
+        self._locations = idx
+
+    def locations(self) -> list[dict]:
+        if not hasattr(self, "_locations"):
+            self._build_locations()
+        return sorted(({"id": v["id"], "region": v["region"], "name": v["name"], "species_count": len(v["species"]),
+                        "methods": sorted(v["methods"]), "seasons": sorted(v["seasons"]), "horde": v["horde"],
+                        "species": sorted(v["species"])} for v in self._locations.values()),
+                      key=lambda x: (["kanto", "johto", "hoenn", "sinnoh", "unova"].index(x["region"])
+                                     if x["region"] in ("kanto", "johto", "hoenn", "sinnoh", "unova") else 9, x["name"]))
+
+    def location(self, key: str) -> dict | None:
+        if not hasattr(self, "_locations"):
+            self._build_locations()
+        v = self._locations.get(key)
+        if not v:
+            return None
+        rows = sorted(v["rows"], key=lambda r: (self.name(r["species_id"]), r.get("season") or "", r["method"]))
+        return {"id": key, "region": v["region"], "name": v["name"], "location_id": v["location_id"],
+                "rows": [{**r, "name": self.name(r["species_id"]), "icon": self.sprite_url(r["species_id"]),
+                          "types": self.index.get(r["species_id"], {}).get("types", [])} for r in rows],
+                "dump_date": (self.manifest or {}).get("dump_date"),
+                "provenance": "Encounter rows from your installed dump (DUMP_ONLY). Rates are the dump's per-time labels; "
+                              "events, swarms and Altering Cave rotation are not reflected."}
 
     def egg_group_members(self, group: str) -> list[int]:
         return self._egg_index.get(group, [])

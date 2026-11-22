@@ -13,6 +13,13 @@ PRESETS: dict[str, dict[str, tuple[int, int]]] = {
     "legendaries": {"compact": (320, 280), "standard": (420, 440), "expanded": (600, 640)},
     "cave":        {"compact": (320, 260), "standard": (420, 440), "expanded": (600, 660)},
     "natures":     {"compact": (300, 400), "standard": (380, 540), "expanded": (460, 660)},
+    # connected tools (accuracy + foundations pass)
+    "notes":       {"compact": (300, 320), "standard": (420, 520), "expanded": (780, 620)},
+    "items":       {"compact": (320, 440), "standard": (460, 600), "expanded": (760, 680)},
+    "showcase":    {"compact": (300, 260), "standard": (520, 420), "expanded": (820, 560)},
+    "customguide": {"compact": (320, 240), "standard": (400, 520), "expanded": (520, 700)},
+    "locations":   {"compact": (330, 440), "standard": (480, 620), "expanded": (820, 700)},
+    "box":         {"compact": (320, 420), "standard": (480, 600), "expanded": (820, 700)},
 }
 
 

@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shutil
+import time
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
@@ -24,7 +25,7 @@ from ..config import Paths
 from ..data.reference import REGIONS
 from ..storage import utcnow
 
-IMPORTER_VERSION = "dex-1"
+IMPORTER_VERSION = "dex-2"  # dex-2: full item catalog + icons, held/evolution item ids, client strings, dump date
 GUIDE_PARSER_VERSION = "odt-1"
 
 DUMP_PATTERNS = {
@@ -32,7 +33,11 @@ DUMP_PATTERNS = {
     "icons": re.compile(r"icons?dump.*\.zip$|monstericons.*\.zip$", re.I),
     "battle": re.compile(r"battle.*sprites?.*\.zip$", re.I),
     "items": re.compile(r"item.*sprite.*\.zip$", re.I),
+    "strings": re.compile(r"xml.?strings.*\.zip$", re.I),
 }
+STRING_LANGS = ("es", "zh")  # client string tables used for Spanish / Chinese game labels (English is the item record itself)
+ICON_NAME = re.compile(r"^-?\d{1,6}\.png$")
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
 class ImportError_(Exception):
@@ -78,7 +83,7 @@ class DirArchive:
 
 
 DIR_PARTS = {"pokedex": ("info",), "icons": ("sprites/monstericons",), "battle": ("sprites/battlesprites",),
-             "items": ("sprites/itemicons",)}
+             "items": ("sprites/itemicons",), "strings": ("strings",)}
 
 
 def _detect_dir_form(root: Path, found: dict) -> None:
@@ -87,6 +92,8 @@ def _detect_dir_form(root: Path, found: dict) -> None:
     for key in ("icons", "battle", "items"):
         if (root / DIR_PARTS[key][0]).is_dir():
             found["dumps"].setdefault(key, str(root))
+    if (root / "strings" / "dump_strings_en.xml").is_file():
+        found["dumps"].setdefault("strings", str(root))
 
 
 def detect_sources(folder: str | Path) -> dict:
@@ -232,6 +239,7 @@ def normalise_dex(monsters: list[dict], skills: list[dict], items: list[dict]) -
             "height_dm": m.get("height"), "weight_hg": m.get("weight"),
             "egg_groups": m.get("egg_groups", []), "growth": m.get("exp_type_name"),
             "yields": m.get("yields", {}), "held_items": [h.get("name") for h in m.get("held_items", [])],
+            "held_item_ids": [h.get("id") for h in m.get("held_items", []) if isinstance(h.get("id"), int)],
             "tiers": m.get("tiers", []), "obtainable_flag": m.get("obtainable"),
             "forms": [{"form_id": f.get("form_id"), "name": f.get("name"), "costume": f.get("is_costume"),
                        "released": f.get("is_released")} for f in m.get("forms", [])],
@@ -253,6 +261,41 @@ def normalise_dex(monsters: list[dict], skills: list[dict], items: list[dict]) -
             "items_count": len(items), "item_names": {str(k): v["name"] for k, v in item_by_id.items()}}
 
 
+def _archive_date(zf) -> str | None:
+    """Newest file timestamp inside the archive (YYYY-MM-DD) — the best available extraction date."""
+    try:
+        if isinstance(zf, DirArchive):
+            ts = max((i.path.stat().st_mtime for i in zf.infolist()), default=0)
+            return time.strftime("%Y-%m-%d", time.gmtime(ts)) if ts else None
+        dt = max((i.date_time for i in zf.infolist()), default=None)
+        return "%04d-%02d-%02d" % dt[:3] if dt and dt[0] > 1980 else None
+    except (OSError, ValueError):
+        return None
+
+
+_STR_RX = re.compile(r'<string id="(\d+)"[^>]*>(.*?)</string>', re.S)
+
+
+def read_client_strings(zf, langs: tuple[str, ...]) -> dict[str, dict[int, str]]:
+    """Parse dump_strings_<lang>.xml into {lang: {string_id: text}} (only ids that differ from English)."""
+    import html as _html
+    names = {Path(n).name: n for n in zf.namelist()}
+    def load(lang: str) -> dict[int, str]:
+        n = names.get(f"dump_strings_{lang}.xml")
+        if not n:
+            return {}
+        raw = zf.read(n).decode("utf-8", "replace")
+        return {int(k): _html.unescape(v).replace("\\n", "\n") for k, v in _STR_RX.findall(raw)}
+    en = load("en")
+    out = {}
+    for lang in langs:
+        d = load(lang)
+        diff = {k: v for k, v in d.items() if en.get(k) != v}
+        if diff:
+            out[lang] = diff
+    return out
+
+
 # ----------------------------------------------------------------- sprites
 def _extract_pngs(zf: zipfile.ZipFile, prefix: str, dest: Path, keep: Callable[[str], bool]) -> int:
     dest.mkdir(parents=True, exist_ok=True)
@@ -264,7 +307,10 @@ def _extract_pngs(zf: zipfile.ZipFile, prefix: str, dest: Path, keep: Callable[[
         base = name[len(prefix):]
         if "/" in base or ".." in base or not keep(base):
             continue
-        (dest / base).write_bytes(zf.read(info))
+        data = zf.read(info)
+        if not data.startswith(PNG_MAGIC) or len(data) > 2_000_000:
+            continue
+        (dest / base).write_bytes(data)
         n += 1
     return n
 
@@ -401,6 +447,10 @@ def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None 
     except KeyError as exc:
         raise ImportError_(f"PokedexData.zip is missing {exc.args[0]}") from exc
     dex = normalise_dex(monsters, skills, items)
+    manifest["dump_date"] = _archive_date(pz)
+    if manifest["dump_date"]:
+        manifest["notes"] = [f"Dump files are dated {manifest['dump_date']} (newest file time in the archive); the dump "
+                             "itself records no game version, so values stay DUMP_ONLY until checked against the live game."]
     manifest["counts"].update({"monster_records": len(monsters), "species": len(dex["species"]),
                                "internal_records": len(dex["internal_records"]), "skills": len(skills),
                                "items": len(items),
@@ -429,9 +479,20 @@ def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None 
             zips["battle"], "sprites/battlesprites/", assets_tmp / "battle", lambda b: "-front-" in b)
     if "items" in zips:
         say("Extracting item icons…")
-        wanted = {str(v["icon_id"]) + ".png" for v in dex["breeding_items"].values() if v.get("icon_id") is not None}
         manifest["counts"]["item_icons"] = _extract_pngs(zips["items"], "sprites/itemicons/", assets_tmp / "items",
-                                                         lambda b: b in wanted)
+                                                         lambda b: bool(ICON_NAME.match(b)) and b != "-1.png")
+    strings = {}
+    if "strings" in zips:
+        say("Reading client string tables (item names in Spanish / Chinese)…")
+        strings = read_client_strings(zips["strings"], STRING_LANGS)
+        manifest["counts"]["string_langs"] = sorted(strings)
+    say("Building the Item Library…")
+    from .items import build_catalog
+    icon_files = {p.name for p in (assets_tmp / "items").glob("*.png")} if (assets_tmp / "items").exists() else set()
+    catalog = build_catalog(items, dex["species"], icon_files, strings)
+    (tmp / "items.json").write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+    manifest["counts"].update({"item_groups": len(catalog["groups"]), "items_with_icon": catalog["stats"]["with_icon"],
+                               "items_missing_icon": catalog["stats"]["missing_icon"]})
     sprites = build_sprite_manifest(assets_tmp / "icons", assets_tmp / "battle")
     (tmp / "sprites.json").write_text(json.dumps(sprites), encoding="utf-8")
     manifest["counts"]["species_with_icon"] = sum(1 for v in sprites.values() if "icon" in v)

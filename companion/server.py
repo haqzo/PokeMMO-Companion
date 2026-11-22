@@ -19,6 +19,7 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 from .app import AppContext
+from .services.dex import FILTER_TAGS
 from .config import UI_DIR
 from .data import reference as ref
 from .data.window_presets import PRESETS
@@ -141,6 +142,7 @@ def build_router(ctx: AppContext) -> Router:
                         j["result"] = importer.import_dumps(ctx.paths, folder=folder,
                                                             progress=lambda m: j["messages"].append(m))
                         ctx.dex.reload()
+                        ctx.items.reload()
                     elif kind == "guides":
                         j["result"] = importer.import_guides(ctx.paths, folder=folder)
                     else:
@@ -169,8 +171,8 @@ def build_router(ctx: AppContext) -> Router:
     def dex_list(req: Request) -> dict:
         run = progress_run(req)
         return {"species": ctx.dex.summaries(favs(), ctx.dex_progress(run)), "status": ctx.dex.status(),
-                "registry": {k: ctx.dex.registry[k] for k in ("registry_version", "checked_at", "game_patch_basis")},
-                "observed": ctx.dex.registry["observed_in_game"], "progress_run": run}
+                "registry": {k: ctx.dex.registry[k] for k in ("registry_version", "checked_at")},
+                "filter_tags": FILTER_TAGS, "observations": ctx.dex.registry.get("observations", []), "progress_run": run}
     r.add("GET", "/api/dex/species", dex_list)
 
     LEVELS = ("unregistered", "seen", "owned", "caught_ot")
@@ -200,7 +202,7 @@ def build_router(ctx: AppContext) -> Router:
     def progress_counts(req: Request) -> dict:
         run = req.params["run"]
         prog = ctx.dex_progress(run) or {}
-        scope = [sid for sid in ctx.dex.index if req.q("scope", "pokemmo") == "reference" or ctx.dex.availability(sid)["in_game_dex"] != "no"]
+        scope = [sid for sid in ctx.dex.index if req.q("scope", "reference") == "reference" or ctx.dex.availability(sid)["in_game_dex"] != "no"]
         def lvl(sid: int) -> int:
             return LEVELS.index((prog.get(sid) or {}).get("status", "unregistered"))
         return {"run": run, "scope_size": len(scope), "tracked": len(prog),
@@ -209,10 +211,16 @@ def build_router(ctx: AppContext) -> Router:
                 "caught_alpha": sum(1 for s in scope if (prog.get(s) or {}).get("caught_alpha")),
                 "owned_shiny": sum(1 for s in scope if (prog.get(s) or {}).get("owned_shiny")),
                 "owned_costume": sum(1 for s in scope if (prog.get(s) or {}).get("owned_costume")),
-                "note": "Entered by you in the Companion — not read from your PokeMMO account."}
+                "scope": "Gen I–V reference" if req.q("scope", "reference") == "reference" else "reference minus species you marked Not listed",
+                "note": "Entered by you in the Companion — not read from your PokeMMO account. In-game maxima differ per counter and patch; "
+                        "record them under Availability report › Your in-game counters."}
     r.add("GET", "/api/dex/progress/<run>/counts", progress_counts)
 
-    r.add("GET", "/api/dex/roster", lambda req: ctx.dex.roster_report())
+    def roster(req: Request) -> dict:
+        obs = [{**o, "counters": json.loads(o["counters"])} for o in
+               ctx.storage.query("SELECT * FROM dex_observations ORDER BY observed_at DESC, created_at DESC")]
+        return ctx.dex.roster_report(obs)
+    r.add("GET", "/api/dex/roster", roster)
 
     def roster_check(req: Request) -> dict:
         sid = int_param(req.params["sid"], "species id")
@@ -545,6 +553,8 @@ def build_router(ctx: AppContext) -> Router:
         return ctx.shell.submit(cmd)
     r.add("POST", "/api/shell/command", shell_cmd)
     r.add("GET", "/api/shell/capabilities", lambda req: {"mode": ctx.shell.mode, **ctx.shell.capabilities})
+    from . import routes_library
+    routes_library.register(r, ctx, ApiError, Request)
     return r
 
 
@@ -614,6 +624,11 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 return self._api(method, path, query)
             if method != "GET":
                 return self._send(405, b"Method not allowed", "text/plain")
+            if path.startswith("/media/"):
+                found = ctx.media.path(path[len("/media/"):])
+                if not found:
+                    return self._send(404, b"Not found", "text/plain")
+                return self._send(200, found[0].read_bytes(), found[1], {"Cache-Control": "private, max-age=3600"})
             if path.startswith("/assets/private/"):
                 return self._static(assets_root, path[len("/assets/private/"):], png_only=True)
             if path in ("/", "/index.html", "/popout"):
