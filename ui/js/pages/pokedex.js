@@ -18,7 +18,8 @@ async function loadList(force) {
   if (!state.dexCache || force) state.dexCache = (await get('/api/dex/species')).species;
   return state.dexCache;
 }
-const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': F }).catch(() => {}), 700);
+// Filters persist across restarts; the search text only within this session (avoids a mysteriously short list later).
+const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': { ...F, q: '' } }).catch(() => {}), 700);
 
 function applyFilters(all) {
   const q = F.q.trim().toLowerCase();
@@ -104,7 +105,7 @@ function buildToolbar(wrap, all) {
       h('option', { value: v, selected: F.sort === v ? 'selected' : null, disabled: v === 'bst' && !state.boot.dex.imported ? 'disabled' : null }, t)));
   wrap.append(h('div', { class: 'dex-toolbar' },
     h('div', { class: 'search' }, icon('search'), search),
-    seg([['all', 'All'], ['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['5', 'V']], F.gen, (v) => { F.gen = v; persistFilters(); drawGrid(all); }, 'Generation of introduction'),
+    seg([['all', 'All'], ['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['5', 'V']], F.gen, (v) => { F.gen = v; persistFilters(); render(document.getElementById('main'), parseHash()); }, 'Generation of introduction'),
     filterBtn, sort, h('span', { class: 'grow' }), countEl,
     state.boot.dex.imported ? badge('DUMP_ONLY', 'Your dump data', 'Details come from your imported dump; extraction date unknown') :
       h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, icon('download'), 'Import data'),

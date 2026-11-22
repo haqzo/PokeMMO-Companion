@@ -9,7 +9,7 @@ import { render as renderBreeding } from './pages/breeding.js';
 import { sourceBar, reportRow, renderLegendaries, renderCave } from './pages/live.js';
 import { speciesIndex } from './components.js';
 
-let root, bodyEl, mode;
+let root, bodyEl, mode, savedMode;
 const MODES = [['compact', 'C', 'Compact'], ['standard', 'S', 'Standard'], ['expanded', 'E', 'Expanded']];
 
 function openInMain(route) {
@@ -21,7 +21,8 @@ function openInMain(route) {
 export function startPopout(el) {
   root = el;
   document.body.classList.add('popout', 'shell-' + SHELL);
-  mode = setting(`window.${POPOUT}.mode`) || new URLSearchParams(location.search).get('mode') || 'standard';
+  mode = new URLSearchParams(location.search).get('mode') || setting(`window.${POPOUT}.mode`) || 'standard';
+  savedMode = setting(`window.${POPOUT}.mode`);
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
   document.title = def.title + ' — PokeMMO Companion';
   bodyEl = h('div', { class: 'popout-body readable' });
@@ -29,7 +30,7 @@ export function startPopout(el) {
   document.addEventListener('settings-changed', () => {
     const m = setting(`window.${POPOUT}.mode`);
     applyAppearance();
-    if (m && m !== mode) { mode = m; draw(); } else drawBar();
+    if (m && m !== savedMode) { savedMode = m; mode = m; draw(); } else drawBar();
   });
   const refresh = debounce(() => renderBody(), 120);
   for (const t of ({ storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, refresh);
@@ -52,7 +53,7 @@ function drawBar() {
     mount(barEl, h('div', { class: 'popout-bar' }, h('span', { class: 'ptitle ellipsis' }, def.title),
       h('button', { class: 'icon-btn', disabled: 'disabled', title: 'Pin / always-on-top needs the native shell (PySide6). Browser windows cannot be pinned.' }, icon('pin')),
       MODES.map(([m, short, long]) => h('button', { class: 'icon-btn' + (m === mode ? ' on' : ''), title: long + ' view', 'aria-pressed': String(m === mode),
-        onclick: () => { mode = m; saveSettings({ [`window.${POPOUT}.mode`]: m }); draw(); } }, h('span', { style: { fontWeight: 700, fontSize: '.8rem' } }, short))),
+        onclick: () => { mode = m; savedMode = m; saveSettings({ [`window.${POPOUT}.mode`]: m }); draw(); } }, h('span', { style: { fontWeight: 700, fontSize: '.8rem' } }, short))),
       h('button', { class: 'icon-btn', title: 'Close popout (your data is kept)', 'aria-label': 'Close', onclick: () => window.close() }, icon('close'))));
   } else {
     clear(barEl);
@@ -132,7 +133,11 @@ async function storyline(el) {
     mount(el, header, h('div', { class: 'stack tight' }, win.map((s) => stepEl(s, s.id === cur.id))), nav);
     return;
   }
-  const chapterSteps = steps.filter((s) => s.chapter === cur.chapter && (s.chapter_index === undefined || s.chapter_index === cur.chapter_index));
+  // contiguous block of steps in the current chapter (a town visited twice is two separate blocks)
+  let lo = i, hi = i;
+  while (lo > 0 && steps[lo - 1].chapter === cur.chapter) lo--;
+  while (hi < steps.length - 1 && steps[hi + 1].chapter === cur.chapter) hi++;
+  const chapterSteps = steps.slice(lo, hi + 1);
   mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, cur.chapter), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav,
     h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'imported' ? 'Your imported walkthrough (unverified).' : 'Milestone outline (unverified).'));
 }

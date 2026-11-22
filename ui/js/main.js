@@ -13,7 +13,9 @@ async function boot() {
     return;
   }
   connectEvents();
-  on('settings', async () => {
+  on('settings', async (data) => {
+    const keys = Object.keys(data || {});
+    if (keys.length && keys.every((k) => k.endsWith('.geometry'))) return;  // window moves don't affect pages
     state.settings = await get('/api/settings');
     applyAppearance();
     document.dispatchEvent(new CustomEvent('settings-changed'));

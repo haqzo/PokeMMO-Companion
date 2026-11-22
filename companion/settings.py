@@ -49,6 +49,7 @@ DEFAULTS: dict[str, Any] = {
     "notify.toast_opacity": 94,              # percent
     "notify.quiet": False,                   # manual "do not disturb while playing"
     "notify.retention_days": 30,
+    "window.main.geometry": None,
 }
 
 for _tool in TOOLS:

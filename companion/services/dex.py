@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import threading
-from pathlib import Path
 
 from ..config import BUNDLED_DATA_DIR, Paths
 from ..data import reference as ref

@@ -1,0 +1,2 @@
+pytest>=7
+# UI tests additionally need: pip install playwright && python -m playwright install chromium

@@ -56,11 +56,13 @@ async function renderPreview(el, { popout, mode }) {
   const idx = await speciesIndex();
   const result = h('div');
   const compat = h('div');
+  let seq = 0;
   const update = async () => {
     savePairing();
+    const mine = ++seq;  // ignore out-of-order responses from earlier keystrokes
     let p;
-    try { p = await post('/api/tools/breeding/preview', pairing); } catch (e) { mount(result, notice('bad', e.message)); return; }
-    drawResult(p);
+    try { p = await post('/api/tools/breeding/preview', pairing); } catch (e) { if (mine === seq) mount(result, notice('bad', e.message)); return; }
+    if (mine === seq) drawResult(p);
   };
   const parentCard = (key, label) => {
     const P = pairing[key];

@@ -34,8 +34,8 @@ def choose_qt_platform(pref: str, override: str | None) -> str | None:
     on_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
     if choice == "xwayland" or (choice == "auto" and on_wayland and os.environ.get("DISPLAY")
                                 and "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()):
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
-        return "xcb"
+        os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"  # fall back to Wayland if the xcb plugin can't load
+        return "xcb;wayland"
     if choice == "wayland" and on_wayland:
         os.environ["QT_QPA_PLATFORM"] = "wayland"
         return "wayland"

@@ -37,7 +37,10 @@ export function startApp(el) {
   // remove token from the visible URL; it stays in sessionStorage for this window
   renderChrome();
   window.addEventListener('hashchange', renderRoute);
-  document.addEventListener('settings-changed', () => { renderChrome(); });
+  let lastNav = setting('appearance.nav');
+  document.addEventListener('settings-changed', () => {
+    if (setting('appearance.nav') !== lastNav) { lastNav = setting('appearance.nav'); renderChrome(); }
+  });
   on('toast', (p) => reportToast(p, (id) => go(`#/live/reports/${id}`)));
   on('navigate', (d) => d && d.route && go(d.route));
   document.addEventListener('keydown', globalKeys);

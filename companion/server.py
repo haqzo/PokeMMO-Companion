@@ -11,10 +11,8 @@ import mimetypes
 import queue
 import re
 import threading
-import time
 import traceback
 import uuid
-from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable

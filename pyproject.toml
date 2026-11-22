@@ -1,0 +1,18 @@
+[project]
+name = "pokemmo-companion"
+version = "0.1.0"
+description = "Unofficial desktop companion for PokeMMO (development preview)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+native = ["PySide6>=6.6"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+pokemmo-companion = "companion.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["dump: needs the user's local PokeMMO dump (set POKEMMO_DUMPS_DIR)", "ui: needs Playwright + Chromium"]

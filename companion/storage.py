@@ -9,7 +9,6 @@ Design rules (docs/design/14, 16, 17):
 from __future__ import annotations
 
 import json
-import shutil
 import sqlite3
 import threading
 import time
