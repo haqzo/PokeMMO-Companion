@@ -297,7 +297,7 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   const unseen = tracking && p.status === 'unregistered';
   const regClass = tracking ? ' reg-' + p.status : '';
   const absent = s.dex === 'no';
-  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, spriteOrFallback(s.icon, s, density === 'large' ? 96 : density === 'compact' ? 48 : 72));
+  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, spriteOrFallback(s.icon, s, density === 'large' ? 96 : density === 'compact' ? 56 : 72));
   const marks = tracking ? h('span', { class: 'marks' }, p.caught_alpha ? h('span', { title: 'Caught Alpha (your entry)' }, 'α') : null,
     p.owned_shiny ? h('span', { title: 'Owned Shiny (your entry)' }, '✦') : null, p.owned_costume ? h('span', { title: 'Owned Costume (your entry)' }, '♛') : null) : null;
   const unverified = (s.tags || []).includes('unverified');
@@ -307,9 +307,9 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
     'aria-label': label, title: density === 'compact' ? label : null, onclick: () => onOpen(s), onkeydown: onKey || null },
   h('span', { class: 'num' }, '#' + pad3(s.id)),
   s.form_key ? h('span', { class: 'form-badge', title: s.own_sprite ? 'Alternate form' : 'Alternate form — shown with the base sprite (no separate sprite in your client data)' }, s.own_sprite ? 'form' : 'form*') : null,
-  unverified ? h('span', { class: 'qmark', title: 'PokeMMO acquisition not verified yet' }, '?') : null,
+  unverified && density !== 'compact' ? h('span', { class: 'qmark', title: 'PokeMMO acquisition not verified yet' }, '?') : null,
   density !== 'compact' ? favButton(s) : null, marks, sprite,
-  density !== 'compact' ? h('div', { class: 'nm' + (unseen ? ' muted' : '') }, s.name) : null,
+  h('div', { class: 'nm' + (unseen ? ' muted' : '') }, s.name),
   density !== 'compact' ? h('div', { class: 'types' }, s.types.map((t) => typeChip(t, true))) : null,
   density === 'large' ? h('div', { class: 'avail' }, s.avail + (s.bst ? ` · BST ${s.bst}` : '')) :
     density === 'standard' ? h('div', { class: 'avail' }, absent ? 'Not listed (your check)' : s.avail) : null);
