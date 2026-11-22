@@ -33,6 +33,14 @@ One ordinary desktop Companion main window beside/on another monitor, with optio
 17. [Settings, character management and per-window preferences](16-SETTINGS-AND-RUN-MANAGEMENT.md)
 18. [Guide source verification, progress migration and QA](17-GUIDES-ACCURACY-AND-QA.md)
 
+19. [Connected Item Library, Notes, My Pokémon, Showcase, custom Guides and maps](18-ITEMS-NOTES-BOX-SHOWCASE-GUIDES-AND-MAPS.md)
+
+## Latest video review and roadmap
+- [Second v0.1.0 build review](../reviews/2026-11-22-second-build-video-and-references.md)
+- [PokeMMO availability source contradiction](../research/phase-4/00-POKEDEX-ACCURACY-CORRECTIONS.md)
+- [Feature staging and post-1.0 OCR/Android](../roadmap/00-2026-11-22-FEATURE-STAGING.md)
+- [Next Claude engineering handoff](../build/07-V0.1.0-ACCURACY-AND-FOUNDATIONS.md)
+
 ## Open approvals
 - Exact actual Better Default preset colours and layout measurements still need locally readable theme package, not inferred hex codes.
 - Confirm final design layout after user review; no generated previews unless requested.
