@@ -18,6 +18,9 @@ git clone -b develop https://github.com/haqzo/PokeMMO-Companion.git && cd PokeMM
 ```
 If your PokeMMO dumps are in a known folder (e.g. `~/Documents/PokeMMO-Companion/Pokemmo-Dumps`), Home offers a one-click **Install**; otherwise import them in **Settings › Data & privacy**. They stay on your computer and are never modified. Close the Companion before `git pull` and relaunch. Requires Python 3.10+. Windows: `run.ps1` (untested).
 
+## Current Claude recovery / complete decision handoff
+Read [all post-limit owner decisions and approved scope](docs/build/09-V0.1.0-COMPLETE-DECISION-CHECKPOINT.md), then the [full coding/recovery assignment](docs/build/08-V0.1.0-RECOVERY-AND-APPROVED-UPGRADES.md). This supersedes older, conflicting first-prototype instructions. The v0.1.0 continuation has NOT been declared complete by documentation alone.
+
 ## v0.1.0 development plan
 [Full first-pass scope and acceptance criteria](docs/build/00-V0.1.0-FIRST-PASS-PLAN.md) | [Claude coding handoff](docs/build/01-CLAUDE-V0.1.0-KICKOFF.md) | [User video review](docs/build/02-V0.1.0-VIDEO-REVIEW-CHECKLIST.md)
 

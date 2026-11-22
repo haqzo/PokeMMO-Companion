@@ -10,6 +10,7 @@
 - [**Correction pass report: update/run, changes, tests, still unverified, next video**](05-V0.1.0-CORRECTION-PASS-REPORT.md)
 
 - [**Second video audit, source contradiction and next features**](../reviews/2026-11-22-second-build-video-and-references.md)
+- [**AUTHORITATIVE CHECKPOINT — all decisions after Claude limit, old-vs-new reconciliation**](09-V0.1.0-COMPLETE-DECISION-CHECKPOINT.md)
 - [**CURRENT CLAUDE HANDOFF — full recovery, mechanics upgrades, Websites & Favorites, and keyboard shortcuts (v0.1.0)**](08-V0.1.0-RECOVERY-AND-APPROVED-UPGRADES.md)
 - [**NEW approved design — Websites & Favorites / keyboard shortcuts**](../design/20-WEBSITES-LINKS-AND-KEYBOARD-SHORTCUTS.md)
 - [Previous accuracy and connected-features assignment](07-V0.1.0-ACCURACY-AND-FOUNDATIONS.md)
