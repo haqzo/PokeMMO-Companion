@@ -16,11 +16,12 @@ TABLES = ["runs", "run_regions", "step_status", "favourites", "notes", "document
           "cave_observations", "dex_progress", "roster_checks",
           # v3 connected tools
           "lib_notes", "note_links", "item_user", "owned_pokemon", "showcases", "custom_guides", "custom_guide_steps",
-          "guide_cycles", "guide_cycle_marks", "media", "dex_observations"]
+          "guide_cycles", "guide_cycle_marks", "media", "dex_observations", "bookmarks"]
 # Tables copied verbatim on import (stable string ids; merge keeps existing rows with the same key).
 GENERIC = {"lib_notes": ("id",), "note_links": ("note_id", "kind", "ref"), "item_user": ("item_id",),
            "owned_pokemon": ("id",), "showcases": ("id",), "custom_guides": ("id",), "custom_guide_steps": ("id",),
-           "guide_cycles": ("id",), "guide_cycle_marks": ("cycle_id", "step_id"), "media": ("id",), "dex_observations": ("id",)}
+           "guide_cycles": ("id",), "guide_cycle_marks": ("cycle_id", "step_id"), "media": ("id",), "dex_observations": ("id",),
+           "bookmarks": ("id",)}
 
 
 def export_all(db: Storage) -> dict:

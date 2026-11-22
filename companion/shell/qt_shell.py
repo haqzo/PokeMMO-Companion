@@ -37,7 +37,8 @@ log = logging.getLogger("companion.qt")
 
 TOOL_TITLES = {"storyline": "Storyline", "pokedex": "Pokédex", "reports": "Alpha & Swarm reports",
                "typechart": "Type matchups", "breeding": "Breeding", "legendaries": "Legendaries",
-               "cave": "Altering Cave", "natures": "Natures"}
+               "cave": "Altering Cave", "natures": "Natures", "notes": "Notes", "items": "Item Library",
+               "showcase": "Showcase", "customguide": "My guide", "locations": "Locations", "box": "My Box"}
 
 QSS = """
 QWidget#bar { background: rgba(30, 36, 55, 242); border-top-left-radius: 10px; border-top-right-radius: 10px;
@@ -614,6 +615,21 @@ class QtShell:
             p = self.popouts[tool]
             p.showNormal()
             p.raise_()
+        elif a == "toggle_popout" and tool in TOOL_TITLES:
+            p = self.popouts.get(tool)
+            if p is not None and p.isVisible() and not p.isMinimized():
+                p.close()
+            else:
+                self.open_popout(tool, self.ctx.settings.get(f"window.{tool}.mode"), cmd.get("hash") or "")
+        elif a == "open_url":
+            from ..services.bookmarks import BookmarkError, normalize_url
+            try:
+                url = normalize_url(cmd.get("url", ""))
+            except BookmarkError:
+                return
+            ok = QDesktopServices.openUrl(QUrl(url))
+            if not ok:
+                self.ctx.bus.publish("toast", {"title": "Could not open your browser", "body": url})
         elif a == "minimize" and tool in self.popouts:
             self.popouts[tool].showMinimized()
         elif a in ("focus_main", "navigate_main"):

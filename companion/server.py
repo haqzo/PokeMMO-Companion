@@ -170,7 +170,9 @@ def build_router(ctx: AppContext) -> Router:
 
     def dex_list(req: Request) -> dict:
         run = progress_run(req)
-        return {"species": ctx.dex.summaries(favs(), ctx.dex_progress(run)), "status": ctx.dex.status(),
+        prog = ctx.dex_progress(run)
+        return {"species": ctx.dex.summaries(favs(), prog), "forms": ctx.dex.catalog_forms(favs(), prog),
+                "forms_version": ctx.dex.forms_doc["version"], "status": ctx.dex.status(),
                 "registry": {k: ctx.dex.registry[k] for k in ("registry_version", "checked_at")},
                 "filter_tags": FILTER_TAGS, "observations": ctx.dex.registry.get("observations", []), "progress_run": run}
     r.add("GET", "/api/dex/species", dex_list)
@@ -249,8 +251,23 @@ def build_router(ctx: AppContext) -> Router:
         if run:
             d["progress"] = (ctx.dex_progress(run) or {}).get(sid) or {"status": "unregistered"}
             d["progress_run"] = run
+        d["forms"] = ctx.dex.species_forms(sid)
+        fk = req.q("form")
+        if fk:
+            f = ctx.dex.form_entry(f"{sid}:{fk}")
+            if not f:
+                raise ApiError(404, "Unknown form")
+            d["form"] = f
+            d["form_matchups"] = ctx.dex.type_matchups(f["types"])
+        d["library_notes"] = ctx.notes.list(state="active", kind="species", ref_=str(sid))["notes"]
+        d["box_entries"] = [e for e in ctx.box.list() if e["species_id"] == sid]
         return d
     r.add("GET", "/api/dex/species/<sid>", dex_detail)
+
+    def dex_parity(req: Request) -> dict:
+        ref_doc = json.loads((Path(__file__).parent / "data" / "catalog_reference_synergy.json").read_text(encoding="utf-8"))
+        return ctx.dex.parity(ref_doc)
+    r.add("GET", "/api/dex/catalog/parity", dex_parity)
 
     def fav_set(req: Request) -> dict:
         sid = int_param(req.params["sid"], "species id")
@@ -523,6 +540,27 @@ def build_router(ctx: AppContext) -> Router:
     r.add("GET", "/api/guides/runs/<rid>/state", run_state)
     r.add("POST", "/api/guides/runs/<rid>/steps", run_steps)
     r.add("POST", "/api/guides/runs/<rid>/mark-through", run_mark_through)
+
+    _recent_actions: dict[str, float] = {}
+
+    def run_action(req: Request) -> dict:
+        import time as _t
+        nonce = str(req.json("nonce") or "")[:40]
+        now = _t.monotonic()
+        for k in [k for k, v in _recent_actions.items() if now - v > 10]:
+            _recent_actions.pop(k, None)
+        if nonce and nonce in _recent_actions:  # the same key press delivered twice (two windows / retries)
+            return {"ok": False, "duplicate": True, "message": "Ignored a repeated key press."}
+        if nonce:
+            _recent_actions[nonce] = now
+        try:
+            res = G.step_action(req.params["rid"], req.json("region"), str(req.json("action")), req.json("expect_step"))
+        except GuideError as exc:
+            raise ApiError(400, str(exc))
+        if res.get("ok"):
+            ctx.bus.publish("guides", {"run": req.params["rid"], "action": req.json("action")}, origin=req.q("origin"))
+        return res
+    r.add("POST", "/api/guides/runs/<rid>/action", run_action)
     r.add("POST", "/api/guides/runs/<rid>/undo", run_undo)
     r.add("POST", "/api/guides/runs/<rid>/acknowledge", run_ack)
     r.add("GET", "/api/guides/runs/<rid>/overview", lambda req: G.overview(req.params["rid"]))
@@ -547,7 +585,7 @@ def build_router(ctx: AppContext) -> Router:
     def shell_cmd(req: Request) -> dict:
         cmd = req.body or {}
         allowed = {"open_popout", "close_popout", "pin", "window_opacity", "mode", "lock", "focus_main",
-                   "navigate_main", "minimize", "quit", "pick_folder", "toast_preview", "raise_popout"}
+                   "navigate_main", "minimize", "quit", "pick_folder", "toast_preview", "raise_popout", "toggle_popout"}
         if cmd.get("action") not in allowed:
             raise ApiError(400, "Unknown shell action")
         return ctx.shell.submit(cmd)

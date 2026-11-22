@@ -63,6 +63,7 @@ DEFAULTS: dict[str, Any] = {
     "pokedex.density": "standard",           # compact | standard | large
     "pokedex.progress_run": None,            # run id whose manual registration is shown, or None (= not tracked)
     # Language (UI strings; game item names from your own client strings when available). English fallback.
+    "pokedex.catalog": "forms",              # forms (649 species + alternate forms, default) | species
     "app.language": "en",
     "app.toolbar": ["language"],             # optional toolbar actions: language, notes (quick new note)
     # Connected tools
@@ -72,6 +73,10 @@ DEFAULTS: dict[str, Any] = {
     "showcase.active": None,                 # showcase id shown by the Showcase popout
     "customguide.active": None,              # custom guide shown by the Guide steps popout
     "box.view": "grid",                      # grid | list
+    # Keyboard shortcuts (docs/design/20 §B): stable action id -> combo; focused Companion windows only.
+    "shortcuts.bindings": None,              # None = registered defaults
+    "shortcuts.enabled": True,
+    "shortcuts.global": False,               # system-wide hotkeys are NOT implemented; kept off
 }
 
 for _tool in TOOLS:
@@ -96,6 +101,7 @@ _ENUMS = {
     "pokedex.scope": ("pokemmo", "reference"),
     "pokedex.density": ("compact", "standard", "large"),
     "app.language": LANGUAGES,
+    "pokedex.catalog": ("forms", "species"),
     "notes.sort": ("updated", "created", "title"),
     "box.view": ("grid", "list"),
 }
@@ -132,6 +138,8 @@ def validate(key: str, value: Any) -> Any:
         except (TypeError, ValueError) as exc:
             raise SettingsError(f"{key} must be a number") from exc
         return max(lo, min(hi, v))
+    if key == "shortcuts.global" and value:
+        raise SettingsError("System-wide shortcuts are not available in v0.1.0; shortcuts work while a Companion window is focused.")
     if isinstance(default, bool):
         if not isinstance(value, bool):
             raise SettingsError(f"{key} must be true/false")
@@ -160,6 +168,16 @@ def validate(key: str, value: Any) -> Any:
             if mode in MODES and isinstance(g, dict):
                 out[mode] = {"w": max(220, min(4000, int(g.get("w", 400)))), "h": max(160, min(3000, int(g.get("h", 400))))}
         return out
+    if key == "shortcuts.bindings":
+        if value is None:
+            return None
+        from .data.shortcuts import validate_bindings
+        try:
+            return validate_bindings(value)
+        except ValueError as exc:
+            raise SettingsError(str(exc))
+    if key == "shortcuts.global" and value:
+        raise SettingsError("System-wide shortcuts are not available in v0.1.0; shortcuts work while a Companion window is focused.")
     if key == "app.toolbar":
         allowed = ("language", "notes")
         if not isinstance(value, list) or any(v not in allowed for v in value):

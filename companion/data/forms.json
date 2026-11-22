@@ -1,0 +1,928 @@
+{
+ "format": 1,
+ "version": "2026-11-22.1",
+ "about": "Independent, authored list of Gen I–V alternate forms (facts: names, types, base stats, abilities). Written for the Companion from general Pokémon knowledge and cross-checked at runtime against the user's own PokeMMO client form records when installed. Not copied from Synergy or any other site's dataset. A form appearing here says nothing about whether it can be obtained in PokeMMO.",
+ "kinds": {
+  "battle": "Battle form (different types/stats or in-battle change)",
+  "cosmetic": "Cosmetic variant (same stats and types)",
+  "season": "Seasonal appearance",
+  "plate": "Type follows held Plate",
+  "drive": "Held Drive",
+  "fusion": "Fusion",
+  "letter": "Letter"
+ },
+ "base_form_names": {
+  "386": "Normal Forme",
+  "413": "Plant Cloak",
+  "550": "Red-Striped Form",
+  "555": "Standard Mode",
+  "487": "Altered Forme",
+  "492": "Land Forme",
+  "641": "Incarnate Forme",
+  "642": "Incarnate Forme",
+  "645": "Incarnate Forme",
+  "647": "Ordinary Form",
+  "648": "Aria Forme",
+  "412": "Plant Cloak",
+  "422": "West Sea",
+  "423": "West Sea",
+  "585": "Spring Form",
+  "586": "Spring Form",
+  "351": "Normal Form",
+  "479": "Rotom",
+  "201": "A",
+  "421": "Overcast Form",
+  "493": "Normal",
+  "649": "Genesect",
+  "646": "Kyurem"
+ },
+ "base_aliases": {
+  "386": "normal",
+  "413": "plant",
+  "550": "red-striped",
+  "555": "standard",
+  "487": "altered",
+  "492": "land",
+  "641": "incarnate",
+  "642": "incarnate",
+  "645": "incarnate",
+  "647": "ordinary",
+  "648": "aria"
+ },
+ "forms": [
+  {
+   "species_id": 201,
+   "form_key": "b",
+   "form_name": "B",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "c",
+   "form_name": "C",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "d",
+   "form_name": "D",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "e",
+   "form_name": "E",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "f",
+   "form_name": "F",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "g",
+   "form_name": "G",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "h",
+   "form_name": "H",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "i",
+   "form_name": "I",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "j",
+   "form_name": "J",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "k",
+   "form_name": "K",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "l",
+   "form_name": "L",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "m",
+   "form_name": "M",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "n",
+   "form_name": "N",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "o",
+   "form_name": "O",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "p",
+   "form_name": "P",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "q",
+   "form_name": "Q",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "r",
+   "form_name": "R",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "s",
+   "form_name": "S",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "t",
+   "form_name": "T",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "u",
+   "form_name": "U",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "v",
+   "form_name": "V",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "w",
+   "form_name": "W",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "x",
+   "form_name": "X",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "y",
+   "form_name": "Y",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "z",
+   "form_name": "Z",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "exclamation",
+   "form_name": "!",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 201,
+   "form_key": "question",
+   "form_name": "?",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 351,
+   "form_key": "sunny",
+   "form_name": "Sunny Form",
+   "kind": "battle",
+   "types": [
+    "fire"
+   ],
+   "abilities": [
+    "Forecast"
+   ],
+   "client_record": 662,
+   "note": "Changes in harsh sunlight during battle (Forecast)."
+  },
+  {
+   "species_id": 351,
+   "form_key": "rainy",
+   "form_name": "Rainy Form",
+   "kind": "battle",
+   "types": [
+    "water"
+   ],
+   "abilities": [
+    "Forecast"
+   ],
+   "client_record": 663,
+   "note": "Changes in rain during battle (Forecast)."
+  },
+  {
+   "species_id": 351,
+   "form_key": "snowy",
+   "form_name": "Snowy Form",
+   "kind": "battle",
+   "types": [
+    "ice"
+   ],
+   "abilities": [
+    "Forecast"
+   ],
+   "client_record": 664,
+   "note": "Changes in hail during battle (Forecast)."
+  },
+  {
+   "species_id": 386,
+   "form_key": "attack",
+   "form_name": "Attack Forme",
+   "kind": "battle",
+   "stats": {
+    "hp": 50,
+    "attack": 180,
+    "defense": 20,
+    "sp_attack": 180,
+    "sp_defense": 20,
+    "speed": 150
+   },
+   "client_record": 650
+  },
+  {
+   "species_id": 386,
+   "form_key": "defense",
+   "form_name": "Defense Forme",
+   "kind": "battle",
+   "stats": {
+    "hp": 50,
+    "attack": 70,
+    "defense": 160,
+    "sp_attack": 70,
+    "sp_defense": 160,
+    "speed": 90
+   },
+   "client_record": 651
+  },
+  {
+   "species_id": 386,
+   "form_key": "speed",
+   "form_name": "Speed Forme",
+   "kind": "battle",
+   "stats": {
+    "hp": 50,
+    "attack": 95,
+    "defense": 90,
+    "sp_attack": 95,
+    "sp_defense": 90,
+    "speed": 180
+   },
+   "client_record": 652
+  },
+  {
+   "species_id": 412,
+   "form_key": "sandy",
+   "form_name": "Sandy Cloak",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 412,
+   "form_key": "trash",
+   "form_name": "Trash Cloak",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 413,
+   "form_key": "sandy",
+   "form_name": "Sandy Cloak",
+   "kind": "battle",
+   "types": [
+    "bug",
+    "ground"
+   ],
+   "stats": {
+    "hp": 60,
+    "attack": 79,
+    "defense": 105,
+    "sp_attack": 59,
+    "sp_defense": 85,
+    "speed": 36
+   },
+   "client_record": 653
+  },
+  {
+   "species_id": 413,
+   "form_key": "trash",
+   "form_name": "Trash Cloak",
+   "kind": "battle",
+   "types": [
+    "bug",
+    "steel"
+   ],
+   "stats": {
+    "hp": 60,
+    "attack": 69,
+    "defense": 95,
+    "sp_attack": 69,
+    "sp_defense": 95,
+    "speed": 36
+   },
+   "client_record": 654
+  },
+  {
+   "species_id": 421,
+   "form_key": "sunshine",
+   "form_name": "Sunshine Form",
+   "kind": "battle",
+   "note": "Appears in harsh sunlight during battle (Flower Gift)."
+  },
+  {
+   "species_id": 422,
+   "form_key": "east",
+   "form_name": "East Sea",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 423,
+   "form_key": "east",
+   "form_name": "East Sea",
+   "kind": "cosmetic"
+  },
+  {
+   "species_id": 479,
+   "form_key": "heat",
+   "form_name": "Heat Rotom",
+   "kind": "battle",
+   "types": [
+    "electric",
+    "fire"
+   ],
+   "stats": {
+    "hp": 50,
+    "attack": 65,
+    "defense": 107,
+    "sp_attack": 105,
+    "sp_defense": 107,
+    "speed": 86
+   },
+   "abilities": [
+    "Levitate"
+   ],
+   "client_record": 657
+  },
+  {
+   "species_id": 479,
+   "form_key": "wash",
+   "form_name": "Wash Rotom",
+   "kind": "battle",
+   "types": [
+    "electric",
+    "water"
+   ],
+   "stats": {
+    "hp": 50,
+    "attack": 65,
+    "defense": 107,
+    "sp_attack": 105,
+    "sp_defense": 107,
+    "speed": 86
+   },
+   "abilities": [
+    "Levitate"
+   ],
+   "client_record": 658
+  },
+  {
+   "species_id": 479,
+   "form_key": "frost",
+   "form_name": "Frost Rotom",
+   "kind": "battle",
+   "types": [
+    "electric",
+    "ice"
+   ],
+   "stats": {
+    "hp": 50,
+    "attack": 65,
+    "defense": 107,
+    "sp_attack": 105,
+    "sp_defense": 107,
+    "speed": 86
+   },
+   "abilities": [
+    "Levitate"
+   ],
+   "client_record": 659
+  },
+  {
+   "species_id": 479,
+   "form_key": "fan",
+   "form_name": "Fan Rotom",
+   "kind": "battle",
+   "types": [
+    "electric",
+    "flying"
+   ],
+   "stats": {
+    "hp": 50,
+    "attack": 65,
+    "defense": 107,
+    "sp_attack": 105,
+    "sp_defense": 107,
+    "speed": 86
+   },
+   "abilities": [
+    "Levitate"
+   ],
+   "client_record": 660
+  },
+  {
+   "species_id": 479,
+   "form_key": "mow",
+   "form_name": "Mow Rotom",
+   "kind": "battle",
+   "types": [
+    "electric",
+    "grass"
+   ],
+   "stats": {
+    "hp": 50,
+    "attack": 65,
+    "defense": 107,
+    "sp_attack": 105,
+    "sp_defense": 107,
+    "speed": 86
+   },
+   "abilities": [
+    "Levitate"
+   ],
+   "client_record": 661
+  },
+  {
+   "species_id": 487,
+   "form_key": "origin",
+   "form_name": "Origin Forme",
+   "kind": "battle",
+   "stats": {
+    "hp": 150,
+    "attack": 120,
+    "defense": 100,
+    "sp_attack": 120,
+    "sp_defense": 100,
+    "speed": 90
+   },
+   "abilities": [
+    "Levitate"
+   ],
+   "client_record": 656,
+   "note": "Requires the Griseous Orb in mainline games; PokeMMO item handling not verified."
+  },
+  {
+   "species_id": 492,
+   "form_key": "sky",
+   "form_name": "Sky Forme",
+   "kind": "battle",
+   "types": [
+    "grass",
+    "flying"
+   ],
+   "stats": {
+    "hp": 100,
+    "attack": 103,
+    "defense": 75,
+    "sp_attack": 120,
+    "sp_defense": 75,
+    "speed": 127
+   },
+   "abilities": [
+    "Serene Grace"
+   ],
+   "client_record": 655,
+   "note": "Uses the Gracidea in mainline games; PokeMMO handling not verified."
+  },
+  {
+   "species_id": 493,
+   "form_key": "fighting",
+   "form_name": "Fighting",
+   "kind": "plate",
+   "types": [
+    "fighting"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "flying",
+   "form_name": "Flying",
+   "kind": "plate",
+   "types": [
+    "flying"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "poison",
+   "form_name": "Poison",
+   "kind": "plate",
+   "types": [
+    "poison"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "ground",
+   "form_name": "Ground",
+   "kind": "plate",
+   "types": [
+    "ground"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "rock",
+   "form_name": "Rock",
+   "kind": "plate",
+   "types": [
+    "rock"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "bug",
+   "form_name": "Bug",
+   "kind": "plate",
+   "types": [
+    "bug"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "ghost",
+   "form_name": "Ghost",
+   "kind": "plate",
+   "types": [
+    "ghost"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "steel",
+   "form_name": "Steel",
+   "kind": "plate",
+   "types": [
+    "steel"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "fire",
+   "form_name": "Fire",
+   "kind": "plate",
+   "types": [
+    "fire"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "water",
+   "form_name": "Water",
+   "kind": "plate",
+   "types": [
+    "water"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "grass",
+   "form_name": "Grass",
+   "kind": "plate",
+   "types": [
+    "grass"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "electric",
+   "form_name": "Electric",
+   "kind": "plate",
+   "types": [
+    "electric"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "psychic",
+   "form_name": "Psychic",
+   "kind": "plate",
+   "types": [
+    "psychic"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "ice",
+   "form_name": "Ice",
+   "kind": "plate",
+   "types": [
+    "ice"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "dragon",
+   "form_name": "Dragon",
+   "kind": "plate",
+   "types": [
+    "dragon"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 493,
+   "form_key": "dark",
+   "form_name": "Dark",
+   "kind": "plate",
+   "types": [
+    "dark"
+   ],
+   "note": "Arceus's type follows its held Plate (Multitype)."
+  },
+  {
+   "species_id": 550,
+   "form_key": "blue-striped",
+   "form_name": "Blue-Striped Form",
+   "kind": "battle",
+   "abilities": [
+    "Rock Head",
+    "Adaptability",
+    "Mold Breaker"
+   ],
+   "client_record": 665
+  },
+  {
+   "species_id": 555,
+   "form_key": "zen",
+   "form_name": "Zen Mode",
+   "kind": "battle",
+   "types": [
+    "fire",
+    "psychic"
+   ],
+   "stats": {
+    "hp": 105,
+    "attack": 30,
+    "defense": 105,
+    "sp_attack": 140,
+    "sp_defense": 105,
+    "speed": 55
+   },
+   "abilities": [
+    "Zen Mode"
+   ],
+   "client_record": 666,
+   "note": "In-battle mode at half HP or less (Zen Mode ability)."
+  },
+  {
+   "species_id": 585,
+   "form_key": "summer",
+   "form_name": "Summer Form",
+   "kind": "season",
+   "note": "Appearance follows the season; same stats and types."
+  },
+  {
+   "species_id": 585,
+   "form_key": "autumn",
+   "form_name": "Autumn Form",
+   "kind": "season",
+   "note": "Appearance follows the season; same stats and types."
+  },
+  {
+   "species_id": 585,
+   "form_key": "winter",
+   "form_name": "Winter Form",
+   "kind": "season",
+   "note": "Appearance follows the season; same stats and types."
+  },
+  {
+   "species_id": 586,
+   "form_key": "summer",
+   "form_name": "Summer Form",
+   "kind": "season",
+   "note": "Appearance follows the season; same stats and types."
+  },
+  {
+   "species_id": 586,
+   "form_key": "autumn",
+   "form_name": "Autumn Form",
+   "kind": "season",
+   "note": "Appearance follows the season; same stats and types."
+  },
+  {
+   "species_id": 586,
+   "form_key": "winter",
+   "form_name": "Winter Form",
+   "kind": "season",
+   "note": "Appearance follows the season; same stats and types."
+  },
+  {
+   "species_id": 641,
+   "form_key": "therian",
+   "form_name": "Therian Forme",
+   "kind": "battle",
+   "types": [
+    "flying"
+   ],
+   "stats": {
+    "hp": 79,
+    "attack": 100,
+    "defense": 80,
+    "sp_attack": 110,
+    "sp_defense": 90,
+    "speed": 121
+   },
+   "abilities": [
+    "Regenerator"
+   ],
+   "note": "Mainline forme via the Reveal Glass. Your PokeMMO client dump has no separate record for it."
+  },
+  {
+   "species_id": 642,
+   "form_key": "therian",
+   "form_name": "Therian Forme",
+   "kind": "battle",
+   "types": [
+    "electric",
+    "flying"
+   ],
+   "stats": {
+    "hp": 79,
+    "attack": 105,
+    "defense": 70,
+    "sp_attack": 145,
+    "sp_defense": 80,
+    "speed": 101
+   },
+   "abilities": [
+    "Volt Absorb"
+   ],
+   "note": "Mainline forme via the Reveal Glass. Your PokeMMO client dump has no separate record for it."
+  },
+  {
+   "species_id": 645,
+   "form_key": "therian",
+   "form_name": "Therian Forme",
+   "kind": "battle",
+   "types": [
+    "ground",
+    "flying"
+   ],
+   "stats": {
+    "hp": 89,
+    "attack": 145,
+    "defense": 90,
+    "sp_attack": 105,
+    "sp_defense": 80,
+    "speed": 91
+   },
+   "abilities": [
+    "Intimidate"
+   ],
+   "note": "Mainline forme via the Reveal Glass. Your PokeMMO client dump has no separate record for it."
+  },
+  {
+   "species_id": 646,
+   "form_key": "black",
+   "form_name": "Black Kyurem",
+   "kind": "fusion",
+   "types": [
+    "dragon",
+    "ice"
+   ],
+   "stats": {
+    "hp": 125,
+    "attack": 170,
+    "defense": 100,
+    "sp_attack": 120,
+    "sp_defense": 90,
+    "speed": 95
+   },
+   "abilities": [
+    "Teravolt"
+   ],
+   "note": "Mainline fusion with Zekrom (DNA Splicers). No separate record in your PokeMMO client dump."
+  },
+  {
+   "species_id": 646,
+   "form_key": "white",
+   "form_name": "White Kyurem",
+   "kind": "fusion",
+   "types": [
+    "dragon",
+    "ice"
+   ],
+   "stats": {
+    "hp": 125,
+    "attack": 120,
+    "defense": 90,
+    "sp_attack": 170,
+    "sp_defense": 100,
+    "speed": 95
+   },
+   "abilities": [
+    "Turboblaze"
+   ],
+   "note": "Mainline fusion with Reshiram (DNA Splicers). No separate record in your PokeMMO client dump."
+  },
+  {
+   "species_id": 647,
+   "form_key": "resolute",
+   "form_name": "Resolute Form",
+   "kind": "battle",
+   "note": "Mainline form when it knows Secret Sword. No separate record in your PokeMMO client dump."
+  },
+  {
+   "species_id": 648,
+   "form_key": "pirouette",
+   "form_name": "Pirouette Forme",
+   "kind": "battle",
+   "types": [
+    "normal",
+    "fighting"
+   ],
+   "stats": {
+    "hp": 100,
+    "attack": 128,
+    "defense": 90,
+    "sp_attack": 77,
+    "sp_defense": 77,
+    "speed": 128
+   },
+   "abilities": [
+    "Serene Grace"
+   ],
+   "client_record": 667,
+   "note": "In-battle form change via Relic Song."
+  },
+  {
+   "species_id": 649,
+   "form_key": "douse",
+   "form_name": "Douse Drive",
+   "kind": "drive",
+   "note": "Drives only change Techno Blast's type; same stats and types."
+  },
+  {
+   "species_id": 649,
+   "form_key": "shock",
+   "form_name": "Shock Drive",
+   "kind": "drive",
+   "note": "Drives only change Techno Blast's type; same stats and types."
+  },
+  {
+   "species_id": 649,
+   "form_key": "burn",
+   "form_name": "Burn Drive",
+   "kind": "drive",
+   "note": "Drives only change Techno Blast's type; same stats and types."
+  },
+  {
+   "species_id": 649,
+   "form_key": "chill",
+   "form_name": "Chill Drive",
+   "kind": "drive",
+   "note": "Drives only change Techno Blast's type; same stats and types."
+  }
+ ]
+}

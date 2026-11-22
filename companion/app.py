@@ -12,6 +12,7 @@ from .config import Paths, make_paths
 from .events import EventBus
 from .services.dex import DexService
 from .services.guides import GuideService
+from .services.bookmarks import BookmarkService
 from .services.items import ItemService
 from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
@@ -62,6 +63,8 @@ class AppContext:
         self.showcases = ShowcaseService(self.storage, self.box)
         self.cguides = CustomGuideService(self.storage)
         self.media = MediaService(self.storage, self.paths)
+        self.bookmarks = BookmarkService(self.storage)
+        self._cleanup_removed_features()
         self.news = NewsService(self.storage)
         self.notifier = Notifier()
         self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier)
@@ -87,6 +90,13 @@ class AppContext:
         return {r["species_id"]: {"status": r["status"], "caught_alpha": bool(r["caught_alpha"]),
                                   "owned_shiny": bool(r["owned_shiny"]), "owned_costume": bool(r["owned_costume"])}
                 for r in rows}
+
+    def _cleanup_removed_features(self) -> None:
+        """The Damage calculator was removed in v0.1.0 (owner decision 2026-11-22): drop saved Quick access pins to it."""
+        qa = self.settings.get("nav.quick_access") or []
+        kept = [q for q in qa if not (q.get("kind") == "tool" and q.get("id") == "damage")]
+        if kept != qa:
+            self.settings.update({"nav.quick_access": kept})
 
     def start_background(self) -> None:
         self.live.apply_settings()

@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -120,6 +120,14 @@ MIGRATIONS: dict[int, list[str]] = {
         """CREATE TABLE IF NOT EXISTS dex_observations (
                id TEXT PRIMARY KEY, run_id TEXT, observed_at TEXT NOT NULL, counters TEXT NOT NULL,
                client_note TEXT, created_at TEXT NOT NULL)""",
+    ],
+    # v4: user-managed Websites & links (docs/design/20 §A). Seeds are inserted once by the service
+    # (meta 'bookmarks_seeded'); a deleted or edited default is never re-inserted or overwritten.
+    4: [
+        """CREATE TABLE IF NOT EXISTS bookmarks (
+               id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+               category TEXT NOT NULL DEFAULT 'General', favourite INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL DEFAULT 0,
+               seed_key TEXT, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
     ],
 }
 

@@ -8,6 +8,7 @@ Missing data is reported as unavailable, never invented.
 from __future__ import annotations
 
 import json
+import re
 import threading
 
 from ..config import BUNDLED_DATA_DIR, Paths
@@ -38,6 +39,8 @@ class DexService:
         self.index_meta = {k: v for k, v in idx.items() if k != "species"}
         self.index = {s["id"]: s for s in idx["species"]}
         self.registry = json.loads((BUNDLED_DATA_DIR / "pokemmo_availability.json").read_text(encoding="utf-8"))
+        self.forms_doc = json.loads((BUNDLED_DATA_DIR / "forms.json").read_text(encoding="utf-8"))
+        self.forms = {f"{f['species_id']}:{f['form_key']}": f for f in self.forms_doc["forms"]}
         self.user_checks: dict[int, dict] = {}  # set by the app from storage (your dated in-game checks)
         self.reload()
 
@@ -204,6 +207,95 @@ class DexService:
                 })
             out.append(entry)
         return out
+
+    # ------------------------------------------------------------ forms catalog
+    def form_entry(self, key: str) -> dict | None:
+        """One alternate form with types/stats/abilities resolved: client record (your dump) >
+        bundled manifest > base species. Each value says where it came from."""
+        f = self.forms.get(key)
+        if not f:
+            return None
+        sid = f["species_id"]
+        base = self.index[sid]
+        sp = self.species.get(sid) or {}
+        rec = None
+        if isinstance(f.get("client_record"), int):
+            rec = ((self.extras or {}).get("form_records") or {}).get(str(f["client_record"])) or \
+                  ((self.extras or {}).get("form_records") or {}).get(f["client_record"])
+        def pick(field, base_val):
+            if rec and rec.get(field):
+                return rec[field], "your client dump"
+            if f.get(field):
+                return f[field], "Companion forms manifest"
+            return base_val, "same as base species"
+        types, types_src = pick("types", base["types"])
+        stats, stats_src = pick("stats", sp.get("stats") or {})
+        abil, abil_src = pick("abilities", [a["name"] for a in sp.get("abilities", [])])
+        mismatch = []
+        if rec and f.get("types") and rec.get("types") and sorted(rec["types"]) != sorted(f["types"]):
+            mismatch.append("types")
+        if rec and f.get("stats") and rec.get("stats") and rec["stats"] != f["stats"]:
+            mismatch.append("stats")
+        cid = f.get("client_record") if isinstance(f.get("client_record"), int) else None
+        icon = self.sprite_url(cid, "icon") if cid else None
+        front = self.sprite_url(cid, "front") if cid else None
+        return {"key": key, "id": sid, "form_key": f["form_key"], "form_name": f["form_name"], "kind": f["kind"],
+                "name": (f"Unown {f['form_name']}" if sid == 201 else f["form_name"] if base["name"] in f["form_name"]
+                         else f"{base['name']} ({f['form_name']})"),
+                "types": types, "types_source": types_src, "stats": stats, "stats_source": stats_src,
+                "abilities": abil, "abilities_source": abil_src, "gen": base["gen"], "note": f.get("note"),
+                "client_record": cid, "in_client": bool(rec) if self.imported and cid else None,
+                "own_sprite": bool(icon or front), "icon": icon or self.sprite_url(sid, "icon"),
+                "front": front or self.sprite_url(sid, "front"), "mismatch": mismatch}
+
+    INHERIT_KINDS = ("cosmetic", "season")
+
+    def catalog_forms(self, favourites: set[int] = frozenset(), progress: dict | None = None) -> list[dict]:
+        """Form entries for the browse catalog. Availability is the species' own for cosmetic/seasonal
+        variants and in-battle changes; form changes that need an item or event stay 'unverified'."""
+        out = []
+        for k in self.forms:
+            e = self.form_entry(k)
+            av = self.availability(e["id"])
+            inherit = e["kind"] in self.INHERIT_KINDS or "battle" in (e.get("note") or "").lower()
+            e.update({"entry": k, "fav": e["id"] in favourites, "dex": av["membership"]["state"],
+                      "avail": av["short"] if inherit else "Form change not verified",
+                      "tags": av["tags"] if inherit else ["unverified"], "permanent": av["permanent"] if inherit else None,
+                      "evidence": av["evidence"] if inherit else "UNVERIFIED", "classes": av["classes"] if inherit else ["unknown"],
+                      "bst": sum(e["stats"].values()) if e.get("stats") else None})
+            if progress is not None:
+                e["progress"] = progress.get(e["id"]) or {"status": "unregistered"}
+            out.append(e)
+        return out
+
+    def species_forms(self, sid: int) -> list[dict]:
+        base_name = self.forms_doc.get("base_form_names", {}).get(str(sid))
+        forms = [self.form_entry(k) for k, f in self.forms.items() if f["species_id"] == sid]
+        return ([{"key": str(sid), "form_key": "", "form_name": base_name or "Base form", "base": True}] + forms) if forms else []
+
+    @staticmethod
+    def _slug(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "-", name.lower().replace("♀", "-f").replace("♂", "-m").replace("é", "e")).strip("-")
+
+    def parity(self, reference: dict) -> dict:
+        """Compare the forms manifest with a reference list of entry slugs (e.g. Synergy's public index)."""
+        names = sorted(((self._slug(v["name"]), k) for k, v in self.index.items()), key=lambda x: -len(x[0]))
+        aliases = self.forms_doc.get("base_aliases", {})
+        ref_keys, unresolved = set(), []
+        for slug in reference.get("form_slugs", []):
+            hit = next(((n, sid) for n, sid in names if slug.startswith(n + "-")), None)
+            if not hit:
+                unresolved.append(slug)
+                continue
+            form = slug[len(hit[0]) + 1:]
+            ref_keys.add(f"{hit[1]}:" + ("" if aliases.get(str(hit[1])) == form else form))
+        ours = set(self.forms) | {f"{sid}:" for sid in map(int, aliases)}
+        ref_extra = sorted(ref_keys - ours)
+        missing = sorted(ours - ref_keys)
+        return {"reference": reference.get("source"), "observed_at": reference.get("observed_at"),
+                "reference_total": reference.get("entries_total"), "ours_total": len(self.index) + len(self.forms),
+                "species": len(self.index), "forms": len(self.forms), "missing_here": ref_extra, "not_in_reference": missing,
+                "unresolved_reference_slugs": unresolved, "match": not ref_extra and not missing and not unresolved}
 
     def roster_report(self, observations: list[dict] | None = None) -> dict:
         """Availability report by axis. Observed in-game counters are listed as dated observations only —

@@ -247,12 +247,25 @@ def normalise_dex(monsters: list[dict], skills: list[dict], items: list[dict]) -
             "moves": moves, "locations": locs,
         }
     internal = [{"id": m["id"], "name": m["name"]} for m in monsters if m["id"] > 649]
+    # Client form records (e.g. 650–667: Deoxys formes, Rotom appliances…). Kept so the bundled forms
+    # manifest can be cross-checked against the user's own client; never redistributed.
+    form_records = {}
+    for m in monsters:
+        if 649 < m["id"] < 1000:
+            types = []
+            for t in m.get("types", []):
+                if t and t.lower() not in types:
+                    types.append(t.lower())
+            form_records[m["id"]] = {"name": m["name"], "types": types, "stats": m.get("stats") or {},
+                                     "abilities": [a.get("name") for a in m.get("abilities", []) if a.get("name")],
+                                     "base_species": next((f_id for f_id, mm in by_id.items() if f_id <= 649 and any(
+                                         f.get("id") == m["id"] for f in mm.get("forms", []))), None)}
     breeding_items = {}
     for i in items:
         if i["name"] in ("Everstone", "Power Weight", "Power Bracer", "Power Belt", "Power Lens",
                          "Power Band", "Power Anklet", "Destiny Knot"):
             breeding_items[i["name"]] = {"id": i["id"], "icon_id": i.get("icon_id"), "desc": i.get("desc")}
-    return {"species": species, "internal_records": internal, "missing_move_meta": missing_moves,
+    return {"species": species, "internal_records": internal, "form_records": form_records, "missing_move_meta": missing_moves,
             "breeding_items": breeding_items,
             "skills": [{"id": s["id"], "name": s["name"], "type": s["type"].lower(),
                         "category": s["skill_damage_type"], "power": s["base_power"],
@@ -319,7 +332,7 @@ def build_sprite_manifest(icons_dir: Path, battle_dir: Path) -> dict:
     icons = {p.name for p in icons_dir.glob("*.png")} if icons_dir.exists() else set()
     battle = {p.name for p in battle_dir.glob("*.png")} if battle_dir.exists() else set()
     manifest = {}
-    for sid in range(1, 650):
+    for sid in list(range(1, 650)) + list(range(650, 1000)):
         def first(cands, pool):
             return next((c for c in cands if c in pool), None)
         entry = {
@@ -330,7 +343,9 @@ def build_sprite_manifest(icons_dir: Path, battle_dir: Path) -> dict:
             "front_f": first([f"{sid}-front-n-f.png"], battle),
             "front_shiny": first([f"{sid}-front-s.png", f"{sid}-front-s-m.png", f"{sid}-front-s-f.png"], battle),
         }
-        manifest[sid] = {k: v for k, v in entry.items() if v}
+        found = {k: v for k, v in entry.items() if v}
+        if sid <= 649 or found:
+            manifest[sid] = found
     return manifest
 
 
@@ -495,8 +510,9 @@ def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None 
                                "items_missing_icon": catalog["stats"]["missing_icon"]})
     sprites = build_sprite_manifest(assets_tmp / "icons", assets_tmp / "battle")
     (tmp / "sprites.json").write_text(json.dumps(sprites), encoding="utf-8")
-    manifest["counts"]["species_with_icon"] = sum(1 for v in sprites.values() if "icon" in v)
-    manifest["counts"]["species_with_front"] = sum(1 for v in sprites.values() if "front" in v)
+    manifest["counts"]["species_with_icon"] = sum(1 for k, v in sprites.items() if k <= 649 and "icon" in v)
+    manifest["counts"]["species_with_front"] = sum(1 for k, v in sprites.items() if k <= 649 and "front" in v)
+    manifest["counts"]["form_records_with_sprite"] = sum(1 for k, v in sprites.items() if k > 649 and "front" in v)
     (tmp / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
 
     # Atomic-ish swap: keep previous import as .prev until the new one is in place.

@@ -301,4 +301,90 @@ def register(r, ctx, ApiError, Request) -> None:
         return {"deleted": n > 0}
     add("DELETE", "/api/dex/observations/<oid>", obs_del)
 
+    # ---------------------------------------------------------- bookmarks
+    from .services.bookmarks import BookmarkError
+
+    def bm(fn):
+        def wrap(req):
+            try:
+                return fn(req)
+            except BookmarkError as exc:
+                raise ApiError(400, str(exc))
+        return wrap
+
+    def bm_pub(req, res):
+        bus.publish("bookmarks", {}, origin=req.q("origin"))
+        return res
+    add("GET", "/api/bookmarks", lambda req: ctx.bookmarks.list(req.q("q") or "", req.q("category") or "", req.q("fav") == "1"))
+    add("POST", "/api/bookmarks", bm(lambda req: bm_pub(req, ctx.bookmarks.create(req.body or {}))))
+    add("POST", "/api/bookmarks/order", bm(lambda req: bm_pub(req, ctx.bookmarks.reorder(req.json("ids", [])))))
+    add("POST", "/api/bookmarks/restore-defaults", lambda req: bm_pub(req, ctx.bookmarks.restore_defaults()))
+    add("PATCH", "/api/bookmarks/<bid>", bm(lambda req: bm_pub(req, ctx.bookmarks.update(req.params["bid"], req.body or {}))))
+    add("DELETE", "/api/bookmarks/<bid>", lambda req: bm_pub(req, ctx.bookmarks.delete(req.params["bid"])))
+    add("POST", "/api/bookmarks/<bid>/restore", lambda req: bm_pub(req, ctx.bookmarks.restore(req.params["bid"])))
+
+    def bm_open(req):
+        """Open in the user's default browser. The URL is re-validated from the stored record (never from the request)."""
+        from .services.bookmarks import normalize_url
+        b = ctx.bookmarks.get(req.params["bid"])
+        url = normalize_url(b["url"])
+        if ctx.shell.mode == "qt":
+            ctx.shell.submit({"action": "open_url", "url": url})
+            return {"ok": True, "via": "native", "url": url}
+        import webbrowser
+        try:
+            ok = bool(webbrowser.open(url, new=2))
+        except Exception as exc:  # noqa: BLE001 — report, never pretend success
+            return {"ok": False, "url": url, "message": f"Could not start your browser: {exc}"}
+        return {"ok": ok, "via": "system", "url": url,
+                "message": None if ok else "No default browser could be started. Copy the address instead."}
+    add("POST", "/api/bookmarks/<bid>/open", bm(bm_open))
+
+    # ---------------------------------------------------------- shortcuts
+    from .data import shortcuts as sc
+
+    def sc_list(req):
+        cur = ctx.settings.get("shortcuts.bindings")
+        eff = {**sc.defaults(), **(cur or {})}
+        return {"actions": [{"id": k, "group": v[0], "label": v[1], "default": v[2], "scope": v[3], "binding": eff.get(k)} for k, v in sc.ACTIONS.items()],
+                "reserved": sorted(sc.RESERVED), "enabled": ctx.settings.get("shortcuts.enabled"), "global": False,
+                "global_note": ("System-wide hotkeys are not implemented: on KDE Wayland applications cannot reliably register them, and the "
+                                "Companion never intercepts keys meant for PokeMMO. Shortcuts work while a Companion window (main or popout) has focus.")}
+    add("GET", "/api/shortcuts", sc_list)
+
+    def sc_set(req):
+        aid = req.params["aid"]
+        if aid not in sc.ACTIONS:
+            raise KeyError(aid)
+        cur = {**sc.defaults(), **(ctx.settings.get("shortcuts.bindings") or {})}
+        body = req.body or {}
+        if body.get("reset"):
+            combo = sc.defaults()[aid]
+        else:
+            try:
+                combo = sc.normalize(body.get("binding"))
+            except ValueError as exc:
+                raise ApiError(400, str(exc))
+        if True:
+            clash = next((k for k, v in cur.items() if v and v == combo and k != aid), None)
+            if clash and not body.get("replace"):
+                raise ApiError(409, f"{combo} is already used by “{sc.ACTIONS[clash][1]}”. Choose another key or replace it.")
+            if clash:
+                cur[clash] = None
+            cur[aid] = combo
+        from .settings import SettingsError
+        try:
+            ctx.settings.update({"shortcuts.bindings": cur})
+        except SettingsError as exc:
+            raise ApiError(400, str(exc))
+        bus.publish("settings", {"keys": ["shortcuts.bindings"]})
+        return sc_list(req)
+    add("PUT", "/api/shortcuts/<aid>", sc_set)
+
+    def sc_reset_all(req):
+        ctx.settings.update({"shortcuts.bindings": None})
+        bus.publish("settings", {"keys": ["shortcuts.bindings"]})
+        return sc_list(req)
+    add("POST", "/api/shortcuts/reset", sc_reset_all)
+
     _ = Any

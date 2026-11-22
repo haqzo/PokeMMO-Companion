@@ -239,6 +239,44 @@ class GuideService:
             c.execute("UPDATE runs SET updated_at=? WHERE id=?", (now, run_id))
         return {"changed": changed, "batch": token}
 
+    def step_action(self, run_id: str, region: str | None, action: str, expect_step: str | None = None) -> dict:
+        """Keyboard/guide-control action on the ACTIVE run's current objective (docs/design/20 §B).
+
+        next / prev move the current-step pointer within the visible steps of that region only
+        (never across regions, never completing anything); toggle flips the current step's done
+        state and does not move the pointer. ``expect_step`` guards against acting on a step the
+        user is no longer looking at (another window moved the pointer meanwhile).
+        """
+        if action not in ("next", "prev", "toggle"):
+            raise GuideError("Unknown guide action")
+        run = self.get_run(run_id)
+        region = region or run["last_region"]
+        st = self.state(run_id, region)
+        steps = [x for x in self.steps(region, st["source"]) if st["show_optional"] or x.get("mandatory") is not False]
+        if not steps:
+            return {"ok": False, "message": "This guide has no steps.", "state": st}
+        ids = [x["id"] for x in steps]
+        cur = st["active_step_id"] if st["active_step_id"] in ids else ids[0]
+        if expect_step and expect_step != cur:
+            return {"ok": False, "stale": True, "message": "The current step changed in another window — nothing was changed.", "state": st}
+        i = ids.index(cur)
+        msg = None
+        if action == "toggle":
+            done = cur in set(st["done"])
+            self.set_region_prefs(run_id, region, active_step_id=cur)  # pin the pointer so ticking never moves it
+            self.set_steps(run_id, [cur], not done)
+            msg = ("Unticked" if done else "Ticked") + f": {steps[i]['text'][:80]}"
+        else:
+            j = i + (1 if action == "next" else -1)
+            if j < 0 or j >= len(ids):
+                return {"ok": False, "boundary": "start" if j < 0 else "end",
+                        "message": f"{'First' if j < 0 else 'Last'} step of {region.title()} — nothing changed.", "state": st}
+            self.set_region_prefs(run_id, region, active_step_id=ids[j])
+            msg = f"Step {j + 1} of {len(ids)}: {steps[j]['text'][:80]}"
+        new = self.state(run_id, region)
+        return {"ok": True, "message": msg, "state": new, "step": new["active_step_id"],
+                "done": new["active_step_id"] in set(new["done"])}
+
     def mark_through(self, run_id: str, region: str, step_id: str, preview: bool = False) -> dict:
         st = self.state(run_id, region)
         steps = self.steps(region, st["source"])

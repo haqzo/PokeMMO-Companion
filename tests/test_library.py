@@ -224,7 +224,7 @@ def test_v2_database_migrates_to_v3_keeping_progress(tmp_path):
     con.execute("INSERT INTO notes(species_id, body, updated_at) VALUES(25, 'keep me', 't')")
     con.commit(); con.close()
     s = Storage(db, tmp_path / "b")
-    assert s.migrated_from == 2 and "pre-migration-v2-to-v3" in s.backup_created
+    assert s.migrated_from == 2 and "pre-migration-v2-to-v" in s.backup_created
     assert s.query_one("SELECT status FROM dex_progress WHERE species_id=640")["status"] == "owned"
     assert s.query_one("SELECT body FROM notes WHERE species_id=25")["body"] == "keep me"
     for t in ("lib_notes", "note_links", "item_user", "owned_pokemon", "showcases", "custom_guides", "custom_guide_steps",
@@ -247,3 +247,60 @@ def test_backup_roundtrip_includes_connected_tools(client, ctx):
     ctx.storage.execute("DELETE FROM note_links")
     backup.import_all(ctx.storage, data, "merge")
     assert client.call("GET", f"/api/notes/{n['id']}")[1]["links"][0]["ref"] == "1"
+
+
+# ----------------------------------------------------------- species + forms catalog
+REQUIRED_FORMS = ["386:attack", "386:defense", "386:speed", "351:sunny", "351:rainy", "351:snowy", "479:heat", "479:wash", "479:frost",
+                  "479:fan", "479:mow", "412:sandy", "412:trash", "413:sandy", "413:trash", "422:east", "423:east", "585:summer", "586:winter",
+                  "550:blue-striped", "555:zen", "641:therian", "642:therian", "645:therian", "646:black", "646:white", "647:resolute",
+                  "648:pirouette", "649:douse", "649:shock", "649:burn", "649:chill", "487:origin", "492:sky", "493:fire", "201:question"]
+
+
+def test_catalog_has_649_species_plus_named_forms(client):
+    _, r = client.call("GET", "/api/dex/species")
+    assert len(r["species"]) == 649 and len(r["forms"]) == 82
+    keys = {f["entry"] for f in r["forms"]}
+    assert set(REQUIRED_FORMS) <= keys and len(keys) == 82
+
+
+def test_catalog_parity_with_synergy_reference_by_key_not_count(client, ctx):
+    _, p = client.call("GET", "/api/dex/catalog/parity")
+    assert p["match"] and p["ours_total"] == p["reference_total"] == 731
+    assert p["missing_here"] == [] and p["not_in_reference"] == [] and p["unresolved_reference_slugs"] == []
+    # dropping one form must be reported as a missing key, not hidden by a matching total
+    ctx.dex.forms.pop("479:wash")
+    from companion.config import BUNDLED_DATA_DIR
+    p2 = ctx.dex.parity(json.loads((BUNDLED_DATA_DIR / "catalog_reference_synergy.json").read_text()))
+    assert p2["missing_here"] == ["479:wash"] and not p2["match"]
+
+
+def test_form_types_stats_and_honest_availability(client):
+    _, d = client.call("GET", "/api/dex/species/646?form=black")
+    f = d["form"]
+    assert f["types"] == ["dragon", "ice"] and f["stats"]["attack"] == 170 and f["types_source"] == "Companion forms manifest"
+    assert "flying" not in d["form_matchups"]["groups"]["0"] and len(d["forms"]) == 3 and d["forms"][0]["base"]
+    _, r = client.call("GET", "/api/dex/species")
+    kb = [x for x in r["forms"] if x["entry"] == "646:black"][0]
+    assert kb["permanent"] is None and kb["tags"] == ["unverified"]  # a form is never assumed obtainable
+    burmy = [x for x in r["forms"] if x["entry"] == "412:sandy"][0]
+    assert burmy["tags"] == [s for s in r["species"] if s["id"] == 412][0]["tags"]  # cosmetic variant follows its species
+    assert client.call("GET", "/api/dex/species/25?form=nope")[0] == 404
+
+
+def test_forms_never_inflate_registration_counts(client, ctx):
+    run = ctx.guides.create_run("A")
+    client.call("PUT", f"/api/dex/progress/{run['id']}/479", {"status": "owned"})
+    _, c = client.call("GET", f"/api/dex/progress/{run['id']}/counts")
+    assert c["owned"] == 1 and c["scope_size"] == 649
+
+
+@pytest.mark.skipif(not __import__("os").environ.get("POKEMMO_DUMPS_DIR"), reason="needs POKEMMO_DUMPS_DIR")
+def test_manifest_agrees_with_users_client_form_records(dex):
+    checked = 0
+    for key in dex.forms:
+        e = dex.form_entry(key)
+        assert e["mismatch"] == [], key
+        if e["client_record"]:
+            assert e["in_client"] and e["stats_source"] == "your client dump", key
+            checked += 1
+    assert checked == 18
