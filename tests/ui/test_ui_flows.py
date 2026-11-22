@@ -116,9 +116,9 @@ def test_home_reads_official_update_in_app(app, page):
 def test_pokedex_search_detail_and_favourite(app, page):
     go(page, app, "#/pokedex")
     page.fill("#dex-search", "pikachu")
-    page.wait_for_timeout(300)
-    assert page.locator(".dex-card").count() == 1
-    page.locator(".dex-card").first.click()
+    page.wait_for_timeout(400)
+    assert page.locator(".dex-grid .dex-card").count() == 1
+    page.locator(".dex-grid .dex-card").first.click()
     page.wait_for_selector(".detail-head h2")
     assert page.locator(".detail-head h2").inner_text() == "Pikachu"
     page.locator(".detail-head .fav-btn").click()
@@ -129,11 +129,11 @@ def test_pokedex_search_detail_and_favourite(app, page):
 def test_pokedex_filters_show_and_clear(app, page):
     go(page, app, "#/pokedex")
     page.get_by_role("radio", name="V", exact=True).click()
-    page.wait_for_timeout(200)
-    assert "156 of 649" in page.locator(".dex-toolbar").inner_text()
+    page.wait_for_timeout(400)
+    assert "151 of 644 shown" in page.locator(".dex-info").inner_text()  # Gen V minus 5 reported-absent species
     page.locator(".active-filters button", has_text="Clear all").click()
-    page.wait_for_timeout(300)
-    assert "649 of 649" in page.locator(".dex-toolbar").inner_text()
+    page.wait_for_timeout(400)
+    assert "644 of 644 shown" in page.locator(".dex-info").inner_text()
 
 
 def _create_run(page, name, label):
@@ -232,3 +232,131 @@ def test_breeding_preview_brace_and_everstone(app, page):
     assert "guaranteed" in cells.nth(5).get_attribute("class") and cells.nth(5).inner_text() == "31"
     assert re.search(r"Compatible", page.locator(".compat").inner_text())
     assert "consumed" in page.locator(".main").inner_text()
+
+
+# ------------------------------------------------ video correction pass (2026-11-22)
+def test_reference_scope_shows_absent_species_marked(app, page):
+    go(page, app, "#/pokedex")
+    page.get_by_role("radio", name="All Gen I–V (649)").click()
+    page.wait_for_timeout(500)
+    assert "649 of 649 shown" in page.locator(".dex-info").inner_text()
+    card = page.locator('.dex-card[data-id="640"]')
+    assert "absent" in card.get_attribute("class") and "not in PokeMMO" in card.get_attribute("aria-label")
+    page.get_by_role("radio", name="PokeMMO Dex").click()
+    page.wait_for_timeout(500)
+    assert page.locator('.dex-card[data-id="640"]').count() == 0
+
+
+@pytest.mark.parametrize("mode", ["compact", "standard", "expanded"])
+def test_pokedex_popout_has_no_cap_in_any_mode(app, browser, mode):
+    pop = browser.new_context(viewport={"width": 460, "height": 600}).new_page()
+    pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=pokedex&mode={mode}&shell=browser")
+    pop.wait_for_selector(".dex-card")
+    pop.wait_for_timeout(400)
+    n = pop.locator(".popout-body .dex-card").count()
+    assert n == 644 and "644 of 644" in pop.locator(".popout-body").inner_text()
+    last = pop.locator(".popout-body .dex-card").last
+    last.scroll_into_view_if_needed()
+    assert last.get_attribute("data-id") == "649" and last.is_visible()
+    pop.fill("input[aria-label='Search Pokémon']", "pi")
+    pop.wait_for_timeout(400)
+    shown = pop.locator(".popout-body .dex-card").count()
+    assert 0 < shown < 644 and f"{shown} of 644" in pop.locator(".popout-body").inner_text()
+    pop.context.close()
+
+
+def test_type_chart_crosshair_row_and_column(app, page):
+    go(page, app, "#/tools/typechart")
+    page.wait_for_selector("table.typechart")
+    types = ["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel"]
+    r, c = types.index("flying"), types.index("grass")
+    cell = page.locator(f'td[data-r="{r}"][data-c="{c}"]')
+    cell.hover()
+    assert "Flying attack → Grass defender: 2×" in page.locator(".tc-readout").inner_text()
+    assert "hl-row" in page.locator(f'th[data-r="{r}"]').get_attribute("class")
+    assert "hl-col" in page.locator(f'th[data-c="{c}"]').get_attribute("class")
+    assert "hl-x" in cell.get_attribute("class")
+    assert page.locator("td.hl-row").count() == 17 and page.locator("td.hl-col").count() == 17
+    cell.click()  # lock
+    page.locator(f'td[data-r="{types.index("electric")}"][data-c="{types.index("water")}"]').hover()
+    assert "Flying attack → Grass defender" in page.locator(".tc-readout").inner_text()  # still locked
+    page.keyboard.press("ArrowDown")  # moves locked focus to Psychic → Grass
+    assert "Psychic attack → Grass defender: 1×" in page.locator(".tc-readout").inner_text()
+    page.keyboard.press("Escape")
+    assert page.locator("td.hl-x").count() == 0
+    for a, d, txt in [("ice", "flying", "2×"), ("electric", "ground", "0×"), ("normal", "ghost", "0×"), ("grass", "water", "2×")]:
+        page.locator(f'td[data-r="{types.index(a)}"][data-c="{types.index(d)}"]').hover()
+        assert f"{a.capitalize()} attack → {d.capitalize()} defender: {txt}" in page.locator(".tc-readout").inner_text()
+    assert "fairy" not in page.locator("table.typechart").inner_text().lower()
+
+
+def test_quick_access_pin_reorder_unpin_and_persist(app, page):
+    app.ctx.settings.update({"nav.quick_access": [], "appearance.nav": "vertical"})
+    go(page, app, "#/tools/natures")
+    page.get_by_role("button", name="Pin to sidebar").click()
+    page.wait_for_selector(".quick .qa-item")
+    go(page, app, "#/tools/typechart")
+    page.get_by_role("button", name="Pin to sidebar").click()
+    page.wait_for_timeout(400)
+    labels = page.locator(".quick .qa-item .label").all_inner_texts()
+    assert labels == ["Natures", "Type matchups"]
+    page.locator(".quick .qa-item").nth(1).focus()
+    page.keyboard.press("Alt+ArrowUp")  # keyboard reorder
+    page.wait_for_timeout(500)
+    assert page.locator(".quick .qa-item .label").all_inner_texts() == ["Type matchups", "Natures"]
+    # drag a tool card from the hub into the sidebar
+    go(page, app, "#/tools")
+    page.locator(".tool-card", has_text="Team builder").drag_to(page.locator(".quick"))
+    page.wait_for_timeout(600)
+    assert "Team builder" in page.locator(".quick").inner_text()
+    go(page, app, "#/pokedex")
+    page.locator('.dex-grid .dex-card[data-id="25"]').drag_to(page.locator(".quick"))
+    page.wait_for_timeout(600)
+    assert "Pikachu" in page.locator(".quick").inner_text()
+    page.reload()
+    page.wait_for_selector(".quick .qa-item")
+    assert page.locator(".quick .qa-item .label").all_inner_texts()[:2] == ["Type matchups", "Natures"]
+    page.locator(".quick .qa-item").first.focus()
+    page.keyboard.press("Delete")
+    page.wait_for_timeout(500)
+    assert "Type matchups" not in page.locator(".quick").inner_text()
+    page.locator(".quick .qa-item", has_text="Natures").click()
+    page.wait_for_timeout(400)
+    assert page.url.endswith("#/tools/natures")
+    app.ctx.settings.update({"appearance.nav": "horizontal"})
+    page.reload()
+    page.wait_for_selector(".quick-strip .qa-item")
+    assert page.locator(".quick-strip .qa-item").count() >= 1
+    app.ctx.settings.update({"appearance.nav": "vertical"})
+
+
+def test_home_has_no_blocking_modal_and_keeps_news_details(app, page):
+    go(page, app, "#/home")
+    page.wait_for_selector(".area-hero")
+    page.wait_for_selector(".area-more")
+    assert page.locator(".modal-back").count() == 0
+    txt = page.locator(".main").inner_text()
+    for part in ("Latest official update", "Official news source", "Official events", "Quick access", "Live", "More official updates"):
+        assert part.lower() in txt.lower(), part
+    page.get_by_role("button", name="Read details").click()
+    page.wait_for_selector("article")
+
+
+@pytest.mark.skipif(not DUMPS, reason="needs POKEMMO_DUMPS_DIR")
+def test_manual_registration_tracking_shows_silhouettes_and_counts(app, page):
+    run = app.ctx.guides.create_run("Tracker")
+    go(page, app, "#/pokedex")
+    page.select_option("select[aria-label='Registration tracking']", run["id"])
+    page.wait_for_timeout(700)
+    assert page.locator(".dex-grid .dex-card.reg-unregistered").count() > 600
+    assert page.locator(".dex-grid .sprite.unseen").count() > 600
+    page.locator('.dex-grid .dex-card[data-id="25"]').click()
+    page.wait_for_selector(".detail-head h2")
+    page.get_by_role("button", name="My registration").click()
+    page.get_by_role("radio", name="Caught OT").click()
+    page.wait_for_timeout(500)
+    go(page, app, "#/pokedex")
+    page.wait_for_timeout(600)
+    assert "reg-caught_ot" in page.locator('.dex-grid .dex-card[data-id="25"]').get_attribute("class")
+    assert "Caught OT 1" in page.locator(".dex-info").inner_text().replace("\n", " ")
+    app.ctx.settings.update({"pokedex.progress_run": None})

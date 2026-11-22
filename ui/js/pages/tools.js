@@ -1,6 +1,6 @@
 // Tools workspace (docs/design/07): grouped hub + individual tools.
 import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on } from '../core.js';
-import { go, popoutButton } from '../shell.js';
+import { go, popoutButton, pinButton, makePinDraggable, openPopout, isPinned, pinToSidebar } from '../shell.js';
 import { speciesPicker, speciesIndex, natureSelect } from '../components.js';
 import * as breeding from './breeding.js';
 
@@ -31,6 +31,7 @@ export async function render(el, route) {
     page.append(h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), 'Tools'),
       h('div', null, h('h1', null, t.title), h('div', { class: 'sub' }, t.desc)),
       h('div', { class: 'actions' }, badge(...STATUS_BADGE[t.status]),
+        t.status !== 'UNAVAILABLE' ? pinButton({ kind: 'tool', id: tool }) : null,
         ['typechart', 'natures', 'breeding'].includes(tool) ? popoutButton(tool) : null)));
     const body = h('div');
     page.append(body);
@@ -43,63 +44,175 @@ export async function render(el, route) {
 async function renderHub(el) {
   const page = h('div', { class: 'page' });
   mount(el, page);
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Tools'), h('div', { class: 'sub' }, 'Calculators and planners. Each tool says how far its numbers can be trusted.'))));
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Tools'),
+    h('div', { class: 'sub' }, 'Calculators and planners. Each tool says how far its numbers can be trusted. Drag a tool onto the sidebar to pin it to Quick access.'))));
   const [plans, teams] = await Promise.all([get('/api/docs/breeding_plan'), get('/api/docs/team')]);
   const recent = [...plans.items.map((p) => ({ ...p, k: 'breeding' })), ...teams.items.map((t) => ({ ...t, k: 'team' }))]
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 3);
-  if (recent.length) {
-    page.append(h('section', { class: 'card', style: { marginBottom: '16px' } }, h('div', { class: 'card-head' }, h('h2', null, 'Continue')),
-      h('div', { class: 'grid-3' }, recent.map((d) => h('button', { class: 'tool-link', onclick: () => go(d.k === 'breeding' ? `#/tools/breeding?tab=plan&plan=${d.id}` : `#/tools/team?team=${d.id}`) },
-        icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, d.k === 'breeding' ? 'Breeding plan' : 'Team')))))));
-  }
-  const group = (id, title, sub) => h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('div', null, h('h2', null, title), h('div', { class: 'small muted' }, sub))),
-    h('div', { class: 'stack tight' }, Object.entries(TOOLS).filter(([, t]) => t.group === id).map(([k, t]) => h('button', {
-      class: 'tool-link' + (t.status === 'UNAVAILABLE' ? ' disabled' : ''), onclick: () => go('#/tools/' + k) },
-    icon(t.icon), h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', { class: 'tl-title' }, t.title), h('span', { class: 'grow' }), badge(...STATUS_BADGE[t.status])),
-      h('div', { class: 'small muted' }, t.desc))))));
-  page.append(h('div', { class: 'tool-groups' },
-    group('battle', 'Battle & Stats', 'Matchups, natures and stats'),
-    group('breeding', 'Breeding', 'Familiar Parent A | Offspring | Parent B workflow'),
-    group('planning', 'Planning & Hunting', 'Teams, EV training and catching')),
-  h('p', { class: 'small muted', style: { marginTop: '16px' } }, 'There is deliberately no encounter counter — PokeMMO has its own. Nothing here reads the game, automates input or fetches GTL prices.'));
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 4);
+  const POP = { typechart: 'typechart', natures: 'natures', breeding: 'breeding' };
+  const toolCard = (k, t) => {
+    const disabled = t.status === 'UNAVAILABLE';
+    const card = h('div', { class: 'tool-card' + (disabled ? ' disabled' : ''), role: 'group', 'aria-label': t.title },
+      h('button', { class: 'tool-main', onclick: () => go('#/tools/' + k) },
+        h('span', { class: 'tool-ic' }, icon(t.icon)),
+        h('span', { class: 'grow' }, h('span', { class: 'tl-title' }, t.title), h('span', { class: 'small muted tl-desc' }, t.desc))),
+      h('div', { class: 'tool-foot' }, badge(...STATUS_BADGE[t.status]), h('span', { class: 'grow' }),
+        POP[k] ? h('button', { class: 'icon-btn sm', title: `Open ${t.title} as a popout window`, 'aria-label': `Pop out ${t.title}`, onclick: () => openPopout(POP[k]) }, icon('popout')) : null,
+        !disabled ? h('button', { class: 'icon-btn sm' + (isPinned({ kind: 'tool', id: k }) ? ' on' : ''), title: 'Pin to sidebar Quick access', 'aria-label': `Pin ${t.title} to sidebar`,
+          onclick: async (e) => { await pinToSidebar({ kind: 'tool', id: k }); e.currentTarget.classList.add('on'); } }, icon('pin')) : null));
+    if (!disabled) makePinDraggable(card, { kind: 'tool', id: k });
+    return card;
+  };
+  const group = (id, title, sub) => h('section', { class: 'tool-group' }, h('div', { class: 'tg-head' }, h('h2', null, title), h('div', { class: 'small muted' }, sub)),
+    h('div', { class: 'tool-cards' }, Object.entries(TOOLS).filter(([, t]) => t.group === id).map(([k, t]) => toolCard(k, t))));
+  page.append(h('div', { class: 'tools-layout' },
+    h('div', { class: 'stack' },
+      group('battle', 'Battle & Stats', 'Matchups, natures and stats'),
+      group('breeding', 'Breeding', 'Familiar Parent A | Offspring | Parent B workflow, plan tree and egg moves'),
+      group('planning', 'Planning & Hunting', 'Teams, EV training and catching')),
+    h('aside', { class: 'stack' },
+      h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Continue')),
+        recent.length ? h('div', { class: 'stack tight' }, recent.map((d) => h('button', { class: 'tool-link', onclick: () => go(d.k === 'breeding' ? `#/tools/breeding?tab=plan&plan=${d.id}` : `#/tools/team?team=${d.id}`) },
+          icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, (d.k === 'breeding' ? 'Breeding plan' : 'Team') + ' · saved ' + relTimeShort(d.updated_at)))))) :
+          h('div', { class: 'small muted' }, 'Saved breeding plans and teams appear here.')),
+      h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, 'Trust levels'),
+        h('div', { class: 'small' }, badge('CORROBORATED', 'Corroborated'), ' rules that match PokeMMO’s data and in-game charts.'),
+        h('div', { class: 'small' }, badge('DUMP_ONLY', 'Dump data'), ' numbers from your installed dump (date unknown).'),
+        h('div', { class: 'small' }, badge('ESTIMATE', 'Estimate'), ' generic formulas, never exact odds.'),
+        h('div', { class: 'small' }, badge('UNKNOWN', 'Not available yet'), ' withheld until verified.'),
+        h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one). Nothing here reads the game, automates input or fetches GTL prices.')))));
 }
+function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'today' : `${Math.floor(d)} d ago`; }
 
 // ------------------------------------------------------------ type chart
+// Attacker = row (Y), defender = column (X). Hover/focus highlights the whole row AND column;
+// click (or Enter) locks the selection; Esc clears. 17 types, Gen II–V rules, no Fairy.
 let tc = null;
+const MULT_TEXT = { 2: 'super effective', 0.5: 'not very effective', 0: 'no effect', 1: 'normal damage' };
+const multLabel = (m) => (m === 0.5 ? '½×' : m === 0.25 ? '¼×' : `${m}×`);
+export function typeChartReadout(a, d) {
+  const m = tc.matrix[tc.types.indexOf(a)][tc.types.indexOf(d)];
+  return { m, text: `${cap(a)} attack → ${cap(d)} defender: ${multLabel(m)} (${MULT_TEXT[m]})` };
+}
 export async function renderTypeChart(el, route, { compact = false } = {}) {
   tc = tc || await get('/api/tools/typechart');
-  let defTypes = [];
-  const out = h('div');
-  const draw = () => {
-    const matrix = h('table', { class: 'typechart', 'aria-label': 'Type effectiveness: attacking type in rows, defending type in columns' },
-      h('thead', null, h('tr', null, h('th', { class: 'small muted' }, 'ATK ↓ DEF →'), tc.types.map((t, j) => h('th', { dataset: { col: j } },
-        h('span', { class: 'tc' }, typeChip(t, true)))))),
-      h('tbody', null, tc.types.map((a, i) => h('tr', null, h('th', { style: { textAlign: 'right' } }, typeChip(a, true)), tc.types.map((d, j) => {
+  const T = tc.types;
+  let lock = null;          // {r, c} locked cell
+  let focusView = compact;  // compact windows start in the focused row/column view
+  let focusAxis = 'attacker', focusType = 'flying';
+  let defTypes = [], offType = null;
+  const out = h('div', { class: 'stack' });
+  el.append(out);
+
+  const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, 'Hover or focus a cell — rows attack, columns defend. Click to lock.');
+  const setReadout = (r, c, locked) => {
+    if (r == null) { readout.replaceChildren('Hover or focus a cell — rows attack, columns defend. Click to lock.'); return; }
+    const { m, text } = typeChartReadout(T[r], T[c]);
+    readout.replaceChildren(h('span', { class: 'mult ' + ({ 2: 'm2', 0.5: 'm05', 0: 'm0', 1: 'm1' }[m]) }, multLabel(m)), ' ', text,
+      locked ? h('button', { class: 'btn ghost small', style: { marginLeft: '8px' }, onclick: () => { lock = null; paint(null, null); setReadout(null); } }, 'Unlock (Esc)') : null);
+  };
+  let table;
+  const paint = (r, c) => {
+    table.querySelectorAll('.hl-row, .hl-col, .hl-x').forEach((x) => x.classList.remove('hl-row', 'hl-col', 'hl-x'));
+    if (r == null) return;
+    table.querySelectorAll(`[data-r="${r}"]`).forEach((x) => x.classList.add('hl-row'));
+    table.querySelectorAll(`[data-c="${c}"]`).forEach((x) => x.classList.add('hl-col'));
+    const cell = table.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+    if (cell) cell.classList.add('hl-x');
+  };
+  const buildMatrix = () => {
+    table = h('table', { class: 'typechart', role: 'grid', 'aria-label': 'Type effectiveness. Rows: attacking type. Columns: defending type.' },
+      h('thead', null, h('tr', null, h('th', { class: 'corner', scope: 'col' }, h('div', null, 'DEFENDER →'), h('div', null, 'ATTACKER ↓')),
+        T.map((t, j) => h('th', { scope: 'col', dataset: { c: j }, class: 'colhead' }, h('span', { class: 'tc' }, typeChip(t, true)))))),
+      h('tbody', null, T.map((a, i) => h('tr', null, h('th', { scope: 'row', dataset: { r: i }, class: 'rowhead' }, typeChip(a, true)), T.map((d, j) => {
         const m = tc.matrix[i][j];
-        return h('td', { class: m === 2 ? 'x2' : m === 0.5 ? 'x05' : m === 0 ? 'x0' : '', title: `${cap(a)} → ${cap(d)}: ×${m}`, dataset: { col: j } }, m === 1 ? '' : m === 0.5 ? '½' : String(m));
+        return h('td', { class: m === 2 ? 'x2' : m === 0.5 ? 'x05' : m === 0 ? 'x0' : '', dataset: { r: i, c: j }, tabindex: i === 0 && j === 0 ? '0' : '-1', role: 'gridcell',
+          'aria-label': typeChartReadout(a, d).text }, m === 1 ? '' : m === 0.5 ? '½' : String(m));
       })))));
-    matrix.addEventListener('mouseover', (e) => {
-      const col = e.target.closest('[data-col]'); matrix.querySelectorAll('.hl').forEach((x) => x.classList.remove('hl'));
-      if (col) matrix.querySelectorAll(`[data-col="${col.dataset.col}"]`).forEach((x) => x.classList.add('hl'));
+    table.addEventListener('mouseover', (e) => {
+      if (lock) return;
+      const td = e.target.closest('td[data-r]');
+      const rh = e.target.closest('th[data-r]'), ch = e.target.closest('th[data-c]');
+      if (td) { paint(+td.dataset.r, +td.dataset.c); setReadout(+td.dataset.r, +td.dataset.c); }
+      else if (rh) { paint(+rh.dataset.r, -1); }
+      else if (ch) { paint(-1, +ch.dataset.c); }
     });
-    const picker = h('div', { class: 'row wrap' }, tc.types.map((t) => h('button', { class: 'chip btnlike' + (defTypes.includes(t) ? ' active' : ''),
-      'aria-pressed': String(defTypes.includes(t)), onclick: () => { defTypes = defTypes.includes(t) ? defTypes.filter((x) => x !== t) : [...defTypes, t].slice(-2); draw(); } }, typeChip(t, true))));
+    table.addEventListener('mouseleave', () => { if (!lock) { paint(null, null); setReadout(null); } });
+    table.addEventListener('click', (e) => {
+      const td = e.target.closest('td[data-r]');
+      if (!td) return;
+      const r = +td.dataset.r, c = +td.dataset.c;
+      lock = lock && lock.r === r && lock.c === c ? null : { r, c };
+      paint(lock ? r : null, lock ? c : null); setReadout(lock ? r : null, lock ? c : null, !!lock);
+      td.focus();
+    });
+    table.addEventListener('focusin', (e) => {
+      const td = e.target.closest('td[data-r]');
+      if (td && !lock) { paint(+td.dataset.r, +td.dataset.c); setReadout(+td.dataset.r, +td.dataset.c); }
+    });
+    table.addEventListener('keydown', (e) => {
+      const td = e.target.closest('td[data-r]');
+      if (!td) return;
+      let r = +td.dataset.r, c = +td.dataset.c;
+      const mv = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+      if (mv) {
+        e.preventDefault();
+        r = Math.max(0, Math.min(16, r + mv[0])); c = Math.max(0, Math.min(16, c + mv[1]));
+        const next = table.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+        td.tabIndex = -1; next.tabIndex = 0; next.focus();
+        if (lock) { lock = { r, c }; paint(r, c); setReadout(r, c, true); }
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault(); lock = lock ? null : { r, c }; paint(r, c); setReadout(r, c, !!lock);
+      } else if (e.key === 'Escape') {
+        lock = null; paint(null, null); setReadout(null);
+      }
+    });
+    return table;
+  };
+  const legend = h('div', { class: 'row wrap small' }, h('span', { class: 'mult m2' }, '2×'), 'super effective', h('span', { class: 'mult m05' }, '½×'), 'not very effective',
+    h('span', { class: 'mult m0' }, '0×'), 'no effect', h('span', { class: 'mult m1' }, ' '), 'blank = normal (1×)');
+
+  const focusPanel = () => {
+    const idx = T.indexOf(focusType);
+    const vals = T.map((o, k) => ({ t: o, m: focusAxis === 'attacker' ? tc.matrix[idx][k] : tc.matrix[k][idx] }));
+    const group = (m) => vals.filter((v) => v.m === m).map((v) => typeChip(v.t, true));
+    return h('div', { class: 'card stack tight' },
+      h('div', { class: 'row wrap' }, seg([['attacker', 'As attacker (row)'], ['defender', 'As defender (column)']], focusAxis, (v) => { focusAxis = v; draw(); }, 'Axis'),
+        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Type', onchange: (e) => { focusType = e.target.value; draw(); } },
+          T.map((t) => h('option', { value: t, selected: t === focusType ? 'selected' : null }, cap(t))))),
+      h('div', { class: 'small muted' }, focusAxis === 'attacker' ? `${cap(focusType)} attacking each defending type:` : `Each attacking type hitting a ${cap(focusType)} defender:`),
+      [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0'], [1, '1×', 'm1']].map(([m, l, cls]) => (group(m).length ? h('div', { class: 'row wrap' }, h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), group(m)) : null)));
+  };
+  const defensive = () => {
     const groups = { '4': [], '2': [], '0.5': [], '0.25': [], '0': [] };
-    if (defTypes.length) tc.types.forEach((a, i) => {
-      const m = defTypes.reduce((acc, d) => acc * tc.matrix[i][tc.types.indexOf(d)], 1);
-      if (String(m) in groups) groups[String(m)].push(a);
-    });
-    const checker = h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Defensive check'), h('span', { class: 'small muted' }, 'Pick one or two defending types')),
-      picker, defTypes.length ? h('div', { class: 'stack tight', style: { marginTop: '12px' } },
-        [['4', '×4 weak'], ['2', '×2 weak'], ['0.5', '½ resists'], ['0.25', '¼ resists'], ['0', 'Immune']].map(([k, l]) => groups[k].length ? h('div', { class: 'row wrap' },
-          h('span', { class: 'mult m' + k.replace('.', '') }, l.split(' ')[0]), h('span', { class: 'small muted', style: { width: '70px' } }, l.split(' ').slice(1).join(' ')),
-          groups[k].map((t) => typeChip(t, true))) : null)) : null);
-    mount(out, h('div', { class: compact ? 'stack' : 'grid-2', style: compact ? null : { gridTemplateColumns: 'minmax(0,auto) minmax(280px,1fr)', alignItems: 'start' } },
-      compact ? null : h('div', { class: 'card', style: { overflow: 'auto' } }, matrix), checker),
-    h('p', { class: 'small muted' }, tc.note));
+    if (defTypes.length) T.forEach((a, i) => { const m = defTypes.reduce((acc, d) => acc * tc.matrix[i][T.indexOf(d)], 1); if (String(m) in groups) groups[String(m)].push(a); });
+    return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, 'Defensive check'), h('span', { class: 'small muted' }, 'Up to two defending types')),
+      h('div', { class: 'row wrap' }, T.map((t) => h('button', { class: 'chip btnlike' + (defTypes.includes(t) ? ' active' : ''), 'aria-pressed': String(defTypes.includes(t)),
+        onclick: () => { defTypes = defTypes.includes(t) ? defTypes.filter((x) => x !== t) : [...defTypes, t].slice(-2); draw(); } }, typeChip(t, true)))),
+      defTypes.length ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, `Attacks against a ${defTypes.map(cap).join(' / ')} Pokémon:`),
+        [['4', '4×', 'm4'], ['2', '2×', 'm2'], ['0.5', '½×', 'm05'], ['0.25', '¼×', 'm025'], ['0', '0×', 'm0']].map(([k, l, cls]) => groups[k].length ? h('div', { class: 'row wrap' },
+          h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), groups[k].map((t) => typeChip(t, true))) : null)) : null);
+  };
+  const offensive = () => {
+    const i = offType ? T.indexOf(offType) : -1;
+    const by = (m) => (i < 0 ? [] : T.filter((d, j) => tc.matrix[i][j] === m));
+    return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, 'Offensive check'), h('span', { class: 'small muted' }, 'One attacking move type')),
+      h('div', { class: 'row wrap' }, T.map((t) => h('button', { class: 'chip btnlike' + (offType === t ? ' active' : ''), 'aria-pressed': String(offType === t),
+        onclick: () => { offType = offType === t ? null : t; draw(); } }, typeChip(t, true)))),
+      offType ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, `A ${cap(offType)} move against single-type defenders:`),
+        [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0']].map(([m, l, cls]) => by(m).length ? h('div', { class: 'row wrap' },
+          h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), by(m).map((t) => typeChip(t, true))) : null)) : null);
+  };
+  const draw = () => {
+    const viewSwitch = seg([['matrix', 'Full chart'], ['focus', 'Focus one type']], focusView ? 'focus' : 'matrix', (v) => { focusView = v === 'focus'; draw(); }, 'Chart view');
+    lock = null;
+    mount(out, h('div', { class: 'row wrap' }, viewSwitch, h('span', { class: 'grow' }), legend),
+      focusView ? focusPanel() : h('div', { class: 'stack tight' }, readout, h('div', { class: 'tc-scroll' }, buildMatrix())),
+      h('div', { class: compact ? 'stack' : 'grid-2' }, defensive(), offensive()),
+      h('p', { class: 'small muted', style: { margin: 0 } }, tc.note));
+    setReadout(null);
   };
   draw();
-  el.append(out);
 }
 
 // ---------------------------------------------------------------- natures

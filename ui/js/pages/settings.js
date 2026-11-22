@@ -67,18 +67,35 @@ async function windows(b) {
       seg([['quit', 'Quit the Companion'], ['tray', 'Keep running in tray']], s['app.close_behavior'], (v) => {
         if (v === 'tray' && !caps.tray) { toast('No tray icon is available in this mode — the Companion will quit on close.', { kind: 'warn' }); }
         set('app.close_behavior')(v); })),
-    h('h3', null, 'Per-tool popout preferences'),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Background opacity fades only the panel behind the text; window opacity fades the whole window (native shell only). Minimums keep text readable.'),
-    h('div', { style: { overflowX: 'auto' } }, h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Tool', 'Mode', 'Pin', 'Background', 'Window', 'Text', 'Lock', ''].map((c) => h('th', null, c)))),
-      h('tbody', null, Object.entries(POPOUT_TOOLS).map(([t, def]) => h('tr', null, h('td', null, def.title),
-        h('td', null, h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => set(`window.${t}.mode`)(e.target.value) }, ['compact', 'standard', 'expanded'].map((m) => h('option', { value: m, selected: s[`window.${t}.mode`] === m ? 'selected' : null }, cap(m))))),
-        h('td', null, h('input', { type: 'checkbox', class: 'check', checked: s[`window.${t}.pinned`], disabled: caps.pin ? null : 'disabled', title: caps.pin ? 'Pin by default' : 'Not supported in this mode', onchange: (e) => set(`window.${t}.pinned`)(e.target.checked) })),
-        h('td', null, rangeCell(`window.${t}.bg_opacity`, 35, 100)), h('td', null, rangeCell(`window.${t}.window_opacity`, 40, 100, !caps.window_opacity)),
-        h('td', null, rangeCell(`window.${t}.text_scale`, 70, 180)),
-        h('td', null, h('input', { type: 'checkbox', class: 'check', checked: s[`window.${t}.locked`], disabled: caps.native_windows ? null : 'disabled', title: 'Lock position (prevents accidental dragging)', onchange: (e) => set(`window.${t}.locked`)(e.target.checked) })),
-        h('td', null, h('button', { class: 'btn small', onclick: () => openPopout(t) }, 'Open'))))))),
+    h('h3', null, 'Popout windows'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Each mode opens at its own starting size. Resize freely afterwards — your size is remembered for that tool and mode. Background opacity fades only the panel behind the text; window opacity fades the whole window (native shell only).'),
+    h('div', { class: 'tool-pref-grid' }, Object.entries(POPOUT_TOOLS).map(([t, def]) => toolPrefCard(t, def, caps))),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
-      if (await confirmDialog('Reset window preferences', 'Reset popout modes, opacity, pin, lock and saved sizes for every tool? Data is not touched.')) { await post('/api/settings/reset', { prefix: 'window.' }); location.reload(); } } }, 'Reset window preferences')));
+      if (await confirmDialog('Reset window preferences', 'Reset popout modes, sizes, opacity, pin and lock for every tool? Your data is not touched.')) { await post('/api/settings/reset', { prefix: 'window.' }); location.reload(); } } }, 'Reset all window preferences')));
+}
+function toolPrefCard(t, def, caps) {
+  const s = state.settings;
+  const presets = (state.boot.window_presets || {})[t] || {};
+  const sizes = s[`window.${t}.sizes`] || {};
+  const sizeLine = ['compact', 'standard', 'expanded'].map((m) => {
+    const p = presets[m] || [];
+    const c = sizes[m];
+    return h('div', { class: 'row small', style: { justifyContent: 'space-between' } }, h('span', { class: 'muted' }, cap(m)),
+      h('span', null, c ? `${c.w}×${c.h} (yours)` : `${p[0]}×${p[1]} (preset)`),
+      c ? h('button', { class: 'btn ghost small', title: 'Forget your size for this mode', onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, 'Reset') : h('span', { style: { width: '52px' } }));
+  });
+  return h('div', { class: 'card tool-pref stack tight' },
+    h('div', { class: 'row' }, h('strong', null, def.title), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(t) }, icon('popout'), 'Open')),
+    h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, 'Default mode'),
+      seg([['compact', 'Compact'], ['standard', 'Standard'], ['expanded', 'Expanded']], s[`window.${t}.mode`], set(`window.${t}.mode`), 'Mode')),
+    h('div', { class: 'stack tight' }, sizeLine),
+    h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${t}.keep_size`], onchange: (e) => set(`window.${t}.keep_size`)(e.target.checked) }), h('span', null, 'Keep my size when switching modes')),
+    h('div', { class: 'row wrap' },
+      h('label', { class: 'switch small', title: caps.pin ? '' : 'Not supported in this mode' }, h('input', { type: 'checkbox', checked: s[`window.${t}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${t}.pinned`)(e.target.checked) }), h('span', null, 'Pin on open')),
+      h('label', { class: 'switch small', title: caps.native_windows ? '' : 'Native shell only' }, h('input', { type: 'checkbox', checked: s[`window.${t}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${t}.locked`)(e.target.checked) }), h('span', null, 'Lock position'))),
+    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, 'Background'), rangeCell(`window.${t}.bg_opacity`, 35, 100),
+      h('span', { class: 'label' }, 'Window'), rangeCell(`window.${t}.window_opacity`, 40, 100, !caps.window_opacity),
+      h('span', { class: 'label' }, 'Text size'), rangeCell(`window.${t}.text_scale`, 70, 180)));
 }
 function rangeCell(key, min, max, disabled) {
   const lbl = h('span', { class: 'tiny muted', style: { width: '34px', display: 'inline-block' } }, state.settings[key] + '%');
@@ -113,16 +130,21 @@ async function sources(b) {
   const src = await get('/api/live/source');
   const n = await get('/api/news');
   b.append(h('h2', { style: { marginTop: 0 } }, 'Live sources & news'),
-    row('Alpha/Swarm report feed', 'Read-only subscription to the public Alphapedia ntfy topic. Off until you connect it in Live.',
+    row('Alpha/Swarm report feed', 'Read-only subscription to the public Alphapedia ntfy topics (alphapings, swarmpings). Off until you connect it in Live.',
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? cap(src.status) : 'Off',
         src.last_success_at ? h('span', { class: 'small muted' }, ' · last data ', relTime(src.last_success_at)) : null),
+      h('div', { class: 'tiny muted' }, src.payload_note || ''),
       src.enabled ? h('button', { class: 'btn small', onclick: async () => { await saveSettings({ 'live.ntfy.enabled': false }); render(document.getElementById('main'), { parts: ['sources'] }); } }, 'Turn off') :
         h('button', { class: 'btn small', onclick: () => go('#/live/reports') }, 'Connect in Live…'))),
     row('Feed server and topic', 'Advanced. HTTPS only.', h('div', { class: 'row wrap' },
       h('input', { class: 'input', style: { width: '260px' }, value: state.settings['live.ntfy.server'], onchange: (e) => set('live.ntfy.server')(e.target.value.trim()) }),
-      h('input', { class: 'input', style: { width: '140px' }, value: state.settings['live.ntfy.topic'], onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
+      h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: 'Comma-separated topics', onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
     row('Official news snapshot', `Bundled, independently written summaries checked ${fmtDate(n.snapshot_checked_at)}.`, h('span', { class: 'small' }, `${n.articles.length} posts · ${n.events.length} events`)),
-    row('Check official forum', 'Manual only: fetches the official Updates feed (titles, dates, links). Nothing runs automatically.',
+    row('Automatic check of official news', 'Fetches only the official Updates feed (titles, dates, links) in the background, at most hourly. New titles show “Summary pending verification”.',
+      h('div', { class: 'row wrap' }, switchEl(state.settings['updates.auto_check'], set('updates.auto_check')),
+        h('span', { class: 'small' }, 'every'), h('input', { class: 'input', type: 'number', min: 1, max: 24, value: state.settings['updates.check_hours'], style: { width: '70px' },
+          onchange: (e) => set('updates.check_hours')(Number(e.target.value)) }), h('span', { class: 'small' }, 'hours'))),
+    row('Check official forum now', 'Same feed, on demand (at most once a minute).',
       h('div', { class: 'stack tight' }, h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; const r = await post('/api/news/check');
         toast(r.ok ? `Checked: ${r.count} posts` : `Could not refresh: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), 'Check now'),
       n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? `Last check OK ${relTime(n.feed.checked_at)}` : `Last check failed ${relTime(n.feed.checked_at)}: ${n.feed.error}`) : h('span', { class: 'small muted' }, 'Never checked'))),
@@ -179,9 +201,17 @@ export async function data(b) {
   };
   const guideSources = await Promise.all(['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => get('/api/guides/sources/' + r)));
   const importedGuides = guideSources.map((g, i) => [['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'][i], g.sources.find((s) => s.id === 'imported')]).filter(([, s]) => s);
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Data & privacy'),
-    notice('info', h('strong', null, 'Your files stay on this computer. '), 'Imports read the folder you choose, copy what is needed into the Companion’s private data folder, and never modify, upload or commit your originals.'),
+  const ds = await get('/api/data/status');
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Data & privacy'),
+    notice('info', h('strong', null, 'Your files stay on this computer. '), 'The Companion looks (read-only) in a few known folders, and installs only after you click Install. It copies what it needs into its private data folder once — no import on every launch — and never modifies, uploads or commits your originals.'),
     h('h3', null, 'PokeMMO data (Pokédex, sprites)'),
+    ds.candidates.length ? h('div', { class: 'stack tight', style: { marginBottom: '8px' } }, h('div', { class: 'label' }, 'Found on this computer'),
+      ds.candidates.map((c) => h('div', { class: 'list-row', style: { cursor: 'default' } }, icon('download'), h('div', { class: 'grow' }, h('div', { class: 'mono small' }, c.folder),
+        h('div', { class: 'tiny muted' }, `contains: ${c.parts.join(', ') || 'combined archive'}${c.guides.length ? ' · walkthroughs: ' + c.guides.join(', ') : ''}`)),
+      h('button', { class: 'btn small' + (ds.installed ? '' : ' primary'), onclick: () => { dumpPath.value = c.folder; runImport('dumps', c.folder); } }, ds.installed ? 'Re-install from here' : 'Install'),
+      c.guides.length ? h('button', { class: 'btn small', onclick: () => runImport('guides', c.folder) }, 'Import walkthroughs') : null))) :
+      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, 'No PokeMMO dump found in the usual folders (Documents/PokeMMO-Companion, the PokeMMO Flatpak data folder, Downloads). Enter its folder below.'),
+    ds.update_available ? notice('warn', 'Your dump has changed since it was installed — re-install to refresh. Runs, checkmarks and settings are kept.') : null,
     m && !m.error ? h('div', { class: 'card inset small stack tight' }, h('div', null, badge('DUMP_ONLY', 'Imported'), ` ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
       h('div', { class: 'muted' }, Object.entries(m.sources).map(([k, v]) => `${k}: ${v.file}${v.sha256 ? ' (sha256 ' + v.sha256.slice(0, 12) + '…)' : ''}`).join(' · ')),
       m.notes.map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not imported yet — the Pokédex shows bundled names, numbers and types only.'),
@@ -201,7 +231,7 @@ export async function data(b) {
     h('h3', null, 'Storage'),
     h('div', { class: 'small' }, 'Data folder: ', h('span', { class: 'mono' }, boot.data_dir)),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Clear report history', 'Delete all saved Alpha/Swarm reports and TEST entries?', 'Clear', true)) { await post('/api/live/clear', {}); toast('Report history cleared'); } } }, 'Clear report history')),
-    h('p', { class: 'small muted' }, 'Privacy: no telemetry, no accounts, no game memory access, no automation. Network is used only for the opt-in report feed and the manual “Check forum” button.'));
+    h('p', { class: 'small muted' }, 'Privacy: no telemetry, no accounts, no game memory access, no automation. Network is used for the opt-in report feed and the official news check (automatic, can be turned off in Live sources & news).')));
 
   async function importBackup(mode) {
     try {

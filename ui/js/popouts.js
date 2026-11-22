@@ -2,8 +2,8 @@
 // popout has its own mode/scroll. In the native shell, Qt draws the titlebar
 // (pin, mode, window opacity, lock, minimise, close); in browser mode we draw it.
 import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, notice, applyAppearance, debounce } from './core.js';
-import { POPOUT_TOOLS } from './shell.js';
-import { renderDetail } from './pages/pokedex.js';
+import { POPOUT_TOOLS, popoutSize } from './shell.js';
+import { renderDetail, dexCard, applyFilters, loadList, currentFilters } from './pages/pokedex.js';
 import { renderTypeChart, renderNatures } from './pages/tools.js';
 import { render as renderBreeding } from './pages/breeding.js';
 import { sourceBar, reportRow, renderLegendaries, renderCave } from './pages/live.js';
@@ -27,17 +27,41 @@ export function startPopout(el) {
   document.title = def.title + ' — PokeMMO Companion';
   bodyEl = h('div', { class: 'popout-body readable' });
   draw();
-  document.addEventListener('settings-changed', () => {
+  document.addEventListener('settings-changed', (ev) => {
+    const keys = Object.keys((ev && ev.detail) || {});
+    if (POPOUT === 'pokedex' && keys.some((k) => k.startsWith('pokedex.'))) { state.dexCache = null; renderBody(); }
     const m = setting(`window.${POPOUT}.mode`);
     applyAppearance();
-    if (m && m !== savedMode) { savedMode = m; mode = m; draw(); } else drawBar();
+    if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); } else drawBar();
   });
   const refresh = debounce(() => renderBody(), 120);
-  for (const t of ({ storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, refresh);
+  for (const t of ({ storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async () => { if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
   window.addEventListener('hashchange', () => renderBody());
+  window.addEventListener('resize', () => { rememberSize(); });
 }
 
-let barEl, footEl;
+let barEl, footEl, resizingByUs = false;
+function switchMode(m) {
+  if (m === mode) return;
+  mode = m; savedMode = m;
+  saveSettings({ [`window.${POPOUT}.mode`]: m });
+  applyBrowserSize();
+  draw();
+}
+function applyBrowserSize() {
+  // Browser popups opened by the Companion may be resized by script; the native shell does this itself.
+  if (SHELL === 'qt' || setting(`window.${POPOUT}.keep_size`)) return;
+  const [w, h_] = popoutSize(POPOUT, mode);
+  resizingByUs = true;
+  try { window.resizeTo(w, h_); } catch (_) { /* not allowed */ }
+  setTimeout(() => { resizingByUs = false; }, 900);
+}
+const rememberSize = debounce(() => {
+  if (SHELL === 'qt' || resizingByUs) return;
+  const sizes = { ...(setting(`window.${POPOUT}.sizes`) || {}) };
+  sizes[mode] = { w: window.outerWidth, h: window.outerHeight };
+  saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).catch(() => {});
+}, 700);
 function draw() {
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
   barEl = h('div');
@@ -53,7 +77,7 @@ function drawBar() {
     mount(barEl, h('div', { class: 'popout-bar' }, h('span', { class: 'ptitle ellipsis' }, def.title),
       h('button', { class: 'icon-btn', disabled: 'disabled', title: 'Pin / always-on-top needs the native shell (PySide6). Browser windows cannot be pinned.' }, icon('pin')),
       MODES.map(([m, short, long]) => h('button', { class: 'icon-btn' + (m === mode ? ' on' : ''), title: long + ' view', 'aria-pressed': String(m === mode),
-        onclick: () => { mode = m; savedMode = m; saveSettings({ [`window.${POPOUT}.mode`]: m }); draw(); } }, h('span', { style: { fontWeight: 700, fontSize: '.8rem' } }, short))),
+        onclick: () => switchMode(m) }, h('span', { style: { fontWeight: 700, fontSize: '.8rem' } }, short))),
       h('button', { class: 'icon-btn', title: 'Close popout (your data is kept)', 'aria-label': 'Close', onclick: () => window.close() }, icon('close'))));
   } else {
     clear(barEl);
@@ -68,7 +92,8 @@ function drawBar() {
     h('button', { class: 'btn ghost small', title: 'Smaller text', 'aria-label': 'Smaller text', onclick: () => saveSettings({ [`window.${POPOUT}.text_scale`]: Math.max(70, ts - 10) }).then(applyAppearance) }, 'A−'),
     h('button', { class: 'btn ghost small', title: 'Larger text', 'aria-label': 'Larger text', onclick: () => saveSettings({ [`window.${POPOUT}.text_scale`]: Math.min(180, ts + 10) }).then(applyAppearance) }, 'A+'),
     h('span', { class: 'grow' }),
-    SHELL === 'qt' ? h('span', { class: 'tiny muted' }, cap(mode)) : null,
+    SHELL === 'qt' ? h('span', { class: 'tiny muted' }, cap(mode)) : h('button', { class: 'btn ghost small', title: 'Resize this window to the preset for this mode',
+      onclick: () => { const sizes = { ...(setting(`window.${POPOUT}.sizes`) || {}) }; delete sizes[mode]; saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).then(applyBrowserSize); } }, 'Reset size'),
     h('button', { class: 'btn ghost small', onclick: () => openInMain(mainRoute()) }, 'Open in main'));
 }
 function mainRoute() {
@@ -143,34 +168,41 @@ async function storyline(el) {
 }
 
 // ---------------------------------------------------------------- pokédex
+// Full filtered roster — no caps. Same scope/filters as the main Pokédex; own search box.
 let miniQuery = '';
 async function pokedex(el) {
   const m = location.hash.match(/^#\/species\/(\d+)/);
   if (m) {
-    const back = () => { location.hash = '#/'; };
-    await renderDetail(el, Number(m[1]), { back, popout: true, mode });
+    await renderDetail(el, Number(m[1]), { back: () => { location.hash = '#/'; }, popout: true, mode });
     return;
   }
-  const idx = await speciesIndex();
-  const results = h('div', { class: 'dex-grid', style: { gridTemplateColumns: `repeat(auto-fill, minmax(${mode === 'compact' ? 90 : 104}px, 1fr))`, gap: '6px' } });
+  const all = await loadList();
+  const density = { compact: 'compact', standard: 'standard', expanded: 'large' }[mode] || 'standard';
+  const tracking = !!setting('pokedex.progress_run');
+  const count = h('span', { class: 'tiny muted nowrap' });
+  const results = h('div', { class: 'dex-grid density-' + density, role: 'grid', 'aria-label': 'Pokémon' });
   const drawList = () => {
-    const q = miniQuery.trim().toLowerCase();
-    const list = idx.filter((s) => !q || s.name.toLowerCase().includes(q) || String(s.id) === q.replace('#', '') || s.types.includes(q)).slice(0, mode === 'expanded' ? 200 : 60);
-    mount(results, list.map((s) => h('div', { class: 'dex-card', role: 'button', tabindex: '0', style: { padding: '6px' }, onclick: () => { location.hash = '#/species/' + s.id; } },
-      h('span', { class: 'num' }, '#' + pad3(s.id)), h('div', { class: 'sprite', style: { width: '48px', height: '48px', marginTop: '8px' } }, spriteOrFallback(s.icon, s, 48)),
-      h('div', { class: 'nm small' }, s.name), mode !== 'compact' ? h('div', { class: 'types' }, typeChips(s.types, true)) : null)));
+    const list = applyFilters(all, { ...currentFilters(), q: miniQuery });
+    const scopeSize = all.filter((s) => setting('pokedex.scope') === 'reference' || s.dex !== 'no').length;
+    count.textContent = `${list.length} of ${scopeSize}`;
+    const frag = document.createDocumentFragment();
+    for (const s of list) frag.append(dexCard(s, { selected: false, density, tracking, onOpen: (id) => { location.hash = '#/species/' + id; } }));
+    results.replaceChildren(frag);
+    if (!list.length) results.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, 'No Pokémon match this search and the Pokédex filters.'));
   };
-  mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'search' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search Pokémon', value: miniQuery,
-    oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), results));
+  mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search Pokémon', value: miniQuery,
+    'aria-label': 'Search Pokémon', oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), count),
+  h('div', { class: 'tiny muted' }, setting('pokedex.scope') === 'reference' ? 'All Gen I–V reference' : 'PokeMMO Dex', ' · filters from the main Pokédex apply'), results));
   drawList();
 }
 
 // ---------------------------------------------------------------- reports
 async function reports(el) {
   const r = await get('/api/live/reports?tests=1');
-  const list = r.reports.slice(0, mode === 'compact' ? 1 : mode === 'standard' ? 8 : 30);
+  const list = mode === 'compact' ? r.reports.slice(0, 1) : r.reports;  // compact = latest only; others show full history
   const link = (x) => { const row = reportRow(x, false, mode !== 'expanded'); row.onclick = null; row.addEventListener('click', () => openInMain('#/live/reports/' + x.id)); return row; };
   mount(el, h('div', { class: 'stack tight' }, sourceBar(r.source, { compact: true }),
+    mode === 'compact' && r.reports.length > 1 ? h('div', { class: 'tiny muted' }, `+${r.reports.length - 1} more in history`) : null,
     list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? 'No reports received yet — this does not mean none are active.' : 'Report feed is off; nothing is claimed about current activity.')));
 }
 

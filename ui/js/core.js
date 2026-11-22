@@ -233,9 +233,9 @@ export function badge(status, label, title) {
 export function notice(kind, ...content) {
   return h('div', { class: 'notice ' + kind }, icon(kind === 'warn' || kind === 'bad' ? 'warn' : 'info'), h('div', null, ...content));
 }
-export function spriteOrFallback(url, sp, size = 72) {
+export function spriteOrFallback(url, sp, size = 72, eager = false) {
   if (url) {
-    const img = h('img', { class: 'pixel', src: url, width: size, height: size, alt: sp.name, loading: 'lazy' });
+    const img = h('img', { class: 'pixel', src: url, width: size, height: size, alt: sp.name, loading: eager ? 'eager' : 'lazy' });
     img.addEventListener('error', () => img.replaceWith(silhouette(sp, size)));
     return img;
   }

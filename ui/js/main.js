@@ -18,7 +18,7 @@ async function boot() {
     if (keys.length && keys.every((k) => k.endsWith('.geometry'))) return;  // window moves don't affect pages
     state.settings = await get('/api/settings');
     applyAppearance();
-    document.dispatchEvent(new CustomEvent('settings-changed'));
+    document.dispatchEvent(new CustomEvent('settings-changed', { detail: data || {} }));
   });
   if (POPOUT) startPopout(root); else startApp(root);
 }
