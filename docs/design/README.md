@@ -1,5 +1,5 @@
 # PokeMMO Companion — Design specification
-**Updated:** 2026-11-22 · **Branch:** `develop` · **Status:** design documented, v0.1.0 full-first-pass implementation handoff prepared; no code built yet.
+**Updated:** 2026-11-22 · **Branch:** `develop` · **Status:** design documented; v0.1.0 development preview implemented on `develop` (see [implementation report](../build/03-V0.1.0-IMPLEMENTATION-REPORT.md)).
 
 ## Current implementation direction
 The user now wants one broad, usable **v0.1.0 development preview** before the first video review. Start with [v0.1.0 build plan](../build/00-V0.1.0-FIRST-PASS-PLAN.md) and [Claude implementation handoff](../build/01-CLAUDE-V0.1.0-KICKOFF.md). Older design-phase gates calling for *more design before any code* are superseded by this newer instruction. Source/data correctness and platform limitations still apply.

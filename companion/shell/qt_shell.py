@@ -593,8 +593,8 @@ class QtShell:
     def show_toast(self, payload: dict) -> None:
         t = Toast(self, payload)
         self.toasts.append(t)
-        while len(self.toasts) > 4:
-            self.toasts[0].close()
+        while len(self.toasts) > 4:  # stack limit; remove first so the loop never depends on closeEvent timing
+            self.toasts.pop(0).close()
         t.adjustSize()
         self.layout_toasts()
         t.show()

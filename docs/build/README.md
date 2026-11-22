@@ -1,11 +1,12 @@
 # v0.1.0 Implementation Package
 
-**Updated:** 2026-11-22 · **Status:** ready for Claude to begin implementation when initiated by user · **Branch:** `develop`.
+**Updated:** 2026-11-22 · **Status:** v0.1.0 development preview implemented by Claude on `develop`; awaiting the user's video review · **Branch:** `develop`.
 
 - [Full first-pass v0.1.0 plan](00-V0.1.0-FIRST-PASS-PLAN.md)
 - [Claude full implementation assignment](01-CLAUDE-V0.1.0-KICKOFF.md)
 - [First video walkthrough and QA](02-V0.1.0-VIDEO-REVIEW-CHECKLIST.md)
+- [**Implementation report: run instructions, status, tests, video order**](03-V0.1.0-IMPLEMENTATION-REPORT.md)
 
 Read all existing [design specifications](../design/README.md) and [Phase 3 research](../research/phase-3/00-START-HERE.md).
 
-**No code or executable is created by these documents.** The v0.1.0 app is still to be implemented by Claude. No merge or release to main.
+The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interface). No merge or release to main.
