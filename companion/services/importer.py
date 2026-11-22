@@ -256,8 +256,14 @@ def normalise_dex(monsters: list[dict], skills: list[dict], items: list[dict]) -
             for t in m.get("types", []):
                 if t and t.lower() not in types:
                     types.append(t.lower())
-            form_records[m["id"]] = {"name": m["name"], "types": types, "stats": m.get("stats") or {},
-                                     "abilities": [a.get("name") for a in m.get("abilities", []) if a.get("name")],
+            label = next((f.get("name") for mm in by_id.values() if mm["id"] <= 649 for f in mm.get("forms", []) if f.get("id") == m["id"]), None)
+            abil = []
+            for a in m.get("abilities", []):
+                n = (a.get("name") or "").strip()
+                if n and n != "--" and n not in abil:
+                    abil.append(n)
+            form_records[m["id"]] = {"name": m["name"], "types": types, "stats": m.get("stats") or {}, "form_label": label,
+                                     "abilities": abil,
                                      "base_species": next((f_id for f_id, mm in by_id.items() if f_id <= 649 and any(
                                          f.get("id") == m["id"] for f in mm.get("forms", []))), None)}
     breeding_items = {}

@@ -6,6 +6,7 @@ import * as tools from './pages/tools.js';
 import * as live from './pages/live.js';
 import * as guides from './pages/guides.js';
 import * as settingsPage from './pages/settings.js';
+import { t, LANGS, lang } from './i18n.js';
 
 export const NAV = [
   { id: 'home', label: 'Home', icon: 'home', page: home },
@@ -54,36 +55,74 @@ function globalKeys(e) {
 }
 
 function navButton(n, active) {
+  const label = t('nav.' + n.id);
   return h('button', { class: 'nav-item' + (active ? ' active' : ''), 'aria-current': active ? 'page' : null, dataset: { nav: n.id },
-    title: `${n.label} (Alt+${NAV.indexOf(n) + 1})`, onclick: () => go('#/' + n.id) },
-  icon(n.icon), h('span', { class: 'label' }, n.label));
+    title: `${label} (Alt+${NAV.indexOf(n) + 1})`, onclick: () => go('#/' + n.id) },
+  icon(n.icon), h('span', { class: 'label' }, label));
 }
 
-function renderChrome() {
+// Language: toolbar globe button with an accessible menu. Changing language re-renders the
+// chrome and the current page; runs, notes, Box and open popouts are untouched.
+export function languageButton(compact) {
+  const cur = LANGS.find((l) => l.id === lang()) || LANGS[0];
+  const btn = h('button', { class: 'icon-btn lang-btn', title: `${t('lang.menu')}: ${cur.native}`, 'aria-label': `${t('lang.menu')}: ${cur.native}`,
+    'aria-haspopup': 'menu', onclick: (e) => languageMenu(e.currentTarget) }, icon('globe'), compact ? null : h('span', { class: 'lang-code' }, cur.id.toUpperCase()));
+  return btn;
+}
+function languageMenu(anchor) {
+  document.querySelectorAll('.menu').forEach((m) => m.remove());
+  const r = anchor.getBoundingClientRect();
+  const menu = h('div', { class: 'menu lang-menu', role: 'menu', style: { top: r.bottom + 4 + 'px', left: Math.max(8, Math.min(r.left, innerWidth - 280)) + 'px' } },
+    LANGS.map((l) => h('button', { role: 'menuitemradio', 'aria-checked': String(l.id === lang()), class: l.id === lang() ? 'on' : null,
+      onclick: async () => { menu.remove(); if (l.id === lang()) return; await saveSettings({ 'app.language': l.id }); renderChrome(); } },
+    h('span', { class: 'grow' }, l.native, l.native !== l.label ? h('span', { class: 'tiny muted' }, ' · ' + l.label) : null),
+    l.status === 'beta' ? h('span', { class: 'badge unknown', title: t('lang.beta') }, 'beta') : null)),
+    h('div', { class: 'sep' }), h('div', { class: 'tiny muted', style: { padding: '4px 10px', maxWidth: '260px' } }, t('lang.game_names')),
+    h('button', { onclick: () => { menu.remove(); go('#/settings/language'); } }, '⋯ ' + t('nav.settings')));
+  document.body.append(menu);
+  const close = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', close); } };
+  setTimeout(() => document.addEventListener('click', close), 0);
+  menu.querySelector('button').focus();
+  menu.addEventListener('keydown', (ev) => {
+    const items = [...menu.querySelectorAll('button')]; const i = items.indexOf(document.activeElement);
+    if (ev.key === 'Escape') { menu.remove(); anchor.focus(); }
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
+    if (ev.key === 'ArrowUp') { ev.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+}
+function toolbarExtras(compact) {
+  const tb = setting('app.toolbar') || ['language'];
+  return [tb.includes('notes') ? h('button', { class: 'icon-btn', title: t('notes.new'), 'aria-label': t('notes.new'),
+    onclick: () => openPopout('notes', '#/new') }, icon('note')) : null,
+  tb.includes('language') ? languageButton(compact) : null];
+}
+
+export function renderChrome() {
   const vertical = setting('appearance.nav') !== 'horizontal';
   const r = parseRoute();
   const activeId = ({ news: 'home', events: 'home' })[r.page] || r.page;
   const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: 'Settings (Ctrl+,)', 'aria-label': 'Settings',
     onclick: () => go('#/settings') }, icon('gear'));
   const brand = h('div', { class: 'brand' }, logo(28), h('div', { class: 'text' },
-    h('div', { class: 'name' }, 'PokeMMO Companion'), h('div', { class: 'ver' }, `v${state.boot.version} · dev preview`)));
+    h('div', { class: 'name' }, 'PokeMMO Companion'), h('div', { class: 'ver' }, `v${state.boot.version} · dev preview`)),
+  vertical ? h('div', { class: 'brand-tools' }, toolbarExtras(true)) : null);
   mainEl = h('main', { class: 'main', id: 'main' });
   let shell;
   quickEl = h('div', { class: vertical ? 'quick' : 'quick-strip', role: 'list', 'aria-label': 'Quick access' });
   if (vertical) {
     shell = h('div', { class: 'app nav-vertical' },
       h('aside', { class: 'sidebar' }, brand, h('nav', { 'aria-label': 'Main' }, NAV.map((n) => navButton(n, n.id === activeId))),
-        h('div', { class: 'quick-head' }, h('span', { class: 'label-text' }, 'Quick access'),
+        h('div', { class: 'quick-head' }, h('span', { class: 'label-text' }, t('nav.quick')),
           h('button', { class: 'icon-btn sm', title: 'Add tools to Quick access (Tools page: drag a tool here, or use “Pin to sidebar”)',
             'aria-label': 'Add to Quick access', onclick: () => go('#/tools') }, icon('plus'))),
         quickEl,
         h('button', { class: 'nav-item' + (r.page === 'settings' ? ' active' : ''), dataset: { nav: 'settings' }, onclick: () => go('#/settings'), title: 'Settings (Ctrl+,)' },
-          icon('gear'), h('span', { class: 'label' }, 'Settings'))),
+          icon('gear'), h('span', { class: 'label' }, t('nav.settings')))),
       mainEl);
   } else {
     shell = h('div', { class: 'app nav-horizontal' },
       h('header', { class: 'topbar' }, brand, h('nav', { 'aria-label': 'Main' }, NAV.map((n) => navButton(n, n.id === activeId))),
-        h('span', { class: 'grow' }), quickEl, gear),
+        h('span', { class: 'grow' }), quickEl, toolbarExtras(false), gear),
       mainEl);
   }
   shell.dataset.nav = vertical ? 'vertical' : 'horizontal';
@@ -113,7 +152,7 @@ function renderRoute() {
     console.error(e);
     mount(mainEl, h('div', { class: 'page' }, h('div', { class: 'notice bad' }, 'This page failed to render: ' + e.message)));
   }
-  const title = (NAV.find((n) => n.id === activeId) || { label: r.page === 'settings' ? 'Settings' : '' }).label;
+  const title = NAV.find((n) => n.id === activeId) ? t('nav.' + activeId) : r.page === 'settings' ? t('nav.settings') : '';
   document.title = `${title} — PokeMMO Companion`;
   saveRoute(r.hash);
 }
@@ -124,6 +163,9 @@ export const POPOUT_TOOLS = {
   reports: { title: 'Alpha & Swarm reports', w: 380, h: 480 }, typechart: { title: 'Type matchups', w: 420, h: 520 },
   breeding: { title: 'Breeding', w: 460, h: 600 }, legendaries: { title: 'Legendaries', w: 360, h: 380 },
   cave: { title: 'Altering Cave', w: 360, h: 380 }, natures: { title: 'Natures', w: 380, h: 520 },
+  notes: { title: 'Notes', w: 420, h: 520, i18n: 'notes.title' }, items: { title: 'Item Library', w: 460, h: 600, i18n: 'items.title' },
+  showcase: { title: 'Showcase', w: 520, h: 420, i18n: 'showcase.title' }, customguide: { title: 'Guide steps', w: 400, h: 520, i18n: 'cguide.title' },
+  locations: { title: 'Locations', w: 480, h: 620, i18n: 'loc.title' }, box: { title: 'My Box', w: 480, h: 600, i18n: 'box.title' },
 };
 export function popoutSize(tool, mode) {
   const custom = (setting(`window.${tool}.sizes`) || {})[mode];
@@ -142,7 +184,7 @@ export async function openPopout(tool, extraHash = '') {
   const url = `/?token=${encodeURIComponent(TOKEN)}&popout=${tool}&mode=${mode}&shell=browser${extraHash}`;
   const win = window.open(url, 'pmc-' + tool, `popup=yes,width=${w},height=${h_}`);
   if (!win) toast('Your browser blocked the popout window. Allow popups for this page.', { kind: 'warn' });
-  else toast(`${def.title} opened as a browser window. Pin / always-on-top needs the native shell.`, { timeout: 3200 });
+  else toast(`${def.i18n ? t(def.i18n) : def.title} opened as a browser window. Pin / always-on-top needs the native shell.`, { timeout: 3200 });
 }
 export function popoutButton(tool, extraHash = '') {
   return h('button', { class: 'btn ghost small', title: 'Open as a separate window', onclick: () => openPopout(tool, extraHash) },
@@ -158,8 +200,14 @@ export const QA_TOOLS = {
   team: { label: 'Team builder', icon: 'team', route: '#/tools/team' },
   ev: { label: 'EV & horde planner', icon: 'target', route: '#/tools/ev' },
   stats: { label: 'Stat calculator', icon: 'calc', route: '#/tools/stats' },
-  catch: { label: 'Catch estimate', icon: 'target', route: '#/tools/catch' },
-  damage: { label: 'Damage calculator', icon: 'bolt', route: '#/tools/damage', disabled: 'Not available yet: no verified PokeMMO damage cases' },
+  catch: { label: 'Catch calculator', icon: 'target', route: '#/tools/catch' },
+  items: { label: 'Item Library', i18n: 'items.title', icon: 'bag', route: '#/tools/items', popout: 'items' },
+  notes: { label: 'Notes', i18n: 'notes.title', icon: 'note', route: '#/tools/notes', popout: 'notes' },
+  box: { label: 'My Box', i18n: 'box.title', icon: 'box', route: '#/tools/box', popout: 'box' },
+  showcase: { label: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', route: '#/tools/showcase', popout: 'showcase' },
+  cguides: { label: 'My guides', i18n: 'cguide.title', icon: 'list', route: '#/tools/cguides', popout: 'customguide' },
+  locations: { label: 'Location explorer', i18n: 'loc.title', icon: 'map', route: '#/tools/locations', popout: 'locations' },
+  links: { label: 'Websites & links', i18n: 'links.title', icon: 'external', route: '#/tools/links' },
 };
 const QA_PAGES = {
   pokedex: { label: 'Pokédex', icon: 'dex', route: '#/pokedex', popout: 'pokedex' },
@@ -169,7 +217,7 @@ const QA_PAGES = {
   news: { label: 'Official updates', icon: 'book', route: '#/news' },
 };
 export function qaInfo(item) {
-  if (item.kind === 'tool') return QA_TOOLS[item.id] || null;
+  if (item.kind === 'tool') { const x = QA_TOOLS[item.id]; return x ? { ...x, label: x.i18n ? t(x.i18n) : x.label } : null; }
   if (item.kind === 'page') return QA_PAGES[item.id] || null;
   if (item.kind === 'guide') return { label: 'Current guide step', icon: 'guides', route: '#/guides?jump=1', popout: 'storyline' };
   if (item.kind === 'pokemon') {
@@ -206,8 +254,8 @@ async function moveQuick(from, to) {
 export function pinButton(item, small = true) {
   const pinned = isPinned(item);
   return h('button', { class: 'btn ghost' + (small ? ' small' : ''), title: pinned ? 'Remove from sidebar Quick access' : 'Pin to sidebar Quick access',
-    onclick: async (e) => { if (isPinned(item)) await unpin(item); else await pinToSidebar(item);
-      e.currentTarget.replaceWith(pinButton(item, small)); } }, icon('pin'), pinned ? 'Unpin' : 'Pin to sidebar');
+    onclick: async (e) => { const btn = e.currentTarget; if (isPinned(item)) await unpin(item); else await pinToSidebar(item);
+      if (btn && btn.isConnected) btn.replaceWith(pinButton(item, small)); } }, icon('pin'), pinned ? 'Unpin' : 'Pin to sidebar');
 }
 
 function qaMenu(item, idx, anchor) {
@@ -252,7 +300,7 @@ export function renderQuick() {
       vertical ? h('button', { class: 'icon-btn sm qa-more', title: 'Options', 'aria-label': `Options for ${info.label}`, onclick: (e) => qaMenu(it, idx, e.currentTarget) }, icon('dots')) : null);
     return row;
   });
-  mount(quickEl, items.length ? items : (vertical ? h('div', { class: 'qa-empty' }, 'Drag tools here from the Tools page, or use “Pin to sidebar”.') : null));
+  mount(quickEl, items.length ? items : (vertical ? h('div', { class: 'qa-empty' }, t('nav.quick_empty')) : null));
 }
 
 function quickDropTarget(e) { return e.target.closest && e.target.closest('.quick, .quick-strip'); }

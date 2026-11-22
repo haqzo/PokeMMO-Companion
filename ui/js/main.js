@@ -1,6 +1,7 @@
 import { POPOUT, loadBoot, connectEvents, on, get, state, applyAppearance, h, mount, notice } from './core.js';
 import { startApp } from './shell.js';
 import { startPopout } from './popouts.js';
+import { installShortcuts } from './shortcuts.js';
 
 async function boot() {
   const root = document.getElementById('app');
@@ -20,6 +21,7 @@ async function boot() {
     applyAppearance();
     document.dispatchEvent(new CustomEvent('settings-changed', { detail: data || {} }));
   });
+  installShortcuts();
   if (POPOUT) startPopout(root); else startApp(root);
 }
 boot();

@@ -191,14 +191,18 @@ def plan_summary(plan: dict) -> dict:
             counts[p["item"]] = counts.get(p["item"], 0) + 1
             walk(p["node"], depth + 1)
     walk(tree, 0)
-    prices = plan.get("prices", {})
+    from .calcs import BASELINE_PRICES, breeding_reference
+    prices = {**BASELINE_PRICES, **{k: v for k, v in (plan.get("prices") or {}).items() if isinstance(v, (int, float)) and v >= 0}}
     priced = {k: v for k, v in prices.items() if isinstance(v, (int, float)) and v >= 0}
     total = sum(counts.get(k, 0) * v for k, v in priced.items())
     missing = [k for k in counts if k not in priced]
     done = sum(1 for s in statuses.values() if s == "done")
     return {"tree": tree, "leaves": len(leaves), "breeds": breeds, "items": counts,
             "cost": {"total": total if not missing else None, "partial_total": total,
-                     "missing_prices": missing, "currency": "¥ (your manual prices)"},
+                     "missing_prices": missing, "currency": "¥ (fixed baseline estimates; your own prices override them)",
+                     "baseline": BASELINE_PRICES, "overrides": sorted(k for k in (plan.get("prices") or {}) if k in priced)},
+            "reference": breeding_reference(len(stats), bool(plan.get("nature"))),
+            "starting_parents": len(leaves),
             "progress": {"done": done, "nodes": breeds + len(leaves)},
             "notes": ["Item counts assume each breed uses one item per parent (community brace-tree method).",
                       "Gender-selection fees and breeder purchase prices are not included — enter your own.",

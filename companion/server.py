@@ -23,7 +23,7 @@ from .services.dex import FILTER_TAGS
 from .config import UI_DIR
 from .data import reference as ref
 from .data.window_presets import PRESETS
-from .services import backup, breeding, importer
+from .services import backup, breeding, calcs, importer
 from .services.guides import GuideError
 from .settings import SettingsError
 from .storage import utcnow
@@ -251,7 +251,7 @@ def build_router(ctx: AppContext) -> Router:
         if run:
             d["progress"] = (ctx.dex_progress(run) or {}).get(sid) or {"status": "unregistered"}
             d["progress_run"] = run
-        d["forms"] = ctx.dex.species_forms(sid)
+        d["catalog_forms"] = ctx.dex.species_forms(sid)
         fk = req.q("form")
         if fk:
             f = ctx.dex.form_entry(f"{sid}:{fk}")
@@ -328,42 +328,58 @@ def build_router(ctx: AppContext) -> Router:
         sp = ctx.dex.species.get(sid)
         if not sp:
             raise ApiError(400, "Import data and choose a species")
-        level = max(1, min(100, int_param(req.json("level", 50), "level")))
+        base = sp["stats"]
+        form = req.json("form")
+        if form:
+            f = ctx.dex.form_entry(f"{sid}:{form}")
+            if not f:
+                raise ApiError(400, "Unknown form")
+            base = f["stats"] or base
+        level = int_param(req.json("level", 50), "level")
         ivs, evs = req.json("ivs", {}) or {}, req.json("evs", {}) or {}
         nature = req.json("nature")
-        total_ev = 0
-        out = {}
-        for st in ref.STATS:
-            iv = max(0, min(31, int_param(ivs.get(st, 31), "IV")))
-            ev = max(0, min(255, int_param(evs.get(st, 0), "EV")))
-            total_ev += ev
-            out[st] = ref.calc_stat(st, sp["stats"][st], iv, ev, level, nature)
-        return {"stats": out, "ev_total": total_ev, "ev_warning": total_ev > 510,
-                "status": "ESTIMATE", "note": "Standard Gen III–V stat formula with your dump's base stats. "
-                                              "Not yet checked against an in-game summary."}
+        try:
+            out = calcs.stat_block(base, ivs, evs, level, nature)
+            at50 = calcs.stat_block(base, ivs, evs, 50, nature)
+            at100 = calcs.stat_block(base, ivs, evs, 100, nature)
+        except (ValueError, TypeError) as exc:
+            raise ApiError(400, str(exc))
+        return {"stats": out, "level": level, "at_50": at50, "at_100": at100, "base": base,
+                "ev_total": sum(int(evs.get(k, 0) or 0) for k in ref.STATS),
+                "note": "Gen III+ formula with integer rounding (same core formula as the PokeMMO Showdown and PokéStats calculators). "
+                        "Base stats from your installed data" + (" (form-specific)" if form else "") + "."}
     r.add("POST", "/api/tools/stats", calc_stats)
 
-    def catch_estimate(req: Request) -> dict:
+    def catch_calc(req: Request) -> dict:
         sid = int_param(req.json("species"), "species")
         sp = ctx.dex.species.get(sid)
         if not sp:
             raise ApiError(400, "Import data and choose a species")
-        if not req.json("acknowledged"):
-            raise ApiError(400, "Confirm that you understand this is an unverified estimate")
-        hp_pct = max(1, min(100, int_param(req.json("hp_percent", 100), "HP %")))
-        ball = float(req.json("ball", 1.0))
-        status = float(req.json("status", 1.0))
-        if not (0 < ball <= 10 and 1 <= status <= 3):
-            raise ApiError(400, "Ball/status multiplier out of range")
-        rate = sp["catch_rate"]
-        a = (3 - 2 * hp_pct / 100) * rate * ball * status / 3
-        p = min(1.0, a / 255)
-        return {"estimate_percent": round(p * 100, 1), "catch_rate": rate, "model": "generic-gen3-5-simplified",
-                "status": "ESTIMATE",
-                "warnings": ["PokeMMO's exact catch formula is not public; this generic model can be wrong.",
-                             "Ignores critical captures, shake checks, Alpha/legendary rules and level effects.",
-                             "Ball and status multipliers are standard-game presets — verify for PokeMMO."]}
-    r.add("POST", "/api/tools/catch", catch_estimate)
+        ov = calcs.CATCH_RATE_OVERRIDES.get(sid)
+        rate = ov["rate"] if ov else sp["catch_rate"]
+        b = req.body or {}
+        c = {"max_hp": b.get("max_hp") or 100, "hp_percent": b.get("hp_percent", 100), "cur_hp": b.get("cur_hp"),
+             "status": b.get("status") or "none", "turn": int(b.get("turn") or 1), "time": b.get("time") or "day",
+             "cave": bool(b.get("cave")), "water": bool(b.get("water")), "level": int(b.get("level") or 30),
+             "caught_before": bool(b.get("caught_before")), "types": ctx.dex.index.get(sid, {}).get("types", [])}
+        try:
+            res = calcs.catch_table(rate, c)
+        except ValueError as exc:
+            raise ApiError(400, str(exc))
+        res.update({"species": sid, "name": ctx.dex.name(sid), "rate_source": ov["source"] if ov else "Your installed dump",
+                    "notes": ["Gen III/IV capture formula with four shake checks, as used by public PokeMMO catch calculators.",
+                              "Percentages are per ball thrown. Balls marked “condition not confirmed” use mainline values whose PokeMMO "
+                              "behaviour has not been confirmed.", "Alpha, raid and legendary capture rules are not modelled."]})
+        return res
+    r.add("POST", "/api/tools/catch", catch_calc)
+
+    def ev_plan(req: Request) -> dict:
+        try:
+            return calcs.ev_plan(int(req.json("yield", 1)), int(req.json("current", 0)), int(req.json("target", 252)),
+                                 int(req.json("horde", 5)), bool(req.json("macho_brace")))
+        except (ValueError, TypeError) as exc:
+            raise ApiError(400, str(exc))
+    r.add("POST", "/api/tools/ev/plan", ev_plan)
 
     def breeding_preview(req: Request) -> dict:
         return breeding.preview(ctx.dex, req.json("a", {}) or {}, req.json("b", {}) or {})

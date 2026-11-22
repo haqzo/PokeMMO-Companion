@@ -207,9 +207,9 @@ def test_plan_tree_shape(ivs, nature, leaves, breeds):
         assert s["items"]["Everstone"] >= 1
 
 
-def test_plan_cost_requires_all_prices():
-    s = breeding.plan_summary({"ivs": ["hp", "attack", "speed"], "prices": {"Power Weight": 10000}})
-    assert s["cost"]["total"] is None and "Power Bracer" in s["cost"]["missing_prices"]
+def test_plan_cost_uses_fixed_baseline_and_overrides():
+    s = breeding.plan_summary({"ivs": ["hp", "attack", "speed"]})
+    assert s["cost"]["total"] == 6 * 10000 and s["cost"]["missing_prices"] == []
     s2 = breeding.plan_summary({"ivs": ["hp", "attack"], "prices": {"Power Weight": 10000, "Power Bracer": 9000}})
     assert s2["cost"]["total"] == 19000
 

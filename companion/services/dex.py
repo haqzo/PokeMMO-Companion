@@ -237,8 +237,12 @@ class DexService:
         if rec and f.get("stats") and rec.get("stats") and rec["stats"] != f["stats"]:
             mismatch.append("stats")
         cid = f.get("client_record") if isinstance(f.get("client_record"), int) else None
-        icon = self.sprite_url(cid, "icon") if cid else None
-        front = self.sprite_url(cid, "front") if cid else None
+        # The client lists some form records with a placeholder label ("Egg") and egg artwork: never show that as the form's sprite.
+        sprite_ok = bool(cid) and not (rec and (rec.get("form_label") or "").lower() == "egg")
+        icon = self.sprite_url(cid, "icon") if sprite_ok else None
+        front = self.sprite_url(cid, "front") if sprite_ok else None
+        if rec and rec.get("abilities"):
+            rec = {**rec, "abilities": [a for a in dict.fromkeys(rec["abilities"]) if a and a != "--"]}
         return {"key": key, "id": sid, "form_key": f["form_key"], "form_name": f["form_name"], "kind": f["kind"],
                 "name": (f"Unown {f['form_name']}" if sid == 201 else f["form_name"] if base["name"] in f["form_name"]
                          else f"{base['name']} ({f['form_name']})"),
@@ -272,6 +276,7 @@ class DexService:
         base_name = self.forms_doc.get("base_form_names", {}).get(str(sid))
         forms = [self.form_entry(k) for k, f in self.forms.items() if f["species_id"] == sid]
         return ([{"key": str(sid), "form_key": "", "form_name": base_name or "Base form", "base": True}] + forms) if forms else []
+
 
     @staticmethod
     def _slug(name: str) -> str:

@@ -278,7 +278,7 @@ def test_form_types_stats_and_honest_availability(client):
     _, d = client.call("GET", "/api/dex/species/646?form=black")
     f = d["form"]
     assert f["types"] == ["dragon", "ice"] and f["stats"]["attack"] == 170 and f["types_source"] == "Companion forms manifest"
-    assert "flying" not in d["form_matchups"]["groups"]["0"] and len(d["forms"]) == 3 and d["forms"][0]["base"]
+    assert "flying" not in d["form_matchups"]["groups"]["0"] and len(d["catalog_forms"]) == 3 and d["catalog_forms"][0]["base"]
     _, r = client.call("GET", "/api/dex/species")
     kb = [x for x in r["forms"] if x["entry"] == "646:black"][0]
     assert kb["permanent"] is None and kb["tags"] == ["unverified"]  # a form is never assumed obtainable

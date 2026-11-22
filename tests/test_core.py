@@ -65,7 +65,7 @@ def test_settings_validation_rejects(key, value):
 
 
 def test_settings_clamps_opacity_to_legible_floor():
-    assert validate("window.storyline.bg_opacity", 5) == 35
+    assert validate("window.storyline.bg_opacity", 5) == 20  # floor lowered; the text outline keeps it readable
     assert validate("appearance.text_scale", 400) == 160
 
 

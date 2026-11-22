@@ -1,4 +1,5 @@
 // Guides (docs/design/14–17): named character runs, five regions, manual progress.
+import { guideContext, shortcutFor, displayCombo } from '../shortcuts.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, tabs, toast, confirmDialog, modal, on, debounce, fmtDate, relTime, extLink } from '../core.js';
 import { go, openPopout } from '../shell.js';
 import { downloadJson } from '../components.js';
@@ -51,10 +52,16 @@ export async function render(el, route) {
   const region = REGIONS.includes(route.query.get('region')) ? route.query.get('region') : run.last_region || 'kanto';
   const st = await get(`/api/guides/runs/${run.id}/state?region=${region}`);
   const overview = await get(`/api/guides/runs/${run.id}/overview`);
+  Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => { if (el.isConnected && location.hash.startsWith('#/guides')) render(el, route); } });
+  unsub.push(() => Object.assign(guideContext, { run: null, region: null, step: null, refresh: null }));
 
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Guides'), h('div', { class: 'sub' }, 'Every checkmark is yours to set — nothing is read from the game.')),
     h('div', { class: 'actions' }, runSelector(runs, run, el, route),
       h('button', { class: 'btn', title: 'Open the Storyline popout', onclick: () => openPopout('storyline') }, icon('popout'), 'Storyline popout'))));
+  const sk = ['guide.prev', 'guide.next', 'guide.toggle'].map((a) => shortcutFor(a));
+  page.append(h('div', { class: 'tiny muted', style: { margin: '-6px 0 10px' } }, sk.some(Boolean) ?
+    `Keyboard (while this window is focused): previous ${displayCombo(sk[0])} · next ${displayCombo(sk[1])} · tick/untick ${displayCombo(sk[2])} — change in Settings › Keyboard shortcuts.` :
+    'Guide keyboard shortcuts are unassigned — set them in Settings › Keyboard shortcuts.'));
 
   page.append(h('div', { class: 'row wrap', style: { marginBottom: '12px' } }, tabs(REGIONS.map((r) => {
     const c = overview[r].mandatory.total ? overview[r].mandatory : overview[r].unclassified;

@@ -89,6 +89,7 @@ for _tool in TOOLS:
     DEFAULTS[f"window.{_tool}.geometry"] = None          # last position (+ size) of the window
     DEFAULTS[f"window.{_tool}.sizes"] = {}               # your custom size per mode: {"compact": {"w","h"}, ...}
     DEFAULTS[f"window.{_tool}.keep_size"] = False        # True = switching mode never resizes the window
+    DEFAULTS[f"window.{_tool}.text_outline"] = False     # dark outline behind text for low-opacity backgrounds
 
 _ENUMS = {
     "appearance.nav": ("vertical", "horizontal"),
@@ -114,7 +115,7 @@ _RANGES = {
 }
 for _tool in TOOLS:
     _ENUMS[f"window.{_tool}.mode"] = MODES
-    _RANGES[f"window.{_tool}.bg_opacity"] = (35, 100)      # legibility floor
+    _RANGES[f"window.{_tool}.bg_opacity"] = (20, 100)      # below ~45 % the text outline is suggested
     _RANGES[f"window.{_tool}.window_opacity"] = (40, 100)
     _RANGES[f"window.{_tool}.text_scale"] = (60, 200)     # text-size popover: 60–200 %
 

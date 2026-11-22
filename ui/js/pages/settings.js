@@ -3,9 +3,11 @@ import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, no
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { createRun } from './guides.js';
+import { LANGS, coverage, t } from '../i18n.js';
+import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
-const SECTIONS = [['appearance', 'Appearance'], ['windows', 'Windows & popouts'], ['notifications', 'Notifications'], ['sources', 'Live sources & news'],
-  ['guides', 'Guides & characters'], ['data', 'Data & privacy'], ['about', 'About']];
+const SECTIONS = [['appearance', 'Appearance'], ['language', 'Language'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
+  ['sources', 'Live sources & news'], ['guides', 'Guides & characters'], ['data', 'Data & privacy'], ['about', 'About']];
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
@@ -21,7 +23,82 @@ export async function render(el, route) {
   const body = h('div', { class: 'card' });
   page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': 'Settings sections' },
     SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, l))), body));
-  await ({ appearance, windows, notifications, sources, guides: guidesSec, data, about })[sec](body);
+  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, data, about })[sec](body);
+}
+
+// --------------------------------------------------------------- language
+async function language(b) {
+  const cov = coverage();
+  const cur = setting('app.language') || 'en';
+  b.append(h('h2', { style: { marginTop: 0 } }, 'Language'),
+    row('Companion language', 'English is complete. Spanish and Chinese are beta: menus, navigation and the new tools are translated; other pages still show English. Translations were written for this build and have not been reviewed by native speakers yet.',
+      h('div', { class: 'stack tight' }, LANGS.map((l) => h('label', { class: 'row' }, h('input', { type: 'radio', name: 'lang', checked: cur === l.id ? 'checked' : null,
+        onchange: async () => { await saveSettings({ 'app.language': l.id }); (await import('../shell.js')).renderChrome(); go('#/settings/language'); } }),
+      h('span', null, l.native, l.native !== l.label ? h('span', { class: 'tiny muted' }, ` (${l.label})`) : null),
+      l.status === 'beta' ? h('span', { class: 'badge unknown' }, 'beta') : null)))),
+    row('Translation coverage', 'Keys in the Companion’s interface dictionary. Missing keys fall back to English.',
+      h('div', { class: 'stack tight' }, cov.map((c) => h('div', { class: 'small' }, `${c.native}: ${c.keys} / ${c.total}`)))),
+    row('Game names', 'Pokémon names stay in English (your client dump has no translated species names). Item names and descriptions use your own client’s Spanish/Chinese text when your installed data includes XML-Strings.', h('span', { class: 'tiny muted' }, '—')),
+    row('Language button in the toolbar', 'Shows the globe button in the sidebar / top bar for quick switching.',
+      switchEl((setting('app.toolbar') || []).includes('language'), (v) => saveSettings({ 'app.toolbar': v ? [...new Set([...(setting('app.toolbar') || []), 'language'])] : (setting('app.toolbar') || []).filter((x) => x !== 'language') }).then(async () => (await import('../shell.js')).renderChrome()))),
+    row('“New note” button in the toolbar', 'Adds a quick button that opens a new floating note.',
+      switchEl((setting('app.toolbar') || []).includes('notes'), (v) => saveSettings({ 'app.toolbar': v ? [...new Set([...(setting('app.toolbar') || []), 'notes'])] : (setting('app.toolbar') || []).filter((x) => x !== 'notes') }).then(async () => (await import('../shell.js')).renderChrome()))));
+}
+
+// ------------------------------------------------------- keyboard shortcuts
+async function shortcutsSec(b) {
+  let data = await get('/api/shortcuts');
+  let q = '';
+  const listEl = h('div', { class: 'stack tight' });
+  const record = (a, btn) => {
+    setRecording(true);
+    btn.textContent = 'Press keys… (Esc cancels)';
+    btn.classList.add('recording');
+    const stop = () => { setRecording(false); document.removeEventListener('keydown', onKey, true); };
+    const onKey = async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+      stop();
+      if (e.key === 'Escape') { draw(); return; }
+      const combo = comboFromEvent(e);
+      if (!combo) { toast('That key cannot be used for a shortcut.', { kind: 'warn' }); draw(); return; }
+      try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${a.label}: ${displayCombo(combo)}`); }
+      catch (err) {
+        if (/already used/.test(err.message) && await confirmDialog('Shortcut in use', err.message + ' Replace it?', 'Replace')) {
+          try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo, replace: true }); } catch (x) { toast(x.message, { kind: 'warn' }); }
+        } else if (!/already used/.test(err.message)) toast(err.message, { kind: 'warn' });
+      }
+      await loadShortcuts(); draw();
+    };
+    document.addEventListener('keydown', onKey, true);
+  };
+  const draw = () => {
+    const groups = {};
+    for (const a of data.actions.filter((x) => !q || x.label.toLowerCase().includes(q) || x.group.toLowerCase().includes(q) || (x.binding || '').toLowerCase().includes(q))) (groups[a.group] ||= []).push(a);
+    mount(listEl, Object.entries(groups).map(([g, acts]) => h('section', { class: 'stack tight' }, h('h3', { style: { margin: '8px 0 0' } }, g),
+      acts.map((a) => {
+        const rec = h('button', { class: 'btn small kb-rec', 'aria-label': `Change shortcut for ${a.label}`, onclick: (e) => record(a, e.currentTarget) }, a.binding ? 'Change' : 'Assign');
+        return h('div', { class: 'set-row kb-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, a.label),
+          h('div', { class: 'desc' }, { app: 'Any Companion window', guides: 'Guides page or Storyline popout', pokedex: 'Pokédex page or popout', notes: 'Notes page or popout', items: 'Item Library', links: 'Websites page' }[a.scope] || a.scope,
+            a.default && a.default !== a.binding ? ` · default ${displayCombo(a.default)}` : '')),
+        h('div', { class: 'row' }, h('kbd', { class: 'kb' + (a.binding ? '' : ' none') }, displayCombo(a.binding)), rec,
+          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': `Clear shortcut for ${a.label}`, onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, 'Clear') : null,
+          a.default !== a.binding ? h('button', { class: 'btn ghost small', onclick: async () => {
+            try { data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true }); } catch (err) {
+              if (await confirmDialog('Default in use', err.message + ' Replace it?', 'Replace')) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
+            await loadShortcuts(); draw(); } }, t('common.reset')) : null));
+      }))));
+  };
+  b.append(h('h2', { style: { marginTop: 0 } }, t('shortcuts.title')),
+    notice('info', data.global_note),
+    row('Shortcuts on', 'Turn all Companion shortcuts off without losing your bindings.', switchEl(setting('shortcuts.enabled') !== false, set('shortcuts.enabled'))),
+    row('System-wide (global) shortcuts', 'Not available in v0.1.0 — always off. The Companion never captures keys while PokeMMO has focus.', switchEl(false, () => toast('System-wide shortcuts are not available.', { kind: 'warn' }))),
+    h('div', { class: 'row', style: { margin: '8px 0' } }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search actions or keys', 'aria-label': 'Search shortcuts',
+      oninput: (e) => { q = e.target.value.toLowerCase(); draw(); } })),
+    h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Reset all shortcuts?', 'Every action goes back to its default key (or unassigned).', t('common.reset'))) { data = await post('/api/shortcuts/reset'); await loadShortcuts(); draw(); } } }, 'Reset all')),
+    listEl,
+    h('p', { class: 'tiny muted' }, 'Shortcuts never fire while you type in a text field or while a dialog is open. Holding a key down does not repeat a tick. Storyline actions always use the character run and region shown in the Guides page or Storyline popout; at the first/last step nothing is changed.'));
+  draw();
 }
 
 // ------------------------------------------------------------ appearance

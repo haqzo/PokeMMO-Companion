@@ -1,18 +1,22 @@
-// Pokédex (docs/design/06 + 2026-11-22 video correction pass).
-// Default scope = PokeMMO roster (authored availability registry + your in-game checks + dump families);
-// "All Gen I–V reference" is an explicit choice. Registration status is manual, per character run,
-// and never claimed to come from your account.
+// Pokédex (docs/design/06, 19 + 2026-11-22 accuracy pass).
+// Default = browse catalog of all 649 Gen I–V species plus 82 alternate forms (Synergy-equivalent
+// coverage, independently authored). Catalog membership, in-game Pokédex listing, acquisition and
+// your manual registration are separate axes; none is inferred from another.
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
   spriteOrFallback, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
 import { downloadJson } from '../components.js';
+import { linkedNotes, openRoute } from '../links.js';
 
 export const TYPES = ['normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel'];
 const REGIONS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
 const STAT_ORDER = [['hp', 'HP'], ['attack', 'Attack'], ['defense', 'Defense'], ['sp_attack', 'Sp. Atk'], ['sp_defense', 'Sp. Def'], ['speed', 'Speed']];
 export const REG_LEVELS = [['unregistered', 'Unregistered'], ['seen', 'Seen'], ['owned', 'Owned'], ['caught_ot', 'Caught OT']];
-const CLASS_CHIPS = [['wild', 'Wild'], ['evolution_or_breeding', 'Evolve / breed'], ['gift', 'Gift'], ['fossil', 'Fossil'], ['roaming', 'Roamer'],
-  ['raid', 'Raid'], ['story_temporary', 'Story (temporary)'], ['unknown', 'Unverified'], ['unavailable', 'Not in PokeMMO']];
+const TAG_CHIPS = [['permanent', 'Available permanently'], ['wild', 'Wild'], ['raid', 'Raids'], ['roaming', 'Roaming'], ['temporary', 'Special / temporary'],
+  ['event', 'Event'], ['gift_fossil', 'Gift / fossil'], ['evolution', 'Evolve / breed'], ['unverified', 'Unverified'], ['needs_review', 'Needs review'],
+  ['listed', 'Listed (your check)'], ['not_listed', 'Not listed (your check)']];
+const GEN_NAMES = ['Generation I', 'Generation II', 'Generation III', 'Generation IV', 'Generation V'];
+const entryRoute = (s) => '#/pokedex/' + s.id + (s.form_key ? '/' + s.form_key : '');
 const DEFAULT_F = { q: '', gen: 'all', types: [], typeSlot: 'any', region: '', horde: '', egg: '', fav: false, sort: 'num', season: '',
   ability: '', held: '', statKey: '', statMin: '', classes: [], reg: [] };
 let F = null;
@@ -30,9 +34,19 @@ export async function loadList(force) {
     try { res = await get('/api/dex/species?run=' + encodeURIComponent(key)); }
     catch (_) { await saveSettings({ 'pokedex.progress_run': null }); res = await get('/api/dex/species?run=none'); }
     state.dexCache = res.species; state.dexCacheRun = res.progress_run || 'none';
+    state.dexForms = (res.forms || []).map((f) => ({ ...f, abilities: f.abilities || [] }));
     meta = res;
   }
-  return state.dexCache;
+  return setting('pokedex.catalog') === 'species' ? state.dexCache : catalogOrder(state.dexCache, state.dexForms);
+}
+/** Species with their forms directly after them, in National order. */
+function catalogOrder(species, forms) {
+  const byId = {};
+  for (const f of forms) (byId[f.id] ||= []).push(f);
+  const out = [];
+  for (const s of species) { out.push(s); if (byId[s.id]) for (const f of byId[s.id]) out.push({ ...s, ...f, regions: s.regions, methods: s.methods,
+    horde: s.horde, horde5: s.horde5, egg_groups: s.egg_groups, held_items: s.held_items, seasons: s.seasons, ev: s.ev, progress: s.progress }); }
+  return out;
 }
 export function dexMeta() { return meta; }
 const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': { ...F, q: '' } }).catch(() => {}), 700);
@@ -42,10 +56,10 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
   const q = (f.q || '').trim().toLowerCase();
   const tracking = !!setting('pokedex.progress_run');
   const out = all.filter((s) => {
-    if (scope !== 'reference' && s.dex === 'no') return false;
+    if (scope === 'pokemmo' && s.dex === 'no') return false;
     if (q) {
       const num = q.replace(/^#/, '');
-      const hit = s.name.toLowerCase().includes(q) || (/^\d+$/.test(num) && String(s.id) === String(Number(num))) ||
+      const hit = s.name.toLowerCase().includes(q) || (s.form_name || '').toLowerCase().includes(q) || (/^\d+$/.test(num) && String(s.id) === String(Number(num))) ||
         (s.abilities || []).some((a) => a.toLowerCase().includes(q)) || s.types.includes(q);
       if (!hit) return false;
     }
@@ -63,7 +77,7 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
     if (f.ability && !(s.abilities || []).some((a) => a.toLowerCase().includes(f.ability.toLowerCase()))) return false;
     if (f.held && !(s.held_items || []).some((a) => a.toLowerCase().includes(f.held.toLowerCase()))) return false;
     if (f.statKey && f.statMin !== '' && !((f.statKey === 'bst' ? s.bst : (s.stats || {})[f.statKey]) >= Number(f.statMin))) return false;
-    if (f.classes.length && !f.classes.some((c) => (s.classes || []).includes(c))) return false;
+    if (f.classes.length && !f.classes.some((c) => (s.tags || []).includes(c))) return false;
     if (tracking && f.reg.length) {
       const p = s.progress || { status: 'unregistered' };
       const ok = f.reg.some((r) => (r === 'caught_alpha' ? p.caught_alpha : r === 'owned_shiny' ? p.owned_shiny : r === 'owned_costume' ? p.owned_costume : p.status === r));
@@ -72,7 +86,7 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
     if (f.fav && !s.fav) return false;
     return true;
   });
-  const by = { num: (a, b) => a.id - b.id, name: (a, b) => a.name.localeCompare(b.name), bst: (a, b) => (b.bst || 0) - (a.bst || 0) || a.id - b.id,
+  const by = { num: (a, b) => a.id - b.id || (a.form_key ? 1 : 0) - (b.form_key ? 1 : 0), name: (a, b) => a.name.localeCompare(b.name), bst: (a, b) => (b.bst || 0) - (a.bst || 0) || a.id - b.id,
     fav: (a, b) => (b.fav - a.fav) || a.id - b.id };
   out.sort(by[f.sort] || by.num);
   return out;
@@ -88,6 +102,7 @@ export async function render(el, route) {
   currentFilters();
   const all = await loadList();
   const sel = route.parts[0] ? Number(route.parts[0]) : null;
+  const selForm = route.parts[1] || null;
   if (route.query.get('tab')) { ui.tab = route.query.get('tab'); }
   const wide = el.clientWidth >= 1080;
   const page = h('div', { class: 'page flush' });
@@ -95,7 +110,7 @@ export async function render(el, route) {
   if (sel && !wide) {
     const pane = h('div', { class: 'dex-detail', style: { borderLeft: 0, flex: 1 } });
     page.append(pane);
-    await renderDetail(pane, sel, { back: () => go('#/pokedex') });
+    await renderDetail(pane, sel, { back: () => go('#/pokedex'), form: selForm });
     return;
   }
   const layout = h('div', { class: 'dex-layout' + (sel ? ' split' : '') });
@@ -107,14 +122,14 @@ export async function render(el, route) {
   gridEl = h('div', { class: 'dex-grid density-' + (setting('pokedex.density') || 'standard'), role: 'grid', 'aria-label': 'Pokémon' });
   scroll.append(gridEl);
   gridWrap.append(scroll);
-  drawGrid(all, sel);
+  drawGrid(all, sel, selForm);
   scroll.scrollTop = ui.scroll;
   scroll.addEventListener('scroll', () => { ui.scroll = scroll.scrollTop; });
   if (sel) {
     const pane = h('div', { class: 'dex-detail' });
     layout.append(pane);
-    await renderDetail(pane, sel, { back: () => go('#/pokedex') });
-    const card = gridEl.querySelector(`[data-id="${sel}"]`);
+    await renderDetail(pane, sel, { back: () => go('#/pokedex'), form: selForm });
+    const card = gridEl.querySelector(`[data-entry="${selForm ? sel + ':' + selForm : sel}"]`);
     if (card) card.scrollIntoView({ block: 'nearest' });
   }
   const refresh = async () => { await loadList(true); if (gridEl && gridEl.isConnected) rerender(); };
@@ -123,7 +138,6 @@ export async function render(el, route) {
   unsub.push(on('dex.progress', (d, ev) => { if (ev.origin !== WINDOW_ID) refresh(); }));
   unsub.push(on('import', async (d) => { if (d.state === 'done' && d.kind === 'dumps') refresh(); }));
   const keyh = (e) => {
-    if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); const s = el.querySelector('#dex-search'); s && s.focus(); }
     if (e.key === 'Escape' && sel && !document.querySelector('.modal-back')) go('#/pokedex');
   };
   document.addEventListener('keydown', keyh);
@@ -133,7 +147,6 @@ function parseHash() { const raw = location.hash.replace(/^#\/?/, ''); const [p,
   return { page: parts[0], parts: parts.slice(1), query: new URLSearchParams(qs || ''), hash: location.hash }; }
 
 async function buildToolbar(wrap, all) {
-  const scope = setting('pokedex.scope') || 'pokemmo';
   const search = h('input', { id: 'dex-search', class: 'input', type: 'search', placeholder: 'Name, number, type or ability', value: F.q,
     'aria-label': 'Search Pokémon', oninput: debounce((e) => { F.q = e.target.value; drawGrid(all); }, 120) });
   countEl = h('span', { class: 'small muted nowrap' });
@@ -144,7 +157,7 @@ async function buildToolbar(wrap, all) {
       h('option', { value: v, selected: F.sort === v ? 'selected' : null, disabled: v === 'bst' && !state.boot.dex.imported ? 'disabled' : null }, t)));
   wrap.append(h('div', { class: 'dex-toolbar' },
     h('div', { class: 'search' }, icon('search'), search),
-    seg([['pokemmo', 'PokeMMO Dex'], ['reference', 'All Gen I–V (649)']], scope, async (v) => { await saveSettings({ 'pokedex.scope': v }); rerender(); }, 'Roster scope'),
+    seg([['forms', 'Pokémon & forms'], ['species', 'Species only']], setting('pokedex.catalog') || 'forms', async (v) => { await saveSettings({ 'pokedex.catalog': v }); rerender(); }, 'Catalog'),
     seg([['all', 'All'], ['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['5', 'V']], F.gen, (v) => { F.gen = v; persistFilters(); rerender(); }, 'Generation of introduction'),
     filterBtn, sort,
     seg([['compact', 'Small'], ['standard', 'Medium'], ['large', 'Large']], setting('pokedex.density') || 'standard', async (v) => {
@@ -157,12 +170,12 @@ async function buildToolbar(wrap, all) {
 }
 
 async function infoBar(all) {
-  const scope = setting('pokedex.scope') || 'pokemmo';
+  const scope = setting('pokedex.scope') || 'reference';
   const runs = await get('/api/guides/runs');
   const runId = setting('pokedex.progress_run');
   const reg = meta && meta.registry;
+  const forms = all.filter((s) => s.form_key).length;
   const hidden = all.filter((s) => s.dex === 'no').length;
-  const unknown = all.filter((s) => s.dex === 'unknown').length;
   const runSel = h('select', { class: 'input', style: { width: 'auto', minHeight: '28px', padding: '2px 6px' }, 'aria-label': 'Registration tracking',
     onchange: async (e) => { await saveSettings({ 'pokedex.progress_run': e.target.value || null }); await loadList(true); rerender(); } },
   h('option', { value: '' }, 'Registration: not tracked'),
@@ -171,15 +184,15 @@ async function infoBar(all) {
   if (runId) {
     get(`/api/dex/progress/${runId}/counts?scope=${scope}`).then((c) => mount(counters,
       [['Seen', c.seen], ['Owned', c.owned], ['Caught OT', c.caught_ot], ['Caught Alpha', c.caught_alpha], ['Owned Shiny', c.owned_shiny], ['Costumes', c.owned_costume]]
-        .map(([l, v]) => h('span', { class: 'counter' }, h('span', { class: 'muted' }, l + ' '), h('strong', null, v), h('span', { class: 'muted' }, ' / ' + c.scope_size))),
-      h('span', { class: 'tiny muted', title: c.note }, '· entered by you'))).catch(() => {});
+        .map(([l, v]) => h('span', { class: 'counter' }, h('span', { class: 'muted' }, l + ' '), h('strong', null, v))),
+      h('span', { class: 'tiny muted', title: c.note }, '· species you marked (forms don’t count separately) · in-game maxima differ per counter'))).catch(() => {});
   }
   return h('div', { class: 'dex-info' },
     h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } },
       countEl,
-      scope === 'pokemmo' ? h('span', { class: 'small muted' }, `${hidden} reported absent from PokeMMO hidden · ${unknown} unverified shown with “?”`) :
-        h('span', { class: 'small muted' }, 'Full Gen I–V reference — not every entry exists in PokeMMO'),
-      h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Compare with the in-game Pokédex and record what your client shows' }, icon('info'), 'Roster report'),
+      h('span', { class: 'small muted' }, `${all.length - forms} species${forms ? ` + ${forms} forms` : ''} in the catalog · being listed here does not mean obtainable in PokeMMO`),
+      scope === 'pokemmo' && hidden ? h('span', { class: 'small muted' }, `${hidden} you marked “Not listed” hidden`) : null,
+      h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, icon('info'), 'Availability report'),
       reg ? h('span', { class: 'tiny muted' }, `Registry ${reg.registry_version}`) : null,
       state.boot.dex.imported ? null : h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, icon('download'), 'Install your PokeMMO data')),
     h('div', { class: 'row wrap', style: { gap: '6px 12px' } }, runs.runs.length ? runSel : h('span', { class: 'tiny muted' }, 'Create a run in Guides to track registration per character'), counters));
@@ -197,8 +210,10 @@ function filterDrawer(all) {
       TYPES.map((t) => h('button', { class: 'chip btnlike' + (F.types.includes(t) ? ' active' : ''), 'aria-pressed': String(F.types.includes(t)), onclick: () => {
         F.types = F.types.includes(t) ? F.types.filter((x) => x !== t) : [...F.types, t].slice(-2); redraw(); } }, typeChip(t, true)))),
     seg([['any', 'Has all selected'], ['primary', 'Primary type'], ['secondary', 'Secondary type']], F.typeSlot, (v) => { F.typeSlot = v; redraw(); }, 'Type slot')),
-    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Availability (PokeMMO registry / your dump)'), h('div', { class: 'chips' },
-      CLASS_CHIPS.map(([k, l]) => chip(l, F.classes.includes(k), () => { F.classes = toggle(F.classes, k); redraw(); })))),
+    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'PokeMMO acquisition (sourced registry · your dump · your checks)'), h('div', { class: 'chips' },
+      TAG_CHIPS.map(([k, l]) => chip(l, F.classes.includes(k), () => { F.classes = toggle(F.classes, k); redraw(); })),
+      chip('Hide species I marked “Not listed”', setting('pokedex.scope') === 'pokemmo', async () => {
+        await saveSettings({ 'pokedex.scope': setting('pokedex.scope') === 'pokemmo' ? 'reference' : 'pokemmo' }); rerender(); }))),
     tracking ? h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Your registration (manual)'), h('div', { class: 'chips' },
       [...REG_LEVELS, ['caught_alpha', 'Caught Alpha'], ['owned_shiny', 'Owned Shiny'], ['owned_costume', 'Owned Costume']].map(([k, l]) =>
         chip(l, F.reg.includes(k), () => { F.reg = toggle(F.reg, k); redraw(); })))) : null,
@@ -242,7 +257,7 @@ function activeChips() {
   if (F.ability) c.push(['Ability: ' + F.ability, () => { F.ability = ''; }]);
   if (F.held) c.push(['Held: ' + F.held, () => { F.held = ''; }]);
   if (F.statKey && F.statMin !== '') c.push([`${F.statKey === 'bst' ? 'Total' : STAT_ORDER.find((x) => x[0] === F.statKey)[1]} ≥ ${F.statMin}`, () => { F.statKey = ''; F.statMin = ''; }]);
-  F.classes.forEach((k) => c.push([(CLASS_CHIPS.find((x) => x[0] === k) || [k, k])[1], () => { F.classes = F.classes.filter((x) => x !== k); }]));
+  F.classes.forEach((k) => c.push([(TAG_CHIPS.find((x) => x[0] === k) || [k, k])[1], () => { F.classes = F.classes.filter((x) => x !== k); }]));
   F.reg.forEach((k) => c.push([k.replace('_', ' '), () => { F.reg = F.reg.filter((x) => x !== k); }]));
   if (F.fav) c.push(['Favourites', () => { F.fav = false; }]);
   return h('div', { class: 'active-filters', style: { padding: '6px 16px', borderBottom: '1px solid var(--border-subtle)' } },
@@ -250,12 +265,12 @@ function activeChips() {
     h('button', { class: 'btn ghost small', onclick: () => { F = { ...DEFAULT_F, q: F.q, sort: F.sort }; redraw(); } }, 'Clear all'));
 }
 
-function drawGrid(all, sel = Number(parseHash().parts[0]) || null) {
+function drawGrid(all, sel = Number(parseHash().parts[0]) || null, selForm = parseHash().parts[1] || null) {
   if (!gridEl) return;
   const list = applyFilters(all);
-  const scope = setting('pokedex.scope') || 'pokemmo';
-  const inScope = all.filter((s) => scope === 'reference' || s.dex !== 'no').length;
-  if (countEl) countEl.textContent = `${list.length} of ${inScope} shown`;
+  const scope = setting('pokedex.scope') || 'reference';
+  const inScope = all.filter((s) => scope !== 'pokemmo' || s.dex !== 'no').length;
+  if (countEl) countEl.textContent = `${list.length} of ${inScope} entries shown`;
   clear(gridEl);
   if (!list.length) {
     gridEl.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, h('h3', null, 'No Pokémon match'),
@@ -265,9 +280,21 @@ function drawGrid(all, sel = Number(parseHash().parts[0]) || null) {
   }
   const density = setting('pokedex.density') || 'standard';
   const tracking = !!setting('pokedex.progress_run');
+  gridEl.append(catalogFragment(list, { sel, selForm, density, tracking, onOpen: (s) => go(entryRoute(s)), onKey: gridKeys, grouped: F.sort === 'num' }));
+}
+/** Cards with Generation headings (when sorted by number). Shared by the main grid and popouts. */
+export function catalogFragment(list, { sel, selForm, density, tracking, onOpen, onKey, grouped }) {
   const frag = document.createDocumentFragment();
-  for (const s of list) frag.append(dexCard(s, { selected: s.id === sel, density, tracking, onOpen: (id) => go('#/pokedex/' + id), onKey: gridKeys }));
-  gridEl.append(frag);
+  let gen = null;
+  for (const s of list) {
+    if (grouped && s.gen !== gen) {
+      gen = s.gen;
+      const n = list.filter((x) => x.gen === gen).length;
+      frag.append(h('h3', { class: 'gen-head', role: 'presentation' }, GEN_NAMES[gen - 1] || 'Generation ' + gen, h('span', { class: 'tiny muted' }, ` · ${n}`)));
+    }
+    frag.append(dexCard(s, { selected: s.id === sel && (s.form_key || null) === (selForm || null), density, tracking, onOpen, onKey }));
+  }
+  return frag;
 }
 
 /** One sprite card. Used by the main grid and the popout (same look, no caps). */
@@ -279,16 +306,19 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, spriteOrFallback(s.icon, s, density === 'large' ? 96 : density === 'compact' ? 48 : 72));
   const marks = tracking ? h('span', { class: 'marks' }, p.caught_alpha ? h('span', { title: 'Caught Alpha (your entry)' }, 'α') : null,
     p.owned_shiny ? h('span', { title: 'Owned Shiny (your entry)' }, '✦') : null, p.owned_costume ? h('span', { title: 'Owned Costume (your entry)' }, '♛') : null) : null;
-  const label = `#${pad3(s.id)} ${s.name}, ${s.types.join(' ')}${absent ? ', not in PokeMMO' : s.dex === 'unknown' ? ', availability unverified' : ''}${tracking ? ', ' + p.status.replace('_', ' ') : ''}`;
-  const el = h('div', { class: `dex-card${selected ? ' selected' : ''}${regClass}${absent ? ' absent' : ''}`, role: 'gridcell', tabindex: '0', dataset: { id: s.id },
-    'aria-label': label, title: density === 'compact' ? label : null, onclick: () => onOpen(s.id), onkeydown: onKey || null },
+  const unverified = (s.tags || []).includes('unverified');
+  const label = `#${pad3(s.id)} ${s.name}, ${s.types.join(' ')}${absent ? ', you marked it not listed in game' : unverified ? ', PokeMMO acquisition unverified' : ''}${tracking ? ', ' + p.status.replace('_', ' ') : ''}`;
+  const el = h('div', { class: `dex-card${selected ? ' selected' : ''}${regClass}${absent ? ' absent' : ''}${s.form_key ? ' form' : ''}`, role: 'gridcell', tabindex: '0',
+    dataset: { id: s.id, entry: s.form_key ? `${s.id}:${s.form_key}` : String(s.id) },
+    'aria-label': label, title: density === 'compact' ? label : null, onclick: () => onOpen(s), onkeydown: onKey || null },
   h('span', { class: 'num' }, '#' + pad3(s.id)),
-  s.dex === 'unknown' ? h('span', { class: 'qmark', title: 'Availability in PokeMMO not verified yet' }, '?') : null,
+  s.form_key ? h('span', { class: 'form-badge', title: s.own_sprite ? 'Alternate form' : 'Alternate form — shown with the base sprite (no separate sprite in your client data)' }, s.own_sprite ? 'form' : 'form*') : null,
+  unverified ? h('span', { class: 'qmark', title: 'PokeMMO acquisition not verified yet' }, '?') : null,
   density !== 'compact' ? favButton(s) : null, marks, sprite,
   density !== 'compact' ? h('div', { class: 'nm' + (unseen ? ' muted' : '') }, s.name) : null,
   density !== 'compact' ? h('div', { class: 'types' }, s.types.map((t) => typeChip(t, true))) : null,
   density === 'large' ? h('div', { class: 'avail' }, s.avail + (s.bst ? ` · BST ${s.bst}` : '')) :
-    density === 'standard' ? h('div', { class: 'avail' }, absent ? 'Not in PokeMMO' : s.avail) : null);
+    density === 'standard' ? h('div', { class: 'avail' }, absent ? 'Not listed (your check)' : s.avail) : null);
   makePinDraggable(el, { kind: 'pokemon', id: s.id });
   return el;
 }
@@ -300,37 +330,64 @@ function favButton(s) {
   return b;
 }
 function gridKeys(e) {
-  const cards = [...gridEl.children];
+  const cards = [...gridEl.querySelectorAll('.dex-card')];
   const i = cards.indexOf(e.currentTarget);
   const cols = Math.max(1, Math.round(gridEl.clientWidth / (cards[0].getBoundingClientRect().width + 8)));
   const move = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
   if (move) { e.preventDefault(); const t = cards[Math.min(cards.length - 1, Math.max(0, i + move))]; t && t.focus(); }
-  if (e.key === 'Enter') { e.preventDefault(); go('#/pokedex/' + e.currentTarget.dataset.id); }
+  if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.click(); }
 }
 
-// ------------------------------------------------------------- roster report
+// ------------------------------------------------------------- availability report
 export async function rosterDialog() {
-  const rep = await get('/api/dex/roster');
   const body = h('div', { class: 'stack' });
+  const mark = async (id, v) => { await api('PUT', '/api/dex/roster/' + id, { in_dex: v }); draw(await get('/api/dex/roster')); };
+  const row = (x) => h('div', { class: 'list-row', style: { cursor: 'default' } },
+    x.icon ? h('img', { class: 'pixel', src: x.icon, width: 32, height: 32, alt: '', loading: 'lazy' }) : h('span', { class: 'muted', style: { width: '32px' } }, '#' + pad3(x.id)),
+    h('span', { class: 'grow' }, `#${pad3(x.id)} ${x.name}`, h('div', { class: 'tiny muted' }, `${x.label} · ${x.evidence}` + (x.membership_basis === 'your-check' ? ` · you: ${x.membership === 'yes' ? 'listed' : 'not listed'}` : ''))),
+    h('button', { class: 'btn small', onclick: () => mark(x.id, 'yes') }, 'It’s listed'), h('button', { class: 'btn small', onclick: () => mark(x.id, 'no') }, 'Not listed'),
+    x.membership_basis === 'your-check' ? h('button', { class: 'btn small ghost', onclick: () => mark(x.id, 'clear') }, 'Clear') : null);
+  const counterTable = (o, mine) => h('div', { class: 'card inset stack tight' },
+    h('div', { class: 'small' }, h('strong', null, fmtDate(o.observed_at)), ' · ', mine ? (o.client_note || 'Your reading') : o.source),
+    h('div', { class: 'row wrap small' }, Object.entries(o.counters).map(([k, v]) => h('span', { class: 'counter' }, h('span', { class: 'muted' }, k.replace('_', ' ') + ' '),
+      h('strong', null, typeof v === 'object' ? `${v.have ?? '—'} / ${v.max ?? '—'}` : `? / ${v}`)))),
+    o.note ? h('div', { class: 'tiny muted' }, o.note) : null,
+    mine ? h('button', { class: 'btn ghost small', onclick: async () => { await api('DELETE', '/api/dex/observations/' + o.id); draw(await get('/api/dex/roster')); } }, 'Delete reading') : null);
+  const obsForm = () => {
+    const f = { observed_at: new Date().toISOString().slice(0, 10), counters: {} };
+    const metrics = [['seen', 'Seen'], ['owned', 'Owned'], ['caught_ot', 'Caught OT'], ['caught_alpha', 'Caught Alpha'], ['owned_shiny', 'Owned Shiny'], ['costume', 'Costumes']];
+    const num = (k, part) => h('input', { class: 'input', type: 'number', min: 0, max: 5000, style: { width: '76px' }, 'aria-label': `${k} ${part}`,
+      oninput: (e) => { (f.counters[k] ||= {})[part] = e.target.value === '' ? null : Number(e.target.value); } });
+    const note = h('input', { class: 'input', placeholder: 'Character / note (optional)', maxlength: 300, oninput: (e) => { f.client_note = e.target.value; } });
+    return h('details', null, h('summary', { class: 'small' }, 'Record what your in-game Pokédex counters show today'),
+      h('div', { class: 'stack tight', style: { marginTop: '6px' } },
+        h('div', { class: 'grid-2', style: { gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' } }, metrics.map(([k, l]) => h('div', { class: 'row' },
+          h('span', { class: 'small', style: { width: '90px' } }, l), num(k, 'have'), h('span', { class: 'muted' }, '/'), num(k, 'max')))),
+        note, h('button', { class: 'btn small primary', onclick: async () => {
+          try { await post('/api/dex/observations', f); toast('Reading saved'); draw(await get('/api/dex/roster')); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Save reading')));
+  };
   const draw = (r) => mount(body,
     notice('info', r.note),
-    h('div', { class: 'row wrap' }, h('span', { class: 'counter' }, 'In PokeMMO (registry/your checks/dump): ', h('strong', null, r.counts.yes)),
-      h('span', { class: 'counter' }, 'Reported absent: ', h('strong', null, r.counts.no)), h('span', { class: 'counter' }, 'Unverified: ', h('strong', null, r.counts.unknown)),
-      h('span', { class: 'counter' }, `In-game Seen denominator (your 22 Nov video): `, h('strong', null, r.observed.seen_denominator))),
-    h('div', { class: 'small' }, `Still to identify: ${r.still_to_identify} of ${r.expected_not_in_dex} species that the in-game Pokédex does not count. Registry ${r.registry_version} (checked ${fmtDate(r.checked_at)}).`),
-    h('h3', { style: { margin: '6px 0 0' } }, 'Reported absent from the in-game Pokédex'),
-    h('div', { class: 'list-rows' }, r.not_in_dex.map((x) => rosterRow(x))),
-    h('h3', { style: { margin: '6px 0 0' } }, 'Unverified — check these in your in-game Pokédex'),
-    h('div', { class: 'small muted' }, 'Search the species in PokeMMO’s Pokédex. Record whether it is listed. Your dated observation overrides the registry and stays on this computer.'),
-    h('div', { class: 'list-rows', style: { maxHeight: '40vh', overflow: 'auto' } }, r.unknown.map((x) => rosterRow(x))));
-  const rosterRow = (x) => h('div', { class: 'list-row', style: { cursor: 'default' } },
-    h('span', { class: 'muted', style: { width: '44px' } }, '#' + pad3(x.id)), h('span', { class: 'grow' }, x.name, h('div', { class: 'tiny muted' }, `${x.label} · ${x.basis} · ${x.source || ''}`)),
-    h('button', { class: 'btn small', onclick: async () => { await api('PUT', '/api/dex/roster/' + x.id, { in_dex: 'yes' }); draw(await get('/api/dex/roster')); } }, 'In my game dex'),
-    h('button', { class: 'btn small', onclick: async () => { await api('PUT', '/api/dex/roster/' + x.id, { in_dex: 'no' }); draw(await get('/api/dex/roster')); } }, 'Not listed'),
-    x.basis === 'your-check' ? h('button', { class: 'btn small ghost', onclick: async () => { await api('PUT', '/api/dex/roster/' + x.id, { in_dex: 'clear' }); draw(await get('/api/dex/roster')); } }, 'Clear') : null);
-  draw(rep);
-  await modal({ title: 'PokeMMO roster report', body, wide: true, actions: [
-    { label: 'Export report (JSON)', kind: 'ghost', handler: async () => { downloadJson(`pokemmo-roster-report-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/dex/roster')); return false; } },
+    h('div', { class: 'row wrap' },
+      h('span', { class: 'counter' }, 'Reference species: ', h('strong', null, r.reference_species)),
+      h('span', { class: 'counter' }, 'Available permanently: ', h('strong', null, r.permanent)),
+      h('span', { class: 'counter' }, 'Only special/temporary: ', h('strong', null, r.not_permanent)),
+      h('span', { class: 'counter' }, 'Unverified: ', h('strong', null, r.unverified)),
+      h('span', { class: 'counter' }, 'Your checks: ', h('strong', null, `${r.membership.your_listed} listed · ${r.membership.your_not_listed} not listed`))),
+    h('div', { class: 'tiny muted' }, `Registry ${r.registry_version} (checked ${fmtDate(r.checked_at)})` + (r.dump_date ? ` · dump files dated ${r.dump_date}` : '') +
+      ' · ' + Object.entries(r.method_counts).map(([k, v]) => `${r.method_labels[k] || k} ${v}`).join(' · ')),
+    r.conflicts.length ? [h('h3', { style: { margin: '6px 0 0' } }, 'Conflicts between your checks and the registry'), h('div', { class: 'list-rows' }, r.conflicts.map(row))] : null,
+    r.needs_review.length ? [h('h3', { style: { margin: '6px 0 0' } }, 'Needs review after a later patch'), h('div', { class: 'list-rows' }, r.needs_review.map(row))] : null,
+    h('h3', { style: { margin: '6px 0 0' } }, 'Sourced legendary, raid, roaming, event and story entries'),
+    h('div', { class: 'list-rows', style: { maxHeight: '34vh', overflow: 'auto' } }, r.authored.map(row)),
+    h('h3', { style: { margin: '6px 0 0' } }, 'In-game counter readings'),
+    r.registry_observations.map((o) => counterTable(o, false)), r.your_observations.map((o) => counterTable(o, true)), obsForm(),
+    h('details', null, h('summary', { class: 'small' }, `Sources (${Object.keys(r.sources).length})`),
+      h('ul', { class: 'small' }, Object.entries(r.sources).map(([id, src]) => h('li', null, src.url && src.url.startsWith('http') ? extLink(src.url, src.title) : src.title,
+        h('span', { class: 'tiny muted' }, ` · ${src.kind} · checked ${src.checked}`))))));
+  draw(await get('/api/dex/roster'));
+  await modal({ title: 'Availability report', body, wide: true, actions: [
+    { label: 'Export (JSON)', kind: 'ghost', handler: async () => { downloadJson(`pokemmo-availability-report-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/dex/roster')); return false; } },
     { label: 'Close', kind: 'primary' }] });
   await loadList(true);
   if (location.hash.startsWith('#/pokedex')) rerender();
@@ -345,22 +402,28 @@ const EVO = { LEVEL: (e) => `Level ${e.value}`, ITEM: (e) => e.item || 'Item', T
   ATK_EQUAL_TO_DEF: (e) => `Level ${e.value}, Atk = Def`, LEVEL_WITH_MONSTER: () => 'Level up with another Pokémon in party' };
 const evoText = (via) => (EVO[via.method] ? EVO[via.method](via) : via.method.replace(/_/g, ' ').toLowerCase());
 const MAIN_TABS = [['summary', 'Summary'], ['moves', 'Moves'], ['stats', 'Base Stats'], ['locations', 'Wild Locations'], ['evolution', 'Evolution Tree'], ['matchups', 'Type Matchups']];
-const SIDE_TABS = [['registration', 'My registration'], ['breeding', 'Breeding'], ['notes', 'Notes']];
+const SIDE_TABS = [['registration', 'My registration'], ['breeding', 'Breeding'], ['notes', 'Notes & Box']];
 
-export async function renderDetail(pane, id, { back, popout = false, mode = 'expanded' } = {}) {
+export async function renderDetail(pane, id, { back, popout = false, mode = 'expanded', form = null } = {}) {
   clear(pane).append(h('div', { class: 'detail-body' }, h('div', { class: 'skeleton', style: { height: '120px' } })));
   let d;
   const run = setting('pokedex.progress_run');
-  try { d = await get(`/api/dex/species/${id}?run=${encodeURIComponent(run || 'none')}`); } catch (e) { mount(pane, h('div', { class: 'detail-body' }, notice('bad', e.message))); return; }
+  try { d = await get(`/api/dex/species/${id}?run=${encodeURIComponent(run || 'none')}${form ? '&form=' + encodeURIComponent(form) : ''}`); }
+  catch (e) { mount(pane, h('div', { class: 'detail-body' }, notice('bad', e.message))); return; }
   if (!popout) saveSettings({ 'pokedex.last_species': id }).catch(() => {});
-  const shinyAvail = d.sprites.front_shiny || d.sprites.icon_shiny;
-  const art = ui.shiny && shinyAvail ? (d.sprites.front_shiny || d.sprites.icon_shiny) : (d.sprites.front || d.sprites.icon);
+  const fm = d.form;
+  if (fm) { d = { ...d, base_name: d.name, base_types: d.types, name: fm.name, types: fm.types, type_matchups: d.form_matchups,
+    stats: fm.stats && Object.keys(fm.stats).length ? fm.stats : d.stats, abilities: fm.abilities_source === 'same as base species' ? d.abilities : fm.abilities.map((n, i) => ({ name: n, slot: 'ability' + (i + 1) })) };
+    d.bst = Object.values(d.stats || {}).reduce((a, b) => a + (b || 0), 0) || d.bst; }
+  const shinyAvail = !fm && (d.sprites.front_shiny || d.sprites.icon_shiny);
+  const art = fm ? (fm.front || fm.icon) : ui.shiny && shinyAvail ? (d.sprites.front_shiny || d.sprites.icon_shiny) : (d.sprites.front || d.sprites.icon);
+  const formNav = (k) => (popout ? (location.hash = '#/species/' + id + (k ? '/' + k : '')) : go('#/pokedex/' + id + (k ? '/' + k : '')));
   const av = d.availability;
-  const avClass = av.in_game_dex === 'no' ? 'bad' : av.in_game_dex === 'yes' ? 'good' : 'unknown';
+  const avClass = av.permanent ? 'good' : av.permanent === false ? 'warn' : 'unknown';
   const head = h('div', { class: 'detail-head' },
     h('div', { class: 'art' }, spriteOrFallback(art, d, art && art.includes('/battle/') ? 96 : 72, true),
       shinyAvail ? h('button', { class: 'shiny-toggle' + (ui.shiny ? ' on' : ''), title: ui.shiny ? 'Show normal colours' : 'Show shiny colours (artwork only — not ownership)',
-        'aria-pressed': String(ui.shiny), onclick: () => { ui.shiny = !ui.shiny; renderDetail(pane, id, { back, popout, mode }); } }, '✦') : null),
+        'aria-pressed': String(ui.shiny), onclick: () => { ui.shiny = !ui.shiny; renderDetail(pane, id, { back, popout, mode, form }); } }, '✦') : null),
     h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, 'No. ' + pad3(d.id)), h('span', { class: 'grow' }), favToggle(d),
         !popout ? pinButton({ kind: 'pokemon', id: d.id }) : null,
@@ -368,8 +431,17 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
         back ? h('button', { class: 'icon-btn', title: 'Close (Esc)', 'aria-label': 'Close details', onclick: back }, icon('close')) : null),
       h('h2', null, d.name),
       h('div', { class: 'row wrap', style: { marginTop: '4px' } }, typeChips(d.types),
-        h('span', { class: 'badge ' + avClass, title: `${av.source || ''} (${av.evidence})` }, av.label))));
+        h('span', { class: 'badge ' + avClass, title: av.evidence }, fm && fm.kind !== 'cosmetic' && fm.kind !== 'season' ? 'Form change not verified' : av.label))));
   pane.replaceChildren(head);
+  if (d.catalog_forms && d.catalog_forms.length) {
+    pane.append(h('div', { class: 'form-strip', role: 'group', 'aria-label': 'Forms' }, h('span', { class: 'tiny muted' }, 'Forms:'),
+      d.catalog_forms.map((f) => h('button', { class: 'chip btnlike' + ((f.base ? !fm : fm && fm.form_key === f.form_key) ? ' active' : ''), 'aria-pressed': String(f.base ? !fm : !!(fm && fm.form_key === f.form_key)),
+        onclick: () => formNav(f.base ? null : f.form_key) }, f.form_name))));
+  }
+  if (fm) pane.append(h('div', { class: 'detail-body', style: { paddingBottom: 0 } }, notice('info', h('strong', null, fm.form_name + '. '),
+    fm.note ? fm.note + ' ' : '', `Types: ${fm.types_source}. Stats: ${fm.stats_source}. Abilities: ${fm.abilities_source}.`,
+    fm.in_client === false ? ' Your installed client dump has no record for this form.' : '', fm.client_record && !fm.own_sprite ? ' Your client labels this record “Egg”, so the base sprite is shown.' : '', fm.mismatch.length ? ` ⚠ Your client differs from the manifest (${fm.mismatch.join(', ')}); the client value is shown.` : '',
+    ' Moves and locations below are the base species’ — form-specific moves are not listed.')));
   const body = h('div', { class: 'detail-body' });
   pane.append(body);
   if (d.imported) {
@@ -385,7 +457,7 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
     return;
   }
   if (popout && mode === 'compact') { body.append(statsSection(d, true), availabilityBlock(d, true)); return; }
-  const setTab = (t, side) => { ui.tab = t; ui.side = side ? t : null; renderDetail(pane, id, { back, popout, mode }); };
+  const setTab = (t, side) => { ui.tab = t; ui.side = side ? t : null; renderDetail(pane, id, { back, popout, mode, form }); };
   const active = ui.side || ui.tab;
   body.append(h('div', { class: 'detail-tabs' },
     tabs(MAIN_TABS.map(([k, l]) => ({ id: k, label: l, count: k === 'locations' ? d.locations.length : undefined })), ui.side ? null : ui.tab, (t) => setTab(t, false), 'Pokédex pages'),
@@ -403,20 +475,35 @@ function favToggle(d) {
   return b;
 }
 
+const MEMBERSHIP = { yes: 'Listed', no: 'Not listed', unknown: 'Not checked yet', conditional: 'Conditional' };
+const ELIG = { seen: 'Seen', owned: 'Owned', caught_ot: 'Caught OT', caught_alpha: 'Caught Alpha', owned_shiny: 'Owned Shiny', costume: 'Costume' };
 function availabilityBlock(d, compact) {
   const av = d.availability;
+  const mem = av.membership;
+  const method = (m) => h('div', { class: 'avail-method' },
+    h('div', { class: 'row wrap' }, h('strong', null, m.label), m.location ? h('span', null, '· ' + m.location) : null, m.region ? h('span', { class: 'chip' }, cap(m.region)) : null,
+      h('span', { class: 'badge ' + ({ OFFICIAL: 'good', CORROBORATED: 'good', REPORTED: 'warn', DUMP_ONLY: 'dump' }[m.confidence] || 'unknown') }, m.confidence)),
+    m.detail ? h('div', { class: 'small' }, m.detail) : null,
+    m.prerequisites ? h('div', { class: 'small muted' }, 'Requires: ' + m.prerequisites) : null,
+    m.active_window ? h('div', { class: 'small muted' }, 'When: ' + m.active_window) : null,
+    m.since ? h('div', { class: 'small muted' }, 'Since: ' + m.since) : null,
+    m.review ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, `Needs review: “${m.review.patch}” (${m.review.date}) came after this was verified.`) : null,
+    !compact && m.sources.length ? h('div', { class: 'tiny muted' }, 'Sources: ', m.sources.map((src, i) => [i ? ' · ' : '', src.url && src.url.startsWith('http') ? extLink(src.url, src.title) : src.title]),
+      m.verified_at ? ` · verified ${m.verified_at}` : '') : null);
   const lines = [
-    h('div', { class: 'row wrap' }, h('strong', null, 'In PokeMMO’s Pokédex: '),
-      h('span', { class: 'badge ' + (av.in_game_dex === 'yes' ? 'good' : av.in_game_dex === 'no' ? 'bad' : 'unknown') }, { yes: 'Yes', no: 'No (reported)', unknown: 'Not verified' }[av.in_game_dex]),
-      h('span', { class: 'small muted' }, 'How: ' + av.classes.map((c) => (CLASS_CHIPS.find((x) => x[0] === c) || [c, c])[1]).join(', '))),
-    h('div', { class: 'small muted' }, `${av.evidence} · ${av.source || 'No source recorded'}`, av.url ? [' · ', extLink(av.url, 'source')] : null),
+    h('div', { class: 'label' }, 'How to get it in PokeMMO'),
+    av.methods.map(method),
     av.note ? h('div', { class: 'small' }, av.note) : null,
-    av.conflict ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, av.conflict) : null,
-    av.user_check ? h('div', { class: 'small' }, `Your in-game check: ${av.user_check.in_dex === 'yes' ? 'listed' : 'not listed'} (${fmtDate(av.user_check.checked_at)})`) : null];
+    h('div', { class: 'row wrap small' }, h('span', { class: 'muted' }, 'In-game Pokédex listing:'),
+      h('span', { class: 'badge ' + (mem.state === 'yes' ? 'good' : mem.state === 'no' ? 'bad' : 'unknown') }, MEMBERSHIP[mem.state] || mem.state),
+      mem.basis === 'your-check' ? h('span', { class: 'tiny muted' }, `your check, ${fmtDate(mem.checked_at)}`) : null),
+    mem.conflict ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, mem.conflict) : null,
+    !compact && Object.values(av.eligibility).some((v) => v !== 'unknown') ? h('div', { class: 'row wrap small' }, h('span', { class: 'muted' }, 'Counts toward:'),
+      Object.entries(av.eligibility).filter(([, v]) => v !== 'unknown').map(([k, v]) => h('span', { class: 'chip' + (v === 'yes' ? ' good' : '') }, `${ELIG[k] || k}: ${v}`))) : null];
   if (!compact) lines.push(h('div', { class: 'row wrap' }, h('span', { class: 'small muted' }, 'Checked your in-game Pokédex?'),
     h('button', { class: 'btn small', onclick: async () => { await api('PUT', '/api/dex/roster/' + d.id, { in_dex: 'yes' }); toast('Saved your in-game check'); } }, 'It’s listed'),
     h('button', { class: 'btn small', onclick: async () => { await api('PUT', '/api/dex/roster/' + d.id, { in_dex: 'no' }); toast('Saved your in-game check'); } }, 'Not listed')));
-  return h('div', { class: 'card inset stack tight' }, lines);
+  return h('div', { class: 'card inset stack tight avail-block' }, lines);
 }
 
 function summary(d) {
@@ -429,10 +516,10 @@ function summary(d) {
       h('dl', { class: 'kv' },
         h('dt', null, 'Height / weight'), h('dd', null, `${d.height_m} m · ${d.weight_kg} kg`),
         h('dt', null, 'Wild held items'), h('dd', null, d.held_items.length ? d.held_items.join(', ') : '—'),
-        h('dt', null, 'Forms'), h('dd', null, d.forms.map((f) => f.name + (f.costume ? ' (costume)' : '')).join(', ')),
+        h('dt', null, 'Forms'), h('dd', null, d.forms.filter((f) => f.name && f.name !== 'Egg').map((f) => f.name + (f.costume ? ' (costume)' : '')).join(', ') || '—'),
         overlay ? [h('dt', null, 'Patch note'), h('dd', null, overlay.note)] : null)),
     availabilityBlock(d),
-    h('div', { class: 'tiny muted' }, 'Stats, moves and locations come from your installed dump (its extraction date is unknown). The dump’s raw “obtainable” flag ',
+    h('div', { class: 'tiny muted' }, 'Stats, moves and locations come from your installed dump. The dump’s raw “obtainable” flag ',
       `(${d.obtainable_flag}) is not used for availability.`, d.types_raw_duplicated ? ' The dump lists this single type twice; it is shown once.' : ''));
 }
 
@@ -462,7 +549,7 @@ function rateCell(r) { return h('td', { class: 'rate ' + r.kind, title: r.raw ||
 function locations(d) {
   const wrap = h('div', { class: 'stack' });
   const av = d.availability;
-  if (!['wild'].includes(av.classes[0]) && av.basis === 'registry') wrap.append(notice('info', h('strong', null, av.label), ` — ${av.source}. Ordinary wild rows don’t cover this.`));
+  if (av.classes[0] !== 'wild' && av.methods[0].basis === 'registry') wrap.append(notice('info', h('strong', null, av.label), ' — ordinary wild rows don’t cover this. See Summary for sources.'));
   if (!d.locations.length) { wrap.append(h('div', { class: 'empty' }, h('h3', null, 'No ordinary wild locations in your dump'),
     h('p', null, 'That alone does not mean unobtainable — see Summary › availability for evolution, breeding, gift, fossil, roamer, raid or story sources.'))); return wrap; }
   const draw = () => {
@@ -477,7 +564,9 @@ function locations(d) {
         const sig = [l.method, l.min, l.max, l.horde3, l.horde5, l.morning.label, l.day.label, l.night.label].join('|');
         if (!seen.has(sig)) seen.set(sig, { ...l, seasons: [l.season] }); else seen.get(sig).seasons.push(l.season);
       }
-      out.append(h('div', { class: 'loc-group' }, h('div', { class: 'lg-head' }, h('span', { class: 'chip' }, cap(region)), area),
+      const lid = ls[0].location_id != null ? `${region}:${ls[0].location_id}` : `${region}:${area}`;
+      out.append(h('div', { class: 'loc-group' }, h('div', { class: 'lg-head' }, h('span', { class: 'chip' }, cap(region)),
+        h('a', { href: '#/tools/locations/' + encodeURIComponent(lid), title: 'Open in the Location explorer' }, area)),
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Type', 'Levels', 'Horde', 'Season', 'Morning', 'Day', 'Night'].map((c) => h('th', null, c)))),
           h('tbody', null, [...seen.values()].map((l) => h('tr', null, h('td', null, l.method), h('td', { class: 'nowrap' }, l.min === l.max ? l.min : `${l.min}–${l.max}`),
             h('td', null, l.horde5 ? '×5' : l.horde3 ? '×3' : '—'), h('td', { class: 'small' }, l.seasons.join(', ')), rateCell(l.morning), rateCell(l.day), rateCell(l.night)))))));
@@ -555,6 +644,13 @@ function breeding(d) {
 function notesSection(d) {
   const save = debounce(async (v) => { await api('PUT', `/api/dex/species/${d.id}/note`, { body: v }); status.textContent = 'Saved'; }, 500);
   const status = h('span', { class: 'tiny muted' }, d.note ? 'Saved' : '');
-  return h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'label' }, 'Your notes (saved on this computer)'), h('span', { class: 'grow' }), status),
-    h('textarea', { class: 'input', rows: 5, placeholder: 'Hunting spots you like, natures you want, reminders…', oninput: (e) => { status.textContent = 'Saving…'; save(e.target.value); } }, d.note || ''));
+  return h('div', { class: 'stack' },
+    h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'label' }, 'Quick species note (saved on this computer)'), h('span', { class: 'grow' }), status),
+      h('textarea', { class: 'input', rows: 4, placeholder: 'Hunting spots you like, natures you want, reminders…', oninput: (e) => { status.textContent = 'Saving…'; save(e.target.value); } }, d.note || '')),
+    linkedNotes('species', String(d.id), d.base_name || d.name),
+    h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'label' }, `In My Box (${(d.box_entries || []).length})`), h('span', { class: 'grow' }),
+      h('button', { class: 'btn small', onclick: () => openRoute(`#/tools/box/new?species=${d.id}`) }, icon('plus'), 'Add to My Box')),
+    (d.box_entries || []).length ? h('div', { class: 'row wrap' }, d.box_entries.map((e) => h('button', { class: 'mini-mon', onclick: () => openRoute('#/tools/box/' + e.id) },
+      e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, (e.nickname || e.species_name) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
+      h('div', { class: 'small muted' }, 'No Box entries for this species.')));
 }

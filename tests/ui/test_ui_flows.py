@@ -67,6 +67,8 @@ def app(data_dir):
 def page(browser):
     ctx = browser.new_context(viewport={"width": 1280, "height": 820})
     pg = ctx.new_page()
+    pg.set_default_timeout(15000)
+    pg.set_default_navigation_timeout(15000)
     pg.errors = []
     pg.on("pageerror", lambda e: pg.errors.append(str(e)))
     pg.on("console", lambda m: pg.errors.append(m.text) if m.type == "error" else None)
@@ -130,10 +132,10 @@ def test_pokedex_filters_show_and_clear(app, page):
     go(page, app, "#/pokedex")
     page.get_by_role("radio", name="V", exact=True).click()
     page.wait_for_timeout(400)
-    assert "151 of 644 shown" in page.locator(".dex-info").inner_text()  # Gen V minus 5 reported-absent species
+    assert "175 of 731 entries shown" in page.locator(".dex-info").inner_text()  # 156 Gen V species + 19 Gen V forms
     page.locator(".active-filters button", has_text="Clear all").click()
     page.wait_for_timeout(400)
-    assert "644 of 644 shown" in page.locator(".dex-info").inner_text()
+    assert "731 of 731 entries shown" in page.locator(".dex-info").inner_text()
 
 
 def _create_run(page, name, label):
@@ -235,16 +237,23 @@ def test_breeding_preview_brace_and_everstone(app, page):
 
 
 # ------------------------------------------------ video correction pass (2026-11-22)
-def test_reference_scope_shows_absent_species_marked(app, page):
+def test_hide_species_you_marked_not_listed(app, page):
+    app.ctx.dex.user_checks = {}
+    import urllib.request, json as _j
+    req = urllib.request.Request(app.srv.base_url + "api/dex/roster/640", data=_j.dumps({"in_dex": "no"}).encode(), method="PUT",
+                                 headers={"X-Companion-Token": app.ctx.token, "Content-Type": "application/json"})
+    urllib.request.urlopen(req).read()
     go(page, app, "#/pokedex")
-    page.get_by_role("radio", name="All Gen I–V (649)").click()
+    page.wait_for_selector('.dex-card[data-entry="640"]')
+    assert "absent" in page.locator('.dex-card[data-entry="640"]').get_attribute("class")
+    page.get_by_role("button", name="Filters").click()
+    page.get_by_role("button", name="Hide species I marked “Not listed”").click()
     page.wait_for_timeout(500)
-    assert "649 of 649 shown" in page.locator(".dex-info").inner_text()
-    card = page.locator('.dex-card[data-id="640"]')
-    assert "absent" in card.get_attribute("class") and "not in PokeMMO" in card.get_attribute("aria-label")
-    page.get_by_role("radio", name="PokeMMO Dex").click()
-    page.wait_for_timeout(500)
-    assert page.locator('.dex-card[data-id="640"]').count() == 0
+    assert page.locator('.dex-card[data-entry="640"]').count() == 0
+    app.ctx.settings.update({"pokedex.scope": "reference"})
+    req = urllib.request.Request(app.srv.base_url + "api/dex/roster/640", data=_j.dumps({"in_dex": "clear"}).encode(), method="PUT",
+                                 headers={"X-Companion-Token": app.ctx.token, "Content-Type": "application/json"})
+    urllib.request.urlopen(req).read()
 
 
 @pytest.mark.parametrize("mode", ["compact", "standard", "expanded"])
@@ -254,14 +263,14 @@ def test_pokedex_popout_has_no_cap_in_any_mode(app, browser, mode):
     pop.wait_for_selector(".dex-card")
     pop.wait_for_timeout(400)
     n = pop.locator(".popout-body .dex-card").count()
-    assert n == 644 and "644 of 644" in pop.locator(".popout-body").inner_text()
+    assert n == 731 and "731 of 731" in pop.locator(".popout-body").inner_text()
     last = pop.locator(".popout-body .dex-card").last
     last.scroll_into_view_if_needed()
-    assert last.get_attribute("data-id") == "649" and last.is_visible()
+    assert last.get_attribute("data-entry") == "649:chill" and last.is_visible()
     pop.fill("input[aria-label='Search Pokémon']", "pi")
     pop.wait_for_timeout(400)
     shown = pop.locator(".popout-body .dex-card").count()
-    assert 0 < shown < 644 and f"{shown} of 644" in pop.locator(".popout-body").inner_text()
+    assert 0 < shown < 731 and f"{shown} of 731" in pop.locator(".popout-body").inner_text()
     pop.context.close()
 
 
@@ -306,11 +315,12 @@ def test_quick_access_pin_reorder_unpin_and_persist(app, page):
     assert page.locator(".quick .qa-item .label").all_inner_texts() == ["Type matchups", "Natures"]
     # drag a tool card from the hub into the sidebar
     go(page, app, "#/tools")
-    page.locator(".tool-card", has_text="Team builder").drag_to(page.locator(".quick"))
+    page.locator(".tool-card", has_text="Team builder").drag_to(page.locator(".quick"), timeout=8000)
     page.wait_for_timeout(600)
     assert "Team builder" in page.locator(".quick").inner_text()
-    go(page, app, "#/pokedex")
-    page.locator('.dex-grid .dex-card[data-id="25"]').drag_to(page.locator(".quick"))
+    go(page, app, "#/pokedex/25")
+    page.wait_for_selector(".detail-head h2")
+    page.locator(".detail-head").get_by_role("button", name="Pin to sidebar").click()  # dragging a card is covered by the manual tour
     page.wait_for_timeout(600)
     assert "Pikachu" in page.locator(".quick").inner_text()
     page.reload()

@@ -1,13 +1,20 @@
 // Independent popout windows (docs/design/04, 15). One shared backend state; each
 // popout has its own mode/scroll. In the native shell, Qt draws the titlebar
 // (pin, mode, window opacity, lock, minimise, close); in browser mode we draw it.
-import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, notice, applyAppearance, debounce } from './core.js';
+import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, notice, applyAppearance, debounce, WINDOW_ID } from './core.js';
 import { POPOUT_TOOLS, popoutSize } from './shell.js';
-import { renderDetail, dexCard, applyFilters, loadList, currentFilters } from './pages/pokedex.js';
+import { renderDetail, dexCard, catalogFragment, applyFilters, loadList, currentFilters } from './pages/pokedex.js';
 import { renderTypeChart, renderNatures } from './pages/tools.js';
 import { render as renderBreeding } from './pages/breeding.js';
 import { sourceBar, reportRow, renderLegendaries, renderCave } from './pages/live.js';
 import { speciesIndex } from './components.js';
+import { t } from './i18n.js';
+import { guideContext } from './shortcuts.js';
+import { renderItemsPopout } from './pages/items.js';
+import { renderNotesPopout } from './pages/notes.js';
+import { renderBoxPopout, renderShowcasePopout } from './pages/box.js';
+import { renderCustomGuidePopout } from './pages/cguides.js';
+import { renderLocationsPopout } from './pages/locations.js';
 
 let root, bodyEl, mode, savedMode;
 const MODES = [['compact', 'C', 'Compact'], ['standard', 'S', 'Standard'], ['expanded', 'E', 'Expanded']];
@@ -35,7 +42,9 @@ export function startPopout(el) {
     if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); } else drawBar();
   });
   const refresh = debounce(() => renderBody(), 120);
-  for (const t of ({ storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async () => { if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
+  for (const t of ({ notes: ['notes'], items: ['items'], showcase: ['showcase', 'box'], customguide: ['cguides'], box: ['box'], storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async (d, ev) => {
+    if (ev && ev.origin === WINDOW_ID && ['notes', 'items', 'showcase', 'customguide', 'box'].includes(POPOUT)) return;  // our own edit: don't redraw under the cursor
+    if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
   window.addEventListener('hashchange', () => renderBody());
   window.addEventListener('resize', () => { rememberSize(); });
 }
@@ -86,26 +95,63 @@ function drawBar() {
   const ts = setting(`window.${POPOUT}.text_scale`);
   mount(footEl,
     h('label', { class: 'row', title: 'Panel background opacity — text stays fully opaque' }, icon('opacity'),
-      h('input', { type: 'range', min: 35, max: 100, step: 5, value: bg, style: { width: '90px' }, 'aria-label': 'Background opacity',
+      h('input', { type: 'range', min: 20, max: 100, step: 5, value: bg, style: { width: '90px' }, 'aria-label': 'Background opacity',
         oninput: (e) => document.documentElement.style.setProperty('--panel-alpha', String(e.target.value / 100)),
         onchange: (e) => saveSettings({ [`window.${POPOUT}.bg_opacity`]: Number(e.target.value) }) }), h('span', { class: 'tiny muted' }, bg + '%')),
-    h('button', { class: 'btn ghost small', title: 'Smaller text', 'aria-label': 'Smaller text', onclick: () => saveSettings({ [`window.${POPOUT}.text_scale`]: Math.max(70, ts - 10) }).then(applyAppearance) }, 'A−'),
-    h('button', { class: 'btn ghost small', title: 'Larger text', 'aria-label': 'Larger text', onclick: () => saveSettings({ [`window.${POPOUT}.text_scale`]: Math.min(180, ts + 10) }).then(applyAppearance) }, 'A+'),
+    textSizeButton(ts),
     h('span', { class: 'grow' }),
     SHELL === 'qt' ? h('span', { class: 'tiny muted' }, cap(mode)) : h('button', { class: 'btn ghost small', title: 'Resize this window to the preset for this mode',
       onclick: () => { const sizes = { ...(setting(`window.${POPOUT}.sizes`) || {}) }; delete sizes[mode]; saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).then(applyBrowserSize); } }, 'Reset size'),
     h('button', { class: 'btn ghost small', onclick: () => openInMain(mainRoute()) }, 'Open in main'));
 }
+// Text size: one button → popover with a 60–200 % slider (live), quick presets, readability
+// outline for see-through backgrounds, and reset. Saved per tool window.
+function textSizeButton(ts) {
+  const btn = h('button', { class: 'btn ghost small ts-btn', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', title: t('popout.text_size_hint'),
+    'aria-label': `${t('common.text_size')} ${ts}%`, onclick: () => openTextPopover(btn) }, icon('textsize'), h('span', { class: 'tiny' }, ts + '%'));
+  return btn;
+}
+function openTextPopover(btn) {
+  const existing = document.querySelector('.ts-pop'); if (existing) { existing.remove(); btn.setAttribute('aria-expanded', 'false'); return; }
+  const key = `window.${POPOUT}.text_scale`, outlineKey = `window.${POPOUT}.text_outline`;
+  let val = setting(key) || 100;
+  const label = h('strong', { 'aria-live': 'polite' }, val + '%');
+  const apply = (v, save) => { val = Math.max(60, Math.min(200, v)); state.settings[key] = val; applyAppearance(); label.textContent = val + '%'; slider.value = val;
+    btn.querySelector('.tiny').textContent = val + '%'; if (save) saveSettings({ [key]: val }); place(); };
+  const place = () => { const rr = btn.getBoundingClientRect(); pop.style.left = Math.max(6, Math.min(rr.left, innerWidth - pop.offsetWidth - 6)) + 'px';
+    pop.style.bottom = Math.max(6, innerHeight - rr.top + 6) + 'px'; pop.style.maxHeight = Math.max(120, rr.top - 12) + 'px'; };
+  const slider = h('input', { type: 'range', min: 60, max: 200, step: 5, value: val, 'aria-label': t('common.text_size'), style: { width: '100%' },
+    oninput: (e) => apply(Number(e.target.value), false), onchange: (e) => apply(Number(e.target.value), true) });
+  const outline = h('input', { type: 'checkbox', class: 'check', checked: !!setting(outlineKey), onchange: (e) => saveSettings({ [outlineKey]: e.target.checked }).then(applyAppearance) });
+  const r = btn.getBoundingClientRect();
+  const pop = h('div', { class: 'ts-pop menu', role: 'dialog', 'aria-label': t('common.text_size'), style: { left: Math.max(6, Math.min(r.left, innerWidth - 250)) + 'px', bottom: (innerHeight - r.top + 6) + 'px' } },
+    h('div', { class: 'row' }, h('span', { class: 'grow small' }, t('common.text_size')), label),
+    h('div', { class: 'row', style: { gap: '6px' } }, h('span', { class: 'tiny', 'aria-hidden': 'true' }, 'A'), slider, h('span', { 'aria-hidden': 'true', style: { fontSize: '1.2rem' } }, 'A')),
+    h('div', { class: 'row', style: { gap: '4px' } }, [90, 100, 120, 150].map((p) => h('button', { class: 'btn ghost small', onclick: () => apply(p, true) }, p + '%')),
+      h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => apply(100, true) }, t('common.reset'))),
+    h('label', { class: 'row small', title: 'Adds a soft dark outline behind text so it stays readable over the game when the background is very transparent' }, outline, 'Outline text (for see-through backgrounds)'));
+  document.body.append(pop);
+  place();
+  btn.setAttribute('aria-expanded', 'true');
+  slider.focus();
+  const close = (e) => { if (e.type === 'keydown' ? e.key === 'Escape' : !pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    pop.remove(); btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); if (e.type === 'keydown') btn.focus(); } };
+  setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', close); }, 0);
+}
 function mainRoute() {
   const hash = location.hash.replace(/^#\/?/, '');
   return { storyline: '#/guides?jump=1', pokedex: hash.startsWith('species/') ? '#/pokedex/' + hash.split('/')[1] : '#/pokedex', reports: '#/live/reports',
-    typechart: '#/tools/typechart', natures: '#/tools/natures', breeding: '#/tools/breeding', legendaries: '#/live/legendaries', cave: '#/live/cave' }[POPOUT] || '#/home';
+    typechart: '#/tools/typechart', natures: '#/tools/natures', breeding: '#/tools/breeding', legendaries: '#/live/legendaries', cave: '#/live/cave',
+    notes: '#/tools/notes' + (hash.startsWith('note/') ? '/' + hash.split('/')[1] : ''), items: '#/tools/items' + (hash.startsWith('item/') ? '/' + hash.split('/')[1] : ''),
+    showcase: '#/tools/showcase', customguide: '#/tools/cguides', locations: '#/tools/locations', box: '#/tools/box' }[POPOUT] || '#/home';
 }
 
 async function renderBody() {
   const keep = bodyEl.scrollTop;
   try {
-    const fn = { storyline, pokedex, reports, typechart, breeding, legendaries, cave, natures }[POPOUT];
+    const fn = { storyline, pokedex, reports, typechart, breeding, legendaries, cave, natures,
+      notes: (el) => renderNotesPopout(el, mode), items: (el) => renderItemsPopout(el, mode), showcase: (el) => renderShowcasePopout(el, mode),
+      customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode) }[POPOUT];
     if (!fn) { mount(bodyEl, notice('bad', 'Unknown popout: ' + POPOUT)); return; }
     await fn(bodyEl);
   } catch (e) { mount(bodyEl, notice('bad', e.message)); }
@@ -126,6 +172,7 @@ async function storyline(el) {
   const i = Math.max(0, steps.findIndex((s) => s.id === st.active_step_id));
   const cur = steps[i];
   const counts = st.source === 'imported' ? st.counts.unclassified : st.counts.mandatory;
+  Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => storyline(el) });
   const setActive = async (idx) => { const s = steps[Math.max(0, Math.min(steps.length - 1, idx))]; if (s) { await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); storyline(el); } };
   const toggle = async (s, val) => {
     const idx = steps.findIndex((x) => x.id === s.id);
@@ -171,9 +218,9 @@ async function storyline(el) {
 // Full filtered roster — no caps. Same scope/filters as the main Pokédex; own search box.
 let miniQuery = '';
 async function pokedex(el) {
-  const m = location.hash.match(/^#\/species\/(\d+)/);
+  const m = location.hash.match(/^#\/species\/(\d+)(?:\/([a-z0-9-]+))?/);
   if (m) {
-    await renderDetail(el, Number(m[1]), { back: () => { location.hash = '#/'; }, popout: true, mode });
+    await renderDetail(el, Number(m[1]), { back: () => { location.hash = '#/'; }, popout: true, mode, form: m[2] || null });
     return;
   }
   const all = await loadList();
@@ -183,16 +230,15 @@ async function pokedex(el) {
   const results = h('div', { class: 'dex-grid density-' + density, role: 'grid', 'aria-label': 'Pokémon' });
   const drawList = () => {
     const list = applyFilters(all, { ...currentFilters(), q: miniQuery });
-    const scopeSize = all.filter((s) => setting('pokedex.scope') === 'reference' || s.dex !== 'no').length;
+    const scopeSize = all.filter((s) => setting('pokedex.scope') !== 'pokemmo' || s.dex !== 'no').length;
     count.textContent = `${list.length} of ${scopeSize}`;
-    const frag = document.createDocumentFragment();
-    for (const s of list) frag.append(dexCard(s, { selected: false, density, tracking, onOpen: (id) => { location.hash = '#/species/' + id; } }));
-    results.replaceChildren(frag);
+    results.replaceChildren(catalogFragment(list, { density, tracking, grouped: currentFilters().sort === 'num' && mode !== 'compact',
+      onOpen: (s) => { location.hash = '#/species/' + s.id + (s.form_key ? '/' + s.form_key : ''); } }));
     if (!list.length) results.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, 'No Pokémon match this search and the Pokédex filters.'));
   };
   mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search Pokémon', value: miniQuery,
     'aria-label': 'Search Pokémon', oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), count),
-  h('div', { class: 'tiny muted' }, setting('pokedex.scope') === 'reference' ? 'All Gen I–V reference' : 'PokeMMO Dex', ' · filters from the main Pokédex apply'), results));
+  h('div', { class: 'tiny muted' }, setting('pokedex.catalog') === 'species' ? 'Species only' : 'Pokémon & forms', ' · filters from the main Pokédex apply'), results));
   drawList();
 }
 

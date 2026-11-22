@@ -1,4 +1,5 @@
 // Tools workspace (docs/design/07): grouped hub + individual tools.
+import { t as tr } from '../i18n.js';
 import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on } from '../core.js';
 import { go, popoutButton, pinButton, makePinDraggable, openPopout, isPinned, pinToSidebar } from '../shell.js';
 import { speciesPicker, speciesIndex, natureSelect } from '../components.js';
@@ -6,32 +7,52 @@ import * as breeding from './breeding.js';
 
 const STATS = [['hp', 'HP'], ['attack', 'Atk'], ['defense', 'Def'], ['sp_attack', 'SpA'], ['sp_defense', 'SpD'], ['speed', 'Spe']];
 let unsub = [];
-export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose(); }
+export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose();  if (typeof ownMod !== 'undefined' && ownMod && ownMod.dispose) ownMod.dispose(); }
 
 const TOOLS = {
   typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy) + defensive checker', render: renderTypeChart },
   natures: { title: 'Natures', icon: 'leaf', group: 'battle', status: 'CORROBORATED', desc: 'All 25 natures and their stat effects', render: renderNatures },
   stats: { title: 'Stat calculator', icon: 'calc', group: 'battle', status: 'ESTIMATE', desc: 'Standard formula with your dump’s base stats', render: renderStats },
-  damage: { title: 'Damage calculator', icon: 'bolt', group: 'battle', status: 'UNAVAILABLE', desc: 'Withheld until PokeMMO cases are verified', render: renderDamage },
   breeding: { title: 'Breeding planner', icon: 'egg', group: 'breeding', status: 'PARTIAL', desc: 'Preview · Plan · Egg moves', render: (el, r) => breeding.render(el, r) },
   team: { title: 'Team builder', icon: 'team', group: 'planning', status: 'CORROBORATED', desc: 'Type coverage and weaknesses for six slots', render: renderTeam },
   ev: { title: 'EV & horde planner', icon: 'target', group: 'planning', status: 'DUMP_ONLY', desc: 'EV yields and horde arithmetic', render: renderEv },
-  catch: { title: 'Catch estimate', icon: 'target', group: 'planning', status: 'ESTIMATE', desc: 'Generic model — clearly unverified', render: renderCatch },
+  catch: { title: 'Catch calculator', icon: 'target', group: 'planning', status: '', desc: 'Capture chance per ball with PokeMMO ball conditions', render: renderCatch },
+  // Connected tools render their own full page (header, pin, popout).
+  items: { title: 'Item Library', i18n: 'items.title', icon: 'bag', group: 'collection', status: '', own: () => import('./items.js'), descKey: 'items.desc', popout: 'items' },
+  notes: { title: 'Notes', i18n: 'notes.title', icon: 'note', group: 'collection', status: '', own: () => import('./notes.js'), descKey: 'notes.desc', popout: 'notes' },
+  box: { title: 'My Box', i18n: 'box.title', icon: 'box', group: 'collection', status: '', own: () => import('./box.js'), descKey: 'box.desc', popout: 'box' },
+  showcase: { title: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', group: 'collection', status: '', own: () => import('./box.js').then((m) => ({ render: m.renderShowcasePage, dispose: m.dispose })), descKey: 'showcase.desc', popout: 'showcase' },
+  cguides: { title: 'My guides', i18n: 'cguide.title', icon: 'list', group: 'collection', status: '', own: () => import('./cguides.js'), descKey: 'cguide.desc', popout: 'customguide' },
+  locations: { title: 'Location explorer', i18n: 'loc.title', icon: 'map', group: 'collection', status: '', own: () => import('./locations.js'), descKey: 'loc.desc', popout: 'locations' },
+  links: { title: 'Websites & links', i18n: 'links.title', icon: 'external', group: 'collection', status: '', own: () => import('./websites.js'), descKey: 'links.desc' },
 };
-const STATUS_BADGE = { CORROBORATED: ['CORROBORATED', 'Corroborated'], ESTIMATE: ['ESTIMATE', 'Estimate'], DUMP_ONLY: ['DUMP_ONLY', 'Dump data'],
-  UNAVAILABLE: ['UNKNOWN', 'Not available yet'], PARTIAL: ['DUMP_ONLY', 'Rules partly verified'] };
+let ownMod = null;
+// Owner decision 2026-11-22: researched + tested tools carry no status badge; uncertainty is shown
+// per record/value inside the tool. Only genuinely incomplete tools would get an 'Experimental' badge.
+const STATUS_BADGE = { EXPERIMENTAL: ['UNKNOWN', 'Experimental'] };
+const statusBadge = (t) => (STATUS_BADGE[t.status] ? badge(...STATUS_BADGE[t.status]) : null);
+const ttl = (t) => (t.i18n ? tr(t.i18n) : t.title);
+const tdesc = (t) => (t.descKey ? tr(t.descKey) : t.desc);
 
 export async function render(el, route) {
   dispose();
+  if (ownMod && ownMod.dispose) ownMod.dispose();
+  ownMod = null;
   const tool = route.parts[0];
+  if (tool === 'damage') { toast('The Damage calculator was removed in v0.1.0. Use Type matchups and the Stat calculator.', { kind: 'warn', timeout: 5000 }); go('#/tools'); return; }
+  if (tool && TOOLS[tool] && TOOLS[tool].own) {
+    ownMod = await TOOLS[tool].own();
+    await ownMod.render(el, route);
+    return;
+  }
   if (tool && TOOLS[tool]) {
     const t = TOOLS[tool];
     const page = h('div', { class: 'page' });
     mount(el, page);
     page.append(h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), 'Tools'),
       h('div', null, h('h1', null, t.title), h('div', { class: 'sub' }, t.desc)),
-      h('div', { class: 'actions' }, badge(...STATUS_BADGE[t.status]),
-        t.status !== 'UNAVAILABLE' ? pinButton({ kind: 'tool', id: tool }) : null,
+      h('div', { class: 'actions' }, statusBadge(t),
+        pinButton({ kind: 'tool', id: tool }),
         ['typechart', 'natures', 'breeding'].includes(tool) ? popoutButton(tool) : null)));
     const body = h('div');
     page.append(body);
@@ -45,22 +66,22 @@ async function renderHub(el) {
   const page = h('div', { class: 'page' });
   mount(el, page);
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Tools'),
-    h('div', { class: 'sub' }, 'Calculators and planners. Each tool says how far its numbers can be trusted. Drag a tool onto the sidebar to pin it to Quick access.'))));
+    h('div', { class: 'sub' }, 'Calculators, planners and your collection. Uncertain values are marked where they appear. Drag a tool onto the sidebar to pin it to Quick access.'))));
   const [plans, teams] = await Promise.all([get('/api/docs/breeding_plan'), get('/api/docs/team')]);
   const recent = [...plans.items.map((p) => ({ ...p, k: 'breeding' })), ...teams.items.map((t) => ({ ...t, k: 'team' }))]
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 4);
   const POP = { typechart: 'typechart', natures: 'natures', breeding: 'breeding' };
   const toolCard = (k, t) => {
-    const disabled = t.status === 'UNAVAILABLE';
-    const card = h('div', { class: 'tool-card' + (disabled ? ' disabled' : ''), role: 'group', 'aria-label': t.title },
+    const pop = t.popout || POP[k];
+    const card = h('div', { class: 'tool-card', role: 'group', 'aria-label': ttl(t) },
       h('button', { class: 'tool-main', onclick: () => go('#/tools/' + k) },
         h('span', { class: 'tool-ic' }, icon(t.icon)),
-        h('span', { class: 'grow' }, h('span', { class: 'tl-title' }, t.title), h('span', { class: 'small muted tl-desc' }, t.desc))),
-      h('div', { class: 'tool-foot' }, badge(...STATUS_BADGE[t.status]), h('span', { class: 'grow' }),
-        POP[k] ? h('button', { class: 'icon-btn sm', title: `Open ${t.title} as a popout window`, 'aria-label': `Pop out ${t.title}`, onclick: () => openPopout(POP[k]) }, icon('popout')) : null,
-        !disabled ? h('button', { class: 'icon-btn sm' + (isPinned({ kind: 'tool', id: k }) ? ' on' : ''), title: 'Pin to sidebar Quick access', 'aria-label': `Pin ${t.title} to sidebar`,
-          onclick: async (e) => { await pinToSidebar({ kind: 'tool', id: k }); e.currentTarget.classList.add('on'); } }, icon('pin')) : null));
-    if (!disabled) makePinDraggable(card, { kind: 'tool', id: k });
+        h('span', { class: 'grow' }, h('span', { class: 'tl-title' }, ttl(t)), h('span', { class: 'small muted tl-desc' }, tdesc(t)))),
+      h('div', { class: 'tool-foot' }, statusBadge(t), h('span', { class: 'grow' }),
+        pop ? h('button', { class: 'icon-btn sm', title: `Open ${ttl(t)} as a popout window`, 'aria-label': `Pop out ${ttl(t)}`, onclick: () => openPopout(pop) }, icon('popout')) : null,
+        h('button', { class: 'icon-btn sm' + (isPinned({ kind: 'tool', id: k }) ? ' on' : ''), title: 'Pin to sidebar Quick access', 'aria-label': `Pin ${ttl(t)} to sidebar`,
+          onclick: async (e) => { await pinToSidebar({ kind: 'tool', id: k }); e.currentTarget.classList.add('on'); } }, icon('pin'))));
+    makePinDraggable(card, { kind: 'tool', id: k });
     return card;
   };
   const group = (id, title, sub) => h('section', { class: 'tool-group' }, h('div', { class: 'tg-head' }, h('h2', null, title), h('div', { class: 'small muted' }, sub)),
@@ -69,18 +90,16 @@ async function renderHub(el) {
     h('div', { class: 'stack' },
       group('battle', 'Battle & Stats', 'Matchups, natures and stats'),
       group('breeding', 'Breeding', 'Familiar Parent A | Offspring | Parent B workflow, plan tree and egg moves'),
-      group('planning', 'Planning & Hunting', 'Teams, EV training and catching')),
+      group('planning', 'Planning & Hunting', 'Teams, EV training and catching'),
+      group('collection', tr('tools.group.collection'), tr('tools.group.collection_sub'))),
     h('aside', { class: 'stack' },
       h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Continue')),
         recent.length ? h('div', { class: 'stack tight' }, recent.map((d) => h('button', { class: 'tool-link', onclick: () => go(d.k === 'breeding' ? `#/tools/breeding?tab=plan&plan=${d.id}` : `#/tools/team?team=${d.id}`) },
           icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, (d.k === 'breeding' ? 'Breeding plan' : 'Team') + ' · saved ' + relTimeShort(d.updated_at)))))) :
           h('div', { class: 'small muted' }, 'Saved breeding plans and teams appear here.')),
-      h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, 'Trust levels'),
-        h('div', { class: 'small' }, badge('CORROBORATED', 'Corroborated'), ' rules that match PokeMMO’s data and in-game charts.'),
-        h('div', { class: 'small' }, badge('DUMP_ONLY', 'Dump data'), ' numbers from your installed dump (date unknown).'),
-        h('div', { class: 'small' }, badge('ESTIMATE', 'Estimate'), ' generic formulas, never exact odds.'),
-        h('div', { class: 'small' }, badge('UNKNOWN', 'Not available yet'), ' withheld until verified.'),
-        h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one). Nothing here reads the game, automates input or fetches GTL prices.')))));
+      h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, 'About the numbers'),
+        h('div', { class: 'small' }, 'Formulas are checked by automated tests against worked cases. Values from your installed dump are labelled ', badge('DUMP_ONLY', 'Dump data'), ' where they appear; anything uncertain says so next to the value.'),
+        h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one) and no damage calculator in v0.1.0. Nothing here reads the game, automates input or fetches GTL prices.')))));
 }
 function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'today' : `${Math.floor(d)} d ago`; }
 
@@ -242,88 +261,86 @@ async function renderStats(el) {
     if (!s.species) { mount(out, h('div', { class: 'muted' }, 'Choose a species.')); return; }
     try {
       const r = await post('/api/tools/stats', s);
-      mount(out, h('div', { class: 'stack tight' }, h('table', { class: 'table' }, h('thead', null, h('tr', null, STATS.map(([, l]) => h('th', null, l)))),
-        h('tbody', null, h('tr', null, STATS.map(([k]) => h('td', { style: { fontWeight: 700, fontSize: '1.15rem' } }, r.stats[k]))))),
-      r.ev_warning ? notice('warn', `EV total ${r.ev_total} exceeds the usual 510 cap.`) : h('div', { class: 'small muted' }, `EV total ${r.ev_total} / 510`),
-      notice('warn', h('strong', null, 'Estimate. '), r.note)));
+      const rowOf = (label, vals, strong) => h('tr', null, h('th', { class: 'small' }, label), STATS.map(([k]) => h('td', { style: strong ? { fontWeight: 700, fontSize: '1.15rem' } : null }, vals[k])));
+      mount(out, h('div', { class: 'stack tight' }, h('table', { class: 'table' }, h('thead', null, h('tr', null, h('th'), STATS.map(([, l]) => h('th', null, l)))),
+        h('tbody', null, rowOf(`Level ${r.level}`, r.stats, true), r.level !== 50 ? rowOf('Level 50', r.at_50) : null, r.level !== 100 ? rowOf('Level 100', r.at_100) : null, rowOf('Base', r.base))),
+      h('div', { class: 'small muted' }, `EV total ${r.ev_total} / 510`), h('div', { class: 'tiny muted' }, r.note)));
     } catch (e) { mount(out, notice('bad', e.message)); }
   };
+  const evSum = h('span', { class: 'tiny muted' });
   const numRow = (key, max) => h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span', { class: 'label' }, key === 'ivs' ? 'IVs' : 'EVs'),
-    STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max, value: s[key][k], 'aria-label': `${l} ${key}`, oninput: (e) => { s[key][k] = Number(e.target.value || 0); run(); } })));
+    STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max, value: s[key][k], 'aria-label': `${l} ${key}`,
+      oninput: (e) => { s[key][k] = Math.max(0, Math.min(max, Number(e.target.value || 0))); evSum.textContent = `EV total ${STATS.reduce((a, [x]) => a + (s.evs[x] || 0), 0)} / 510`; run(); } })));
   el.append(h('div', { class: 'grid-2', style: { alignItems: 'start' } },
     h('div', { class: 'card stack' }, speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
       h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Level'),
-        h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 50, oninput: (e) => { s.level = Number(e.target.value || 1); run(); } })),
+        h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 50, oninput: (e) => { s.level = Math.max(1, Math.min(100, Number(e.target.value || 1))); run(); } })),
       h('div', { class: 'field grow' }, h('label', null, 'Nature'), natureSelect(null, (v) => { s.nature = v; run(); }))),
       h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, l))),
-      numRow('ivs', 31), numRow('evs', 255)),
+      numRow('ivs', 31), numRow('evs', 252), evSum, h('div', { class: 'tiny muted' }, 'IVs 0–31 · EVs up to 252 per stat and 510 in total. Shedinja always has 1 HP.')),
     h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Calculated stats')), out)));
   run();
-}
-
-// ------------------------------------------------------------- damage
-function renderDamage(el) {
-  el.append(h('div', { class: 'content-narrow stack' },
-    notice('warn', h('strong', null, 'Not available in v0.1.0. '), 'A damage calculator is only shown once its results match verified PokeMMO cases. Showing generic cartridge numbers would look precise while being possibly wrong.'),
-    h('div', { class: 'card stack tight' }, h('h3', { style: { margin: 0 } }, 'What is needed before it can be enabled'),
-      h('ul', { style: { margin: 0 } }, h('li', null, 'Recorded in-game cases (attacker/defender, level, IVs/EVs, nature, item, ability, weather, crits) with observed damage ranges.'),
-        h('li', null, 'PokeMMO-specific rules: Hail ≠ Snowscape (30 Oct 2026), current abilities and items.'),
-        h('li', null, 'A regression suite that passes on those cases.')),
-      h('div', { class: 'small muted' }, 'Research candidate: ', extLink('https://github.com/PokeMMO-Showdown/mmoshowdown-damage-calc', 'PokeMMO Showdown damage calc source'), ' (reference only; not copied).')),
-    h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => go('#/tools/typechart') }, 'Use type matchups instead'))));
 }
 
 // ------------------------------------------------------------- catch
 async function renderCatch(el) {
   if (!state.boot.dex.imported) { el.append(needsImport()); return; }
-  const s = { species: null, hp_percent: 100, ball: 1, status: 1, acknowledged: false };
+  const s = { species: null, hp_percent: 100, max_hp: 100, status: 'none', turn: 1, time: 'day', cave: false, water: false, level: 30, caught_before: false };
   const out = h('div');
   const run = async () => {
-    if (!s.acknowledged) { mount(out, notice('info', 'Tick the confirmation to show an estimate.')); return; }
     if (!s.species) { mount(out, h('div', { class: 'muted' }, 'Choose a species.')); return; }
     try {
       const r = await post('/api/tools/catch', s);
-      mount(out, h('div', { class: 'stack' }, h('div', { class: 'row' }, h('span', { style: { fontSize: '2rem', fontWeight: 700 } }, `~${r.estimate_percent}%`), badge('ESTIMATE', 'Unverified estimate')),
-        h('div', { class: 'small muted' }, `Per ball thrown · catch rate ${r.catch_rate} from your dump · model: ${r.model}`),
-        h('ul', { class: 'small', style: { margin: 0, color: 'var(--text-secondary)' } }, r.warnings.map((w) => h('li', null, w)))));
+      mount(out, h('div', { class: 'stack tight' },
+        h('div', { class: 'small' }, `${r.name}: catch rate ${r.catch_rate} (${r.rate_source}) · HP ${r.cur_hp}/${r.max_hp} · ${r.status === 'none' ? 'no status' : r.status}`),
+        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Ball', 'Condition', 'Per ball', '90% within', '99% within'].map((c) => h('th', null, c)))),
+          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, x.label), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: 'PokeMMO behaviour for this ball not confirmed' }, ' · condition not confirmed')),
+            h('td', { style: { fontWeight: 700 } }, x.guaranteed ? '100% (certain)' : (x.percent >= 99.995 ? '>99.99%' : x.percent + '%')),
+            h('td', null, x.balls_for_90 ? x.balls_for_90 + ' balls' : '—'), h('td', null, x.balls_for_99 ? x.balls_for_99 + ' balls' : '—'))))),
+        h('ul', { class: 'tiny muted', style: { margin: 0 } }, r.notes.map((w) => h('li', null, w)))));
     } catch (e) { mount(out, notice('bad', e.message)); }
   };
   const hpLabel = h('span', { class: 'small' }, '100%');
+  const sel = (label, key, opts, conv = (v) => v) => h('div', { class: 'field grow' }, h('label', null, label), h('select', { class: 'input', onchange: (e) => { s[key] = conv(e.target.value); run(); } },
+    opts.map(([v, l]) => h('option', { value: v, selected: String(s[key]) === String(v) ? 'selected' : null }, l))));
+  const chk = (label, key) => h('label', { class: 'row small' }, h('input', { type: 'checkbox', class: 'check', onchange: (e) => { s[key] = e.target.checked; run(); } }), label);
   el.append(h('div', { class: 'grid-2', style: { alignItems: 'start' } },
-    h('div', { class: 'card stack' }, notice('warn', h('strong', null, 'PokeMMO’s catch formula is not public. '), 'This uses a generic, simplified model. It can be wrong and must never be read as exact odds.'),
-      h('label', { class: 'row' }, h('input', { type: 'checkbox', class: 'check', onchange: (e) => { s.acknowledged = e.target.checked; run(); } }), 'I understand this is an unverified estimate'),
+    h('div', { class: 'card stack' },
       speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
-      h('div', { class: 'field' }, h('label', null, 'Target HP remaining'), h('div', { class: 'row' }, h('input', { type: 'range', min: 1, max: 100, value: 100,
+      h('div', { class: 'field' }, h('label', null, 'Target HP remaining'), h('div', { class: 'row' }, h('input', { type: 'range', min: 1, max: 100, value: 100, 'aria-label': 'HP remaining',
         oninput: (e) => { s.hp_percent = Number(e.target.value); hpLabel.textContent = e.target.value + '%'; run(); } }), hpLabel)),
-      h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', null, 'Ball (standard-game multipliers, unverified)'),
-        h('select', { class: 'input', onchange: (e) => { s.ball = Number(e.target.value); run(); } }, [['1', 'Poké Ball ×1'], ['1.5', 'Great Ball ×1.5'], ['2', 'Ultra Ball ×2'], ['3', 'Conditional ball ×3'], ['3.5', 'Dusk Ball (qualifying) ×3.5']].map(([v, l]) => h('option', { value: v }, l)))),
-      h('div', { class: 'field grow' }, h('label', null, 'Status'), h('select', { class: 'input', onchange: (e) => { s.status = Number(e.target.value); run(); } },
-        [['1', 'None'], ['1.5', 'Paralysis / Poison / Burn ×1.5'], ['2.5', 'Sleep / Freeze ×2.5']].map(([v, l]) => h('option', { value: v }, l))))),
+      h('div', { class: 'row' }, sel('Status', 'status', [['none', 'None'], ['sleep', 'Sleep ×2'], ['freeze', 'Freeze ×2'], ['paralysis', 'Paralysis ×1.5'], ['poison', 'Poison ×1.5'], ['burn', 'Burn ×1.5']]),
+        sel('Time', 'time', [['day', 'Morning / day'], ['night', 'Night']])),
+      h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Turn'), h('input', { class: 'input', type: 'number', min: 1, max: 99, value: 1, oninput: (e) => { s.turn = Number(e.target.value || 1); run(); } })),
+        h('div', { class: 'field', style: { width: '120px' } }, h('label', null, 'Wild level'), h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 30, oninput: (e) => { s.level = Number(e.target.value || 1); run(); } }))),
+      h('div', { class: 'row wrap' }, chk('In a cave', 'cave'), chk('Surfing / fishing', 'water'), chk('Already caught this species', 'caught_before')),
       h('p', { class: 'tiny muted', style: { margin: 0 } }, 'Dusk Ball cave bonus no longer applies at Twist Mountain Center (official, 30 Oct 2026) — not every cave-named location qualifies.')),
-    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Estimate')), out)));
+    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Capture chance by ball')), out)));
   run();
 }
 
-// ------------------------------------------------------------ EV planner
 async function renderEv(el) {
   if (!state.boot.dex.imported) { el.append(needsImport()); return; }
   const idx = await speciesIndex();
-  let stat = 'speed', target = 252, horde = 5, region = '';
+  let stat = 'speed', target = 252, horde = 5, region = '', current = 0, macho = false;
   const out = h('div');
   const draw = () => {
-    const cands = idx.filter((s) => s.ev && s.ev[stat] && (horde === 1 || s.horde5) && (!region || (s.regions || []).includes(region)))
+    const cands = idx.filter((s) => s.ev && s.ev[stat] && (horde === 1 || (horde === 5 ? s.horde5 : s.horde)) && (!region || (s.regions || []).includes(region)))
       .sort((a, b) => (b.ev[stat] - a.ev[stat]) || a.id - b.id).slice(0, 40);
     mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${cands.length ? 'Top' : 'No'} species yielding ${STATS.find((x) => x[0] === stat)[1]} EVs${horde === 5 ? ' that appear in ×5 hordes (dump)' : ''}${region ? ' in ' + cap(region) : ''}.`),
-      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Pokémon', 'Yield', `EVs per ${horde === 5 ? 'horde' : 'battle'}`, `Battles for ${target}`, ''].map((c) => h('th', null, c)))),
-        h('tbody', null, cands.map((s) => { const per = s.ev[stat] * horde; return h('tr', null, h('td', null, s.name, ' ', typeChips(s.types, true)), h('td', null, `+${s.ev[stat]}`),
-          h('td', null, per), h('td', { style: { fontWeight: 700 } }, Math.ceil(target / per)),
+      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Pokémon', 'Yield', `EVs per ${horde > 1 ? 'horde' : 'battle'}`, `Battles ${current}→${target}`, ''].map((c) => h('th', null, c)))),
+        h('tbody', null, cands.map((s) => { const per = s.ev[stat] * (macho ? 2 : 1) * horde; const rem = Math.max(0, target - current);
+          return h('tr', null, h('td', null, s.name, ' ', typeChips(s.types, true)), h('td', null, `+${s.ev[stat]}`),
+          h('td', null, per), h('td', { style: { fontWeight: 700 } }, rem ? Math.ceil(rem / per) : 0),
           h('td', null, h('button', { class: 'btn small ghost', onclick: () => go(`#/pokedex/${s.id}?tab=locations`) }, 'Locations'))); }))),
-      notice('info', 'Plain arithmetic from your dump’s EV yields. Power items, Macho Brace, Pokérus and any PokeMMO-specific modifiers are not applied. Horde availability comes from dump rows and may predate patches.')));
+      h('div', { class: 'tiny muted' }, 'Yield × Pokémon per encounter' + (macho ? ' × 2 (Macho Brace)' : '') + '. Power items and Pokérus are not applied (no PokeMMO-specific evidence collected). Horde rows come from your installed dump; check the dump date after encounter patches (29 Jul 2026 overhaul).')));
   };
   el.append(h('div', { class: 'stack' }, h('div', { class: 'card row wrap' },
     h('div', { class: 'field' }, h('label', null, 'Stat'), seg(STATS.map(([k, l]) => [k, l]), stat, (v) => { stat = v; draw(); })),
-    h('div', { class: 'field', style: { width: '120px' } }, h('label', null, 'Target EVs'), h('input', { class: 'input', type: 'number', min: 1, max: 255, value: target, oninput: (e) => { target = Math.max(1, Number(e.target.value || 1)); draw(); } })),
-    h('div', { class: 'field' }, h('label', null, 'Encounter'), seg([[5, 'Horde ×5'], [1, 'Single']], horde, (v) => { horde = v; draw(); })),
+    h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Current EVs'), h('input', { class: 'input', type: 'number', min: 0, max: 252, value: current, oninput: (e) => { current = Math.max(0, Math.min(252, Number(e.target.value || 0))); draw(); } })),
+    h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Target EVs'), h('input', { class: 'input', type: 'number', min: 1, max: 252, value: target, oninput: (e) => { target = Math.max(1, Math.min(252, Number(e.target.value || 1))); draw(); } })),
+    h('div', { class: 'field' }, h('label', null, 'Encounter'), seg([[5, 'Horde ×5'], [3, 'Horde ×3'], [1, 'Single']], horde, (v) => { horde = v; draw(); })),
+    h('label', { class: 'row small', style: { alignSelf: 'end' } }, h('input', { type: 'checkbox', class: 'check', onchange: (e) => { macho = e.target.checked; draw(); } }), 'Macho Brace (×2, mainline effect — not confirmed for PokeMMO)'),
     h('div', { class: 'field' }, h('label', null, 'Region'), h('select', { class: 'input', onchange: (e) => { region = e.target.value; draw(); } }, h('option', { value: '' }, 'Any'),
       ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r }, cap(r)))))), out));
   draw();
