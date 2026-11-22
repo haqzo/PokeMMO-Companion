@@ -481,6 +481,14 @@ def sync_existing_import(paths: Paths, progress: Callable[[str], None] | None = 
         paths_by_kind = found.get("dumps") or {}
         if not paths_by_kind.get("pokedex") and not found.get("combined"):
             continue
+        # A partial or moved source must not replace existing private icons/translations
+        # with a smaller dataset during automatic refresh.
+        previous_source_paths = [Path(src["path"]) for src in sources.values()
+                                 if isinstance(src, dict) and src.get("path")]
+        if any(not p.exists() for p in previous_source_paths):
+            continue
+        if not found.get("combined") and any(k not in paths_by_kind for k in sources):
+            continue
 
         # Change detection uses the original source set; a new unrelated dump in some
         # other folder must never silently replace the previously installed source.
