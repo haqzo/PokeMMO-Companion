@@ -1,5 +1,8 @@
 # PokeMMO Companion — Design specification
-**Updated:** 2026-11-22 · **Branch:** `develop` · **Status:** research-led design, production not yet authorized.
+**Updated:** 2026-11-22 · **Branch:** `develop` · **Status:** design documented, v0.1.0 full-first-pass implementation handoff prepared; no code built yet.
+
+## Current implementation direction
+The user now wants one broad, usable **v0.1.0 development preview** before the first video review. Start with [v0.1.0 build plan](../build/00-V0.1.0-FIRST-PASS-PLAN.md) and [Claude implementation handoff](../build/01-CLAUDE-V0.1.0-KICKOFF.md). Older design-phase gates calling for *more design before any code* are superseded by this newer instruction. Source/data correctness and platform limitations still apply.
 
 ## Approved high-level direction
 One ordinary desktop Companion main window beside/on another monitor, with optional separately pinned and translucent popout tools over PokeMMO; five grouped main destinations; alternate vertical/horizontal navigation; source-backed official News/Events on Home; Alpha/Swarm OS notifications, custom toasts and internal history; three meaningful layout densities per tool; calm styling derived from Better Default. No encounter counter.
@@ -31,4 +34,4 @@ One ordinary desktop Companion main window beside/on another monitor, with optio
 - Exact actual Better Default preset colours and layout measurements still need locally readable theme package, not inferred hex codes.
 - Confirm final design layout after user review; no generated previews unless requested.
 - Data/asset provenance, live sources, formula verification and Windows/X11/Wayland popout feasibility remain separate release gates.
-- Claude implements only when user gives explicit approval; `main` stays untouched until an approved stable release.
+- Claude's comprehensive first-build handoff is ready; user must initiate Claude's coding run. `main` stays untouched until the user approves a stable release.

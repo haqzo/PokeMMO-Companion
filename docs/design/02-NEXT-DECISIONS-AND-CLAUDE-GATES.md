@@ -1,5 +1,8 @@
-# Next decisions and test gates before production build
+# Historical design-stage gates (superseded in scheduling, retained for QA)
 **Date:** 2026-11-22 · **Implementation:** Claude · **Research, design and QA:** user + ChatGPT
+
+**IMPORTANT UPDATE:** The owner's newer decision is a broad v0.1.0 build in one coordinated Claude pass. [Current build plan](../build/00-V0.1.0-FIRST-PASS-PLAN.md) and [Claude instructions](../build/01-CLAUDE-V0.1.0-KICKOFF.md) supersede **scheduling/approval-gating** language below; accuracy, legal boundaries, evidence and platform QA remain mandatory. This file is historical background, not an instruction to stop after prototype.
+
 
 ## Decision status
 **Approved direction:** second-monitor capable normal main app + optional reliable detachable popouts; horizontal/vertical nav; Home, Pokédex, Tools, Live, Guides; Better Default-inspired styling without purple; simple Poké Ball identity; per-tool compact/standard/expanded presentation; optional per-tool opacity/pin; verified game data; Alpha/Swarm custom toasts/native notifications/history.

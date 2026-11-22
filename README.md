@@ -2,12 +2,17 @@
 
 A research-first, PokeMMO-specific companion planned for **Windows and Linux**.
 
-**Status:** Research and design in progress; no production application has been approved or released.
+**Status:** v0.1.0 full-first-pass implementation handoff prepared; application code has not yet been built or released.
 
 ## Vision
 A compact, collapsible launcher and clean, independently movable/resizable floating tools alongside PokeMMO. The Pokédex should use a responsive, searchable **sprite-card grid** instead of long rows, with verified species details, obtainable status, encounters, moves, evolution and forms.
 
 Planned research areas: Alpha/Swarm notifications, Legendary rotations, Altering Cave, PokeMMO-specific calculators, team/breeding tools and optional region walkthroughs. We will not add an encounter counter because PokeMMO already has one.
+
+## v0.1.0 development plan
+[Full first-pass scope and acceptance criteria](docs/build/00-V0.1.0-FIRST-PASS-PLAN.md) | [Claude coding handoff](docs/build/01-CLAUDE-V0.1.0-KICKOFF.md) | [User video review](docs/build/02-V0.1.0-VIDEO-REVIEW-CHECKLIST.md)
+
+We are aiming for one coherent **locally runnable full-app preview**, not a series of disconnected UI mockups. Claude will implement on `develop`; the first user video review drives subsequent polish and versions. Do not confuse the current planning documents with a released executable.
 
 ## Design and research
 [Design specification](docs/design/README.md) — current approved product direction and proposed detailed UX for Home, windows, notifications and Pokédex.
