@@ -2,7 +2,7 @@
 
 A research-first, PokeMMO-specific companion planned for **Windows and Linux**.
 
-**Status:** v0.1.0 development preview on `develop` (not a release). The video correction pass is implemented; see the [correction pass report](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/05-V0.1.0-CORRECTION-PASS-REPORT.md) (changes, tests, what is still unverified) and the earlier [implementation report](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/03-V0.1.0-IMPLEMENTATION-REPORT.md). Inputs: [three-video audit](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/reviews/2026-11-22-three-video-audit.md) · [correction assignment](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/04-V0.1.0-VIDEO-CORRECTION-PASS.md).
+**Status:** v0.1.0 development preview on `develop` (not a release). Latest: the accuracy + foundations pass — see the [implementation report](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/10-V0.1.0-ACCURACY-AND-FOUNDATIONS-REPORT.md) (update steps, what changed, tests, what is still unverified). Earlier: [correction pass](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/05-V0.1.0-CORRECTION-PASS-REPORT.md) · [first build](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/03-V0.1.0-IMPLEMENTATION-REPORT.md).
 
 ## Vision
 A compact, collapsible launcher and clean, independently movable/resizable floating tools alongside PokeMMO. The Pokédex should use a responsive, searchable **sprite-card grid** instead of long rows, with verified species details, obtainable status, encounters, moves, evolution and forms.

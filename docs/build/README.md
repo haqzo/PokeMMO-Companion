@@ -21,3 +21,4 @@
 Read all existing [design specifications](../design/README.md) and [Phase 3 research](../research/phase-3/00-START-HERE.md).
 
 The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interface). No merge or release to main.
+- [**10 — Accuracy + foundations pass report: update/run, changes, tests, still unverified, next video**](10-V0.1.0-ACCURACY-AND-FOUNDATIONS-REPORT.md)
