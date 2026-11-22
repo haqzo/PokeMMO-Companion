@@ -41,6 +41,8 @@ One ordinary desktop Companion main window beside/on another monitor, with optio
 - [Feature staging and post-1.0 OCR/Android](../roadmap/00-2026-11-22-FEATURE-STAGING.md)
 - [Next Claude engineering handoff](../build/07-V0.1.0-ACCURACY-AND-FOUNDATIONS.md)
 
+19. [Synergy-reference full Pokédex species and forms, dense grid, accuracy safeguards](19-SYNERGY-POKEDEX-REFERENCE.md)
+
 ## Open approvals
 - Exact actual Better Default preset colours and layout measurements still need locally readable theme package, not inferred hex codes.
 - Confirm final design layout after user review; no generated previews unless requested.

@@ -13,6 +13,8 @@
 - [**Next Claude assignment — accuracy and connected features**](07-V0.1.0-ACCURACY-AND-FOUNDATIONS.md)
 - [Feature staging roadmap](../roadmap/00-2026-11-22-FEATURE-STAGING.md)
 
+- [**Owner's Synergy-based Pokédex roster decision**](../design/19-SYNERGY-POKEDEX-REFERENCE.md)
+
 Read all existing [design specifications](../design/README.md) and [Phase 3 research](../research/phase-3/00-START-HERE.md).
 
 The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interface). No merge or release to main.
