@@ -449,7 +449,11 @@ def sync_existing_import(paths: Paths, progress: Callable[[str], None] | None = 
         return {"state": "invalid-manifest"}
 
     current_catalog = paths.dex_dir / "items.json"
-    needs_catalog = not current_catalog.is_file()
+    try:
+        parsed_catalog = json.loads(current_catalog.read_text(encoding="utf-8"))
+        needs_catalog = not isinstance(parsed_catalog, dict) or not isinstance(parsed_catalog.get("groups"), list)
+    except (OSError, ValueError):
+        needs_catalog = True
     sources = previous.get("sources") or {}
     if not isinstance(sources, dict):
         sources = {}
@@ -481,12 +485,13 @@ def sync_existing_import(paths: Paths, progress: Callable[[str], None] | None = 
         # Change detection uses the original source set; a new unrelated dump in some
         # other folder must never silently replace the previously installed source.
         changed = False
-        for source in sources.values():
+        for source_key, source in sources.items():
             if not isinstance(source, dict) or not source.get("path") or not source.get("fingerprint"):
                 continue
             p = Path(source["path"])
             old_fp = source["fingerprint"]
-            new_fp = fingerprint(p, "info" if p.is_dir() else None)
+            subdir = DIR_PARTS.get(source_key, ("info",))[0]
+            new_fp = fingerprint(p, subdir if p.is_dir() else None)
             if new_fp is not None and new_fp != old_fp:
                 changed = True
                 break
