@@ -2,6 +2,13 @@
 
 **Snapshot date:** 22 November 2026. **Status:** work in progress, research only. This is a PokeMMO-specific study, not a verified gameplay database or a playable app.
 
+## Current design / next steps (read these first)
+- [Approved main app and popout architecture](../../docs/design/00-APP-STRUCTURE-AND-WINDOWS.md)
+- [Alpha/Swarm custom toasts, native notifications and report history](../../docs/design/01-LIVE-ALERTS-AND-NOTIFICATIONS.md)
+- [Next decisions and Claude approval gates](../../docs/design/02-NEXT-DECISIONS-AND-CLAUDE-GATES.md)
+
+**Design decision update (22 Nov 2026):** Main application is a normal Windows/Linux desktop window with optional pinned popout tools (not an all-overlay launcher). There are three viewing densities per tool, grouped navigation in horizontal/vertical configurations, and configurable Alpha/Swarm custom toasts or OS notifications with persistent history. Actual OS support remains subject to test.
+
 ## Start here
 - **[Phase 3 — current handoff](phase-3/00-START-HERE.md)**: most recent research, official changelog impact, current source register, Pokémon availability issues, calculator validation, rotating encounters, UX and test plans.
 - [Official changelog impact](phase-3/01-OFFICIAL-CHANGELOG-IMPACT.md)
