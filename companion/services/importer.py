@@ -429,6 +429,81 @@ def data_status(paths: Paths, home: Path | None = None) -> dict:
                       "data folder on this computer; nothing is uploaded or committed."}
 
 
+
+def sync_existing_import(paths: Paths, progress: Callable[[str], None] | None = None) -> dict:
+    """Update an ALREADY installed private dump from its previously approved local source.
+
+    Older Companion versions installed species/sprites but did not create the Item Library.
+    Do not ask that user to re-import: rebuild the new catalog on startup from the original
+    previously selected folder, if it is still present. Also follow updated local source
+    files on later starts, without reading arbitrary paths or contacting external services.
+
+    Never bundle source assets in Git; never modify original dump archives.
+    """
+    manifest_file = paths.dex_dir / "manifest.json"
+    if not manifest_file.is_file():
+        return {"state": "not-installed"}
+    try:
+        previous = json.loads(manifest_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"state": "invalid-manifest"}
+
+    current_catalog = paths.dex_dir / "items.json"
+    needs_catalog = not current_catalog.is_file()
+    sources = previous.get("sources") or {}
+    if not isinstance(sources, dict):
+        sources = {}
+    original_folders: list[Path] = []
+    if previous.get("folder"):
+        original_folders.append(Path(previous["folder"]).expanduser())
+    # Older manifests may contain the original archive path, but not the folder.
+    for source in sources.values():
+        if not isinstance(source, dict) or not source.get("path"):
+            continue
+        source_path = Path(source["path"]).expanduser()
+        original_folders.append(source_path if source_path.is_dir() else source_path.parent)
+
+    seen: set[str] = set()
+    for folder in original_folders:
+        if str(folder) in seen:
+            continue
+        seen.add(str(folder))
+        if not folder.is_dir():
+            continue
+        try:
+            found = detect_sources(folder)
+        except (ImportError_, OSError):
+            continue
+        paths_by_kind = found.get("dumps") or {}
+        if not paths_by_kind.get("pokedex") and not found.get("combined"):
+            continue
+
+        # Change detection uses the original source set; a new unrelated dump in some
+        # other folder must never silently replace the previously installed source.
+        changed = False
+        for source in sources.values():
+            if not isinstance(source, dict) or not source.get("path") or not source.get("fingerprint"):
+                continue
+            p = Path(source["path"])
+            old_fp = source["fingerprint"]
+            new_fp = fingerprint(p, "info" if p.is_dir() else None)
+            if new_fp is not None and new_fp != old_fp:
+                changed = True
+                break
+        if not needs_catalog and not changed:
+            return {"state": "current"}
+        try:
+            result = import_dumps(paths, folder=str(folder), progress=progress)
+            return {"state": "synchronized", "reason": "missing item catalog" if needs_catalog else "local source changed",
+                    "items": result.get("counts", {}).get("item_groups", 0)}
+        except (ImportError_, OSError, ValueError, zipfile.BadZipFile) as exc:
+            return {"state": "source-error", "reason": str(exc)}
+
+    # No previous source available: leave the installed Pokémon data completely intact.
+    return {"state": "source-unavailable" if needs_catalog else "current"}
+
+
+
 # ------------------------------------------------------------------ entry
 def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None = None,
                  progress: Callable[[str], None] | None = None) -> dict:
