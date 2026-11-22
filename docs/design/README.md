@@ -22,6 +22,11 @@ One ordinary desktop Companion main window beside/on another monitor, with optio
 13. [Legendary Roadmap and Altering Cave detailed layouts](12-LEGENDARIES-AND-ALTERING-CAVE.md)
 14. [Source reliability, data contracts and validation gates](13-LIVE-DATA-PROVIDERS-AND-QA.md)
 
+15. [Guides workspace and typed-name character runs](14-GUIDES-NAMED-CHARACTER-RUNS.md)
+16. [Semi-transparent floating Storyline Guide for gameplay](15-STORYLINE-FLOATING-POPOUT.md)
+17. [Settings, character management and per-window preferences](16-SETTINGS-AND-RUN-MANAGEMENT.md)
+18. [Guide source verification, progress migration and QA](17-GUIDES-ACCURACY-AND-QA.md)
+
 ## Open approvals
 - Exact actual Better Default preset colours and layout measurements still need locally readable theme package, not inferred hex codes.
 - Confirm final design layout after user review; no generated previews unless requested.
