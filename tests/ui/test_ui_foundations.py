@@ -7,48 +7,50 @@ from tests.ui.test_ui_flows import DUMPS, app, browser, data_dir, go, page  # no
 pytestmark = pytest.mark.ui
 
 
-def test_catalog_shows_species_and_forms_grouped_by_generation(app, page):
+def test_pokedex_shows_one_card_per_species_with_forms_inside_details(app, page):
     go(page, app, "#/pokedex")
     page.wait_for_selector(".dex-card")
     info = page.locator(".dex-info").inner_text()
-    assert "731 of 731 entries shown" in info and "649 species + 82 forms" in info
+    assert "649 of 649 Pokémon shown" in info
+    assert "82 alternate forms available within Pokémon details" in info
     assert page.locator(".dex-grid .gen-head").count() == 5
-    assert page.locator('.dex-card[data-entry="479:wash"]').count() == 1
+    assert page.locator(".dex-grid .dex-card").count() == 649
+    assert page.locator('.dex-card[data-entry="479"]').count() == 1
+    assert page.locator('.dex-card[data-entry="479:wash"]').count() == 0
     assert "unavailable" not in page.locator('.dex-card[data-entry="640"]').get_attribute("aria-label").lower()
-    page.get_by_role("radio", name="Species only").click()
-    page.wait_for_timeout(500)
-    assert "649 of 649 entries shown" in page.locator(".dex-info").inner_text()
-    page.get_by_role("radio", name="Pokémon & forms").click()
-    page.wait_for_timeout(400)
 
 
 def test_form_detail_and_back_keeps_filters(app, page):
     go(page, app, "#/pokedex")
     page.fill("#dex-search", "kyurem")
     page.wait_for_timeout(400)
-    assert page.locator(".dex-grid .dex-card").count() == 3
-    page.locator('.dex-card[data-entry="646:black"]').click()
+    assert page.locator(".dex-grid .dex-card").count() == 1
+    page.locator('.dex-card[data-entry="646"]').click()
     page.wait_for_selector(".form-strip")
+    page.locator(".form-strip button", has_text="Black Kyurem").click()
+    page.wait_for_timeout(400)
     assert "Black Kyurem" in page.locator(".detail-head h2").inner_text()
     assert "Form change not verified" in page.locator(".detail-head").inner_text()
     page.locator(".form-strip button", has_text="Kyurem").first.click()
-    page.wait_for_timeout(500)
-    assert page.locator(".dex-grid .dex-card").count() == 3  # search kept
+    page.wait_for_timeout(400)
+    assert page.locator(".dex-grid .dex-card").count() == 1  # same search filter
 
 
 @pytest.mark.parametrize("mode", ["compact", "expanded"])
-def test_popout_scrolls_to_last_form_entry(app, browser, mode):  # noqa: F811
+def test_popout_species_and_form_detail(app, browser, mode):  # noqa: F811
     pop = browser.new_context(viewport={"width": 460, "height": 600}).new_page()
     pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=pokedex&mode={mode}&shell=browser")
     pop.wait_for_selector(".dex-card")
     pop.wait_for_timeout(500)
     cards = pop.locator(".popout-body .dex-card")
-    assert cards.count() == 731
+    assert cards.count() == 649
     last = cards.last
     last.scroll_into_view_if_needed()
-    assert last.get_attribute("data-entry") == "649:chill" and last.is_visible()
+    assert last.get_attribute("data-entry") == "649" and last.is_visible()
     last.click()
-    pop.wait_for_selector(".detail-head h2")
+    pop.wait_for_selector(".form-strip")
+    pop.locator(".form-strip button", has_text="Chill Drive").click()
+    pop.wait_for_timeout(400)
     assert "Chill Drive" in pop.locator(".detail-head h2").inner_text()
     pop.context.close()
 
