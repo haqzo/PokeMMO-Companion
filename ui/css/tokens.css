@@ -1,0 +1,77 @@
+/*
+ * Better Default–derived semantic tokens (docs/design/05).
+ *
+ * PROVENANCE: colours marked [sampled] were measured from the official Better
+ * Default v1.8.0 screenshots in github.com/haqzo/better-default
+ * (screenshots/1.8.0/pc-*.png) on 2026-11-22 — NOT read from the theme XML,
+ * which is not in that repository. [proposed] values are Companion choices
+ * pending the user's sign-off. No purple.
+ */
+:root {
+  /* surfaces */
+  --bg-app: #0f1119;            /* [proposed] slightly darker than window body */
+  --bg-window: #161924;         /* [sampled] window body (base stats / settings) */
+  --bg-header: #1e2437;         /* [sampled] trainer-card header band */
+  --bg-inset: #0b0c13;          /* [sampled] tab strip / stat-bar backing (#0a0a12) */
+  --bg-card: #252833;           /* [sampled] value cells */
+  --bg-control: #272a3c;        /* [sampled] dropdown / control */
+  --bg-label: #292b39;          /* [sampled] settings label cell */
+  --bg-button: #383a48;         /* [sampled] buttons */
+  --bg-hover: #30344a;          /* [proposed] */
+  --bg-selected: #2c2f44;       /* [sampled-ish] selected pill (#28293c) lifted for contrast */
+  --border-subtle: #2b2d3b;     /* [sampled] */
+  --border-strong: #4f525d;     /* [sampled] selected pill edge */
+  --overlay: rgba(6, 7, 12, .66);
+
+  /* text */
+  --text-primary: #ebecf1;      /* [sampled] cell text */
+  --text-secondary: #b6b9c4;    /* [proposed] */
+  --text-muted: #8d909b;        /* [proposed] ≥4.5:1 on window body (sampled #767980 was 4.0:1) */
+  --text-on-accent: #12141c;
+
+  /* accents: Better Default's default selection marker is a neutral near-white */
+  --accent: #eef1f4;            /* [sampled] selection marker (#fafdf5) softened */
+  --accent-soft: rgba(238, 241, 244, .10);
+  --accent-ring: rgba(238, 241, 244, .55);
+  --link: #8fb1e6;              /* [proposed] from BD cursor blue border; links & focus */
+  --danger: #db605c;            /* [sampled] close button */
+  --good: #4aab4d;              /* [sampled] type chart 2× */
+  --bad: #bb423e;               /* [sampled] type chart ½× */
+  --zero: #464858;              /* [sampled] type chart 0× */
+  --warn: #d2a545;              /* [proposed] */
+
+  /* stat bars — Better Default "Soft colours" [sampled] */
+  --stat-hp: #3f944c; --stat-attack: #ab4039; --stat-defense: #9e693e;
+  --stat-sp_attack: #8261aa; --stat-sp_defense: #af8d25; --stat-speed: #5679b8;
+
+  /* type tags: [sampled] from BD 1.8.0 type chart where the sample hit the tag
+     background; Electric/Poison/Flying/Bug samples hit label text, so those use
+     the long-standing official type colours [proposed]. Type colours are used
+     ONLY on type chips. */
+  --type-normal: #9fa173; --type-fire: #cc8957; --type-water: #628aee; --type-electric: #e8c534;
+  --type-grass: #76c048; --type-ice: #99cdca; --type-fighting: #c33030; --type-poison: #a040a0;
+  --type-ground: #dfba65; --type-flying: #a890f0; --type-psychic: #d6547d; --type-bug: #a8b820;
+  --type-rock: #ac9d2f; --type-ghost: #6f5590; --type-dragon: #6a3cf0; --type-dark: #6b5143;
+  --type-steel: #b2b3c8;
+
+  /* provenance / status (accessibility-first, no neon) */
+  --st-verified: #5bb46a; --st-corroborated: #78a3e0; --st-dump: #d2a545; --st-estimate: #e0975a;
+  --st-unknown: #8d909b; --st-test: #4fb3b8;
+
+  /* geometry [proposed] */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --radius-sm: 4px; --radius: 6px; --radius-lg: 9px; --radius-pill: 999px;
+  --nav-w: 196px; --nav-w-collapsed: 60px;
+  --font: "Noto Sans", "Segoe UI", "Source Sans 3", Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", Consolas, monospace;
+  --scale: 1;
+  --motion: 140ms;
+  --panel-alpha: 1;   /* popout background opacity (0.35–1) */
+}
+
+:root.high-contrast {
+  --bg-app: #000; --bg-window: #05060a; --bg-card: #12131a; --bg-control: #171925; --bg-label: #171925;
+  --border-subtle: #6c7080; --border-strong: #c9ccd6; --text-primary: #fff; --text-secondary: #e4e6ee;
+  --text-muted: #c3c6d0; --accent: #fff; --link: #b8d0ff;
+}
+:root.reduced-motion { --motion: 0ms; }

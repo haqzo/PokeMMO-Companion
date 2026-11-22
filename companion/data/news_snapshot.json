@@ -1,0 +1,236 @@
+{
+  "schema": 1,
+  "snapshot_checked_at": "2026-11-22T17:00:00Z",
+  "about": "Independently written summaries of official PokeMMO posts. Full forum posts are not reproduced. 'provenance' says how each summary was checked: 'official-direct' = read from the official post, 'official-via-research' = official URL recorded in the project's Phase 3 research (docs/research/phase-3), 'secondary-crosscheck' = official URL plus details confirmed through an independent community news site (PikaMMO). The official forum blocked automated access during this build, so no item is marked official-direct.",
+  "articles": [
+    {
+      "id": "changelog-2026-11-19",
+      "kind": "changelog",
+      "channel": "live",
+      "title": "Changelog — November 19th, 2026",
+      "published": "2026-11-19",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/201822-changelog-november-19th-2026/",
+      "provenance": "official-via-research",
+      "summary": "Latest stable patch found as of this snapshot. HM Defog can now be found as a field item in four more regions, newly created GTL listings start private to the seller as Pending with a countdown, and a batch of Android, UI-scaling, audio and battle fixes landed.",
+      "groups": [
+        {"heading": "Items & exploration", "points": [
+          "HM Defog is now a field item in Kanto (Lavender Town's tower, 1F), Hoenn (Rusturf Tunnel), Johto (Route 28) and Unova (Celestial Tower rooftop). Sinnoh already had its own Defog acquisition."
+        ]},
+        {"heading": "GTL", "points": [
+          "New listings are first visible only to the seller and marked Pending with a countdown; the seller can cancel or reprice during that window."
+        ]},
+        {"heading": "Client & fixes", "points": [
+          "Android, UI scaling, import, audio and battle fixes.",
+          "Theming support for the new HUD has not been released yet, so custom themes cannot restyle those widgets."
+        ]}
+      ],
+      "companion_impact": [
+        "Guides: the bundled milestone outline lists the four new Defog pickups as optional steps (placement in the route order still needs in-game verification).",
+        "Your imported walkthroughs for Kanto, Hoenn, Johto and Unova contain no Defog mention (Phase 3 research, file 10)."
+      ]
+    },
+    {
+      "id": "changelog-2026-11-13",
+      "kind": "changelog",
+      "channel": "live",
+      "title": "Changelog — November 13th, 2026",
+      "published": "2026-11-13",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/201716-changelog-november-13th-2026/",
+      "provenance": "secondary-crosscheck",
+      "summary": "Audio and controls patch: a new GBA audio quality option, battle and DS sounds closer to the originals, safer key-binding conflict handling, a Dowsing MCHN fix and restored GTL over-valuation flags.",
+      "groups": [
+        {"heading": "Audio", "points": [
+          "New GBA Audio Quality option: Auto, Fast, High, Ultra. Fast keeps the older sound and suits low-end machines.",
+          "Battle sound effects and DS audio are closer to the original games; ledge hops get their own sound."
+        ]},
+        {"heading": "Controls", "points": [
+          "If two actions share one button, both are reset at launch with a message naming the conflict.",
+          "Every action, including the GTL, can now be bound."
+        ]},
+        {"heading": "Fixes", "points": [
+          "Dowsing MCHN no longer points at hidden items on a neighbouring map.",
+          "Grouped GTL listings priced above an item's valuation are flagged again."
+        ]}
+      ],
+      "companion_impact": ["No Companion data changes required."]
+    },
+    {
+      "id": "announcement-2026-11-07-mysterious-balls",
+      "kind": "announcement",
+      "channel": "live",
+      "title": "Mysterious Balls will not count towards scores in future Shiny Wars",
+      "published": "2026-11-07",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/201616-mysterious-balls-will-not-count-towards-scores-in-future-shiny-wars/",
+      "provenance": "secondary-crosscheck",
+      "summary": "The events team announced that shinies obtained from Mysterious Balls (for example the Halloween Mysterious Dusk Balls) will not earn team points in future Shiny Wars, to discourage stockpiling them. No specific edition or date is named; other rules may change with each edition's announcement.",
+      "groups": [],
+      "companion_impact": ["Informational only."]
+    },
+    {
+      "id": "changelog-2026-11-05",
+      "kind": "changelog",
+      "channel": "live",
+      "title": "Changelog — November 5th, 2026",
+      "published": "2026-11-05",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/201571-changelog-november-5th-2026/",
+      "provenance": "secondary-crosscheck",
+      "summary": "Quality-of-life patch: money is shown on the HUD under the clock, the mobile battle interface was reworked, weather haze returned for sandstorm and hail, and two notable bugs were fixed.",
+      "groups": [
+        {"heading": "Interface", "points": [
+          "Money now appears on the HUD beneath the clock.",
+          "'Search in GTL' from a costumed Pokémon enables the costume filter automatically.",
+          "Mobile battle interface reworked (mainly for PvP). Emoji limited to team and link chat."
+        ]},
+        {"heading": "Balance & visuals", "points": [
+          "Reaper's Wrath (Pumpking's signature move) gains +1 priority.",
+          "Painted Skull can be recoloured without a dye.",
+          "Sandstorm and hail visual haze shows again."
+        ]},
+        {"heading": "Fixes", "points": [
+          "Fainting no longer sends Sinnoh/Johto players to Pallet Town instead of their healing spot.",
+          "Battles no longer freeze when a Pokémon has no usable moves left."
+        ]}
+      ],
+      "companion_impact": ["No Companion data changes required."]
+    },
+    {
+      "id": "changelog-2026-10-30",
+      "kind": "changelog",
+      "channel": "live",
+      "title": "Changelog — 30/10/2026 (weather, new HUD, balance)",
+      "published": "2026-10-30",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/201356-changelog-30102026/",
+      "provenance": "secondary-crosscheck",
+      "summary": "Large update: dynamic regional weather, a fully redesigned HUD (including the game's own Encounter Tracker), GTL search for breeding partners, Hail and Snowscape split again, Lickitung's catch rate raised, and some Altering Cave species temporarily removed.",
+      "groups": [
+        {"heading": "Weather", "points": [
+          "Weather now varies across all five regions with seasonal, region-specific climates and gradual transitions; some areas have local weather (lake mist, Unova fog, Desert Resort sandstorms).",
+          "Current weather is shown next to the clock and season."
+        ]},
+        {"heading": "Interface", "points": [
+          "HUD fully redesigned (party, hotbar, Encounter Tracker, active effects, Esc menu); gamepad, HUD and chat positions were reset.",
+          "GTL: right-click 'Search in GTL' finds compatible breeding partners; advanced search can filter by costume.",
+          "Dowsing MCHN shows a radar of nearby hidden items; mailbox lets you choose what to claim."
+        ]},
+        {"heading": "Balance", "points": [
+          "Hail and Snowscape are separate moves again: Hail damages non-Ice Pokémon each turn, Snowscape summons snow. TM07 teaches Hail; a Snowscape TM is sold where TM07 is.",
+          "Abomasnow and Snover can have a second, hail-summoning ability. Snow Cloak lowers encounter rate in every kind of snow.",
+          "Lickitung's catch rate rises from 45 to 75.",
+          "Altering Cave: some species temporarily removed for rebalancing.",
+          "EV-lowering berries can raise happiness when that EV is already 0."
+        ]},
+        {"heading": "Other", "points": [
+          "Costumed Pokémon breed normally (fix). Black/White gym leaders and Elite Four speak in battle.",
+          "Name Change Contract; battle music toggle; Android client is now native; iOS needs 15+."
+        ]}
+      ],
+      "companion_impact": [
+        "Companion never adds an encounter counter — the game now has its own.",
+        "Pokédex: imported dump shows Lickitung catch rate 75 (matches this patch). Snowscape learnset entries lack move metadata in the dump and are shown as 'details awaiting verification'.",
+        "Live › Altering Cave: older community species pools are treated as stale."
+      ]
+    },
+    {
+      "id": "pts-b2w2",
+      "kind": "announcement",
+      "channel": "pts",
+      "title": "Black 2 / White 2 expansion — in development (Public Test Server)",
+      "published": "2026-08-19",
+      "updated": "2026-10-27",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/200152-pokemmo-b2w2/",
+      "provenance": "secondary-crosscheck",
+      "summary": "The PokeMMO team confirmed a Black 2 / White 2 expansion in development. A 48-hour public preview ran on a separate test server (19–21 September, progress not saved) and a second PTS release followed on 27 October. No release date has been announced. PTS content is NOT part of the live game and is never mixed into Companion availability data.",
+      "groups": [],
+      "companion_impact": ["PTS data is kept separate; nothing from the test client is treated as live."]
+    },
+    {
+      "id": "changelog-2026-07-31",
+      "kind": "changelog",
+      "channel": "live",
+      "title": "Shiny Wars 2026 follow-up fixes (31 July)",
+      "published": "2026-07-31",
+      "source_url": "https://forums.pokemmo.com/index.php?/forum/5-updates/",
+      "provenance": "official-via-research",
+      "summary": "Follow-up to the 29 July update: Zorua's wild encounter was restored and minor encounter-table corrections were made, so 29 July data alone is not sufficient.",
+      "groups": [],
+      "companion_impact": ["Pokédex: Zorua (Lostlorn Forest) appears in the dump with rate '???', shown as Unknown rate — never 0% or 100%."]
+    },
+    {
+      "id": "changelog-2026-07-29",
+      "kind": "changelog",
+      "channel": "live",
+      "title": "Changelog — Shiny Wars 2026 (29 July)",
+      "published": "2026-07-29",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/199536-changelog-shiny-wars-2026/",
+      "provenance": "secondary-crosscheck",
+      "summary": "One of the largest updates in years: every encounter table in all five regions was rebuilt, the in-game Wild Locations Dex now shows exact percentages by time and season, Altering Cave began rotating daily, costumes were introduced and the desktop client became a native application.",
+      "groups": [
+        {"heading": "Encounters", "points": [
+          "Encounter tables rebalanced in Kanto, Johto, Hoenn, Sinnoh and Unova; seasons now drive encounters in all regions.",
+          "Sweet Scent-exclusive hordes added in many areas; Trophy Garden and Great Marsh get semi-random daily spawns; Johto Safari Zone randomisation improved; wild encounters on Sky Pillar 2F/4F.",
+          "Altering Cave inhabitants and Pickup rewards rotate every in-game day."
+        ]},
+        {"heading": "Features", "points": [
+          "Costumed Pokémon introduced (cosmetic; inherited through breeding).",
+          "Gym puzzles can be skipped; the desktop client no longer needs Java."
+        ]},
+        {"heading": "Temporary (ended)", "points": [
+          "The +10% wild shiny bonus and 7-day season rotation applied only during the Shiny Wars event and are not current."
+        ]}
+      ],
+      "companion_impact": [
+        "Pokédex locations come from your imported dump; its extraction date is unknown, so rates are labelled DUMP_ONLY until checked in game.",
+        "Live › Altering Cave never derives the current rotation from the dump (it holds only two static Unown rows)."
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "event-halloween-2026",
+      "kind": "seasonal",
+      "title": "Halloween 2026",
+      "starts": "2026-11-01",
+      "ends": "2026-11-13T23:59:00Z",
+      "timezone_note": "End time 23:59 UTC as recorded in project research; start time not stated.",
+      "confirmed_status": "concluded",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/201445-changelog-halloween-2026/",
+      "provenance": "secondary-crosscheck",
+      "summary": "Seasonal world event: costumed kids and Spirits of Halloween gave candy to challenge Pumpking (including Hard Mode) near five towns, swarms were more frequent, Wisps unlocked seasonal alphas, and seven Halloween raids led to Newmoon Island. Leftover candy could be redeemed until 16 November.",
+      "details": [
+        {"label": "Participation", "value": "Defeat costumed kids/Spirits of Halloween for candy; challenge Pumpking near Lavender Town, Fallarbor Town, Solaceon Town, Driftveil City and Ecruteak City."},
+        {"label": "Rewards", "value": "Goodie Bags (2026 cosmetics), exclusive bags and particle effect for Hard Mode, costumed Pokémon chance in swarms, Pumpcat cosmetic."},
+        {"label": "Permanence", "value": "Event spawns, boosts and raids are historical. The Reaper's Wrath balance change (5 Nov) is a normal patch item."}
+      ]
+    },
+    {
+      "id": "event-b2w2-preview",
+      "kind": "test",
+      "title": "Black 2 / White 2 public preview weekend (PTS)",
+      "starts": "2026-09-19",
+      "ends": "2026-09-21",
+      "timezone_note": "Times not recorded.",
+      "confirmed_status": "concluded",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/200152-pokemmo-b2w2/",
+      "provenance": "secondary-crosscheck",
+      "summary": "48-hour preview on a separate test server to test storyline balance; progress was not saved. Test-server only — not live content.",
+      "details": [{"label": "Server", "value": "Public Test Server (separate from live)"}]
+    },
+    {
+      "id": "event-shiny-wars-2026",
+      "kind": "competition",
+      "title": "Shiny Wars 2026",
+      "starts": "2026-08-01T00:00:00Z",
+      "ends": "2026-08-28T23:59:00Z",
+      "timezone_note": "Times announced in UTC.",
+      "confirmed_status": "concluded",
+      "source_url": "https://forums.pokemmo.com/index.php?/topic/198507-pokemmo-shiny-wars-2026/",
+      "provenance": "secondary-crosscheck",
+      "summary": "Third annual team shiny-hunting competition: teams of 25–30 players scored points for wild shinies caught during the month. Registration ran 23–29 July. Costume prizes introduced this year remain in the game as a permanent feature.",
+      "details": [
+        {"label": "Format", "value": "Team competition, 25–30 players per team"},
+        {"label": "Registration", "value": "23–29 July 2026 (official forum thread)"},
+        {"label": "Temporary bonuses", "value": "+10% wild shiny bonus during the event only (ended)"}
+      ]
+    }
+  ]
+}
