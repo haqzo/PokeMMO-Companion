@@ -1,7 +1,7 @@
 // Pokédex (docs/design/06, 19 + 2026-11-22 accuracy pass).
-// Default = browse catalog of all 649 Gen I–V species plus 82 alternate forms (Synergy-equivalent
-// coverage, independently authored). Catalog membership, in-game Pokédex listing, acquisition and
-// your manual registration are separate axes; none is inferred from another.
+// Main Pokédex shows one tile for each of 649 Gen I–V species. The 82 researched
+// alternate forms remain selectable INSIDE their species details, not as duplicate cards.
+// Reference catalog, in-game membership, acquisition and manual registration stay independent.
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
   spriteOrFallback, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
@@ -37,16 +37,9 @@ export async function loadList(force) {
     state.dexForms = (res.forms || []).map((f) => ({ ...f, abilities: f.abilities || [] }));
     meta = res;
   }
-  return setting('pokedex.catalog') === 'species' ? state.dexCache : catalogOrder(state.dexCache, state.dexForms);
-}
-/** Species with their forms directly after them, in National order. */
-function catalogOrder(species, forms) {
-  const byId = {};
-  for (const f of forms) (byId[f.id] ||= []).push(f);
-  const out = [];
-  for (const s of species) { out.push(s); if (byId[s.id]) for (const f of byId[s.id]) out.push({ ...s, ...f, regions: s.regions, methods: s.methods,
-    horde: s.horde, horde5: s.horde5, egg_groups: s.egg_groups, held_items: s.held_items, seasons: s.seasons, ev: s.ev, progress: s.progress }); }
-  return out;
+  // Even if a previous build saved pokedex.catalog='forms', always show one species tile.
+  // Form details are still available in the per-species form selector.
+  return state.dexCache;
 }
 export function dexMeta() { return meta; }
 const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': { ...F, q: '' } }).catch(() => {}), 700);
@@ -59,7 +52,9 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
     if (scope === 'pokemmo' && s.dex === 'no') return false;
     if (q) {
       const num = q.replace(/^#/, '');
-      const hit = s.name.toLowerCase().includes(q) || (s.form_name || '').toLowerCase().includes(q) || (/^\d+$/.test(num) && String(s.id) === String(Number(num))) ||
+      const formHit = (state.dexForms || []).some((f) => f.id === s.id &&
+        (`${f.form_name || ''} ${f.name || ''}`).toLowerCase().includes(q));
+      const hit = s.name.toLowerCase().includes(q) || formHit || (/^\d+$/.test(num) && String(s.id) === String(Number(num))) ||
         (s.abilities || []).some((a) => a.toLowerCase().includes(q)) || s.types.includes(q);
       if (!hit) return false;
     }
@@ -129,7 +124,7 @@ export async function render(el, route) {
     const pane = h('div', { class: 'dex-detail' });
     layout.append(pane);
     await renderDetail(pane, sel, { back: () => go('#/pokedex'), form: selForm });
-    const card = gridEl.querySelector(`[data-entry="${selForm ? sel + ':' + selForm : sel}"]`);
+    const card = gridEl.querySelector(`[data-entry="${sel}"]`);
     if (card) card.scrollIntoView({ block: 'nearest' });
   }
   const refresh = async () => { await loadList(true); if (gridEl && gridEl.isConnected) rerender(); };
@@ -157,7 +152,6 @@ async function buildToolbar(wrap, all) {
       h('option', { value: v, selected: F.sort === v ? 'selected' : null, disabled: v === 'bst' && !state.boot.dex.imported ? 'disabled' : null }, t)));
   wrap.append(h('div', { class: 'dex-toolbar' },
     h('div', { class: 'search' }, icon('search'), search),
-    seg([['forms', 'Pokémon & forms'], ['species', 'Species only']], setting('pokedex.catalog') || 'forms', async (v) => { await saveSettings({ 'pokedex.catalog': v }); rerender(); }, 'Catalog'),
     seg([['all', 'All'], ['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['5', 'V']], F.gen, (v) => { F.gen = v; persistFilters(); rerender(); }, 'Generation of introduction'),
     filterBtn, sort,
     seg([['compact', 'Small'], ['standard', 'Medium'], ['large', 'Large']], setting('pokedex.density') || 'standard', async (v) => {
@@ -174,7 +168,7 @@ async function infoBar(all) {
   const runs = await get('/api/guides/runs');
   const runId = setting('pokedex.progress_run');
   const reg = meta && meta.registry;
-  const forms = all.filter((s) => s.form_key).length;
+  const forms = (state.dexForms || []).length;
   const hidden = all.filter((s) => s.dex === 'no').length;
   const runSel = h('select', { class: 'input', style: { width: 'auto', minHeight: '28px', padding: '2px 6px' }, 'aria-label': 'Registration tracking',
     onchange: async (e) => { await saveSettings({ 'pokedex.progress_run': e.target.value || null }); await loadList(true); rerender(); } },
@@ -190,7 +184,7 @@ async function infoBar(all) {
   return h('div', { class: 'dex-info' },
     h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } },
       countEl,
-      h('span', { class: 'small muted' }, `${all.length - forms} species${forms ? ` + ${forms} forms` : ''} in the catalog · being listed here does not mean obtainable in PokeMMO`),
+      h('span', { class: 'small muted' }, `${all.length} Pokémon species${forms ? ` · ${forms} alternate forms available within Pokémon details` : ''} · listing does not mean obtainable in PokeMMO`),
       scope === 'pokemmo' && hidden ? h('span', { class: 'small muted' }, `${hidden} you marked “Not listed” hidden`) : null,
       h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, icon('info'), 'Availability report'),
       reg ? h('span', { class: 'tiny muted' }, `Registry ${reg.registry_version}`) : null,
@@ -270,7 +264,7 @@ function drawGrid(all, sel = Number(parseHash().parts[0]) || null, selForm = par
   const list = applyFilters(all);
   const scope = setting('pokedex.scope') || 'reference';
   const inScope = all.filter((s) => scope !== 'pokemmo' || s.dex !== 'no').length;
-  if (countEl) countEl.textContent = `${list.length} of ${inScope} entries shown`;
+  if (countEl) countEl.textContent = `${list.length} of ${inScope} Pokémon shown`;
   clear(gridEl);
   if (!list.length) {
     gridEl.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, h('h3', null, 'No Pokémon match'),
