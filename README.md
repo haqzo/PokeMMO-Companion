@@ -2,7 +2,7 @@
 
 A research-first, PokeMMO-specific companion planned for **Windows and Linux**.
 
-**Status:** v0.1.0 development preview implemented on `develop` (not a release). First KDE/in-game three-video review identified key accuracy, Pokédex, popout and Home UI issues; [see the timestamped audit](docs/reviews/2026-11-22-three-video-audit.md) and [Claude correction assignment](docs/build/04-V0.1.0-VIDEO-CORRECTION-PASS.md). Fixes in that handoff are not yet implemented. The prior implementation report link was broken and is pending correction.
+**Status:** v0.1.0 development preview on `develop` (not a release). The video correction pass is implemented; see the [correction pass report](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/05-V0.1.0-CORRECTION-PASS-REPORT.md) (changes, tests, what is still unverified) and the earlier [implementation report](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/03-V0.1.0-IMPLEMENTATION-REPORT.md). Inputs: [three-video audit](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/reviews/2026-11-22-three-video-audit.md) · [correction assignment](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/04-V0.1.0-VIDEO-CORRECTION-PASS.md).
 
 ## Vision
 A compact, collapsible launcher and clean, independently movable/resizable floating tools alongside PokeMMO. The Pokédex should use a responsive, searchable **sprite-card grid** instead of long rows, with verified species details, obtainable status, encounters, moves, evolution and forms.
@@ -16,7 +16,7 @@ git clone -b develop https://github.com/haqzo/PokeMMO-Companion.git && cd PokeMM
 ./run.sh                     # native windows, or browser mode if PySide6 is missing
 ./run.sh --spike             # native window feasibility test → spike-report.json
 ```
-Then import your own PokeMMO dump and walkthrough files in **Settings › Data & privacy** — they stay on your computer. Requires Python 3.10+. Windows: `run.ps1` (untested).
+If your PokeMMO dumps are in a known folder (e.g. `~/Documents/PokeMMO-Companion/Pokemmo-Dumps`), Home offers a one-click **Install**; otherwise import them in **Settings › Data & privacy**. They stay on your computer and are never modified. Close the Companion before `git pull` and relaunch. Requires Python 3.10+. Windows: `run.ps1` (untested).
 
 ## v0.1.0 development plan
 [Full first-pass scope and acceptance criteria](docs/build/00-V0.1.0-FIRST-PASS-PLAN.md) | [Claude coding handoff](docs/build/01-CLAUDE-V0.1.0-KICKOFF.md) | [User video review](docs/build/02-V0.1.0-VIDEO-REVIEW-CHECKLIST.md)

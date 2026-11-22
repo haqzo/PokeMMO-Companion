@@ -21,7 +21,7 @@ private/
 __pycache__/
 node_modules/
 dist/
-build/
+/build/
 .venv/
 .pytest_cache/
 *.sqlite3
