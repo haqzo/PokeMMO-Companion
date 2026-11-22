@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -61,6 +61,21 @@ MIGRATIONS: dict[int, list[str]] = {
         """CREATE TABLE IF NOT EXISTS source_health (
                source TEXT PRIMARY KEY, status TEXT NOT NULL, detail TEXT, last_attempt_at TEXT,
                last_success_at TEXT, updated_at TEXT NOT NULL)""",
+    ],
+    # v2 (video correction pass): manual per-character Pokédex registration and the
+    # user's own dated in-game roster checks. Purely additive — no existing data touched.
+    2: [
+        """CREATE TABLE IF NOT EXISTS dex_progress (
+               run_id TEXT NOT NULL, species_id INTEGER NOT NULL,
+               status TEXT NOT NULL DEFAULT 'unregistered',
+               caught_alpha INTEGER NOT NULL DEFAULT 0, owned_shiny INTEGER NOT NULL DEFAULT 0,
+               owned_costume INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
+               PRIMARY KEY (run_id, species_id))""",
+        """CREATE TABLE IF NOT EXISTS roster_checks (
+               species_id INTEGER PRIMARY KEY, in_dex TEXT NOT NULL, checked_at TEXT NOT NULL, note TEXT)""",
+        "ALTER TABLE reports ADD COLUMN region TEXT",
+        "ALTER TABLE reports ADD COLUMN location TEXT",
+        "ALTER TABLE reports ADD COLUMN source_url TEXT",
     ],
 }
 

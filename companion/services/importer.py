@@ -11,8 +11,10 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import re
 import shutil
+import sys
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
@@ -42,12 +44,60 @@ def _sha256(data: bytes) -> str:
 
 
 # ---------------------------------------------------------------- detection
+class _DirInfo:
+    def __init__(self, filename: str, path: Path):
+        self.filename, self.path = filename, path
+
+
+class DirArchive:
+    """Read-only ZipFile look-alike over an unpacked dump folder (e.g. the client's own dump output)."""
+
+    def __init__(self, root: Path, prefixes: tuple[str, ...]):
+        self.root = root
+        self._infos: list[_DirInfo] = []
+        for pre in prefixes:
+            base = root / pre
+            if base.is_dir():
+                for f in sorted(base.rglob("*")):
+                    if f.is_file():
+                        self._infos.append(_DirInfo(f.relative_to(root).as_posix(), f))
+
+    def infolist(self) -> list[_DirInfo]:
+        return self._infos
+
+    def namelist(self) -> list[str]:
+        return [i.filename for i in self._infos]
+
+    def read(self, item) -> bytes:
+        if isinstance(item, _DirInfo):
+            return item.path.read_bytes()
+        for i in self._infos:
+            if i.filename == item:
+                return i.path.read_bytes()
+        raise KeyError(item)
+
+
+DIR_PARTS = {"pokedex": ("info",), "icons": ("sprites/monstericons",), "battle": ("sprites/battlesprites",),
+             "items": ("sprites/itemicons",)}
+
+
+def _detect_dir_form(root: Path, found: dict) -> None:
+    if (root / "info" / "monsters.json").is_file():
+        found["dumps"].setdefault("pokedex", str(root))
+    for key in ("icons", "battle", "items"):
+        if (root / DIR_PARTS[key][0]).is_dir():
+            found["dumps"].setdefault(key, str(root))
+
+
 def detect_sources(folder: str | Path) -> dict:
     """Find dump zips and walkthrough .odt files in a user-chosen folder (2 levels deep)."""
     root = Path(folder).expanduser()
     if not root.exists() or not root.is_dir():
         raise ImportError_(f"Folder not found: {root}")
     found: dict = {"folder": str(root), "dumps": {}, "combined": [], "guides": {}}
+    _detect_dir_form(root, found)
+    for sub in sorted(p for p in root.glob("*") if p.is_dir()):
+        _detect_dir_form(sub, found)
     candidates = [p for p in root.glob("*") if p.is_file()] + [p for p in root.glob("*/*") if p.is_file()]
     for p in candidates:
         name = p.name
@@ -70,9 +120,9 @@ def detect_sources(folder: str | Path) -> dict:
 
 def _open_member_zips(paths: dict, combined: list[str]) -> dict[str, zipfile.ZipFile]:
     """Return {key: ZipFile}. Supports separate zips or one combined archive of nested zips."""
-    out: dict[str, zipfile.ZipFile] = {}
+    out: dict = {}
     for key, path in paths.items():
-        out[key] = zipfile.ZipFile(path)
+        out[key] = DirArchive(Path(path), DIR_PARTS[key]) if Path(path).is_dir() else zipfile.ZipFile(path)
     for cpath in combined:
         outer = zipfile.ZipFile(cpath)
         for info in outer.infolist():
@@ -238,6 +288,80 @@ def build_sprite_manifest(icons_dir: Path, battle_dir: Path) -> dict:
     return manifest
 
 
+def fingerprint(path: str | Path, sub: str | None = None) -> str | None:
+    """Cheap change detector (size + mtime), used to notice a newer dump without hashing it."""
+    p = Path(path)
+    try:
+        if p.is_file():
+            st = p.stat()
+            return f"{st.st_size}:{int(st.st_mtime)}"
+        target = p / sub if sub else p
+        if target.exists():
+            files = [f for f in target.rglob("*") if f.is_file()] if target.is_dir() else [target]
+            return f"{len(files)}:{int(max((f.stat().st_mtime for f in files), default=0))}"
+    except OSError:
+        return None
+    return None
+
+
+def candidate_roots(home: Path | None = None) -> list[Path]:
+    """Known, read-only places where a user's own PokeMMO dump may live. Nothing else is scanned."""
+    h = Path(home) if home else Path.home()
+    roots = [h / "Documents" / "PokeMMO-Companion", h / "Documents" / "PokeMMO-Companion" / "Pokemmo-Dumps",
+             h / "Documents" / "Pokemmo-Dumps", h / "Downloads",
+             h / ".var" / "app" / "com.pokemmo.PokeMMO" / "data" / "pokemmo-client-live",
+             h / ".var" / "app" / "com.pokemmo.PokeMMO" / "data" / "pokemmo-client-live" / "dump",
+             h / ".local" / "share" / "pokemmo-client-live", h / "PokeMMO", h / "Games" / "PokeMMO"]
+    if sys.platform.startswith("win"):
+        for env in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+            base = os.environ.get(env)
+            if base:
+                roots.append(Path(base) / "PokeMMO")
+    return roots
+
+
+def auto_detect(home: Path | None = None) -> list[dict]:
+    out = []
+    seen: set[str] = set()
+    for root in candidate_roots(home):
+        try:
+            if not root.is_dir():
+                continue
+            found = detect_sources(root)
+        except (ImportError_, OSError):
+            continue
+        if "pokedex" in found["dumps"] or found["combined"]:
+            key = found["dumps"].get("pokedex") or found["combined"][0]
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"folder": str(root), "pokedex": found["dumps"].get("pokedex"), "combined": found["combined"],
+                        "parts": sorted(found["dumps"]), "guides": sorted(found["guides"]),
+                        "fingerprint": fingerprint(key, "info" if Path(key).is_dir() else None)})
+    return out
+
+
+def data_status(paths: Paths, home: Path | None = None) -> dict:
+    manifest = None
+    mf = paths.dex_dir / "manifest.json"
+    if mf.exists():
+        try:
+            manifest = json.loads(mf.read_text(encoding="utf-8"))
+        except ValueError:
+            manifest = None
+    cands = auto_detect(home)
+    update = None
+    if manifest:
+        src = manifest.get("sources", {}).get("pokedex", {})
+        for c in cands:
+            if src.get("path") and src.get("path") in (c.get("pokedex"), *(c.get("combined") or [])):
+                if src.get("fingerprint") and c.get("fingerprint") and src["fingerprint"] != c["fingerprint"]:
+                    update = c
+    return {"installed": manifest is not None, "manifest": manifest, "candidates": cands, "update_available": update,
+            "policy": "Read-only scan of known folders only. Installing copies what the Companion needs into its private "
+                      "data folder on this computer; nothing is uploaded or committed."}
+
+
 # ------------------------------------------------------------------ entry
 def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None = None,
                  progress: Callable[[str], None] | None = None) -> dict:
@@ -253,16 +377,23 @@ def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None 
                       "sources": {}, "counts": {}, "notes": [
                           "Dump has no embedded game version or extraction date (DUMP-012): "
                           "all values are DUMP_ONLY until checked against the live game."]}
-    for key, zf in zips.items():
+    for key in zips:
         src = found["dumps"].get(key)
-        if src:
-            manifest["sources"][key] = {"file": Path(src).name, "sha256": _sha256(Path(src).read_bytes())}
+        if src and Path(src).is_file():
+            manifest["sources"][key] = {"file": Path(src).name, "path": str(Path(src).resolve()),
+                                        "sha256": _sha256(Path(src).read_bytes()), "fingerprint": fingerprint(src)}
+        elif src:
+            manifest["sources"][key] = {"file": Path(src).name + "/ (folder)", "path": str(Path(src).resolve()),
+                                        "fingerprint": fingerprint(src, DIR_PARTS[key][0])}
         else:
-            manifest["sources"][key] = {"file": "(nested in combined archive)"}
+            comb = found.get("combined", [])
+            manifest["sources"][key] = {"file": "(nested in combined archive)",
+                                        "path": str(Path(comb[0]).resolve()) if comb else None,
+                                        "fingerprint": fingerprint(comb[0]) if comb else None}
 
     say("Reading Pokédex data…")
     pz = zips["pokedex"]
-    names = {Path(n).name: n for n in pz.namelist()}
+    names = {Path(n).name: n for n in pz.namelist() if "/" not in n or n.split("/")[-2] == "info"}
     try:
         monsters = json.loads(pz.read(names["monsters.json"]))
         skills = json.loads(pz.read(names["skills.json"]))

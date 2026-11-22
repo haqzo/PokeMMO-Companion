@@ -32,7 +32,13 @@ from ..storage import Storage, utcnow
 from .dex import DexService
 from .notify import Notifier
 
-PARSER_VERSION = "ntfy-generic-1"
+PARSER_VERSION = "alphapedia-ntfy-2"
+TOPIC_KIND = {"alphapings": "alpha", "swarmpings": "swarm"}
+REGION_NAMES = {"kanto", "johto", "hoenn", "sinnoh", "unova"}
+# Payload shape recorded from real messages on 2026-11-17 (owner project notes, companion/STATUS.md):
+#   alphapings: title="Ditto",   message="Kanto, Cerulean Cave"
+#   swarmpings: title="Wailmer", message="Johto\nRoute 40"
+# Not re-captured live in this build; anything that doesn't match falls back to showing the raw text.
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
@@ -82,22 +88,36 @@ class LiveService:
                 "detail": row.get("detail", ""), "last_success_at": row.get("last_success_at"),
                 "last_attempt_at": row.get("last_attempt_at"),
                 "server": self.settings.get("live.ntfy.server"), "topic": self.settings.get("live.ntfy.topic"),
-                "parser": PARSER_VERSION, "payload_validated": False}
+                "parser": PARSER_VERSION, "payload_validated": False,
+                "payload_note": "Parser follows message samples recorded on 17 Nov 2026 (owner notes); not re-captured live in this build."}
 
     # ---------------------------------------------------------- normalise
-    def detect(self, title: str, body: str, tags: list[str]) -> tuple[str, str, int | None]:
-        hay = " ".join([title, body, " ".join(tags)]).lower()
-        kind, basis = "other", "none"
-        if "swarm" in hay:
-            kind, basis = "swarm", "text-keyword"
-        elif "alpha" in hay:
-            kind, basis = "alpha", "text-keyword"
-        species = None
-        for name, sid in self._names:
-            if re.search(r"(?<![\w])" + re.escape(name.lower()) + r"(?![\w])", hay):
-                species = sid
-                break
-        return kind, basis, species
+    def detect(self, title: str, body: str, tags: list[str], topic: str | None = None) -> dict:
+        """Kind from the provider topic; species from an exact title match; region/location from the message."""
+        out: dict = {"kind": "other", "basis": "none", "species": None, "region": None, "location": None}
+        if topic in TOPIC_KIND:
+            out.update(kind=TOPIC_KIND[topic], basis="topic")
+        else:
+            hay = " ".join([title, body, " ".join(tags)]).lower()
+            if "swarm" in hay:
+                out.update(kind="swarm", basis="text-keyword")
+            elif "alpha" in hay:
+                out.update(kind="alpha", basis="text-keyword")
+        exact = self.dex.find_by_name(title) if title else None
+        if exact:
+            out["species"] = exact
+            out["species_basis"] = "title"
+        else:
+            hay = " ".join([title, body]).lower()
+            for name, sid in self._names:
+                if re.search(r"(?<![\w])" + re.escape(name.lower()) + r"(?![\w])", hay):
+                    out["species"], out["species_basis"] = sid, "text"
+                    break
+        parts = [p.strip() for p in re.split(r"[,\n]", body or "", maxsplit=1) if p.strip()]
+        if parts and parts[0].lower() in REGION_NAMES:
+            out["region"] = parts[0].lower()
+            out["location"] = parts[1] if len(parts) > 1 else None
+        return out
 
     def ingest(self, msg: dict, provider: str = "ntfy", replay: bool = False) -> dict | None:
         """Store one provider message. Returns the stored report if new, else None (duplicate/invalid)."""
@@ -109,16 +129,25 @@ class LiveService:
         if not title and not body:
             return None
         tags = [sanitize(t, 40) for t in (msg.get("tags") or []) if isinstance(t, (str, int))][:10]
-        kind, basis, species = self.detect(title, body, tags)
+        topic = sanitize(msg.get("topic"), 64) or None
+        det = self.detect(title, body, tags, topic)
+        kind, basis, species = det["kind"], det["basis"], det["species"]
+        source_url = None
+        for a in (msg.get("actions") or []):
+            url = a.get("url") if isinstance(a, dict) else None
+            if isinstance(url, str) and url.startswith("https://alpha.pokemmotools.org/"):
+                source_url = url[:300]
+                break
         raw_hash = hashlib.sha256(json.dumps(msg, sort_keys=True, default=str).encode()).hexdigest()[:16]
         rid = uuid.uuid4().hex[:16]
         with self.db.tx() as c:
             cur = c.execute(
                 "INSERT OR IGNORE INTO reports(id, provider, topic, message_id, kind, kind_basis, title, body, tags, "
-                "species_id, source_time, received_at, is_replay, raw_hash, parser_version) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (rid, provider, sanitize(msg.get("topic"), 64), mid, kind, basis, title, body, json.dumps(tags),
-                 species, iso_from_epoch(msg.get("time")), utcnow(), 1 if replay else 0, raw_hash, PARSER_VERSION))
+                "species_id, source_time, received_at, is_replay, raw_hash, parser_version, region, location, source_url) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (rid, provider, topic, mid, kind, basis, title, body, json.dumps(tags),
+                 species, iso_from_epoch(msg.get("time")), utcnow(), 1 if replay else 0, raw_hash, PARSER_VERSION,
+                 det["region"], sanitize(det["location"], 120) or None, source_url))
             if cur.rowcount == 0:
                 return None
         report = self.get(rid)
@@ -201,7 +230,10 @@ class LiveService:
     def toast_payload(self, report: dict) -> dict:
         label = {"alpha": "Alpha report", "swarm": "Swarm report", "test": "TEST notification"}.get(
             "test" if report["is_test"] else report["kind"], "Community report")
+        where = ", ".join(x for x in ((report.get("region") or "").capitalize(), report.get("location") or "") if x)
         title = f"{label}: {report['title'] or report['species_name'] or 'Details in Live'}"
+        if where and not report["is_test"]:
+            title += f" — {where}"
         when = report.get("source_time") or report["received_at"]
         return {"id": report["id"], "kind": "test" if report["is_test"] else report["kind"], "title": title[:120],
                 "line": (report["body"] or "")[:200], "reported": when, "is_test": bool(report["is_test"]),
@@ -250,11 +282,11 @@ class LiveService:
         while not self._stop.is_set():
             server = str(self.settings.get("live.ntfy.server")).rstrip("/")
             topic = str(self.settings.get("live.ntfy.topic"))
-            if not re.match(r"^https://[\w.\-]+(:\d+)?$", server) or not re.match(r"^[\w\-]{1,64}$", topic):
+            if not re.match(r"^https://[\w.\-]+(:\d+)?$", server) or not re.match(r"^[\w\-]{1,64}(,[\w\-]{1,64}){0,4}$", topic):
                 self._health("error", "Invalid server or topic (HTTPS host and simple topic name required)")
                 return
             since = self._last_message_id() or "12h"
-            url = f"{server}/{urllib.parse.quote(topic)}/json?since={urllib.parse.quote(since)}"
+            url = f"{server}/{urllib.parse.quote(topic, safe=',')}/json?since={urllib.parse.quote(since)}"
             self._health("connecting", url)
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": f"PokeMMO-Companion/{__version__} (read-only)"})

@@ -13,7 +13,7 @@ from ..storage import SCHEMA_VERSION, Storage, utcnow
 
 FORMAT = "pokemmo-companion-backup"
 TABLES = ["runs", "run_regions", "step_status", "favourites", "notes", "documents", "legendary_progress",
-          "cave_observations"]
+          "cave_observations", "dex_progress", "roster_checks"]
 
 
 def export_all(db: Storage) -> dict:
@@ -77,6 +77,14 @@ def import_all(db: Storage, payload: dict, mode: str = "merge") -> dict:
             c.execute("INSERT INTO documents(kind, id, name, data, created_at, updated_at) VALUES(?,?,?,?,?,?)",
                       (r["kind"], doc_id, r["name"], r["data"] if isinstance(r["data"], str) else json.dumps(r["data"]),
                        r["created_at"], r["updated_at"]))
+        for r in tables.get("dex_progress", []):
+            c.execute("INSERT OR REPLACE INTO dex_progress(run_id, species_id, status, caught_alpha, owned_shiny, "
+                      "owned_costume, updated_at) VALUES(?,?,?,?,?,?,?)",
+                      (rid(r["run_id"]), r["species_id"], r["status"], r.get("caught_alpha", 0),
+                       r.get("owned_shiny", 0), r.get("owned_costume", 0), r["updated_at"]))
+        for r in tables.get("roster_checks", []):
+            c.execute("INSERT OR REPLACE INTO roster_checks(species_id, in_dex, checked_at, note) VALUES(?,?,?,?)",
+                      (r["species_id"], r["in_dex"], r["checked_at"], r.get("note")))
         for r in tables.get("cave_observations", []):
             c.execute("INSERT OR IGNORE INTO cave_observations(id, observed_at, crystal, species, method, notes, source, created_at) "
                       "VALUES(?,?,?,?,?,?,?,?)", (r["id"], r["observed_at"], r.get("crystal"), r.get("species"),

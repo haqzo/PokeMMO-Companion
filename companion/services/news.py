@@ -9,8 +9,11 @@ No network request is made unless the user presses the button.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import threading
+import time
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -21,6 +24,9 @@ from ..config import BUNDLED_DATA_DIR
 from ..storage import Storage, utcnow
 
 FEED_URL = "https://forums.pokemmo.com/index.php?/forum/5-updates.xml/"
+MANUAL_MIN_INTERVAL = 60          # seconds between manual checks
+AUTO_MIN_HOURS = 1                # never poll more often than hourly
+log = logging.getLogger("companion.news")
 _TOPIC_RX = re.compile(r"topic/(\d+)")
 
 
@@ -75,9 +81,16 @@ class NewsService:
                 if m and m.group(1) not in known:
                     new_posts.append(item)
         latest_live = next((a for a in articles if a["channel"] == "live" and a["kind"] == "changelog"), None)
+        for p in new_posts:
+            p["summary_status"] = "Summary pending verification — only the official title, date and link are known."
+        feed_info = feed and {k: v for k, v in feed.items() if k not in ("items", "etag", "last_modified") and not k.startswith("_")}
+        if feed_info is not None:
+            feed_info["auto"] = bool(self.db.get_setting("updates.auto_check", True))
         return {"snapshot_checked_at": self.snapshot["snapshot_checked_at"], "about": self.snapshot["about"],
                 "articles": [self._brief(a) for a in articles], "latest": latest_live and self._brief(latest_live),
-                "events": events, "upcoming": upcoming, "feed": feed and {k: v for k, v in feed.items() if k != "items"},
+                "events": events, "upcoming": upcoming, "feed": feed_info,
+                "auto_check": bool(self.db.get_setting("updates.auto_check", True)),
+                "check_hours": self.db.get_setting("updates.check_hours", 3),
                 "new_posts": new_posts}
 
     @staticmethod
@@ -97,25 +110,89 @@ class NewsService:
                 return {**e, "status": self.event_status(e)}
         return None
 
-    # ------------------------------------------------------- manual refresh
-    def check_feed(self, timeout: float = 10.0) -> dict:
+    # ---------------------------------------------------- refresh (auto + manual)
+    def check_feed(self, timeout: float = 10.0, manual: bool = True) -> dict:
+        """Fetch the official Updates feed: titles, dates and links only. Conditional request
+        (ETag / Last-Modified); never fabricates article bodies; marks edited titles."""
         with self._lock:
-            result: dict = {"checked_at": utcnow(), "url": FEED_URL}
+            prev = self.db.get_setting("news.feed_cache", None) or {}
+            now = time.time()
+            last = prev.get("_checked_epoch", 0)
+            if manual and now - last < MANUAL_MIN_INTERVAL and prev:
+                return {**prev, "throttled": True, "note": "Checked less than a minute ago — showing that result."}
+            result: dict = {"checked_at": utcnow(), "url": FEED_URL, "_checked_epoch": now,
+                            "trigger": "manual" if manual else "automatic"}
+            headers = {"User-Agent": f"PokeMMO-Companion/{__version__} (titles only; checks at most hourly)"}
+            if prev.get("etag"):
+                headers["If-None-Match"] = prev["etag"]
+            if prev.get("last_modified"):
+                headers["If-Modified-Since"] = prev["last_modified"]
             try:
-                req = urllib.request.Request(FEED_URL, headers={
-                    "User-Agent": f"PokeMMO-Companion/{__version__} (manual check; titles only)"})
+                req = urllib.request.Request(FEED_URL, headers=headers)
                 with urllib.request.urlopen(req, timeout=timeout) as resp:
                     body = resp.read(2_000_000)
-                items = self.parse_feed(body)
-                result.update({"ok": True, "items": items, "count": len(items)})
-            except Exception as exc:  # network/HTTP/parse — report honestly
-                prev = self.db.get_setting("news.feed_cache", None) or {}
-                result.update({"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:200]}",
-                               "items": prev.get("items", []), "last_ok_at": prev.get("last_ok_at")})
-            if result.get("ok"):
-                result["last_ok_at"] = result["checked_at"]
+                    etag, lm = resp.headers.get("ETag"), resp.headers.get("Last-Modified")
+                items = self.merge_items(prev.get("items", []), self.parse_feed(body), result["checked_at"])
+                result.update({"ok": True, "items": items, "count": len(items), "etag": etag, "last_modified": lm,
+                               "last_ok_at": result["checked_at"], "unchanged": False})
+            except urllib.error.HTTPError as exc:
+                if exc.code == 304:
+                    result.update({"ok": True, "unchanged": True, "items": prev.get("items", []),
+                                   "count": len(prev.get("items", [])), "etag": prev.get("etag"),
+                                   "last_modified": prev.get("last_modified"), "last_ok_at": result["checked_at"]})
+                else:
+                    result.update(self._failure(prev, f"HTTP {exc.code}"))
+            except Exception as exc:  # network / parse — report honestly, keep the old list
+                result.update(self._failure(prev, f"{type(exc).__name__}: {str(exc)[:200]}"))
             self.db.set_settings({"news.feed_cache": result})
             return result
+
+    @staticmethod
+    def _failure(prev: dict, error: str) -> dict:
+        return {"ok": False, "error": error, "items": prev.get("items", []), "last_ok_at": prev.get("last_ok_at"),
+                "etag": prev.get("etag"), "last_modified": prev.get("last_modified")}
+
+    @staticmethod
+    def merge_items(previous: list[dict], fresh: list[dict], now: str) -> list[dict]:
+        old = {i["link"]: i for i in previous}
+        out = []
+        for it in fresh:
+            o = old.get(it["link"])
+            item = {**it, "first_seen_at": (o or {}).get("first_seen_at", now)}
+            if o and o.get("title") and o["title"] != it["title"]:
+                item.update(edited=True, previous_title=o["title"], edited_seen_at=now)
+            elif o and o.get("edited"):
+                item.update(edited=True, previous_title=o.get("previous_title"), edited_seen_at=o.get("edited_seen_at"))
+            out.append(item)
+        return out[:50]
+
+    def start_auto(self, settings, bus) -> None:
+        """Low-impact background check: first after 20 s, then every N hours (min 1 h)."""
+        if getattr(self, "_auto_thread", None):
+            return
+        self._auto_stop = threading.Event()
+
+        def loop() -> None:
+            if self._auto_stop.wait(20):
+                return
+            while not self._auto_stop.is_set():
+                try:
+                    if settings.get("updates.auto_check"):
+                        hours = max(AUTO_MIN_HOURS, int(settings.get("updates.check_hours") or 3))
+                        prev = self.db.get_setting("news.feed_cache", None) or {}
+                        if time.time() - prev.get("_checked_epoch", 0) >= hours * 3600:
+                            res = self.check_feed(manual=False)
+                            bus.publish("news", {"ok": res.get("ok"), "count": res.get("count"), "auto": True})
+                except Exception:  # pragma: no cover
+                    log.exception("automatic news check failed")
+                if self._auto_stop.wait(300):
+                    return
+        self._auto_thread = threading.Thread(target=loop, name="news-auto", daemon=True)
+        self._auto_thread.start()
+
+    def stop_auto(self) -> None:
+        if getattr(self, "_auto_stop", None):
+            self._auto_stop.set()
 
     @staticmethod
     def parse_feed(body: bytes) -> list[dict]:

@@ -58,6 +58,7 @@ class AppContext:
         self.notifier = Notifier()
         self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier)
         self.shell = ShellBridge()
+        self.load_roster_checks()
         self.token = secrets.token_urlsafe(24)
         self.version = __version__
         self.import_jobs: dict[str, dict] = {}
@@ -68,9 +69,22 @@ class AppContext:
         except Exception:  # pragma: no cover
             log.exception("prune failed")
 
+    def load_roster_checks(self) -> None:
+        self.dex.user_checks = {r["species_id"]: r for r in self.storage.query("SELECT * FROM roster_checks")}
+
+    def dex_progress(self, run_id: str | None) -> dict[int, dict] | None:
+        if not run_id:
+            return None
+        rows = self.storage.query("SELECT * FROM dex_progress WHERE run_id=?", (run_id,))
+        return {r["species_id"]: {"status": r["status"], "caught_alpha": bool(r["caught_alpha"]),
+                                  "owned_shiny": bool(r["owned_shiny"]), "owned_costume": bool(r["owned_costume"])}
+                for r in rows}
+
     def start_background(self) -> None:
         self.live.apply_settings()
+        self.news.start_auto(self.settings, self.bus)
 
     def shutdown(self) -> None:
         self.live.stop()
+        self.news.stop_auto()
         self.storage.close()

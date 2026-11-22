@@ -21,6 +21,7 @@ from urllib.parse import parse_qs, urlparse
 from .app import AppContext
 from .config import UI_DIR
 from .data import reference as ref
+from .data.window_presets import PRESETS
 from .services import backup, breeding, importer
 from .services.guides import GuideError
 from .settings import SettingsError
@@ -83,7 +84,8 @@ def build_router(ctx: AppContext) -> Router:
         return {"version": ctx.version, "mode": ctx.shell.mode, "capabilities": ctx.shell.capabilities,
                 "settings": S.all(), "dex": ctx.dex.status(), "notifier": ctx.notifier.describe(),
                 "data_dir": str(ctx.paths.root), "now": utcnow(),
-                "storage": {"migrated_from": ctx.storage.migrated_from, "backup": ctx.storage.backup_created}}
+                "storage": {"migrated_from": ctx.storage.migrated_from, "backup": ctx.storage.backup_created},
+                "window_presets": PRESETS}
     r.add("GET", "/api/bootstrap", bootstrap)
 
     def settings_get(req: Request) -> dict:
@@ -113,6 +115,8 @@ def build_router(ctx: AppContext) -> Router:
             raise ApiError(400, "folder is required")
         return importer.detect_sources(folder)
     r.add("POST", "/api/import/detect", import_detect)
+
+    r.add("GET", "/api/data/status", lambda req: importer.data_status(ctx.paths))
 
     def import_suggest(req: Request) -> dict:
         home = Path.home()
@@ -154,7 +158,78 @@ def build_router(ctx: AppContext) -> Router:
     r.add("GET", "/api/import/jobs/<job>", lambda req: ctx.import_jobs.get(req.params["job"]) or {"state": "unknown"})
 
     # ------------------------------------------------------------ pokédex
-    r.add("GET", "/api/dex/species", lambda req: {"species": ctx.dex.summaries(favs()), "status": ctx.dex.status()})
+    def progress_run(req: Request) -> str | None:
+        run = req.q("run")
+        if not run or run == "none":
+            return None
+        if not ctx.storage.query_one("SELECT id FROM runs WHERE id=? AND deleted_at IS NULL", (run,)):
+            raise ApiError(404, "Run not found")
+        return run
+
+    def dex_list(req: Request) -> dict:
+        run = progress_run(req)
+        return {"species": ctx.dex.summaries(favs(), ctx.dex_progress(run)), "status": ctx.dex.status(),
+                "registry": {k: ctx.dex.registry[k] for k in ("registry_version", "checked_at", "game_patch_basis")},
+                "observed": ctx.dex.registry["observed_in_game"], "progress_run": run}
+    r.add("GET", "/api/dex/species", dex_list)
+
+    LEVELS = ("unregistered", "seen", "owned", "caught_ot")
+
+    def progress_set(req: Request) -> dict:
+        run = req.params["run"]
+        sid = int_param(req.params["sid"], "species id")
+        if sid not in ctx.dex.index:
+            raise ApiError(404, "Unknown species")
+        if not ctx.storage.query_one("SELECT id FROM runs WHERE id=? AND deleted_at IS NULL", (run,)):
+            raise ApiError(404, "Run not found")
+        b = req.body or {}
+        status = b.get("status", "unregistered")
+        if status not in LEVELS:
+            raise ApiError(400, f"status must be one of {LEVELS}")
+        flags = {k: 1 if b.get(k) else 0 for k in ("caught_alpha", "owned_shiny", "owned_costume")}
+        if status == "unregistered" and not any(flags.values()):
+            ctx.storage.execute("DELETE FROM dex_progress WHERE run_id=? AND species_id=?", (run, sid))
+        else:
+            ctx.storage.execute("INSERT OR REPLACE INTO dex_progress(run_id, species_id, status, caught_alpha, owned_shiny, "
+                                "owned_costume, updated_at) VALUES(?,?,?,?,?,?,?)",
+                                (run, sid, status, flags["caught_alpha"], flags["owned_shiny"], flags["owned_costume"], utcnow()))
+        ctx.bus.publish("dex.progress", {"run": run, "id": sid}, origin=req.q("origin"))
+        return {"ok": True}
+    r.add("PUT", "/api/dex/progress/<run>/<sid>", progress_set)
+
+    def progress_counts(req: Request) -> dict:
+        run = req.params["run"]
+        prog = ctx.dex_progress(run) or {}
+        scope = [sid for sid in ctx.dex.index if req.q("scope", "pokemmo") == "reference" or ctx.dex.availability(sid)["in_game_dex"] != "no"]
+        def lvl(sid: int) -> int:
+            return LEVELS.index((prog.get(sid) or {}).get("status", "unregistered"))
+        return {"run": run, "scope_size": len(scope), "tracked": len(prog),
+                "seen": sum(1 for s in scope if lvl(s) >= 1), "owned": sum(1 for s in scope if lvl(s) >= 2),
+                "caught_ot": sum(1 for s in scope if lvl(s) >= 3),
+                "caught_alpha": sum(1 for s in scope if (prog.get(s) or {}).get("caught_alpha")),
+                "owned_shiny": sum(1 for s in scope if (prog.get(s) or {}).get("owned_shiny")),
+                "owned_costume": sum(1 for s in scope if (prog.get(s) or {}).get("owned_costume")),
+                "note": "Entered by you in the Companion — not read from your PokeMMO account."}
+    r.add("GET", "/api/dex/progress/<run>/counts", progress_counts)
+
+    r.add("GET", "/api/dex/roster", lambda req: ctx.dex.roster_report())
+
+    def roster_check(req: Request) -> dict:
+        sid = int_param(req.params["sid"], "species id")
+        if sid not in ctx.dex.index:
+            raise ApiError(404, "Unknown species")
+        val = req.json("in_dex")
+        if val == "clear":
+            ctx.storage.execute("DELETE FROM roster_checks WHERE species_id=?", (sid,))
+        elif val in ("yes", "no"):
+            ctx.storage.execute("INSERT OR REPLACE INTO roster_checks(species_id, in_dex, checked_at, note) VALUES(?,?,?,?)",
+                                (sid, val, utcnow(), str(req.json("note") or "")[:300]))
+        else:
+            raise ApiError(400, "in_dex must be yes, no or clear")
+        ctx.load_roster_checks()
+        ctx.bus.publish("dex.roster", {"id": sid})
+        return {"availability": ctx.dex.availability(sid)}
+    r.add("PUT", "/api/dex/roster/<sid>", roster_check)
 
     def dex_detail(req: Request) -> dict:
         sid = int_param(req.params["sid"], "species id")
@@ -162,6 +237,10 @@ def build_router(ctx: AppContext) -> Router:
         d = ctx.dex.detail(sid, favs(), note["body"] if note else None)
         if not d:
             raise ApiError(404, "Unknown species")
+        run = progress_run(req)
+        if run:
+            d["progress"] = (ctx.dex_progress(run) or {}).get(sid) or {"status": "unregistered"}
+            d["progress_run"] = run
         return d
     r.add("GET", "/api/dex/species/<sid>", dex_detail)
 
@@ -205,7 +284,11 @@ def build_router(ctx: AppContext) -> Router:
             raise ApiError(404, "Event not found")
         return e
     r.add("GET", "/api/events/<eid>", news_event)
-    r.add("POST", "/api/news/check", lambda req: ctx.news.check_feed())
+    def news_check(req: Request) -> dict:
+        res = ctx.news.check_feed(manual=True)
+        ctx.bus.publish("news", {"ok": res.get("ok"), "manual": True})
+        return {k: v for k, v in res.items() if not k.startswith("_") and k not in ("etag", "last_modified")}
+    r.add("POST", "/api/news/check", news_check)
 
     # ------------------------------------------------------------- tools
     r.add("GET", "/api/tools/typechart", lambda req: {

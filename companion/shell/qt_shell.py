@@ -31,14 +31,13 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, Q
 
 from .. import APP_NAME, __version__
 from ..config import UI_DIR
+from ..data.window_presets import clamp, target_size
 
 log = logging.getLogger("companion.qt")
 
 TOOL_TITLES = {"storyline": "Storyline", "pokedex": "Pokédex", "reports": "Alpha & Swarm reports",
                "typechart": "Type matchups", "breeding": "Breeding", "legendaries": "Legendaries",
                "cave": "Altering Cave", "natures": "Natures"}
-TOOL_SIZES = {"storyline": (380, 460), "pokedex": (420, 560), "reports": (380, 480), "typechart": (440, 540),
-              "breeding": (480, 620), "legendaries": (380, 400), "cave": (380, 400), "natures": (380, 520)}
 
 QSS = """
 QWidget#bar { background: rgba(30, 36, 55, 242); border-top-left-radius: 10px; border-top-right-radius: 10px;
@@ -142,6 +141,16 @@ class TitleBar(QWidget):
             act = QAction(label, menu)
             act.triggered.connect(lambda _=False, mm=m: popout.set_mode(mm, save=True))
             menu.addAction(act)
+        menu.addSeparator()
+        reset = QAction("Reset this mode to its preset size", menu)
+        reset.triggered.connect(popout.reset_mode_size)
+        keep = QAction("Keep my size when switching modes", menu)
+        keep.setCheckable(True)
+        keep.setChecked(bool(popout.pref("keep_size")))
+        keep.toggled.connect(lambda on: _settings_set(popout.shell.ctx, {f"window.{popout.tool}.keep_size": on}))
+        menu.addAction(reset)
+        menu.addAction(keep)
+        self.keep_action = keep
         self.mode.setMenu(menu)
         self.opacity = self._btn("◐", "Window opacity" if caps["window_opacity"] else "Window opacity not supported here")
         self.opacity.setEnabled(caps["window_opacity"])
@@ -207,6 +216,8 @@ class Popout(QWidget):
     def __init__(self, shell: "QtShell", tool: str, mode: str, hash_: str = ""):
         super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
         self.shell, self.tool = shell, tool
+        self.mode = mode if mode in ("compact", "standard", "expanded") else "standard"
+        self._programmatic_resize = False
         self.locked = bool(self.pref("locked"))
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
@@ -235,7 +246,10 @@ class Popout(QWidget):
 
     def apply_prefs(self, initial: bool = False) -> None:
         caps = self.shell.caps
-        self.bar.mode.setText({"compact": "C", "standard": "S", "expanded": "E"}.get(self.pref("mode"), "S"))
+        mode = self.pref("mode") or "standard"
+        if not initial and mode != self.mode:
+            self.set_mode(mode, save=False)  # changed from a web control (footer buttons / Settings)
+        self.bar.mode.setText({"compact": "C", "standard": "S", "expanded": "E"}.get(self.mode, "S"))
         if caps["window_opacity"]:
             self.setWindowOpacity((self.pref("window_opacity") or 100) / 100)
             self.bar.slider.blockSignals(True)
@@ -247,6 +261,9 @@ class Popout(QWidget):
             self.bar.pin.setChecked(pinned)
             self.bar.pin.blockSignals(False)
             self.set_pinned(pinned, save=False)
+        self.bar.keep_action.blockSignals(True)
+        self.bar.keep_action.setChecked(bool(self.pref("keep_size")))
+        self.bar.keep_action.blockSignals(False)
         self.locked = bool(self.pref("locked"))
         self.bar.lock.blockSignals(True)
         self.bar.lock.setChecked(self.locked)
@@ -264,9 +281,40 @@ class Popout(QWidget):
             _settings_set(self.shell.ctx, {f"window.{self.tool}.pinned": on})
 
     def set_mode(self, mode: str, save: bool) -> None:
+        """Switch display mode. Resizes ONCE to the mode's size (your remembered size for that mode,
+        else the tool preset) unless 'keep my size' is on; free resizing continues afterwards."""
+        changed = mode != self.mode
+        self.mode = mode
         self.bar.mode.setText(mode[0].upper())
+        if changed and not self.pref("keep_size"):
+            self.apply_mode_size()
         if save:
             _settings_set(self.shell.ctx, {f"window.{self.tool}.mode": mode})  # page re-renders via SSE
+
+    def apply_mode_size(self) -> None:
+        w, h = target_size(self.tool, self.mode, self.pref("sizes"))
+        screen = (self.windowHandle().screen() if self.windowHandle() else None) or QGuiApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            w, h = clamp(w, h, avail.width(), avail.height())
+        self._programmatic_resize = True
+        self.resize(w, h)
+        QTimer.singleShot(1000, self._end_programmatic)  # longer than the 600 ms save debounce
+        if self.shell.caps["position"] and screen is not None:  # keep the whole window on its screen
+            avail = screen.availableGeometry()
+            x = min(max(self.x(), avail.left()), avail.right() - w)
+            y = min(max(self.y(), avail.top()), avail.bottom() - h)
+            if (x, y) != (self.x(), self.y()):
+                self.move(x, y)
+
+    def reset_mode_size(self) -> None:
+        sizes = dict(self.pref("sizes") or {})
+        sizes.pop(self.mode, None)
+        _settings_set(self.shell.ctx, {f"window.{self.tool}.sizes": sizes})
+        self.apply_mode_size()
+
+    def _end_programmatic(self) -> None:
+        self._programmatic_resize = False
 
     def set_locked(self, on: bool, save: bool) -> None:
         self.locked = on
@@ -277,18 +325,30 @@ class Popout(QWidget):
     # ----------------------------------------------------------- geometry
     def restore_geometry(self) -> None:
         g = self.pref("geometry") or {}
-        w, h = TOOL_SIZES.get(self.tool, (400, 500))
-        self.resize(int(g.get("w", w)), int(g.get("h", h)))
+        w, h = target_size(self.tool, self.mode, self.pref("sizes"))
+        screen = QGuiApplication.primaryScreen()
         if self.shell.caps["position"] and "x" in g and "y" in g:
             pt = QPoint(int(g["x"]), int(g["y"]))
-            if QGuiApplication.screenAt(pt + QPoint(40, 20)) is not None:  # never restore off-screen
+            found = QGuiApplication.screenAt(pt + QPoint(40, 20))  # never restore off-screen
+            if found is not None:
+                screen = found
                 self.move(pt)
+        if screen is not None:
+            avail = screen.availableGeometry()
+            w, h = clamp(w, h, avail.width(), avail.height())
+        self.resize(w, h)
 
     def _save_geometry(self) -> None:
         g = {"w": self.width(), "h": self.height()}
         if self.shell.caps["position"]:
             g.update(x=self.x(), y=self.y())
-        _settings_set(self.shell.ctx, {f"window.{self.tool}.geometry": g})
+        values = {f"window.{self.tool}.geometry": g}
+        if not self._programmatic_resize:  # remember a size you chose by hand, per mode
+            sizes = dict(self.pref("sizes") or {})
+            if sizes.get(self.mode) != {"w": self.width(), "h": self.height()}:
+                sizes[self.mode] = {"w": self.width(), "h": self.height()}
+                values[f"window.{self.tool}.sizes"] = sizes
+        _settings_set(self.shell.ctx, values)
 
     def moveEvent(self, e):  # noqa: N802
         self._save_timer.start(600)

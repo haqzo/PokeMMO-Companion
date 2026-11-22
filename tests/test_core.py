@@ -8,6 +8,27 @@ from companion.settings import SettingsError, validate
 from companion.storage import SCHEMA_VERSION, Storage
 
 
+def test_v1_database_migrates_to_v2_with_backup_and_keeps_data(tmp_path):
+    import sqlite3 as _sq
+    from companion.storage import MIGRATIONS
+    db = tmp_path / "old.sqlite3"
+    con = _sq.connect(db)
+    for stmt in MIGRATIONS[1]:
+        con.execute(stmt)
+    con.execute("INSERT INTO meta(key, value) VALUES('schema_version', '1')")
+    con.execute("INSERT INTO runs(id, character_name, run_label, last_region, created_at, updated_at) VALUES('r1','Old','', 'kanto','t','t')")
+    con.execute("INSERT INTO step_status(run_id, step_id, status, updated_at) VALUES('r1','kanto:m:starter','done','t')")
+    con.commit(); con.close()
+    s = Storage(db, tmp_path / "b")
+    assert s.migrated_from == 1 and s.backup_created and "pre-migration-v1-to-v2" in s.backup_created
+    assert s.query_one("SELECT character_name FROM runs WHERE id='r1'")["character_name"] == "Old"
+    assert s.query_one("SELECT status FROM step_status WHERE run_id='r1'")["status"] == "done"
+    s.execute("INSERT INTO dex_progress(run_id, species_id, status, updated_at) VALUES('r1', 1, 'seen', 't')")
+    cols = [r["name"] for r in s.query("PRAGMA table_info(reports)")]
+    assert {"region", "location", "source_url"} <= set(cols)
+    s.close()
+
+
 def test_schema_created_and_versioned(tmp_path):
     s = Storage(tmp_path / "db.sqlite3", tmp_path / "b")
     assert s._current_version() == SCHEMA_VERSION
@@ -125,6 +146,7 @@ def test_bootstrap_and_bad_setting(client):
 def test_species_index_is_649_without_import(client):
     code, b = client.call("GET", "/api/dex/species")
     assert code == 200 and len(b["species"]) == 649 and b["status"]["imported"] is False
+    assert sum(1 for s_ in b["species"] if s_["dex"] != "no") == 644  # PokeMMO scope hides reported-absent species
     assert [s["types"] for s in b["species"] if s["id"] == 25][0] == ["electric"]
 
 

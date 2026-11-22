@@ -40,10 +40,20 @@ def test_dump_004_altering_cave_not_a_rotation(dex):
 
 
 def test_dump_005_obtainable_flag_is_not_wild(dex):
-    for sid in (644, 146):
+    for sid, cls in ((644, "story_temporary"), (146, "roaming")):
         sp = dex.species[sid]
         assert sp["obtainable_flag"] is True and sp["locations"] == []
-        assert dex.detail(sid, set(), None)["availability"]["kind"] == "special"
+        assert dex.detail(sid, set(), None)["availability"]["classes"] == [cls]
+    # Virizion/Keldeo: dump says obtainable=true, but they are reported absent from PokeMMO's Pokédex
+    for sid in (640, 647):
+        assert dex.species[sid]["obtainable_flag"] is True and dex.availability(sid)["in_game_dex"] == "no"
+
+
+def test_dump_derived_families_are_labelled(dex):
+    assert dex.availability(1)["basis"] == "dump-wild"
+    fam = [sid for sid in range(1, 650) if dex.availability(sid)["basis"] == "dump-family"]
+    assert fam and all(dex.species[s]["locations"] == [] for s in fam)
+    assert dex.availability(138)["classes"][0] == "fossil"  # registry wins over dump
 
 
 def test_dump_006_mono_type_shown_once(dex):
