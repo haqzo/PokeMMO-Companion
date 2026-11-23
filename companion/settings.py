@@ -80,6 +80,7 @@ DEFAULTS: dict[str, Any] = {
     "box.view": "grid",                      # grid | list
     "locations.region": "kanto",             # Location explorer: last region tab
     "locations.maps": {},                    # Location explorer: last sub-map per region {region: map id}
+    "locations.style": "game",               # game = in-game Town Map artwork where available | companion = original maps
     # Keyboard shortcuts (docs/design/20 §B): stable action id -> combo; focused Companion windows only.
     "shortcuts.bindings": None,              # None = registered defaults
     "shortcuts.enabled": True,
@@ -99,6 +100,7 @@ for _tool in TOOLS:
     DEFAULTS[f"window.{_tool}.text_outline"] = False     # dark outline behind text for low-opacity backgrounds
 
 _ENUMS = {
+    "locations.style": ("game", "companion"),
     "locations.region": ("kanto", "johto", "hoenn", "sinnoh", "unova"),
     "appearance.nav": ("vertical", "horizontal"),
     "appearance.stat_bars": ("soft", "accent"),

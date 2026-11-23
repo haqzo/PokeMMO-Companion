@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import threading
 
@@ -31,6 +32,30 @@ FILTER_TAGS = {"permanent": "Available permanently", "wild": "Wild", "raid": "Ra
                "unverified": "Unverified", "needs_review": "Needs review", "listed": "Listed (your check)", "not_listed": "Not listed (your check)"}
 PROGRESS_LEVELS = ["unregistered", "seen", "owned", "caught_ot"]
 
+
+
+log = logging.getLogger("companion.dex")
+
+def load_bundled_reference() -> dict | None:
+    """The offline PokeMMO reference shipped with the app (built by tools/build_reference.py)."""
+    import gzip
+    d = BUNDLED_DATA_DIR / "reference"
+    try:
+        manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+        species = {int(k): v for k, v in json.loads(gzip.decompress((d / "species.json.gz").read_bytes())).items()}
+        extras = json.loads(gzip.decompress((d / "extras.json.gz").read_bytes()))
+    except (OSError, ValueError):
+        return None
+    manifest = {**manifest, "source_kind": "bundled"}
+    return {"manifest": manifest, "species": species, "extras": extras}
+
+
+def load_bundled_items() -> dict | None:
+    import gzip
+    try:
+        return json.loads(gzip.decompress((BUNDLED_DATA_DIR / "reference" / "items.json.gz").read_bytes()))
+    except (OSError, ValueError):
+        return None
 
 class DexService:
     def __init__(self, paths: Paths):
@@ -66,9 +91,16 @@ class DexService:
                     self.extras = json.loads((d / "extras.json").read_text(encoding="utf-8"))
                     self.sprites = {int(k): v for k, v in
                                     json.loads((d / "sprites.json").read_text(encoding="utf-8")).items()}
-            except (OSError, ValueError) as exc:  # corrupt import → behave as not imported
-                self.manifest = {"error": f"Imported data could not be read: {exc}"}
-                self.species, self.extras, self.sprites = {}, {}, {}
+            except (OSError, ValueError) as exc:  # corrupt personal install → fall back to the bundled data below
+                log.warning("Personal PokeMMO data could not be read (%s); using the bundled reference data", exc)
+                self.manifest, self.species, self.extras, self.sprites = None, {}, {}, {}
+            if not self.species:
+                # Every installation ships the reference dataset (companion/data/reference), so core features
+                # never need a player import. A personal client import, when present, takes precedence.
+                b = load_bundled_reference()
+                if b:
+                    self.manifest, self.species, self.extras = b["manifest"], b["species"], b["extras"]
+                    self.sprites = {}
             # Changes whenever data is (re)installed, so sprite URLs can be cached by the browser safely.
             self.asset_version = hashlib.sha1(str((self.manifest or {}).get("imported_at", "")).encode()).hexdigest()[:10]
             self._resolve_local_form_art()
@@ -91,7 +123,14 @@ class DexService:
         return bool(self.species)
 
     def status(self) -> dict:
+        ref_m = None
+        try:
+            ref_m = json.loads((BUNDLED_DATA_DIR / "reference" / "manifest.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
         return {"imported": self.imported, "manifest": self.manifest, "index": self.index_meta,
+                "source_kind": (self.manifest or {}).get("source_kind", "private" if self.species else None),
+                "reference": ref_m and {"dump_date": ref_m.get("dump_date"), "counts": ref_m.get("counts"), "built_at": ref_m.get("built_at")},
                 "species_total": len(self.index)}
 
     # ------------------------------------------------------------ helpers
@@ -595,7 +634,11 @@ class DexService:
                 "rows": [{**r, "name": self.name(r["species_id"]), "icon": self.sprite_url(r["species_id"]),
                           "types": self.index.get(r["species_id"], {}).get("types", [])} for r in rows],
                 "dump_date": (self.manifest or {}).get("dump_date"),
-                "provenance": "Encounter rows from your installed dump (DUMP_ONLY). Rates are the dump's per-time labels; "
+                "source_kind": (self.manifest or {}).get("source_kind", "private"),
+                "provenance": ("Encounter rows from the Companion's built-in PokeMMO data (PokeMMO client data"
+                               if (self.manifest or {}).get("source_kind") == "bundled" else
+                               "Encounter rows from your own PokeMMO client data (")
+                              + f"dated {(self.manifest or {}).get('dump_date') or 'unknown'}). Rates are the client's own per-time labels; "
                               "events, swarms and Altering Cave rotation are not reflected."}
 
     def egg_group_members(self, group: str) -> list[int]:

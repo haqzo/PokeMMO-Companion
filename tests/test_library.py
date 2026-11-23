@@ -96,10 +96,11 @@ def test_category_rules_explain_themselves():
     assert categorize({"id": 3, "name": "Goodie Bag (2023)", "desc": "contains an unknown reward"}, set())[0] == "rewards"
 
 
-def test_item_api_requires_installed_data(client):
+def test_item_api_works_on_a_clean_install(client):
+    """Built-in item data (names, categories, links; no description texts or icons) without any import."""
     code, r = client.call("GET", "/api/items")
-    assert code == 200 and r["available"] is False and "Install" in r["reason"]
-    assert client.call("GET", "/api/items/5083")[0] == 404
+    assert code == 200 and r["available"] is True and len(r["items"]) > 2000
+    assert all(not i.get("icon") for i in r["items"])
 
 
 def test_item_user_state_and_alias_lookup(client, ctx):

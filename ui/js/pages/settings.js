@@ -290,8 +290,14 @@ export async function data(b) {
   const importedGuides = guideSources.map((g, i) => [['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'][i], g.sources.find((s) => s.id === 'imported')]).filter(([, s]) => s);
   const ds = await get('/api/data/status');
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Data & privacy'),
-    notice('info', h('strong', null, 'Your files stay on this computer. '), 'The Companion looks (read-only) in a few known folders, and installs only after you click Install. It copies what it needs into its private data folder once — no import on every launch — and never modifies, uploads or commits your originals.'),
-    h('h3', null, 'PokeMMO data (Pokédex, sprites)'),
+    h('h3', null, 'PokeMMO data'),
+    (() => { const rb = boot.dex.reference || {}; const rc = rb.counts || {};
+      return h('div', { class: 'card inset small stack tight bundled-data' }, h('div', null, badge('DUMP_ONLY', 'Built in'),
+        ` PokeMMO reference data, client data dated ${rb.dump_date ? fmtDate(rb.dump_date) : 'unknown'} · ${rc.species || 0} species · ${rc.location_rows || 0} encounter rows · all five region maps`),
+        h('div', { class: 'muted' }, 'Ships with the Companion and works offline. Nothing to install. ',
+          m && m.source_kind !== 'bundled' && !m.error ? 'Your own client data (below) is currently used instead.' : '')); })(),
+    h('details', { class: 'adv-data' }, h('summary', null, 'Optional, advanced: use your own PokeMMO client files (adds your client’s icons and sprites)'),
+    notice('info', h('strong', null, 'Your files stay on this computer. '), 'Never required. The Companion copies what it needs into its private data folder once and never modifies, uploads or commits your originals. Remove the personal copy any time to go back to the built-in data.'),
     ds.candidates.length ? h('div', { class: 'stack tight', style: { marginBottom: '8px' } }, h('div', { class: 'label' }, 'Found on this computer'),
       ds.candidates.map((c) => h('div', { class: 'list-row', style: { cursor: 'default' } }, icon('download'), h('div', { class: 'grow' }, h('div', { class: 'mono small' }, c.folder),
         h('div', { class: 'tiny muted' }, `contains: ${c.parts.join(', ') || 'combined archive'}${c.guides.length ? ' · walkthroughs: ' + c.guides.join(', ') : ''}`)),
@@ -299,11 +305,11 @@ export async function data(b) {
       c.guides.length ? h('button', { class: 'btn small', onclick: () => runImport('guides', c.folder) }, 'Import walkthroughs') : null))) :
       h('div', { class: 'small muted', style: { marginBottom: '8px' } }, 'No PokeMMO dump found in the usual folders (Documents/PokeMMO-Companion, the PokeMMO Flatpak data folder, Downloads). Enter its folder below.'),
     ds.update_available ? notice('warn', 'Your dump has changed since it was installed — re-install to refresh. Runs, checkmarks and settings are kept.') : null,
-    m && !m.error ? h('div', { class: 'card inset small stack tight' }, h('div', null, badge('DUMP_ONLY', 'Imported'), ` ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
+    m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, badge('DUMP_ONLY', 'Imported'), ` ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
       h('div', { class: 'muted' }, Object.entries(m.sources).map(([k, v]) => `${k}: ${v.file}${v.sha256 ? ' (sha256 ' + v.sha256.slice(0, 12) + '…)' : ''}`).join(' · ')),
-      m.notes.map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not imported yet — the Pokédex shows bundled names, numbers and types only.'),
+      (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not used — the built-in data is active.'),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, dumpPath), browse(dumpPath, 'dumps'), h('button', { class: 'btn primary', onclick: () => runImport('dumps', dumpPath.value) }, icon('download'), m ? 'Re-import' : 'Import')),
-    h('div', { class: 'tiny muted' }, 'Folder with PokedexData.zip (and optionally PokemmoIconsDump.zip, PokemmoBattleSpritesDump.zip, ItemSpriteDump.zip), or a combined Pokemmo-Dumps archive.'),
+    h('div', { class: 'tiny muted' }, 'Folder with PokedexData.zip (and optionally PokemmoIconsDump.zip, PokemmoBattleSpritesDump.zip, ItemSpriteDump.zip), or a combined Pokemmo-Dumps archive.')),
     h('h3', null, 'Your walkthrough files (private)'),
     importedGuides.length ? h('div', { class: 'small' }, importedGuides.map(([r, s]) => h('div', null, `${cap(r)}: ${s.label.replace('Your walkthrough ', '')} · ${s.steps} steps · imported ${fmtDate(s.checked_at, true)}`))) : h('div', { class: 'small muted' }, 'None imported. Guides use the bundled milestone outline.'),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, guidePath), browse(guidePath, 'guides'), h('button', { class: 'btn primary', onclick: () => runImport('guides', guidePath.value) }, icon('download'), 'Import walkthroughs')),

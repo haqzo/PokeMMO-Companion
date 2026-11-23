@@ -35,7 +35,7 @@ export function applyItemFilters(items, f) {
 export function itemTile(i, { selected, onOpen, compact } = {}) {
   return h('button', { class: 'item-tile' + (selected ? ' selected' : '') + (compact ? ' compact' : ''), dataset: { id: i.id }, title: i.label + (i.label !== i.name ? ` (${i.name})` : ''),
     'aria-label': `${i.label}${i.fav ? ', favourite' : ''}${i.qty != null ? ', you have ' + i.qty : ''}`, onclick: () => onOpen(i.id) },
-  i.icon ? h('img', { class: 'pixel', src: i.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : h('span', { class: 'item-noicon', title: 'No icon in your dump' }, '?'),
+  i.icon ? h('img', { class: 'pixel', src: i.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : h('span', { class: 'item-noicon', title: 'No icon (artwork is not bundled)' }, '?'),
   h('span', { class: 'it-name ellipsis' }, i.label), i.fav ? h('span', { class: 'it-fav', 'aria-hidden': 'true' }, '★') : null,
   i.qty != null ? h('span', { class: 'it-qty' }, '×' + i.qty) : null);
 }
@@ -54,7 +54,7 @@ export async function render(el, route) {
   const head = h('div', { class: 'page-head', style: { padding: '14px 18px 4px' } },
     h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), t('tools.title')),
     h('div', null, h('h1', null, t('items.title')), h('div', { class: 'sub' }, t('items.desc'))),
-    h('div', { class: 'actions' }, badge('DUMP_ONLY', 'Your dump'), pinButton({ kind: 'tool', id: 'items' }), popoutButton('items')));
+    h('div', { class: 'actions' }, badge('DUMP_ONLY', 'PokeMMO data'), pinButton({ kind: 'tool', id: 'items' }), popoutButton('items')));
   page.append(head);
   if (!data.available) {
     page.append(h('div', { style: { padding: '0 18px' } }, notice(data.syncing ? 'info' : 'warn', data.reason || t('items.not_installed'), ' ',
@@ -96,7 +96,7 @@ export async function render(el, route) {
     h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Sort', onchange: (e) => { F.sort = e.target.value; persist(); draw(); } },
       [['name', 'Name A–Z'], ['id', 'Item ID'], ['qty', 'My quantity']].map(([v, l]) => h('option', { value: v, selected: F.sort === v ? 'selected' : null }, l)))),
   h('div', { class: 'dex-info' }, h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } }, count,
-    h('span', { class: 'small muted' }, `${data.stats.records} item records in your dump → ${data.items.length} distinct items · ${data.stats.missing_icon} records without an icon`),
+    h('span', { class: 'small muted' }, `${data.stats.records} item records in the PokeMMO data → ${data.items.length} distinct items · ${data.stats.missing_icon} records without an icon`),
     lang() !== 'en' ? h('span', { class: 'small muted' }, data.langs.includes(lang()) ? 'Names in your language come from your client’s string table where translated; others stay English.' :
       'Your dump has no string table for this language — names stay English. Install XML-Strings.zip to add them.') : null,
     h('span', { class: 'tiny muted' }, 'Categories are inferred from names/descriptions.'))), scroll);
@@ -132,7 +132,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
         h('div', { class: 'row wrap', style: { marginTop: '4px' } }, h('span', { class: 'chip' }, d.category_label),
           h('span', { class: 'tiny muted', title: 'How the category was inferred' }, d.category_basis)))),
     h('div', { class: 'detail-body stack' },
-      h('p', { class: 'item-desc', style: { margin: 0, whiteSpace: 'pre-line' } }, d.desc_local || d.desc || '—'),
+      h('p', { class: 'item-desc', style: { margin: 0, whiteSpace: 'pre-line' } }, d.desc_local || d.desc || h('span', { class: 'muted small' }, 'Description texts are not bundled with the Companion (they are game text). Category, holders and uses below come from the PokeMMO data.')),
       d.desc_local ? h('details', null, h('summary', { class: 'small' }, 'English description'), h('p', { class: 'small', style: { whiteSpace: 'pre-line' } }, d.desc)) : null,
       h('div', { class: 'row wrap' }, h('label', { class: 'label', for: 'qty-' + d.id }, t('items.owned_qty')), qty,
         h('span', { class: 'tiny muted' }, 'Entered by you — the Companion cannot see your bag.')),
@@ -143,7 +143,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
       d.held_by.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, `${t('items.held_by')} (${d.held_by.length})`),
         h('div', { class: 'row wrap' }, d.held_by.map((s) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + s.id), title: s.name },
           s.icon ? h('img', { class: 'pixel', src: s.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : null, h('span', { class: 'small' }, s.name)))),
-        h('div', { class: 'tiny muted' }, 'From held-item IDs in your dump. Hold chances are not in the dump.')) : null,
+        h('div', { class: 'tiny muted' }, 'From held-item IDs in the PokeMMO data. Hold chances are not in the data.')) : null,
       d.breeding ? h('div', { class: 'row wrap' }, h('span', { class: 'small' }, 'Breeding item.'), h('button', { class: 'btn small', onclick: () => go_('#/tools/breeding') }, icon('egg'), 'Open Breeding planner')) : null,
       h('details', null, h('summary', { class: 'small' }, `Source records (${d.records.length})`),
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Item ID', 'Region code', 'Icon ID', 'Icon'].map((c) => h('th', null, c)))),

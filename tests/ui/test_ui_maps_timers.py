@@ -1,8 +1,4 @@
-"""UI: Location explorer with region maps + Edit map, Tools › Timers, and the Home news/alignment fixes.
-
-Map artwork here is a SYNTHETIC test image installed through the real import/accept path (the recipe is
-replaced); it shows that the viewer and editor work, not that any real ROM decodes — see tests/test_region_maps.py.
-"""
+"""UI: Tools › Timers and the Home news/alignment fixes. (Built-in maps: tests/ui/test_ui_builtin_maps.py.)"""
 import json
 import sys
 import time
@@ -12,10 +8,6 @@ import pytest
 
 from tests.ui.test_ui_flows import DUMPS, app, browser, data_dir, go, page  # noqa: F401  (fixtures)
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from test_region_maps import fake_maps, gba_header  # noqa: E402
-
-from companion.services import region_maps as rm  # noqa: E402
 
 pytestmark = pytest.mark.ui
 needs_dumps = pytest.mark.skipif(not DUMPS, reason="needs POKEMMO_DUMPS_DIR")
@@ -28,166 +20,6 @@ def _until(page, js, timeout=8.0):
             return True
         page.wait_for_timeout(100)
     raise AssertionError("condition not met: " + js)
-
-
-@pytest.fixture
-def kanto_art(app, tmp_path, monkeypatch):
-    rom = tmp_path / "firered.gba"
-    rom.write_bytes(bytes(gba_header()))
-    monkeypatch.setitem(rm.RECIPES, "frlg", lambda d: fake_maps() + [{**fake_maps()[0], "id": "sevii-123", "label": "Sevii Islands 1–3"}])
-    app.ctx.region_maps.import_rom(rom)
-    app.ctx.region_maps.accept("kanto")
-    app.ctx.settings.update({"locations.region": "kanto", "locations.maps": {}})   # earlier tests may switch tab / sub-map
-    yield
-    app.ctx.region_maps.remove("kanto")
-    app.ctx.storage.delete_document("map_layout", "kanto")
-    app.ctx.storage.delete_document("map_draft", "kanto")
-
-
-# ---------------------------------------------------------------- explorer
-@needs_dumps
-def test_unavailable_state_keeps_full_encounter_explorer(app, page):
-    go(page, app, "#/tools/locations?region=johto")
-    page.wait_for_selector(".map-unavailable")
-    assert "No Johto map artwork yet" in page.locator(".map-unavailable").inner_text()
-    assert page.locator(".loc-map img").count() == 0                     # never a fake map
-    assert page.locator(".loc-side .loc-row").count() > 50
-    page.locator('.loc-tabs [data-region="unova"]').click()
-    _until(page, "(document.querySelector('.map-unavailable') || {}).textContent?.includes('not been located')")
-    assert not page.errors
-
-
-@needs_dumps
-def test_map_viewer_zoom_pan_submaps_and_regions(app, page, kanto_art):
-    go(page, app, "#/tools/locations?region=kanto")
-    page.wait_for_selector(".map-box img.map-img")
-    _until(page, "document.querySelector('.map-img').complete && +document.querySelector('.map-box').dataset.scale > 0")
-    img = page.locator(".map-img")
-    assert page.evaluate("getComputedStyle(document.querySelector('.map-img')).imageRendering") in ("pixelated", "crisp-edges")
-    assert (img.get_attribute("width"), img.get_attribute("height")) == ("96", "64")   # aspect ratio kept
-    s0 = float(page.locator(".map-box").get_attribute("data-scale"))
-    page.get_by_role("button", name="Zoom in").click()
-    assert float(page.locator(".map-box").get_attribute("data-scale")) == pytest.approx(s0 * 1.25, rel=0.01)
-    page.locator(".map-box").focus()
-    page.keyboard.press("-")
-    page.keyboard.press("0")
-    assert float(page.locator(".map-box").get_attribute("data-scale")) == pytest.approx(s0, rel=0.01)
-    box = page.locator(".map-box").bounding_box()
-    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-    page.mouse.wheel(0, -200)
-    assert float(page.locator(".map-box").get_attribute("data-scale")) > s0
-    before = page.evaluate("document.querySelector('.map-stage').style.transform")
-    page.mouse.down(); page.mouse.move(box["x"] + box["width"] / 2 + 60, box["y"] + box["height"] / 2 + 30, steps=4); page.mouse.up()
-    assert page.evaluate("document.querySelector('.map-stage').style.transform") != before
-    page.locator(".loc-submaps").get_by_role("tab", name="Sevii Islands 1–3").click()
-    assert page.locator('.loc-submaps [aria-selected="true"]').inner_text().startswith("Sevii")
-    page.locator('.loc-tabs [data-region="hoenn"]').click()
-    page.wait_for_selector(".map-unavailable")
-    assert not page.errors
-
-
-@needs_dumps
-def test_edit_map_add_move_undo_save_export(app, page, kanto_art):
-    go(page, app, "#/tools/locations?region=kanto")
-    page.wait_for_selector(".map-box img.map-img")
-    page.get_by_role("button", name="Edit map").click()
-    page.get_by_role("button", name="+ Marker").click()
-    box = page.locator(".map-box").bounding_box()
-    page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-    page.wait_for_selector(".modal")
-    page.locator(".modal input[type=search]").fill("Route 1")
-    page.locator(".modal select[aria-label=Location]").select_option(label="Route 1")
-    page.locator(".modal .btn.primary").click()
-    _until(page, "document.querySelectorAll('.map-svg g.mk').length === 1")
-    page.get_by_role("button", name="+ Rectangle").click()
-    page.mouse.move(box["x"] + box["width"] * 0.3, box["y"] + box["height"] * 0.3); page.mouse.down()
-    page.mouse.move(box["x"] + box["width"] * 0.4, box["y"] + box["height"] * 0.4, steps=4); page.mouse.up()
-    page.wait_for_selector(".modal")
-    page.locator(".modal select[aria-label='Kind of place']").select_option("cave")
-    page.locator(".modal input[type=search]").fill("Mt. Moon (1F)")
-    page.locator(".modal select[aria-label=Location]").select_option(label="Mt. Moon (1F)")
-    page.locator(".modal .btn.primary").click()
-    _until(page, "document.querySelectorAll('.map-svg g.mk').length === 2")
-    page.keyboard.press("Control+z")
-    _until(page, "document.querySelectorAll('.map-svg g.mk').length === 1")
-    page.keyboard.press("Control+y")
-    _until(page, "document.querySelectorAll('.map-svg g.mk').length === 2")
-    # drag the marker: its normalised position changes
-    page.get_by_role("button", name="Select / move").click()
-    dot = page.locator(".map-svg g.point circle").bounding_box()
-    page.mouse.move(dot["x"] + dot["width"] / 2, dot["y"] + dot["height"] / 2); page.mouse.down()
-    page.mouse.move(dot["x"] + 40, dot["y"] + 10, steps=5); page.mouse.up()
-    # unfinished work is kept as a draft
-    _until(page, "true")
-    page.wait_for_timeout(900)
-    assert app.ctx.region_maps.draft("kanto")["marks"]
-    page.get_by_role("button", name="Save", exact=True).click()
-    _until(page, "document.querySelector('.toast') !== null")
-    lay = app.ctx.region_maps.layout("kanto")
-    pt = next(m for m in lay["marks"] if m["kind"] == "point")
-    assert pt["location_id"].startswith("kanto:") and pt["x"] > 0.5 and 0 <= pt["y"] <= 1
-    assert {m["tag"] for m in lay["marks"]} == {"route", "cave"} and app.ctx.region_maps.draft("kanto") is None
-    with page.expect_download() as dl:
-        page.get_by_role("button", name="Export").click()
-    data = json.loads(Path(dl.value.path()).read_text())
-    assert data["region"] == "kanto" and len(data["marks"]) == 2 and "png" not in json.dumps(data).lower()
-    unmapped = page.locator(".loc-edit-panel summary").inner_text()
-    assert "Not on the map yet" in unmapped and "of 124" in unmapped
-    assert not page.errors
-
-
-@needs_dumps
-def test_pokemon_to_locations_highlight_and_location_to_encounters(app, page, kanto_art):
-    app.ctx.region_maps.save_layout("kanto", {"marks": [
-        {"kind": "point", "map": "kanto", "x": 0.3, "y": 0.6, "tag": "route", "location_id": "kanto:4867"},
-        {"kind": "point", "map": "kanto", "x": 0.7, "y": 0.2, "tag": "town", "location_id": "kanto:31233"}]}, set())
-    go(page, app, "#/tools/locations?region=kanto&species=19")
-    page.wait_for_selector(".map-box img.map-img")
-    page.wait_for_selector(".map-svg g.mk", state="attached")
-    assert page.locator('.map-svg g.mk.hit[data-loc="kanto:4867"]').count() == 1      # Route 1 has Rattata
-    assert page.locator('.map-svg g.mk.dim[data-loc="kanto:31233"]').count() == 1     # Altering Cave does not
-    counts = {r: page.locator(f'.loc-tabs [data-region="{r}"] .count').inner_text() for r in ("kanto", "johto")}
-    assert int(counts["kanto"]) > 0 and int(counts["johto"]) > 0
-    assert "Rattata" in page.locator(".loc-poke").inner_text()
-    page.locator('.loc-side .loc-row[data-loc="kanto:4867"]').click()
-    page.wait_for_selector(".loc-enc tbody tr")
-    assert page.locator(".loc-enc tbody tr").count() >= 1 and "rows match your filters" in page.locator(".loc-detail").inner_text()
-    assert page.locator('.map-svg g.mk.sel[data-loc="kanto:4867"]').count() == 1
-    assert page.locator(".loc-enc .type-chip").count() >= 1
-    page.locator(".loc-enc a", has_text="Rattata").click()
-    page.wait_for_url("**#/pokedex/19*")
-    assert not page.errors
-
-
-@needs_dumps
-def test_filters_time_method_horde(app, page):
-    go(page, app, "#/tools/locations?region=kanto")
-    page.wait_for_selector(".loc-side .loc-row")
-    total = page.locator(".loc-side .loc-row").count()
-    page.locator("select[aria-label='Encounter type']").select_option("Cave")
-    caves = page.locator(".loc-side .loc-row").count()
-    assert 0 < caves < total
-    page.locator("select[aria-label='Time of day']").select_option("night")
-    page.locator(".loc-filters").get_by_role("button", name="Hordes").click()
-    assert page.locator(".loc-side .loc-row").count() <= caves
-    page.get_by_role("button", name="Clear filters").click()
-    _until(page, f"document.querySelectorAll('.loc-side .loc-row').length === {total}")
-
-
-def test_locations_popout_modes(app, browser, kanto_art):  # noqa: F811
-    for mode, w, h_ in (("standard", 480, 620), ("compact", 330, 440), ("expanded", 820, 700)):
-        pop = browser.new_context(viewport={"width": w, "height": h_}).new_page()
-        errs = []
-        pop.on("pageerror", lambda e: errs.append(str(e)))
-        pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=locations&mode={mode}&shell=browser#/")
-        pop.wait_for_selector(".loc-tabs")
-        if mode == "compact":
-            assert pop.locator(".map-box").count() == 0
-        else:
-            pop.wait_for_selector(".map-box img")
-            assert pop.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
-        assert not errs
-        pop.context.close()
 
 
 # ---------------------------------------------------------------- timers

@@ -14,7 +14,7 @@ export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.disp
 const TOOLS = {
   typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy) + defensive checker', render: renderTypeChart },
   natures: { title: 'Natures', icon: 'leaf', group: 'battle', status: 'CORROBORATED', desc: 'All 25 natures and their stat effects', render: renderNatures },
-  stats: { title: 'Stat calculator', icon: 'calc', group: 'battle', status: 'ESTIMATE', desc: 'Standard formula with your dump’s base stats', render: renderStats },
+  stats: { title: 'Stat calculator', icon: 'calc', group: 'battle', status: 'ESTIMATE', desc: 'Standard formula with PokeMMO base stats', render: renderStats },
   breeding: { title: 'Breeding planner', icon: 'egg', group: 'breeding', status: 'PARTIAL', desc: 'Preview · Plan · Egg moves', render: (el, r) => breeding.render(el, r) },
   team: { title: 'Team builder', icon: 'team', group: 'planning', status: 'CORROBORATED', desc: 'Type coverage and weaknesses for six slots', render: renderTeam },
   ev: { title: 'EV & horde planner', icon: 'target', group: 'planning', status: 'DUMP_ONLY', desc: 'EV yields and horde arithmetic', render: renderEv },
@@ -105,7 +105,7 @@ async function renderHub(el) {
           icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, (d.k === 'breeding' ? 'Breeding plan' : 'Team') + ' · saved ' + relTimeShort(d.updated_at)))))) :
           h('div', { class: 'small muted' }, 'Saved breeding plans and teams appear here.')),
       h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, 'About the numbers'),
-        h('div', { class: 'small' }, 'Formulas are checked by automated tests against worked cases. Values from your installed dump are labelled ', badge('DUMP_ONLY', 'Dump data'), ' where they appear; anything uncertain says so next to the value.'),
+        h('div', { class: 'small' }, 'Formulas are checked by automated tests against worked cases. Values from the PokeMMO data are labelled ', badge('DUMP_ONLY', 'Dump data'), ' where they appear; anything uncertain says so next to the value.'),
         h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one) and no damage calculator in v0.1.0. Nothing here reads the game, automates input or fetches GTL prices.')))));
 }
 function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'today' : `${Math.floor(d)} d ago`; }

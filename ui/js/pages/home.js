@@ -61,7 +61,6 @@ async function renderHome(el) {
   page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()), h('div', { class: 'sub' }, status)),
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost small', onclick: () => go('#/settings/appearance') }, icon('gear'), 'Customize Home'))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, () => renderHome(el)));
-  else if (!data.installed && data.candidates.length) page.append(installBanner(data, () => renderHome(el)));
   else if (data.update_available) page.append(installBanner(data, () => renderHome(el), true));
   const grid = h('div', { class: 'home-v3' });
   page.append(grid);
@@ -238,16 +237,12 @@ function favouritesCard(species) {
 }
 
 function getStarted(data, runs, rerender) {
-  const c = data.candidates[0];
   const step = (done, title, body, action) => h('div', { class: 'gs-step' + (done ? ' done' : '') }, h('span', { class: 'gs-dot' }, done ? icon('check') : null),
     h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, title), h('div', { class: 'small muted' }, body)), action);
   return h('section', { class: 'card get-started' }, h('div', { class: 'card-head' }, h('h2', null, 'Get started'), h('div', { class: 'right' },
     h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ 'app.onboarded': true }); rerender(); } }, 'Done — hide this'))),
   h('div', { class: 'gs-steps' },
-    step(data.installed, 'Install your PokeMMO data (one time)', data.installed ? 'Installed — stats, locations, moves and sprites are available.' :
-      c ? `Found at ${c.folder}. It is copied once into the Companion’s private folder on this computer; nothing is uploaded.` : 'No dump found in the usual folders. Choose its folder in Settings › Data.',
-    data.installed ? null : c ? h('button', { class: 'btn primary small', onclick: () => installNow(c.folder, rerender) }, 'Install') :
-      h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, 'Choose folder')),
+    step(true, 'PokeMMO data and region maps are built in', 'Pokédex, moves, items, encounters and all five interactive region maps work right away, offline. Nothing to install.', null),
     step(runs.runs.length > 0, 'Create a named character run', 'Tracks storyline progress per character in all five regions.',
       runs.runs.length ? null : h('button', { class: 'btn small', onclick: async () => { if (await createRun()) rerender(); } }, 'Create run')),
     step(false, 'Pick your navigation', 'Vertical sidebar (with Quick access) or a horizontal top bar.',

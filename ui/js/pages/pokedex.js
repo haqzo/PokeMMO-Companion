@@ -263,7 +263,7 @@ function filterDrawer(all) {
       TYPES.map((t) => h('button', { class: 'chip btnlike' + (F.types.includes(t) ? ' active' : ''), 'aria-pressed': String(F.types.includes(t)), onclick: () => {
         F.types = F.types.includes(t) ? F.types.filter((x) => x !== t) : [...F.types, t].slice(-2); redraw(); } }, typeChip(t, true)))),
     seg([['any', 'Has all selected'], ['primary', 'Primary type'], ['secondary', 'Secondary type']], F.typeSlot, (v) => { F.typeSlot = v; redraw(); }, 'Type slot')),
-    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'PokeMMO acquisition (sourced registry · your dump · your checks)'), h('div', { class: 'chips' },
+    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'PokeMMO acquisition (sourced registry · PokeMMO data · your checks)'), h('div', { class: 'chips' },
       TAG_CHIPS.map(([k, l]) => chip(l, F.classes.includes(k), () => { F.classes = toggle(F.classes, k); redraw(); })),
       chip('Hide species I marked “Not listed”', setting('pokedex.scope') === 'pokemmo', async () => {
         await saveSettings({ 'pokedex.scope': setting('pokedex.scope') === 'pokemmo' ? 'reference' : 'pokemmo' }); rerender(); }))),
@@ -653,7 +653,7 @@ function summary(d) {
         h('dt', null, 'Forms'), h('dd', null, d.forms.filter((f) => f.name && f.name !== 'Egg').map((f) => f.name + (f.costume ? ' (costume)' : '')).join(', ') || '—'),
         overlay ? [h('dt', null, 'Patch note'), h('dd', null, overlay.note)] : null)),
     availabilityBlock(d),
-    h('div', { class: 'tiny muted' }, 'Stats, moves and locations come from your installed dump. The dump’s raw “obtainable” flag ',
+    h('div', { class: 'tiny muted' }, 'Stats, moves and locations come from the PokeMMO client data (built in, or your own copy). Its raw “obtainable” flag ',
       `(${d.obtainable_flag}) is not used for availability.`, d.types_raw_duplicated ? ' The dump lists this single type twice; it is shown once.' : ''));
 }
 
@@ -685,7 +685,7 @@ function locations(d) {
   const wrap = h('div', { class: 'stack' });
   const av = d.availability;
   if (av.classes[0] !== 'wild' && av.methods[0].basis === 'registry') wrap.append(notice('info', h('strong', null, av.label), ' — ordinary wild rows don’t cover this. See Summary for sources.'));
-  if (!d.locations.length) { wrap.append(h('div', { class: 'empty' }, h('h3', null, 'No ordinary wild locations in your dump'),
+  if (!d.locations.length) { wrap.append(h('div', { class: 'empty' }, h('h3', null, 'No ordinary wild locations in the PokeMMO data'),
     h('p', null, 'That alone does not mean unobtainable — see Summary › availability for evolution, breeding, gift, fossil, roamer, raid or story sources.'))); return wrap; }
   const draw = () => {
     const rows = d.locations.filter((l) => ui.locSeason === 'all' || l.season === ui.locSeason || l.season === 'Any');
@@ -728,7 +728,7 @@ const MOVE_SORTS = { method: 'Method', level: 'Level', name: 'Move', type: 'Type
 const METHOD_RANK = ['start', 'level', 'evolve', 'machine', 'egg', 'egg-item', 'tutor', 'special', 'prevo', 'other'];
 function methodBadge(m) {
   const lvl = m.code === 'level' ? ` ${m.level}` : '';
-  const title = m.code === 'start' ? 'Known from the start (level 1 in your dump)' : m.code === 'level' ? `Learned at level ${m.level}` : m.note || `Learn method in your dump: ${m.raw}`;
+  const title = m.code === 'start' ? 'Known from the start (level 1 in the PokeMMO data)' : m.code === 'level' ? `Learned at level ${m.level}` : m.note || `Learn method in the PokeMMO datp: ${m.raw}`;
   const item = (m.machine_items || [])[0];
   const badge = h(item ? 'a' : 'span', { class: `mv-badge mv-${m.code}`, title, 'aria-label': `${m.label}${lvl}. ${title}`, href: item ? `#/tools/items/${item.item_id}` : null }, m.label + lvl);
   if (m.code === 'machine') badge.append(h('sup', { class: 'mv-q', 'aria-hidden': 'true' }, '?'));
@@ -786,7 +786,7 @@ function moves(d) {
 
 function evolution(d) {
   const chain = d.evolution_chain;
-  if (!chain.length || chain.length === 1) return h('div', { class: 'empty' }, 'This species does not evolve (according to your dump).');
+  if (!chain.length || chain.length === 1) return h('div', { class: 'empty' }, 'This species does not evolve (according to the PokeMMO data).');
   const byDepth = {};
   chain.forEach((n) => (byDepth[n.depth] ||= []).push(n));
   const row = h('div', { class: 'evo' });
@@ -795,7 +795,7 @@ function evolution(d) {
     row.append(h('div', { class: 'stack tight' }, byDepth[depth].map((n) => h('div', { class: 'node', role: 'button', tabindex: '0', onclick: () => go('#/pokedex/' + n.id),
       style: n.id === d.id ? { borderColor: 'var(--accent)' } : null }, spriteOrFallback(n.icon, { id: n.id, name: n.name, types: [] }, 48), h('span', { class: 'small' }, n.name)))));
   });
-  return h('div', { class: 'stack' }, row, h('p', { class: 'tiny muted', style: { margin: 0 } }, 'Evolution methods from your dump; region- or form-specific details are not verified.'));
+  return h('div', { class: 'stack' }, row, h('p', { class: 'tiny muted', style: { margin: 0 } }, 'Evolution methods from the PokeMMO data; region- or form-specific details are not verified.'));
 }
 function registration(d) {
   const run = d.progress_run;

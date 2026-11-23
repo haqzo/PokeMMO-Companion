@@ -81,7 +81,7 @@ const EN = {
   'common.reset': 'Reset', 'common.text_size': 'Text size', 'common.background': 'Background', 'common.open_main': 'Open in main',
   'common.reset_size': 'Reset size',
   'tools.title': 'Tools', 'tools.group.collection': 'Collection & notes', 'tools.group.collection_sub': 'Items, notes, your Box, Showcase, your own guides and locations',
-  'items.title': 'Item Library', 'items.desc': 'Every item in your local PokeMMO data, with icons',
+  'items.title': 'Item Library', 'items.desc': 'Every item in the PokeMMO data',
   'items.category': 'Category', 'items.held_by': 'Held by wild Pokémon', 'items.evolution': 'Used for evolution', 'items.owned_qty': 'How many I have (manual)',
   'items.not_installed': 'Install (or re-install) your PokeMMO data to build the Item Library.',
   'notes.title': 'Notes', 'notes.desc': 'Tagged, linked notes with floating note windows', 'notes.new': 'New note', 'notes.untitled': 'Untitled',

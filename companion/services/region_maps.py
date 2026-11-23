@@ -552,7 +552,8 @@ class RegionMaps:
                     target = None
                 out = {"id": str(m.get("id") or uuid.uuid4().hex[:10])[:24], "map": mp, "kind": kind, "tag": tag,
                        "location_id": loc, "label": str(m.get("label") or "")[:80], "note": str(m.get("note") or "")[:500],
-                       "target_map": target, "unmatched": bool(loc and known_locations and loc not in known_locations)}
+                       "target_map": target, "unmatched": bool(loc and known_locations and loc not in known_locations),
+                       "basis": m.get("basis") if m.get("basis") in ("builtin-v1",) else None}
                 if kind == "point":
                     out.update(x=num(m["x"]), y=num(m["y"]))
                 elif kind == "rect":

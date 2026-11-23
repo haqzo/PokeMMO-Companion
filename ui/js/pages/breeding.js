@@ -232,7 +232,7 @@ async function renderEggMoves(el, route) {
       r.moves.length ? r.moves.map((m) => h('div', { class: 'card tight stack tight' }, h('div', { class: 'row' }, h('strong', null, m.move), m.type ? typeChip(m.type, true) : null,
         m.verified_meta ? null : badge('DUMP_ONLY', 'Move details awaiting verification'), h('span', { class: 'grow' }), h('span', { class: 'small muted' }, `${m.father_count} candidate father species`)),
       h('div', { class: 'row wrap' }, m.fathers.map((f) => h('button', { class: 'chip btnlike', title: f.methods.join(', '), onclick: () => go('#/pokedex/' + f.id) }, f.name,
-        f.tm_unconfirmed ? h('span', { style: { color: 'var(--st-dump)' } }, ' (TM?)') : null))))) : h('div', { class: 'empty' }, 'No egg moves listed for this species in your dump.'),
+        f.tm_unconfirmed ? h('span', { style: { color: 'var(--st-dump)' } }, ' (TM?)') : null))))) : h('div', { class: 'empty' }, 'No egg moves listed for this species in the PokeMMO data.'),
       notice('warn', r.note)));
   };
   const sid = route && route.query ? Number(route.query.get('species')) || null : null;

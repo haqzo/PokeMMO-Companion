@@ -172,7 +172,8 @@ def test_upgrade_from_legacy_install_builds_items_without_manual_import(tmp_path
     ctx = AppContext(str(data))
     ctx.storage.execute("INSERT INTO runs(id, character_name, run_label, last_region, created_at, updated_at) VALUES('r1','Keep','', 'kanto','t','t')")
     ctx.notes.create({"title": "keep me"})
-    assert ctx.items.listing()["available"] is False  # before the sync: honest, not empty
+    before_items = ctx.items.listing()
+    assert before_items["available"] and before_items["stats"].get("with_icon", 0) == 0  # built-in catalog (no icons) until the sync
     res = ctx.sync_local_data()
     assert res["state"] == "synchronized" and res["reason"] == "missing item catalog"
     lst = ctx.items.listing()

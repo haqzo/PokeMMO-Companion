@@ -1037,3 +1037,30 @@ polyline.mk-draft { fill: none; }
 .home-v3 > .home-update .update-foot { margin-top: auto; }
 .home-v3 > .home-update .row.wrap:not(.update-foot) { margin-bottom: 10px; }
 .home-empty { padding: 4px 2px; }
+/* Built-in map features (2026-11-23): routes are clickable lines; towns/caves/places are tiles and pins. */
+.mk .hit-area { fill: none; stroke: transparent; stroke-linecap: round; stroke-linejoin: round; pointer-events: stroke; }
+.mk .line-mark { fill: none; stroke: transparent; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.mk.builtin:hover .line-mark { stroke: rgba(255, 255, 255, .55); }
+.mk.builtin.line.hit .line-mark { stroke: rgba(74, 171, 77, .9); }
+.mk.builtin.line.sel .line-mark, .mk.builtin.line.sel.hit .line-mark { stroke: #ffd84a; }
+.mk.builtin.rect rect { fill: transparent; stroke: transparent; }
+.mk.builtin.rect:hover rect { stroke: rgba(255, 255, 255, .8); }
+.mk.builtin.rect.hit rect { stroke: #4aab4d; fill: rgba(74, 171, 77, .25); }
+.mk.builtin.rect.sel rect { stroke: #ffd84a; fill: rgba(255, 216, 74, .2); }
+.mk.builtin.point circle { fill: rgba(255, 255, 255, .0); stroke: transparent; }
+.mk.builtin.point:hover circle { stroke: #fff; }
+.mk.builtin.point.hit circle { fill: rgba(74, 171, 77, .55); stroke: #eaffea; }
+.mk.builtin.point.sel circle { fill: rgba(255, 216, 74, .45); stroke: #ffd84a; }
+.mk.builtin.dim { opacity: .35; }
+.mk.builtin.dim text { opacity: .7; }
+.mk.personal circle, .mk.personal rect, .mk.personal polygon { stroke: #c79bff; stroke-dasharray: 3 2; }
+.mk.personal.point circle { fill: #b27cff; }
+.loc-subareas { flex-wrap: wrap; margin: 0 0 8px; }
+.loc-subareas .tab { padding: 4px 10px; font-size: .85rem; }
+.loc-sub-head { margin: 4px 0 8px; }
+.loc-sub-name { color: var(--text-primary); }
+.loc-method { margin-bottom: 10px; }
+.loc-method-head { font-size: .95rem; margin: 6px 0 4px; padding-bottom: 2px; border-bottom: 1px solid var(--border-subtle); }
+.loc-enc td { vertical-align: middle; }
+.loc-enc td.rate.none { color: var(--text-muted); font-size: .8rem; }
+.loc-grid { grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) minmax(340px, 460px); }

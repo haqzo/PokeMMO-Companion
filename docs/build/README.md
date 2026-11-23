@@ -23,3 +23,4 @@ Read all existing [design specifications](../design/README.md) and [Phase 3 rese
 The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interface). No merge or release to main.
 - [**10 — Accuracy + foundations pass report: update/run, changes, tests, still unverified, next video**](10-V0.1.0-ACCURACY-AND-FOUNDATIONS-REPORT.md)
 - [**16 — Region maps from your own ROMs, Location explorer + Edit map, Timers, Home fixes**](16-V0.1.0-REGION-MAPS-TIMERS-HOME.md)
+- [**17 — Player-ready: built-in PokeMMO data and region maps, no imports**](17-PLAYER-READY-BUILTIN-DATA-AND-MAPS.md)

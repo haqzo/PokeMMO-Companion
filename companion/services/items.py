@@ -150,6 +150,9 @@ class ItemService:
                     self.catalog = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 self.catalog = None
+            if not self.catalog:
+                from .dex import load_bundled_items
+                self.catalog = load_bundled_items()
             self.machine_items: dict[str, list[dict]] = {}
             for g in (self.catalog or {}).get("groups", []):
                 for r in g["records"]:

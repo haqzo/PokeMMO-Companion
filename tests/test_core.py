@@ -144,8 +144,9 @@ def test_bootstrap_and_bad_setting(client):
 
 
 def test_species_index_is_649_without_import(client):
+    """No player import: the built-in PokeMMO data is active from the first launch (2026-11-23 owner requirement)."""
     code, b = client.call("GET", "/api/dex/species")
-    assert code == 200 and len(b["species"]) == 649 and b["status"]["imported"] is False
+    assert code == 200 and len(b["species"]) == 649 and b["status"]["imported"] is True and b["status"]["source_kind"] == "bundled"
     assert all(s_["dex"] != "no" for s_ in b["species"])  # nothing is hidden by the registry
     assert [s["types"] for s in b["species"] if s["id"] == 25][0] == ["electric"]
 

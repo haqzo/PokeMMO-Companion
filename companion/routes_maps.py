@@ -27,7 +27,17 @@ def register(r, ctx, ApiError, Request) -> None:
     def known_locations(region: str) -> set[str]:
         return {l["id"] for l in ctx.dex.locations() if l["region"] == region} if ctx.dex.imported else set()
 
-    # ------------------------------------------------------------ artwork
+    # ------------------------------------------------------------ built-in maps (always available, offline)
+    def builtin(req):
+        import json as _json
+        from .config import BUNDLED_DATA_DIR
+        doc = _json.loads((BUNDLED_DATA_DIR / "maps" / "geometry.json").read_text(encoding="utf-8"))
+        for m in doc["maps"]:
+            m["url"] = f"/assets/builtin-maps/{m['file']}?v={m['sha256'][:10]}"
+        return doc
+    add("GET", "/api/maps/builtin", builtin)
+
+    # ------------------------------------------------------------ developer: ROM artwork extraction (not used by the viewer)
     add("GET", "/api/maps", guard(lambda req: ctx.region_maps.status()))
 
     def identify(req):

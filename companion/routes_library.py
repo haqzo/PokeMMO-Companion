@@ -304,7 +304,8 @@ def register(r, ctx, ApiError, Request) -> None:
             if region and v["region"] != region:
                 continue
             for r in v["rows"]:
-                times = (1 if r.get("morning") else 0) | (2 if r.get("day") else 0) | (4 if r.get("night") else 0)
+                on = lambda x: bool(x) and x.get("kind") != "none"  # "Not in this period" is not an encounter
+                times = (1 if on(r.get("morning")) else 0) | (2 if on(r.get("day")) else 0) | (4 if on(r.get("night")) else 0)
                 out.append([key, r["species_id"], r["method"], 5 if r.get("horde5") else 3 if r.get("horde3") else 0,
                             r.get("season") or "", times, r.get("min"), r.get("max")])
         return {"region": region, "rows": out, "imported": ctx.dex.imported}

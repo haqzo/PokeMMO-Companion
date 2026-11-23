@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .app import AppContext
 from .services.dex import FILTER_TAGS
-from .config import UI_DIR
+from .config import BUNDLED_DATA_DIR, UI_DIR
 from .data import reference as ref
 from .data.window_presets import PRESETS
 from .services import backup, breeding, calcs, importer
@@ -31,6 +31,9 @@ from .storage import utcnow
 
 log = logging.getLogger("companion.http")
 Handler = Callable[["Request"], Any]
+
+
+BUILTIN_MAPS = BUNDLED_DATA_DIR / "maps"
 
 
 class ApiError(Exception):
@@ -734,6 +737,9 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
             if path.startswith("/assets/library/"):
                 cache = "private, max-age=31536000, immutable" if query.get("v") else None
                 return self._static(ctx.sprite_library.root, path[len("/assets/library/"):], image_only=True, cache=cache)
+            if path.startswith("/assets/builtin-maps/"):
+                # Original Companion map artwork shipped with the app (companion/data/maps, SVG only).
+                return self._static(BUILTIN_MAPS, path[len("/assets/builtin-maps/"):], svg_only=True, cache="private, max-age=3600")
             if path.startswith("/assets/maps/"):
                 # Region artwork you extracted locally (private). Never part of the app or the repository.
                 rest = path[len("/assets/maps/"):]
@@ -776,13 +782,16 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 log.error("API error %s %s\n%s", method, path, traceback.format_exc())
                 self._json(500, {"error": f"Internal error: {type(exc).__name__}"})
 
-        def _static(self, root: Path, rel: str, png_only: bool = False, cache: str | None = None, image_only: bool = False) -> None:
+        def _static(self, root: Path, rel: str, png_only: bool = False, cache: str | None = None, image_only: bool = False,
+                    svg_only: bool = False) -> None:
             try:
                 target = (root / rel).resolve()
                 target.relative_to(root.resolve())
             except (ValueError, OSError):
                 return self._send(404, b"Not found", "text/plain")
             if png_only and target.suffix.lower() != ".png":
+                return self._send(404, b"Not found", "text/plain")
+            if svg_only and target.suffix.lower() not in (".svg", ".png"):
                 return self._send(404, b"Not found", "text/plain")
             if image_only and target.suffix.lower() not in (".png", ".gif"):
                 return self._send(404, b"Not found", "text/plain")
@@ -793,6 +802,8 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 ctype += "; charset=utf-8"
             if target.suffix == ".js":
                 ctype = "text/javascript; charset=utf-8"
+            if target.suffix == ".svg":
+                ctype = "image/svg+xml"
             extra = {"Cache-Control": cache} if cache else {}
             if target.name == "index.html":
                 extra["Content-Security-Policy"] = (

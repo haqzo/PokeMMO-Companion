@@ -81,10 +81,10 @@ def test_stat_extremes_and_shedinja():
 
 def test_stats_api_forms_and_levels(client):
     code, r = client.call("POST", "/api/tools/stats", {"species": 386, "level": 50, "evs": {"hp": 300}})
-    assert code == 400  # without data species is unknown, or EV > 252
-    # without imported data the API reports the missing data instead of guessing
+    assert code == 400  # EV > 252 is refused
+    # the built-in PokeMMO data provides base stats on a clean install (no import)
     code, r = client.call("POST", "/api/tools/stats", {"species": 25})
-    assert code == 400 and "Import" in r["error"]
+    assert code == 200
 
 
 # ------------------------------------------------------------------ EV / horde

@@ -67,7 +67,10 @@ export function createMapView(opts) {
   }
 
   // ---------------------------------------------------------- marks
+  const locsOf = (m) => (m.location_ids && m.location_ids.length ? m.location_ids : m.location_id ? [m.location_id] : []);
   function centroid(m) {
+    if (m.kind === 'line') { const pts = m.lines.flat(); const mid = pts[Math.floor(pts.length / 2)];
+      if (m.lines[0].length === 2) { const [a, b] = m.lines[0]; return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; } return mid; }
     if (m.kind === 'rect') return [m.x + m.w / 2, m.y + m.h / 2];
     if (m.kind === 'poly') { const n = m.points.length; return [m.points.reduce((a, p) => a + p[0], 0) / n, m.points.reduce((a, p) => a + p[1], 0) / n]; }
     return [m.x, m.y];
@@ -75,17 +78,28 @@ export function createMapView(opts) {
   function drawMarks() {
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     const k = 1 / v.s;                      // keep strokes / dots a constant size on screen
-    const mine = marks.filter((m) => m.map === opts.mapId);
+    // routes underneath, then town tiles, then pins; your own marks on top — so a town is clickable where a route ends
+    const order = (m) => (!m.builtin ? 4 : m.kind === 'line' ? 1 : m.kind === 'rect' ? 2 : 3);
+    const mine = marks.filter((m) => m.map === opts.mapId).sort((a, b) => order(a) - order(b));
     for (const m of mine) {
-      const focus = hl && m.location_id ? hl.has(m.location_id) : false;
-      const cls = ['mk', 'mk-' + m.tag, m.kind, show.highlights && hl ? (focus ? 'hit' : 'dim') : '',
-        m.location_id && m.location_id === selectedLoc ? 'sel' : '', selectedMark === m.id ? 'editing' : '', m.unmatched ? 'unmatched' : ''].filter(Boolean).join(' ');
-      if (!show.markers && !(show.highlights && focus) && m.location_id !== selectedLoc) continue;
-      const g = sv('g', { class: cls, 'data-id': m.id, 'data-loc': m.location_id || '', tabindex: editable ? null : '-1' });
-      if (m.kind === 'point') g.append(sv("circle", { cx: m.x * W, cy: m.y * H, r: 6 * k, "stroke-width": 2 * k }));
+      const ls = locsOf(m);
+      const focus = hl ? ls.some((x) => hl.has(x)) : false;
+      const isSel = selectedLoc && (m.id === selectedLoc || ls.includes(selectedLoc));
+      const cls = ['mk', 'mk-' + m.tag, m.kind, m.builtin ? 'builtin' : 'personal', show.highlights && hl ? (focus ? 'hit' : 'dim') : '',
+        isSel ? 'sel' : '', selectedMark === m.id ? 'editing' : '', m.unmatched ? 'unmatched' : '', ls.length ? '' : 'empty'].filter(Boolean).join(' ');
+      if (!show.markers && !(show.highlights && focus) && !isSel) continue;
+      const g = sv('g', { class: cls, 'data-id': m.id, 'data-loc': ls[0] || '', 'data-locs': ls.join(' '), 'data-feature': m.feature || '', tabindex: editable ? null : '-1' });
+      if (m.kind === 'line') {
+        for (const line of m.lines) {
+          const pts = line.map((p) => `${p[0] * W},${p[1] * H}`).join(' ');
+          g.append(sv('polyline', { class: 'hit-area', points: pts, 'stroke-width': Math.max(m.width || 30, 14 * k) }));
+          g.append(sv('polyline', { class: 'line-mark', points: pts, 'stroke-width': Math.max((m.width || 30) * 0.45, 4 * k) }));
+        }
+      } else if (m.kind === "point") g.append(sv("circle", { cx: m.x * W, cy: m.y * H, r: m.builtin ? Math.max(20, 7 * k) : 6 * k, "stroke-width": 2 * k }));
       else if (m.kind === 'rect') g.append(sv('rect', { x: m.x * W, y: m.y * H, width: m.w * W, height: m.h * H, 'stroke-width': 1.6 * k }));
       else g.append(sv('polygon', { points: m.points.map((p) => `${p[0] * W},${p[1] * H}`).join(' '), 'stroke-width': 1.6 * k }));
-      if (show.labels && (m.label || opts.labelFor)) {
+      const labelHere = !m.builtin || m.tag === 'town' || v.s >= 0.9 || isSel || (show.highlights && focus);
+      if (show.labels && labelHere && (m.label || opts.labelFor)) {
         const c = centroid(m);
         const t = sv('text', { x: c[0] * W, y: c[1] * H - 7 * k, 'font-size': 10 * k, 'stroke-width': 3 * k, 'text-anchor': 'middle' });
         t.textContent = m.label || opts.labelFor(m) || '';
@@ -113,7 +127,7 @@ export function createMapView(opts) {
     const g = e.target.closest && e.target.closest('g[data-id]');
     const m = g && marks.find((x) => x.id === g.dataset.id);
     const [nx, ny] = toImage(e);
-    if (editable && tool === 'select' && m) {
+    if (editable && tool === 'select' && m && !m.builtin) {
       selectedMark = m.id; opts.onEditSelect && opts.onEditSelect(m);
       drag = { kind: 'move', m, start: [nx, ny], orig: JSON.parse(JSON.stringify(m)), moved: false };
     } else if (editable && tool === 'point' && inside(nx, ny)) {
@@ -143,6 +157,7 @@ export function createMapView(opts) {
       if (Math.abs(dx) + Math.abs(dy) > 0.002) drag.moved = true;
       const o = drag.orig, m = drag.m;
       // keep the whole shape inside the image
+      if (o.kind === 'line') return;
       const xs = o.kind === 'poly' ? o.points.map((p) => p[0]) : o.kind === 'rect' ? [o.x, o.x + o.w] : [o.x];
       const ys = o.kind === 'poly' ? o.points.map((p) => p[1]) : o.kind === 'rect' ? [o.y, o.y + o.h] : [o.y];
       dx = Math.max(-Math.min(...xs), Math.min(1 - Math.max(...xs), dx));
