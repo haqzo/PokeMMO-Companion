@@ -43,6 +43,8 @@
   /* stat bars — Better Default "Soft colours" [sampled] */
   --stat-hp: #3f944c; --stat-attack: #ab4039; --stat-defense: #9e693e;
   --stat-sp_attack: #8261aa; --stat-sp_defense: #af8d25; --stat-speed: #5679b8;
+  --stat-single: #6f8fc2;       /* Appearance › Stat bars › Accent: one restrained colour for all six bars */
+  --stat-total: #8d909b;
 
   /* type tags: [sampled] from BD 1.8.0 type chart where the sample hit the tag
      background; Electric/Poison/Flying/Bug samples hit label text, so those use

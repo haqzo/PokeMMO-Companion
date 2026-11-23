@@ -1,5 +1,5 @@
 // Breeding planner (docs/design/08): Preview (A | Offspring | B), Plan tree, Egg moves.
-import { h, mount, icon, get, post, api, state, badge, notice, typeChips, cap, tabs, toast, confirmDialog, on, debounce, spriteOrFallback, extLink, pad3, modal, WINDOW_ID } from '../core.js';
+import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, tabs, toast, confirmDialog, on, debounce, spriteOrFallback, extLink, pad3, modal, WINDOW_ID } from '../core.js';
 import { go } from '../shell.js';
 import { speciesPicker, speciesIndex, natureSelect, downloadJson, pickJsonFile } from '../components.js';
 
@@ -229,7 +229,7 @@ async function renderEggMoves(el, route) {
     const r = await get('/api/tools/breeding/eggmoves/' + id);
     if (r.error) { mount(out, notice('info', r.error)); return; }
     mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${r.species} · egg groups: ${r.egg_groups.join(', ') || 'none breedable'}`),
-      r.moves.length ? r.moves.map((m) => h('div', { class: 'card tight stack tight' }, h('div', { class: 'row' }, h('strong', null, m.move), m.type ? h('span', { class: 'type-chip sm', style: { '--tc': `var(--type-${m.type})` } }, m.type) : null,
+      r.moves.length ? r.moves.map((m) => h('div', { class: 'card tight stack tight' }, h('div', { class: 'row' }, h('strong', null, m.move), m.type ? typeChip(m.type, true) : null,
         m.verified_meta ? null : badge('DUMP_ONLY', 'Move details awaiting verification'), h('span', { class: 'grow' }), h('span', { class: 'small muted' }, `${m.father_count} candidate father species`)),
       h('div', { class: 'row wrap' }, m.fathers.map((f) => h('button', { class: 'chip btnlike', title: f.methods.join(', '), onclick: () => go('#/pokedex/' + f.id) }, f.name,
         f.tm_unconfirmed ? h('span', { style: { color: 'var(--st-dump)' } }, ' (TM?)') : null))))) : h('div', { class: 'empty' }, 'No egg moves listed for this species in your dump.'),

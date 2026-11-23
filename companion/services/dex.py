@@ -191,7 +191,7 @@ class DexService:
             sp = self.species.get(sid)
             av = self.availability(sid)
             entry = {"id": sid, "name": base["name"], "types": base["types"], "gen": base["gen"],
-                     "fav": sid in favourites, "icon": self.sprite_url(sid, "icon"),
+                     "fav": sid in favourites, "icon": self.sprite_url(sid, "icon"), "still": self.still(sid),
                      "dex": av["membership"]["state"], "avail": av["short"], "avail_long": av["label"], "classes": av["classes"],
                      "tags": av["tags"], "evidence": av["evidence"], "permanent": av["permanent"]}
             if progress is not None:
@@ -302,6 +302,11 @@ class DexService:
                     if fsha and fsha == c.get("front_sha1") and fsha != self._file_sha("battle", (self.sprites.get(sid) or {}).get("front")):
                         out["front"], out["front_shiny"] = ff.get("front"), ff.get("front_shiny")
             self.local_form_art[key] = out
+
+    def still(self, sid: int) -> dict | None:
+        """Gen V still from your sprite library for grid tiles (None → the client box icon is used)."""
+        lib = self.library
+        return lib.still(str(sid)) if lib is not None and lib.installed else None
 
     def art(self, sid: int, form_key: str | None = None) -> dict:
         """Artwork for a species or one of its forms. Never substitutes base or placeholder art for a form."""

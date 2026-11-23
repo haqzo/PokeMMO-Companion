@@ -3,7 +3,7 @@
 // alternate forms remain selectable INSIDE their species details, not as duplicate cards.
 // Reference catalog, in-game membership, acquisition and manual registration stay independent.
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
-  spriteOrFallback, silhouette, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
+  spriteOrFallback, silhouette, stillArt, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
 import { downloadJson } from '../components.js';
 import { linkedNotes, openRoute } from '../links.js';
@@ -367,7 +367,8 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   const unseen = tracking && p.status === 'unregistered';
   const regClass = tracking ? ' reg-' + p.status : '';
   const absent = s.dex === 'no';
-  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, spriteOrFallback(s.icon, s, density === 'large' ? 96 : density === 'compact' ? 56 : 72));
+  const area = density === 'large' ? 96 : density === 'compact' ? 56 : 72;
+  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, s.still ? stillArt(s.still, s, area) : spriteOrFallback(s.icon, s, area));
   const marks = tracking ? h('span', { class: 'marks' }, p.caught_alpha ? h('span', { title: 'Caught Alpha (your entry)' }, 'α') : null,
     p.owned_shiny ? h('span', { title: 'Owned Shiny (your entry)' }, '✦') : null, p.owned_costume ? h('span', { title: 'Owned Costume (your entry)' }, '♛') : null) : null;
   const unverified = (s.tags || []).includes('unverified');
@@ -490,23 +491,45 @@ export function pickArt(a, { shiny = false, isForm = false } = {}) {
   if (pickS('icon')) return { ...base, kind: 'icon', url: pickS('icon'), label: isForm ? `Your PokeMMO client · box icon${a.local_status === 'unverified' ? ' (not re-verified)' : ''}` : 'Your PokeMMO client · box icon' };
   return { ...base, kind: 'none', url: null, label: isForm ? 'No verified artwork for this form' : 'No artwork installed', detail: a.local_reason };
 }
-/** Pixel art at the largest whole-number scale that fits `box` (sharp, never blurred). A reduced-motion still of an
- *  animation is drawn as its first frame on a canvas. */
-export function artImage(art, sp, { box = 200 } = {}) {
+/** Sprite artwork at ONE fixed scale per view, so relative sizes stay true to the source art
+ *  (Charmander 41 px < Charmeleon 66 px < Charizard 89 px in the Gen V animations; still battle sprites share a
+ *  96 px canvas). Big views use 2×, small popouts 1×. Only art that would not fit is shrunk (to fit, never
+ *  stretched, aspect kept); nothing is enlarged to fill the frame. Refits when the window is resized. */
+const artObserver = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => {
+  for (const e of entries) { const f = e.target.__fitArt; if (f) f(); }
+}) : null;
+export function artScale(w, ht, availW, availH) {
+  const pref = Math.min(availW, availH) >= 180 ? 2 : 1;
+  return Math.min(pref, availW / w, availH / ht);
+}
+export function artImage(art, sp) {
   if (!art.url) return h('div', { class: 'art-missing', title: art.detail || art.label, role: 'img', 'aria-label': art.label },
-    silhouette(sp, Math.min(box, 120)), h('span', { class: 'tiny' }, art.isForm ? 'No form artwork' : ''));
+    silhouette(sp, 72), h('span', { class: 'tiny' }, art.isForm ? 'No form artwork' : ''));
   const img = h('img', { class: 'pixel art-img', src: art.url, alt: sp.name, decoding: 'async', style: { visibility: 'hidden' } });
+  let el = img;
   const fit = () => {
-    const w = img.naturalWidth || 96, ht = img.naturalHeight || 96;
-    const k = Math.max(1, Math.floor(box / Math.max(w, ht)));
-    img.style.width = w * k + 'px'; img.style.height = ht * k + 'px'; img.style.visibility = '';
-    if (art.kind === 'ani-still') {
-      const c = h('canvas', { class: 'pixel art-img', width: w, height: ht, role: 'img', 'aria-label': sp.name, style: { width: w * k + 'px', height: ht * k + 'px' } });
-      try { c.getContext('2d').drawImage(img, 0, 0); img.replaceWith(c); } catch (_) { /* keep the image */ }
-    }
+    const box = el.parentElement;
+    if (!box || !img.naturalWidth) return;
+    const cs = getComputedStyle(box);
+    const availW = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const availH = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const w = img.naturalWidth, ht = img.naturalHeight;
+    const k = artScale(w, ht, availW, availH);
+    el.style.width = Math.round(w * k) + 'px'; el.style.height = Math.round(ht * k) + 'px';
+    el.dataset.scale = k.toFixed(3);
+    el.classList.toggle('smooth', k < 1);   // shrinking pixel art with nearest-neighbour drops pixels
+    el.style.visibility = '';
   };
-  img.addEventListener('load', fit);
-  img.addEventListener('error', () => img.replaceWith(h('div', { class: 'art-missing', role: 'img', 'aria-label': 'Artwork file missing' }, silhouette(sp, Math.min(box, 120)))));
+  img.addEventListener('load', () => {
+    if (art.kind === 'ani-still') {
+      const c = h('canvas', { class: 'pixel art-img', width: img.naturalWidth, height: img.naturalHeight, role: 'img', 'aria-label': sp.name });
+      try { c.getContext('2d').drawImage(img, 0, 0); img.replaceWith(c); el = c; } catch (_) { /* keep the image */ }
+    }
+    fit();
+    const box = el.parentElement;
+    if (box && artObserver) { box.__fitArt = fit; artObserver.observe(box); }
+  });
+  img.addEventListener('error', () => img.replaceWith(h('div', { class: 'art-missing', role: 'img', 'aria-label': 'Artwork file missing' }, silhouette(sp, 72))));
   return img;
 }
 
@@ -527,7 +550,7 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
   const avClass = av.permanent ? 'good' : av.permanent === false ? 'warn' : 'unknown';
   const head = h('div', { class: 'detail-head' },
     h('div', { class: 'art-col' },
-      h('div', { class: 'art' + (art.kind === 'ani' ? ' animated' : '') }, artImage(art, d, { box: popout && mode !== 'expanded' ? 96 : 200 }),
+      h('div', { class: 'art' + (art.kind === 'ani' ? ' animated' : '') }, artImage(art, d),
         art.shinyAvail ? h('button', { class: 'shiny-toggle' + (ui.shiny ? ' on' : ''), title: ui.shiny ? 'Show normal colours' : 'Show shiny colours (artwork only — not ownership)',
           'aria-label': 'Shiny colours', 'aria-pressed': String(ui.shiny), onclick: () => { ui.shiny = !ui.shiny; renderDetail(pane, id, { back, popout, mode, form }); } }, '✦') : null,
         art.hasAni ? h('button', { class: 'motion-toggle' + (art.motion ? ' on' : ''), title: art.motion ? 'Show still artwork' : 'Play animation',
@@ -635,13 +658,14 @@ function summary(d) {
       `(${d.obtainable_flag}) is not used for availability.`, d.types_raw_duplicated ? ' The dump lists this single type twice; it is shown once.' : ''));
 }
 
+// Bars are drawn against 255 (the highest possible base stat) and 720 for the total, so proportions are exact.
+const STAT_MAX = 255, BST_MAX = 720;
 function statsSection(d, compact) {
-  const max = 180;
-  return h('div', { class: 'stack tight' }, h('div', { class: 'cells stats-big' + (compact ? ' compact' : '') }, STAT_ORDER.map(([k, label]) => h('div', { class: 'stat-row' },
-    h('span', { class: 'lbl' }, label), h('span', { class: 'val' }, d.stats[k] ?? '—'),
-    h('div', { class: 'bar' }, h('span', { style: { width: Math.min(100, (d.stats[k] || 0) / max * 100) + '%', '--bc': `var(--stat-${k})` } })))),
-  h('div', { class: 'stat-row' }, h('span', { class: 'lbl' }, 'Total'), h('span', { class: 'val' }, d.bst),
-    h('div', { class: 'bar' }, h('span', { style: { width: Math.min(100, d.bst / 720 * 100) + '%', '--bc': 'var(--text-primary)' } })))),
+  const bar = (v, max) => h('div', { class: 'bar', role: 'presentation' }, h('span', { style: { width: Math.min(100, (v || 0) / max * 100).toFixed(1) + '%' } }));
+  return h('div', { class: 'stack tight' }, h('div', { class: 'cells stats-big' + (compact ? ' compact' : '') }, STAT_ORDER.map(([k, label]) =>
+    h('div', { class: 'stat-row', dataset: { stat: k }, style: { '--stat-c': `var(--stat-${k})` }, 'aria-label': `${label} ${d.stats[k] ?? 'unknown'}` },
+      h('span', { class: 'lbl' }, label), h('span', { class: 'val' }, d.stats[k] ?? '—'), bar(d.stats[k], STAT_MAX))),
+  h('div', { class: 'stat-row total', 'aria-label': `Total ${d.bst}` }, h('span', { class: 'lbl' }, 'Total'), h('span', { class: 'val' }, d.bst), bar(d.bst, BST_MAX))),
   compact ? h('div', { class: 'small' }, 'Abilities: ', d.abilities.map((a) => a.name + (a.slot === 'hidden' ? ' (HA)' : '')).join(', ')) : null);
 }
 

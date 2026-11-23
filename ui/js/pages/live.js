@@ -1,6 +1,6 @@
 // Live workspace (docs/design/10–13): Reports, Legendaries, Altering Cave.
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, relTime, fmtDate, cap, tabs, seg, toast, confirmDialog, modal,
-  on, extLink, debounce, typeChips, spriteOrFallback } from '../core.js';
+  on, extLink, debounce, typeChips, spriteOrFallback, stillArt } from '../core.js';
 import { go, popoutButton } from '../shell.js';
 
 let unsub = [];
@@ -103,13 +103,33 @@ async function renderReports(el, selectedId, src) {
  *  Box icons are 36 px art and battle sprites 96 px; CSS shows them at whole-number scales so pixels stay sharp. */
 export function reportSprite(r, { battle = false } = {}) {
   const kind = r.is_test ? 'test' : r.kind;
+  const wrap = (child, cls = '') => h('div', { class: 'rep-sprite' + (battle ? ' battle' : '') + cls }, child);
+  // Detail view: one animated Gen V sprite (your sprite library) unless motion is off; rows: still images only.
+  if (battle && r.species_ani && motionAllowed()) {
+    const img = h('img', { class: 'pixel rep-ani', src: r.species_ani, alt: r.species_name || '', decoding: 'async' });
+    img.addEventListener('load', () => { const k = Math.min(2, 180 / Math.max(img.naturalWidth, img.naturalHeight));
+      img.style.width = Math.round(img.naturalWidth * k) + 'px'; img.style.height = Math.round(img.naturalHeight * k) + 'px'; });
+    img.addEventListener('error', () => img.replaceWith(spriteFallback(r, kind)));
+    return wrap(img, ' library');
+  }
+  if (r.species_still) {
+    const holder = wrap(null, ' library');
+    // the box size comes from CSS (it changes with the window), so fit the still once it is in the page
+    requestAnimationFrame(() => { const size = holder.clientWidth || 72; holder.append(stillArt(r.species_still, { name: r.species_name || '' }, size, { cap: battle ? 2 : 1.5 })); });
+    return holder;
+  }
   const url = battle ? (r.species_front || r.species_icon) : r.species_icon;
   if (url) {
     const img = h('img', { class: 'pixel', src: url, alt: r.species_name || '', decoding: 'async', title: r.species_name || null });
     img.addEventListener('error', () => img.replaceWith(spriteFallback(r, kind)));
-    return h('div', { class: 'rep-sprite' + (battle && r.species_front ? ' battle' : '') }, img);
+    return wrap(img);
   }
-  return h('div', { class: 'rep-sprite' + (battle ? ' battle' : '') }, spriteFallback(r, kind));
+  return wrap(spriteFallback(r, kind));
+}
+function motionAllowed() {
+  const pref = setting('pokedex.animate');
+  if (pref === true || pref === false) return pref;
+  return !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) && !document.documentElement.classList.contains('reduced-motion');
 }
 function spriteFallback(r, kind) {
   const why = r.species_match === 'ambiguous' ? 'This report mentions more than one Pokémon — no sprite shown'
@@ -123,7 +143,7 @@ export function reportRow(r, selected, compact) {
     onkeydown: (e) => { if (e.key === 'Enter') go('#/live/reports/' + r.id); } },
   reportSprite(r),
   h('div', { style: { minWidth: 0 } }, h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST · not real' : kind),
-    r.species_name && r.species_icon ? h('span', { class: 'small rep-species' }, r.species_name) : null,
+    r.species_name && (r.species_icon || r.species_still) ? h('span', { class: 'small rep-species' }, r.species_name) : null,
     r.kind_basis === 'text-keyword' ? h('span', { class: 'tiny muted' }, '(detected from text)') : null, r.is_replay ? h('span', { class: 'tiny muted' }, '· replayed history') : null),
   h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, r.title || r.body), compact ? null : h('div', { class: 'small muted ellipsis' }, r.body)),
   h('div', { class: 'small muted nowrap' }, 'Reported ', relTime(r.source_time || r.received_at)));

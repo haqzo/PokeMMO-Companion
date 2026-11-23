@@ -269,3 +269,51 @@ def test_listed_checks_persist_filter_and_stay_personal(tmp_path):
     srv2.stop()
     ctx2.shutdown()
     assert (BUNDLED_DATA_DIR / "pokemmo_availability.json").read_bytes() == registry_before  # never a universal claim
+
+
+# ---------------------------------------------------------------- stills: visible bounds (2026-11-23 polish)
+def test_png_alpha_bbox_reads_rgba_palette_and_opaque():
+    from companion.services.sprite_library import png_alpha_bbox
+    assert png_alpha_bbox(make_png(96, 96, box=(30, 29, 68, 71))) == [30, 29, 68, 71]
+    assert png_alpha_bbox(make_png(96, 96, box=(9, 8, 83, 88), palette=True)) == [9, 8, 83, 88]
+    assert png_alpha_bbox(make_png(12, 10)) == [0, 0, 12, 10]
+    assert png_alpha_bbox(b"not a png") is None
+
+
+def test_stills_carry_bounds_and_old_libraries_are_backfilled(tmp_path, ctx):
+    bw = tmp_path / "s/sprites/pokemon/versions/generation-v/black-white"
+    bw.mkdir(parents=True)
+    (bw / "4.png").write_bytes(make_png(96, 96, box=(30, 29, 68, 71), palette=True))
+    (bw / "6.png").write_bytes(make_png(96, 96, box=(9, 8, 83, 88)))
+    lib = ctx.sprite_library
+    lib.import_from(tmp_path / "s")
+    st = lib.still("4")
+    assert st["bbox"] == [30, 29, 68, 71] and st["w"] == 96 and st["url"].startswith("/assets/library/static/4.png?v=")
+    # a library installed by the previous build has no bounds: they are added once, atomically
+    idx = json.loads((lib.root / "index.json").read_text())
+    for e in idx["entries"].values():
+        e["static"].pop("bbox")
+    (lib.root / "index.json").write_text(json.dumps(idx))
+    lib.reload()
+    assert lib.still("6")["bbox"] is None
+    assert lib.backfill_bounds() == 2 and lib.backfill_bounds() == 0
+    lib.reload()
+    assert lib.still("6")["bbox"] == [9, 8, 83, 88]
+    by = {s["id"]: s for s in ctx.dex.summaries(set(), {})}
+    assert by[6]["still"]["bbox"] == [9, 8, 83, 88] and by[1]["still"] is None
+
+
+def test_report_library_art_only_when_unambiguous(ctx, tmp_path):
+    bw = tmp_path / "s/sprites/pokemon/versions/generation-v/black-white"
+    (bw / "animated").mkdir(parents=True)
+    (bw / "130.png").write_bytes(make_png(96, 96, box=(10, 10, 90, 90)))
+    (bw / "animated/130.gif").write_bytes(make_gif(90, 80))
+    (bw / "585.png").write_bytes(make_png(96, 96, box=(30, 30, 60, 70)))
+    ctx.sprite_library.import_from(tmp_path / "s")
+    def ing(mid, title, body):
+        return ctx.live.ingest({"id": mid, "event": "message", "time": 1_700_000_000, "topic": "alpha", "title": title, "message": body}, replay=True)
+    a = ing("a", "Gyarados", "Kanto, Route 12")
+    c = ing("c", "Swarm", "Unova, Route 6 — Deerling and Emolga reported")
+    assert a["species_still"]["bbox"] == [10, 10, 90, 90] and a["species_ani"].startswith("/assets/library/ani/130.gif")
+    assert c["species_still"] is None and c["species_ani"] is None
+    assert "still" in ctx.live.legendaries(None)["current"]["kanto"]

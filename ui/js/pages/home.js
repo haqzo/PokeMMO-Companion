@@ -1,5 +1,5 @@
 // Home + in-app official news / changelog / event reader (docs/design/03).
-import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, seg, pad3 } from '../core.js';
+import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, stillArt, seg, pad3 } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { loadList } from './pokedex.js';
@@ -98,7 +98,7 @@ async function renderHome(el) {
   grid.append(h('section', { class: 'card area-favs' }, h('div', { class: 'card-head' }, h('h2', null, 'Favourite Pokémon'),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/pokedex') }, 'Pokédex', icon('chev')))),
   favs.length ? h('div', { class: 'fav-strip' }, favs.map((s) => h('button', { class: 'fav-tile', title: `${s.name} — ${s.avail}`, onclick: () => go('#/pokedex/' + s.id) },
-    spriteOrFallback(s.icon, s, 48), h('span', { class: 'tiny' }, s.name)))) :
+    s.still ? stillArt(s.still, s, 48) : spriteOrFallback(s.icon, s, 48), h('span', { class: 'tiny' }, s.name)))) :
     h('div', { class: 'small muted' }, 'Star Pokémon in the Pokédex to keep them here.')));
 
   unsub.push(on('live.report', () => { if (location.hash.startsWith('#/home')) renderHome(el); }));
@@ -168,14 +168,14 @@ function liveCard(rep, leg) {
     reportSprite(r),
     h('div', { class: 'live-row-text' },
       h('div', { class: 'row' }, h('span', { class: `kind-label kind-${r.kind}` }, r.kind),
-        r.species_icon && r.species_name ? h('span', { class: 'small rep-species' }, r.species_name) : null,
+        (r.species_icon || r.species_still) && r.species_name ? h('span', { class: 'small rep-species' }, r.species_name) : null,
         h('span', { class: 'grow' }), h('span', { class: 'when' }, relTime(r.source_time || r.received_at))),
       h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, r.title || r.body),
       r.region ? h('div', { class: 'small muted ellipsis' }, cap(r.region) + (r.location ? ', ' + r.location : '')) : null))) :
     h('div', { class: 'small muted', style: { padding: '2px' } }, src.enabled ? 'No reports received yet — this does not mean none are active.' : 'Nothing is claimed about current Alphas or Swarms while the feed is off.')),
   h('div', { class: 'live-mini' },
     h('button', { class: 'mini-tile', onclick: () => go('#/live/legendaries') }, h('div', { class: 'row' },
-      spriteOrFallback(cur.kanto.icon, cur.kanto, 72), spriteOrFallback(cur.johto.icon, cur.johto, 72)),
+      ...[cur.kanto, cur.johto].map((m) => (m.still ? stillArt(m.still, m, 72) : spriteOrFallback(m.icon, m, 72)))),
     h('div', { class: 'small' }, `${cur.kanto.name} · ${cur.johto.name}`), h('div', { class: 'tiny muted' }, 'Roamers this month (community cycle)')),
     h('button', { class: 'mini-tile', onclick: () => go('#/live/cave') }, icon('crystal'), h('div', { class: 'small' }, 'Altering Cave: unknown'),
       h('div', { class: 'tiny muted' }, 'No verified live source'))));

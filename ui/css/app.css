@@ -167,8 +167,29 @@ input[type=checkbox].check { width: 18px; height: 18px; accent-color: var(--good
 .chip.btnlike { cursor: pointer; }
 .chip.btnlike.active { background: var(--bg-selected); border-color: var(--border-strong); color: var(--text-primary); }
 .type-chip { display: inline-block; min-width: 64px; text-align: center; padding: 1px 8px; border-radius: var(--radius-sm);
-  font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #fff;
-  text-shadow: 0 1px 1px rgba(0,0,0,.45); background: var(--tc, #555); border: 1px solid rgba(255,255,255,.14); }
+  font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--type-ink, #fff);
+  background: var(--tc, #555); border: 1px solid rgba(0,0,0,.25); box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
+/* Type colours (tokens.css). Label colour picked per type for ≥4.5:1 contrast: dark ink on the 12 lighter
+   colours (Electric, Ice, Ground, Steel …), white on Fighting, Poison, Ghost, Dragon and Dark. */
+.t-normal { --tc: var(--type-normal); }
+.t-fire { --tc: var(--type-fire); }
+.t-water { --tc: var(--type-water); }
+.t-electric { --tc: var(--type-electric); }
+.t-grass { --tc: var(--type-grass); }
+.t-ice { --tc: var(--type-ice); }
+.t-fighting { --tc: var(--type-fighting); }
+.t-poison { --tc: var(--type-poison); }
+.t-ground { --tc: var(--type-ground); }
+.t-flying { --tc: var(--type-flying); }
+.t-psychic { --tc: var(--type-psychic); }
+.t-bug { --tc: var(--type-bug); }
+.t-rock { --tc: var(--type-rock); }
+.t-ghost { --tc: var(--type-ghost); }
+.t-dragon { --tc: var(--type-dragon); }
+.t-dark { --tc: var(--type-dark); }
+.t-steel { --tc: var(--type-steel); }
+.type-chip.t-bug, .type-chip.t-electric, .type-chip.t-fire, .type-chip.t-flying, .type-chip.t-grass, .type-chip.t-ground, .type-chip.t-ice, .type-chip.t-normal, .type-chip.t-psychic, .type-chip.t-rock, .type-chip.t-steel, .type-chip.t-water { --type-ink: #15171f; }
+.type-chip.t-fighting, .type-chip.t-poison, .type-chip.t-ghost, .type-chip.t-dragon, .type-chip.t-dark { --type-ink: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.35); }
 .type-chip.sm { min-width: 0; padding: 0 6px; font-size: .66rem; }
 .badge { display: inline-flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 600; padding: 1px 8px;
   border-radius: var(--radius-pill); border: 1px solid currentColor; white-space: nowrap; line-height: 1.6; }
@@ -208,7 +229,14 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0 3px; }
 .stat-row .val { background: var(--bg-card); border-radius: var(--radius-sm); padding: 4px 0; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 .bar { height: 8px; background: var(--bg-inset); border-radius: 4px; overflow: hidden; margin: 0 6px; }
 .bar > span { display: block; height: 100%; border-radius: 4px; background: var(--bc, var(--accent)); }
-.stat-accent .bar > span { background: var(--accent) !important; }
+.stat-row { --bc: var(--stat-c, var(--stat-single)); }
+.stat-accent .stat-row:not(.total) { --bc: var(--stat-single); }
+.stat-row .lbl { box-shadow: inset 3px 0 0 var(--bc); color: color-mix(in srgb, var(--bc) 35%, var(--text-secondary)); }
+.stat-row .bar > span { background: linear-gradient(180deg, color-mix(in srgb, var(--bc) 82%, #fff), var(--bc)); }
+.stat-row.total { --bc: var(--stat-total); margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border-subtle); }
+.stat-row.total .lbl { box-shadow: none; color: var(--text-secondary); font-weight: 600; }
+.stat-row.total .val { font-weight: 700; color: var(--text-primary); }
+.stat-row.total .bar > span { background: var(--stat-total); opacity: .75; }
 .progress { height: 6px; background: var(--bg-inset); border-radius: 3px; overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--good); border-radius: 3px; transition: width var(--motion); }
 
@@ -722,13 +750,13 @@ kbd.kb.none { color: var(--text-muted); border-style: dashed; }
   border-radius: var(--radius-lg); box-shadow: 0 18px 60px rgba(0,0,0,.55); outline: none; overscroll-behavior: contain; }
 .dex-summary .detail-head { position: sticky; top: 0; z-index: 2; background: var(--bg-window); border-bottom: 1px solid var(--border-subtle);
   padding: 16px 22px 12px; gap: 18px; }
-.dex-summary .detail-head .art { width: 212px; height: 212px; }
+.dex-summary .detail-head .art { width: 240px; height: 212px; }
 .dex-summary .detail-head h2 { font-size: 1.6rem; }
 .dex-summary .form-strip { padding: 10px 22px 0; }
 .dex-summary .form-strip .chip { padding: 5px 12px; font-size: .9rem; }
 .dex-summary .detail-body { padding: 14px 22px 24px; font-size: 1rem; }
 .dex-summary .facts { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-@media (max-width: 720px) { .dex-summary .detail-head .art { width: 120px; height: 120px; } .dex-summary .detail-head .art .art-img { max-width: 112px; max-height: 112px; object-fit: contain; } .dex-summary .detail-head { padding: 12px 14px; } .dex-summary .detail-body { padding: 12px 14px 18px; } }
+@media (max-width: 720px) { .dex-summary .detail-head .art { width: 120px; height: 112px; } .dex-summary .detail-head { padding: 12px 14px; } .dex-summary .detail-body { padding: 12px 14px 18px; } }
 @keyframes dexsum-in { from { opacity: 0; } }
 .reduced-motion .dex-summary-back { animation: none; }
 
@@ -736,7 +764,8 @@ kbd.kb.none { color: var(--text-muted); border-style: dashed; }
    shown only at whole-number scales (1×/2×) with nearest-neighbour scaling so they stay sharp. */
 .rep-sprite { --rs: 72px; width: var(--rs); height: var(--rs); flex: none; display: grid; place-items: center;
   border-radius: var(--radius); background: var(--bg-inset); overflow: hidden; }
-.rep-sprite img { width: var(--rs); height: var(--rs); image-rendering: pixelated; object-fit: contain; }
+.rep-sprite > img { width: var(--rs); height: var(--rs); image-rendering: pixelated; object-fit: contain; }
+.rep-sprite > img.rep-ani { width: auto; height: auto; }
 .rep-sprite.battle { --rs: 192px; }
 .rep-fallback { display: grid; place-items: center; width: 100%; height: 100%; color: var(--text-muted); }
 .rep-fallback svg { width: 40%; height: 40%; }
@@ -756,12 +785,23 @@ kbd.kb.none { color: var(--text-muted); border-style: dashed; }
 @media (max-width: 480px) { .rep-sprite { --rs: 36px; } .rep-sprite.battle { --rs: 96px; } }
 
 /* ---- Summary artwork (2026-11-23): whole-number pixel scaling is set in JS; boxes only size the frame. */
-.detail-head .art .art-img { width: auto; height: auto; image-rendering: pixelated; }
+.detail-head .art .art-img { width: auto; height: auto; image-rendering: pixelated; flex: none; }
+.detail-head .art .art-img.smooth { image-rendering: auto; }
+/* Artwork frames: the frame size decides the scale (≥180 px → 2×, smaller → 1×), see artImage(). */
+.popout-root .detail-head .art { width: 112px; height: 104px; }
+.popout-root.mode-standard .detail-head .art { width: 136px; height: 120px; }
+.popout-root.mode-expanded .detail-head .art { width: 220px; height: 196px; }
+.popout-root .art-col { max-width: 230px; }
 .detail-head .art { overflow: hidden; }
-.art-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; max-width: 230px; }
-.art-src { text-align: center; line-height: 1.25; max-width: 212px; }
+.art-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; max-width: 250px; }
+.art-src { text-align: center; line-height: 1.25; max-width: 240px; }
 .art-missing { display: grid; place-items: center; gap: 4px; color: var(--text-muted); }
 .motion-toggle { position: absolute; left: 4px; bottom: 4px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border-strong);
   background: var(--bg-card); color: var(--text-muted); cursor: pointer; font-size: .62rem; line-height: 1; }
 .motion-toggle.on { color: var(--text-primary); }
 .sprite-cov td, .sprite-cov th { padding: 3px 8px; }
+
+/* Gen V stills from your sprite library in grid tiles and report rows (trimmed + fitted in JS: stillArt()). */
+.still-art { position: relative; overflow: hidden; flex: none; }
+.still-art img { position: absolute; max-width: none; image-rendering: pixelated; }
+.still-art.smooth img { image-rendering: auto; }

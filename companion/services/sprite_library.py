@@ -24,6 +24,7 @@ import shutil
 import struct
 import threading
 import zipfile
+import zlib
 from pathlib import Path
 
 from ..config import BUNDLED_DATA_DIR, Paths
@@ -88,6 +89,82 @@ def _gif_frames(d: bytes) -> int | None:
         return None
 
 
+def png_alpha_bbox(data: bytes) -> list[int] | None:
+    """[x0, y0, x1, y1] of the non-transparent pixels of a PNG (stdlib only), or None if it can't be read.
+    Used to trim the empty margin of 96×96 battle stills for the Pokédex grid."""
+    try:
+        if data[:8] != b"\x89PNG\r\n\x1a\n":
+            return None
+        i, idat, trns = 8, [], None
+        w = h = depth = ctype = interlace = None
+        while i < len(data):
+            n = struct.unpack(">I", data[i:i + 4])[0]
+            t = data[i + 4:i + 8]
+            body = data[i + 8:i + 8 + n]
+            if t == b"IHDR":
+                w, h, depth, ctype, _, _, interlace = struct.unpack(">IIBBBBB", body)
+            elif t == b"tRNS":
+                trns = body
+            elif t == b"IDAT":
+                idat.append(body)
+            elif t == b"IEND":
+                break
+            i += 12 + n
+        if not w or interlace or depth not in (1, 2, 4, 8) or ctype not in (0, 2, 3, 4, 6) or w > 512 or h > 512:
+            return None
+        chans = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[ctype]
+        bpp = max(1, chans * depth // 8)
+        stride = (w * chans * depth + 7) // 8
+        raw = zlib.decompress(b"".join(idat))
+        prev = bytearray(stride)
+        x0, y0, x1, y1 = w, h, -1, -1
+        pos = 0
+        for y in range(h):
+            f = raw[pos]
+            line = bytearray(raw[pos + 1:pos + 1 + stride])
+            pos += 1 + stride
+            if f == 1:
+                for k in range(bpp, stride):
+                    line[k] = (line[k] + line[k - bpp]) & 255
+            elif f == 2:
+                for k in range(stride):
+                    line[k] = (line[k] + prev[k]) & 255
+            elif f == 3:
+                for k in range(stride):
+                    line[k] = (line[k] + ((line[k - bpp] if k >= bpp else 0) + prev[k]) // 2) & 255
+            elif f == 4:
+                for k in range(stride):
+                    a = line[k - bpp] if k >= bpp else 0
+                    b = prev[k]
+                    c = prev[k - bpp] if k >= bpp else 0
+                    pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+                    line[k] = (line[k] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+            prev = line
+            if ctype == 6:
+                vis = [x for x in range(w) if line[x * 4 + 3]]
+            elif ctype == 4:
+                vis = [x for x in range(w) if line[x * 2 + 1]]
+            elif ctype == 3:
+                if not trns:
+                    vis = [0, w - 1]
+                else:
+                    per = 8 // depth
+                    vis = []
+                    for x in range(w):
+                        v = (line[x // per] >> (8 - depth * (x % per + 1))) & ((1 << depth) - 1) if depth < 8 else line[x]
+                        if v >= len(trns) or trns[v]:
+                            vis.append(x)
+            else:
+                vis = [0, w - 1]  # no alpha channel: treat as opaque
+            if vis:
+                x0, x1 = min(x0, vis[0]), max(x1, vis[-1])
+                y0 = min(y0, y)
+                y1 = y
+        return [x0, y0, x1 + 1, y1 + 1] if x1 >= 0 else None
+    except (struct.error, zlib.error, IndexError, ValueError):
+        return None
+
+
 class SpriteLibrary:
     def __init__(self, paths: Paths, bus=None):
         self.paths = paths
@@ -109,6 +186,37 @@ class SpriteLibrary:
     @property
     def installed(self) -> bool:
         return bool(self.index and self.index.get("entries"))
+
+    def backfill_bounds(self) -> int:
+        """Libraries installed before 2026-11-23 have no visible bounds for their stills: add them once (atomic rewrite)."""
+        idx = self.index
+        if not idx:
+            return 0
+        n = 0
+        for key, e in idx.get("entries", {}).items():
+            for kind in ("static", "static_shiny"):
+                x = e.get(kind)
+                if x and "bbox" not in x:
+                    try:
+                        x["bbox"] = png_alpha_bbox((self.root / kind.replace("_", "-") / x["file"]).read_bytes())
+                    except OSError:
+                        x["bbox"] = None
+                    n += 1
+        if n:
+            tmp = self.root / "index.json.tmp"
+            tmp.write_text(json.dumps(idx), encoding="utf-8")
+            tmp.replace(self.root / "index.json")
+        return n
+
+    def still(self, key: str, shiny: bool = False) -> dict | None:
+        """Gen V still (96×96 canvas) with its visible bounds, for grid tiles and report rows."""
+        e = (self.index or {}).get("entries", {}).get(key) or {}
+        kind = "static_shiny" if shiny else "static"
+        x = e.get(kind)
+        if not x:
+            return None
+        return {"url": f"/assets/library/{kind.replace('_', '-')}/{x['file']}?v={self.index.get('version', '')}",
+                "w": x["w"], "h": x["h"], "bbox": x.get("bbox")}
 
     def urls(self, key: str) -> dict:
         """key = '479' or '479-wash'. URLs for whichever kinds exist (versioned for caching)."""
@@ -249,6 +357,8 @@ class SpriteLibrary:
             hashes[(key, kind)] = digest
             entries.setdefault(key, {})[kind] = {"file": name, "from": rel[-200:], "layout": layout, "frames": info["frames"],
                                                  "w": info["w"], "h": info["h"], "sha1": digest[:12]}
+            if ext == "png":
+                entries[key][kind]["bbox"] = png_alpha_bbox(data)
             self.job["accepted"] = len(hashes)
         # A form file identical to its base species file is base artwork, not the form.
         for key in [k for k in entries if "-" in k]:

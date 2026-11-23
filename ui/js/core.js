@@ -30,7 +30,7 @@ export function h(tag, props, ...children) {
     for (const [k, v] of Object.entries(props)) {
       if (v === undefined || v === null || v === false) continue;
       if (k === 'class') el.className = Array.isArray(v) ? v.filter(Boolean).join(' ') : v;
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'style' && typeof v === 'object') setStyle(el, v);
       else if (k === 'dataset') Object.assign(el.dataset, v);
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
       else if (k === 'value') el.value = v;
@@ -40,6 +40,16 @@ export function h(tag, props, ...children) {
     }
   }
   append(el, children);
+  return el;
+}
+/** Inline styles from an object. CSS custom properties ('--tc') must go through setProperty():
+ *  Object.assign(el.style, {'--tc': …}) only sets a plain JS property and the variable never reaches CSS. */
+export function setStyle(el, styles) {
+  for (const [k, v] of Object.entries(styles)) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k.startsWith('--')) el.style.setProperty(k, String(v));
+    else el.style[k] = v;
+  }
   return el;
 }
 function append(el, children) {
@@ -231,8 +241,12 @@ export function fmtDate(iso, withTime = false) {
 }
 export const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 export const pad3 = (n) => String(n).padStart(3, '0');
+// PokeMMO's battle chart uses these 17 types (no Fairy).
+export const TYPE_LIST = ['normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel'];
+/** Type badge. Colour + readable label colour come from the .t-<type> class (tokens.css palette), not inline styles. */
 export function typeChip(t, small) {
-  return h('span', { class: 'type-chip' + (small ? ' sm' : ''), style: { '--tc': `var(--type-${t})` } }, t);
+  const k = String(t || '').toLowerCase();
+  return h('span', { class: `type-chip t-${TYPE_LIST.includes(k) ? k : 'unknown'}` + (small ? ' sm' : ''), dataset: { type: k } }, k);
 }
 export function typeChips(types, small) { return h('span', { class: 'row', style: { gap: '3px' } }, types.map((t) => typeChip(t, small))); }
 const BADGE = { VERIFIED: 'verified', CORROBORATED: 'corroborated', DUMP_ONLY: 'dump', ESTIMATE: 'estimate', UNKNOWN: 'unknown', TEST: 'test',
@@ -254,9 +268,23 @@ export function spriteOrFallback(url, sp, size = 72, eager = false) {
   }
   return silhouette(sp, size);
 }
+/** A Gen V still (96×96 canvas) trimmed to its visible bounds and fitted into a `size` square. Small Pokémon are
+ *  enlarged at most `cap`× (so a Charmander stays smaller than a Charizard), big ones are shrunk to fit; never
+ *  stretched. Whole-number scales stay pixel-sharp, in-between scales are smoothed slightly instead of jagged. */
+export function stillArt(still, sp, size = 72, { cap = 1.5, eager = false } = {}) {
+  const [x0, y0, x1, y1] = still.bbox || [0, 0, still.w, still.h];
+  const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+  const k = Math.min(size / Math.max(bw, bh), cap);
+  const sharp = Math.abs(k - Math.round(k)) < 0.01;
+  const img = h('img', { src: still.url, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async',
+    style: { width: (still.w * k).toFixed(1) + 'px', height: (still.h * k).toFixed(1) + 'px', left: ((size - bw * k) / 2 - x0 * k).toFixed(1) + 'px', top: ((size - bh * k) / 2 - y0 * k).toFixed(1) + 'px' } });
+  const box = h('div', { class: 'still-art' + (sharp ? '' : ' smooth'), style: { width: size + 'px', height: size + 'px' }, dataset: { scale: k.toFixed(2) } }, img);
+  img.addEventListener('error', () => box.replaceWith(silhouette(sp, size)));
+  return box;
+}
 export function silhouette(sp, size = 60) {
   const t = (sp.types && sp.types[0]) || 'normal';
-  return h('div', { class: 'silhouette', style: { '--tc': `var(--type-${t})`, width: size * 0.83 + 'px', height: size * 0.83 + 'px' },
+  return h('div', { class: `silhouette t-${t}`, style: { '--tc': `var(--type-${t})`, width: size * 0.83 + 'px', height: size * 0.83 + 'px' },
     title: 'No local sprite — import your PokeMMO data to show sprites' }, '#' + pad3(sp.id));
 }
 export function extLink(url, label) {

@@ -135,7 +135,16 @@ class AppContext:
         self.data_sync = res
         return res
 
+    def _backfill_sprite_bounds(self) -> None:
+        try:
+            if self.sprite_library.backfill_bounds():
+                self.sprite_library.reload()
+                self.bus.publish("sprites", {"state": "bounds"})
+        except Exception:  # cosmetic only: the grid simply shows untrimmed stills
+            log.warning("Could not measure sprite bounds", exc_info=True)
+
     def start_background(self) -> None:
+        threading.Thread(target=self._backfill_sprite_bounds, name="sprite-bounds", daemon=True).start()
         threading.Thread(target=self.sync_local_data, name="data-sync", daemon=True).start()
         self.live.apply_settings()
         self.news.start_auto(self.settings, self.bus)

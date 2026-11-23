@@ -168,6 +168,10 @@ class LiveService:
         ok = r["species_match"] in ("title", "single-mention")
         r["species_icon"] = self.dex.sprite_url(sid) if ok else None
         r["species_front"] = self.dex.sprite_url(sid, "front") if ok else None
+        # Your Gen V sprite library (if installed): a still for rows, one animation for the report detail.
+        r["species_still"] = self.dex.still(sid) if ok else None
+        lib = self.dex.library
+        r["species_ani"] = (lib.urls(str(sid)).get("ani") if ok and lib is not None and lib.installed else None)
         return r
 
     def species_match(self, title: str, body: str, sid: int) -> str:
@@ -352,7 +356,7 @@ class LiveService:
             out = {}
             for region in ("kanto", "johto"):
                 sid = cyc[region][str(m)]
-                out[region] = {"id": sid, "name": self.dex.name(sid), "icon": self.dex.sprite_url(sid),
+                out[region] = {"id": sid, "name": self.dex.name(sid), "icon": self.dex.sprite_url(sid), "still": self.dex.still(sid),
                                "types": self.dex.index[sid]["types"]}
             return out
         caught = {}

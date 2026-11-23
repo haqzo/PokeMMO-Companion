@@ -128,6 +128,7 @@ def test_grid_uses_static_lazy_icons_only(app, page):
     assert all(l == "lazy" for _, l in srcs)
 
 
+@needs_dumps
 def test_favourite_and_registration_still_update_cached_cards(app, page):
     run = app.ctx.guides.create_run("CacheCheck")
     go(page, app, "#/pokedex")
@@ -184,7 +185,7 @@ def test_summary_plays_animated_form_sprite_with_shiny_and_still(app, page, libr
     img = _art(page).locator("img.art-img")
     assert "/assets/library/ani/479-wash.gif" in img.get_attribute("src")
     _until(page, "document.querySelector('.dex-summary .art img.art-img').style.visibility === ''")
-    assert img.evaluate("e => e.getBoundingClientRect().width") == 200  # 40 px art at 5×, whole-number scale
+    assert img.evaluate("e => e.getBoundingClientRect().width") == 80  # 40 px art at the Summary's fixed 2× (not stretched to fill)
     assert "Animated · your sprite library (PokéAPI files)" in page.locator(".dex-summary .art-src").inner_text()
     _art(page).get_by_role("button", name="Shiny colours").click()
     page.wait_for_selector(".dex-summary .art img[src*='ani-shiny/479-wash.gif']")

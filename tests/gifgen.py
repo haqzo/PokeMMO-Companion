@@ -40,8 +40,33 @@ def make_gif(w: int = 40, h: int = 40, frames: int = 3, colour: tuple = (200, 60
     return bytes(out + b"\x3B")
 
 
-def make_png(w: int = 40, h: int = 40, colour: tuple = (60, 120, 200)) -> bytes:
-    raw = b"".join(b"\x00" + bytes(colour) * w for _ in range(h))
-    def chunk(t, d):
-        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+def _chunk(t, d):
+    return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+
+
+def make_png(w: int = 40, h: int = 40, colour: tuple = (60, 120, 200), box: tuple | None = None, palette: bool = False) -> bytes:
+    """Opaque RGB PNG, or (with box=(x0, y0, x1, y1)) a transparent canvas with an opaque rectangle —
+    RGBA by default, 4-bit palette + tRNS with palette=True (like most PokéAPI stills). Rows use mixed filters."""
+    sig = b"\x89PNG\r\n\x1a\n"
+    if box is None:
+        raw = b"".join(b"\x00" + bytes(colour) * w for _ in range(h))
+        return sig + _chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + _chunk(b"IDAT", zlib.compress(raw)) + _chunk(b"IEND", b"")
+    x0, y0, x1, y1 = box
+    inside = lambda x, y: x0 <= x < x1 and y0 <= y < y1  # noqa: E731
+    if palette:
+        rows = []
+        for y in range(h):
+            px = [1 if inside(x, y) else 0 for x in range(w)]
+            px += [0] * (len(px) % 2)
+            rows.append(b"\x00" + bytes((px[i] << 4) | px[i + 1] for i in range(0, len(px), 2)))
+        return (sig + _chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 4, 3, 0, 0, 0)) + _chunk(b"PLTE", bytes([0, 0, 0, *colour]))
+                + _chunk(b"tRNS", b"\x00\xff") + _chunk(b"IDAT", zlib.compress(b"".join(rows))) + _chunk(b"IEND", b""))
+    rows, prev = [], bytes(w * 4)
+    for y in range(h):
+        line = b"".join(bytes([*colour, 255]) if inside(x, y) else b"\x00\x00\x00\x00" for x in range(w))
+        if y % 2:  # "Up" filter on odd rows
+            rows.append(b"\x02" + bytes((line[i] - prev[i]) & 255 for i in range(len(line))))
+        else:
+            rows.append(b"\x00" + line)
+        prev = line
+    return sig + _chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + _chunk(b"IDAT", zlib.compress(b"".join(rows))) + _chunk(b"IEND", b"")
