@@ -224,6 +224,17 @@ class SpriteLibrary:
         v = (self.index or {}).get("version", "")
         return {k: f"/assets/library/{k.replace('_', '-')}/{e[k]['file']}?v={v}" for k in KINDS if k in e}
 
+    def bounds(self, key: str) -> dict:
+        """Visible bounds per kind. Stills: measured; Gen V animations are cropped to the Pokémon, so their
+        canvas is the visible area (checked over every frame of the PokéAPI set on 2026-11-23)."""
+        e = (self.index or {}).get("entries", {}).get(key) or {}
+        out = {}
+        for k in KINDS:
+            if k in e:
+                x = e[k]
+                out[k] = x.get("bbox") if x.get("bbox") else [0, 0, x["w"], x["h"]]
+        return out
+
     def provenance(self, key: str) -> dict:
         e = (self.index or {}).get("entries", {}).get(key) or {}
         return {k: {"layout": e[k]["layout"], "path": e[k]["from"], "frames": e[k]["frames"]} for k in KINDS if k in e}

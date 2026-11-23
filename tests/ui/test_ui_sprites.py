@@ -185,7 +185,10 @@ def test_summary_plays_animated_form_sprite_with_shiny_and_still(app, page, libr
     img = _art(page).locator("img.art-img")
     assert "/assets/library/ani/479-wash.gif" in img.get_attribute("src")
     _until(page, "document.querySelector('.dex-summary .art img.art-img').style.visibility === ''")
-    assert img.evaluate("e => e.getBoundingClientRect().width") == 80  # 40 px art at the Summary's fixed 2× (not stretched to fill)
+    w = img.evaluate("e => e.getBoundingClientRect().width")
+    tier = app.ctx.dex.size_tier(479)["tier"]  # forms use the parent's tier
+    fill = {"xs": 0.4, "s": 0.55, "m": 0.74, "l": 0.94}[tier]
+    assert abs(w - 40 * min(max(fill * 210 / 40, 1), 4)) < 1.5  # shared size rule, 40 px synthetic art
     assert "Animated · your sprite library (PokéAPI files)" in page.locator(".dex-summary .art-src").inner_text()
     _art(page).get_by_role("button", name="Shiny colours").click()
     page.wait_for_selector(".dex-summary .art img[src*='ani-shiny/479-wash.gif']")

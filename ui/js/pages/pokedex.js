@@ -3,7 +3,7 @@
 // alternate forms remain selectable INSIDE their species details, not as duplicate cards.
 // Reference catalog, in-game membership, acquisition and manual registration stay independent.
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
-  spriteOrFallback, silhouette, stillArt, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
+  spriteOrFallback, silhouette, sizedSprite, fitSprite, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
 import { downloadJson } from '../components.js';
 import { linkedNotes, openRoute } from '../links.js';
@@ -368,7 +368,7 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   const regClass = tracking ? ' reg-' + p.status : '';
   const absent = s.dex === 'no';
   const area = density === 'large' ? 96 : density === 'compact' ? 56 : 72;
-  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, s.still ? stillArt(s.still, s, area) : spriteOrFallback(s.icon, s, area));
+  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, sizedSprite(s, area, { still: s.still, url: s.icon, tier: s.size || 'm' }));
   const marks = tracking ? h('span', { class: 'marks' }, p.caught_alpha ? h('span', { title: 'Caught Alpha (your entry)' }, 'α') : null,
     p.owned_shiny ? h('span', { title: 'Owned Shiny (your entry)' }, '✦') : null, p.owned_costume ? h('span', { title: 'Owned Costume (your entry)' }, '♛') : null) : null;
   const unverified = (s.tags || []).includes('unverified');
@@ -484,24 +484,22 @@ export function pickArt(a, { shiny = false, isForm = false } = {}) {
   const libLabel = (k) => { const p = lib(k); return p ? ({ pokeapi: 'PokéAPI', smogon: 'Smogon', showdown: 'Showdown' }[p.layout] || p.layout) : ''; };
   const hasAni = !!pickS('ani');
   const base = { shinyAvail, hasAni, motion, isForm };
-  if (motion && hasAni) return { ...base, kind: 'ani', url: pickS('ani'), label: `Animated · your sprite library (${libLabel('ani')} files)`, detail: lib('ani') && lib('ani').path };
-  if (pickS('static')) return { ...base, kind: 'static', url: pickS('static'), label: `Still · your sprite library (${libLabel('static')} files)`, detail: lib('static') && lib('static').path };
-  if (pickS('front')) return { ...base, kind: 'front', url: pickS('front'), label: 'Your PokeMMO client · battle sprite' };
-  if (hasAni) return { ...base, kind: 'ani-still', url: pickS('ani'), label: 'Still frame · your sprite library' };
-  if (pickS('icon')) return { ...base, kind: 'icon', url: pickS('icon'), label: isForm ? `Your PokeMMO client · box icon${a.local_status === 'unverified' ? ' (not re-verified)' : ''}` : 'Your PokeMMO client · box icon' };
+  const key = (n) => (sh ? n + '_shiny' : n);
+  base.bounds = a.bounds || {};
+  base.tier = (a.size && a.size.tier) || 'm';
+  if (motion && hasAni) return { ...base, kind: 'ani', key: key('ani'), url: pickS('ani'), label: `Animated · your sprite library (${libLabel('ani')} files)`, detail: lib('ani') && lib('ani').path };
+  if (pickS('static')) return { ...base, kind: 'static', key: key('static'), url: pickS('static'), label: `Still · your sprite library (${libLabel('static')} files)`, detail: lib('static') && lib('static').path };
+  if (pickS('front')) return { ...base, kind: 'front', key: key('front'), url: pickS('front'), label: 'Your PokeMMO client · battle sprite' };
+  if (hasAni) return { ...base, kind: 'ani-still', key: key('ani'), url: pickS('ani'), label: 'Still frame · your sprite library' };
+  if (pickS('icon')) return { ...base, kind: 'icon', key: key('icon'), url: pickS('icon'), label: isForm ? `Your PokeMMO client · box icon${a.local_status === 'unverified' ? ' (not re-verified)' : ''}` : 'Your PokeMMO client · box icon' };
   return { ...base, kind: 'none', url: null, label: isForm ? 'No verified artwork for this form' : 'No artwork installed', detail: a.local_reason };
 }
-/** Sprite artwork at ONE fixed scale per view, so relative sizes stay true to the source art
- *  (Charmander 41 px < Charmeleon 66 px < Charizard 89 px in the Gen V animations; still battle sprites share a
- *  96 px canvas). Big views use 2×, small popouts 1×. Only art that would not fit is shrunk (to fit, never
- *  stretched, aspect kept); nothing is enlarged to fill the frame. Refits when the window is resized. */
+/** Summary/popout artwork, sized by the shared rule in core.js (fitSprite): the species' size tier decides how much
+ *  of the frame its visible outline takes, so Charmander < Charmeleon < Charizard in every view and every
+ *  Legendary/Mythical gets the large tier. Refits when the frame changes size (window resize, popout mode). */
 const artObserver = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => {
   for (const e of entries) { const f = e.target.__fitArt; if (f) f(); }
 }) : null;
-export function artScale(w, ht, availW, availH) {
-  const pref = Math.min(availW, availH) >= 180 ? 2 : 1;
-  return Math.min(pref, availW / w, availH / ht);
-}
 export function artImage(art, sp) {
   if (!art.url) return h('div', { class: 'art-missing', title: art.detail || art.label, role: 'img', 'aria-label': art.label },
     silhouette(sp, 72), h('span', { class: 'tiny' }, art.isForm ? 'No form artwork' : ''));
@@ -511,13 +509,14 @@ export function artImage(art, sp) {
     const box = el.parentElement;
     if (!box || !img.naturalWidth) return;
     const cs = getComputedStyle(box);
-    const availW = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const availH = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-    const w = img.naturalWidth, ht = img.naturalHeight;
-    const k = artScale(w, ht, availW, availH);
-    el.style.width = Math.round(w * k) + 'px'; el.style.height = Math.round(ht * k) + 'px';
-    el.dataset.scale = k.toFixed(3);
-    el.classList.toggle('smooth', k < 1);   // shrinking pixel art with nearest-neighbour drops pixels
+    const fw = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const fh = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const f = fitSprite(img.naturalWidth, img.naturalHeight, art.bounds[art.key], art.tier, fw, fh);
+    Object.assign(el.style, { width: f.width.toFixed(1) + 'px', height: f.height.toFixed(1) + 'px',
+      left: (parseFloat(cs.paddingLeft) + f.left).toFixed(1) + 'px', top: (parseFloat(cs.paddingTop) + f.top).toFixed(1) + 'px' });
+    el.dataset.scale = f.k.toFixed(3);
+    el.dataset.tier = art.tier;
+    el.classList.toggle('smooth', f.smooth);
     el.style.visibility = '';
   };
   img.addEventListener('load', () => {

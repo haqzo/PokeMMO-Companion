@@ -785,7 +785,7 @@ kbd.kb.none { color: var(--text-muted); border-style: dashed; }
 @media (max-width: 480px) { .rep-sprite { --rs: 36px; } .rep-sprite.battle { --rs: 96px; } }
 
 /* ---- Summary artwork (2026-11-23): whole-number pixel scaling is set in JS; boxes only size the frame. */
-.detail-head .art .art-img { width: auto; height: auto; image-rendering: pixelated; flex: none; }
+.detail-head .art .art-img { width: auto; height: auto; image-rendering: pixelated; flex: none; position: absolute; }
 .detail-head .art .art-img.smooth { image-rendering: auto; }
 /* Artwork frames: the frame size decides the scale (≥180 px → 2×, smaller → 1×), see artImage(). */
 .popout-root .detail-head .art { width: 112px; height: 104px; }

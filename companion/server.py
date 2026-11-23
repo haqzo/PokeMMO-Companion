@@ -255,7 +255,7 @@ def build_router(ctx: AppContext) -> Router:
         d["catalog_forms"] = ctx.dex.species_forms(sid)
         fk = req.q("form")
         if fk:
-            f = ctx.dex.form_entry(f"{sid}:{fk}")
+            f = ctx.dex.form_entry(f"{sid}:{fk}", bounds=True)
             if not f:
                 raise ApiError(404, "Unknown form")
             d["form"] = f
@@ -300,7 +300,7 @@ def build_router(ctx: AppContext) -> Router:
         rows = []
         for key, e in ctx.dex.form_art["forms"].items():
             sid, fk = key.split(":")
-            a = ctx.dex.art(int(sid), fk)
+            a = ctx.dex.art(int(sid), fk, bounds=False)
             rows.append({"key": key, "name": (ctx.dex.forms.get(key) or {}).get("form_name"), "species": ctx.dex.name(int(sid)),
                          "local_status": a["local_status"], "local_reason": a["local_reason"],
                          "library": sorted(k for k in ("ani", "ani_shiny", "static", "static_shiny") if a.get(k)),

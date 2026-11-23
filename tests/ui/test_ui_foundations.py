@@ -83,6 +83,7 @@ def test_summary_close_restores_scroll_and_filters(app, page):
         page.wait_for_timeout(1200)  # filters are saved after a short debounce
 
 
+@pytest.mark.skipif(not DUMPS, reason="needs POKEMMO_DUMPS_DIR (tabs and form data come from your installed dump)")
 @pytest.mark.parametrize("sid,form,name,types", [(479, "Wash Rotom", "Wash Rotom", "water"), (386, "Speed Forme", "Deoxys (Speed Forme)", "psychic"),
                                                   (649, "Chill Drive", "Genesect (Chill Drive)", "bug"), (646, "Black Kyurem", "Black Kyurem", "ice")])
 def test_forms_selected_inside_summary(app, page, sid, form, name, types):
@@ -106,6 +107,7 @@ def test_forms_selected_inside_summary(app, page, sid, form, name, types):
     app.ctx.settings.update({"pokedex.progress_run": None})
 
 
+@pytest.mark.skipif(not DUMPS, reason="needs POKEMMO_DUMPS_DIR (tabs come from your installed dump)")
 def test_summary_tabs_and_companion_sections_still_work(app, page):
     go(page, app, "#/pokedex/25")
     page.wait_for_selector(".dex-summary .detail-tabs")

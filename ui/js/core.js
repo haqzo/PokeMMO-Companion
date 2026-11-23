@@ -268,17 +268,54 @@ export function spriteOrFallback(url, sp, size = 72, eager = false) {
   }
   return silhouette(sp, size);
 }
-/** A Gen V still (96×96 canvas) trimmed to its visible bounds and fitted into a `size` square. Small Pokémon are
- *  enlarged at most `cap`× (so a Charmander stays smaller than a Charizard), big ones are shrunk to fit; never
- *  stretched. Whole-number scales stay pixel-sharp, in-between scales are smoothed slightly instead of jagged. */
+/* ---------------------------------------------------------------- sprite sizing
+ * ONE size rule for the Pokédex grid, the Summary popup and the popouts (docs/build/14).
+ * The server gives every species a size tier from its real height (your installed dump), with ALL Legendary and
+ * Mythical Pokémon in the large tier:  xs < 0.5 m · s < 0.9 m · m < 1.5 m · l ≥ 1.5 m (or Legendary/Mythical).
+ * The tier sets how much of the frame's shorter side the Pokémon's VISIBLE outline may take; transparent margins
+ * don't count. Art is never stretched (one scale for both axes), never enlarged past 4×, never shown below its
+ * native size unless that is needed to fit, and the outline always stays inside the frame.
+ * Forms use their parent's tier; shiny art uses the same tier as normal art. */
+export const SIZE_TIER_FILL = { xs: 0.4, s: 0.55, m: 0.74, l: 0.94 };
+export const MAX_UPSCALE = 4;   // pixel art is never blown up more than 4× (a tiny sprite then sits a little below its tier)
+export function fitSprite(w, ht, bbox, tier, frameW, frameH) {
+  const [x0, y0, x1, y1] = bbox && bbox.length === 4 ? bbox : [0, 0, w, ht];
+  const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+  const target = (SIZE_TIER_FILL[tier] || SIZE_TIER_FILL.m) * Math.min(frameW, frameH);
+  // tier size, but never below native size (only shrink to fit the frame) and never above MAX_UPSCALE
+  const k = Math.max(0.05, Math.min(Math.max(target / Math.max(bw, bh), 1), frameW / bw, frameH / bh, MAX_UPSCALE));
+  return { k, width: w * k, height: ht * k, left: (frameW - bw * k) / 2 - x0 * k, top: (frameH - bh * k) / 2 - y0 * k,
+    // large or whole-number scales stay pixel-sharp; small in-between scales are smoothed instead of jagged
+    smooth: k < 2 && Math.abs(k - Math.round(k)) > 0.01 };
+}
+function placeSprite(img, box, f) {
+  Object.assign(img.style, { width: f.width.toFixed(1) + 'px', height: f.height.toFixed(1) + 'px', left: f.left.toFixed(1) + 'px', top: f.top.toFixed(1) + 'px' });
+  box.classList.toggle('smooth', f.smooth);
+  box.dataset.scale = f.k.toFixed(3);
+}
+/** Grid/row sprite in a size×size frame. With `still` ({url, w, h, bbox}) the size is known before loading. */
+export function sizedSprite(sp, size, { still = null, url = null, tier = 'm', eager = false } = {}) {
+  const src = still ? still.url : url;
+  if (!src) return silhouette(sp, size);
+  const img = h('img', { src, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });
+  const box = h('div', { class: 'still-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier } }, img);
+  if (still) placeSprite(img, box, fitSprite(still.w, still.h, still.bbox, tier, size, size));
+  else {
+    img.style.visibility = 'hidden';
+    img.addEventListener('load', () => { placeSprite(img, box, fitSprite(img.naturalWidth, img.naturalHeight, null, tier, size, size)); img.style.visibility = ''; });
+  }
+  img.addEventListener('error', () => box.replaceWith(silhouette(sp, size)));
+  return box;
+}
+/** Report rows and Home tiles (not part of the Pokédex size system): a still trimmed to its outline, enlarged at most `cap`×. */
 export function stillArt(still, sp, size = 72, { cap = 1.5, eager = false } = {}) {
   const [x0, y0, x1, y1] = still.bbox || [0, 0, still.w, still.h];
   const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
   const k = Math.min(size / Math.max(bw, bh), cap);
-  const sharp = Math.abs(k - Math.round(k)) < 0.01;
-  const img = h('img', { src: still.url, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async',
-    style: { width: (still.w * k).toFixed(1) + 'px', height: (still.h * k).toFixed(1) + 'px', left: ((size - bw * k) / 2 - x0 * k).toFixed(1) + 'px', top: ((size - bh * k) / 2 - y0 * k).toFixed(1) + 'px' } });
-  const box = h('div', { class: 'still-art' + (sharp ? '' : ' smooth'), style: { width: size + 'px', height: size + 'px' }, dataset: { scale: k.toFixed(2) } }, img);
+  const img = h('img', { src: still.url, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });
+  const box = h('div', { class: 'still-art', style: { width: size + 'px', height: size + 'px' } }, img);
+  placeSprite(img, box, { k, width: still.w * k, height: still.h * k, left: (size - bw * k) / 2 - x0 * k, top: (size - bh * k) / 2 - y0 * k,
+    smooth: Math.abs(k - Math.round(k)) > 0.01 });
   img.addEventListener('error', () => box.replaceWith(silhouette(sp, size)));
   return box;
 }

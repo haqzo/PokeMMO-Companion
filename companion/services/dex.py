@@ -44,6 +44,9 @@ class DexService:
         self.forms = {f"{f['species_id']}:{f['form_key']}": f for f in self.forms_doc["forms"]}
         self.form_art = json.loads((BUNDLED_DATA_DIR / "form_art.json").read_text(encoding="utf-8"))
         self.library = None  # optional SpriteLibrary, set by the app
+        lm = json.loads((BUNDLED_DATA_DIR / "legendary_mythical.json").read_text(encoding="utf-8"))
+        self.legendary, self.mythical = set(lm["legendary"]), set(lm["mythical"])
+        self._bounds_cache: dict[str, list[int] | None] = {}
         self.user_checks: dict[int, dict] = {}  # set by the app from storage (your dated in-game checks)
         self.reload()
 
@@ -192,6 +195,7 @@ class DexService:
             av = self.availability(sid)
             entry = {"id": sid, "name": base["name"], "types": base["types"], "gen": base["gen"],
                      "fav": sid in favourites, "icon": self.sprite_url(sid, "icon"), "still": self.still(sid),
+                     "size": self.size_tier(sid)["tier"],
                      "dex": av["membership"]["state"], "avail": av["short"], "avail_long": av["label"], "classes": av["classes"],
                      "tags": av["tags"], "evidence": av["evidence"], "permanent": av["permanent"]}
             if progress is not None:
@@ -215,7 +219,7 @@ class DexService:
         return out
 
     # ------------------------------------------------------------ forms catalog
-    def form_entry(self, key: str) -> dict | None:
+    def form_entry(self, key: str, bounds: bool = False) -> dict | None:
         """One alternate form with types/stats/abilities resolved: client record (your dump) >
         bundled manifest > base species. Each value says where it came from."""
         f = self.forms.get(key)
@@ -243,7 +247,7 @@ class DexService:
         if rec and f.get("stats") and rec.get("stats") and rec["stats"] != f["stats"]:
             mismatch.append("stats")
         cid = f.get("client_record") if isinstance(f.get("client_record"), int) else None
-        art = self.art(sid, f["form_key"])
+        art = self.art(sid, f["form_key"], bounds=bounds)
         if rec and rec.get("abilities"):
             rec = {**rec, "abilities": [a for a in dict.fromkeys(rec["abilities"]) if a and a != "--"]}
         return {"key": key, "id": sid, "form_key": f["form_key"], "form_name": f["form_name"], "kind": f["kind"],
@@ -303,12 +307,41 @@ class DexService:
                         out["front"], out["front_shiny"] = ff.get("front"), ff.get("front_shiny")
             self.local_form_art[key] = out
 
+    # Visual size tiers (docs/build/14): one rule for grid, Summary and popouts. Heights are the species'
+    # height from your installed dump; every Legendary/Mythical uses the large tier whatever its height.
+    SIZE_TIERS = (("xs", 0.5), ("s", 0.9), ("m", 1.5))  # height below the limit (metres) → tier; otherwise "l"
+
+    def size_tier(self, sid: int) -> dict:
+        if sid in self.legendary or sid in self.mythical:
+            return {"tier": "l", "basis": "legendary" if sid in self.legendary else "mythical"}
+        hd = (self.species.get(sid) or {}).get("height_dm")
+        if not hd:
+            return {"tier": "m", "basis": "unknown"}
+        m = hd / 10
+        for tier, limit in self.SIZE_TIERS:
+            if m < limit:
+                return {"tier": tier, "basis": "height", "height_m": m}
+        return {"tier": "l", "basis": "height", "height_m": m}
+
+    def _bounds(self, folder: str, name: str | None) -> list[int] | None:
+        """Visible bounds of one of your client PNGs (cached)."""
+        if not name:
+            return None
+        key = f"{folder}/{name}"
+        if key not in self._bounds_cache:
+            from .sprite_library import png_alpha_bbox
+            try:
+                self._bounds_cache[key] = png_alpha_bbox((self.paths.assets_dir / folder / name).read_bytes())
+            except OSError:
+                self._bounds_cache[key] = None
+        return self._bounds_cache[key]
+
     def still(self, sid: int) -> dict | None:
         """Gen V still from your sprite library for grid tiles (None → the client box icon is used)."""
         lib = self.library
         return lib.still(str(sid)) if lib is not None and lib.installed else None
 
-    def art(self, sid: int, form_key: str | None = None) -> dict:
+    def art(self, sid: int, form_key: str | None = None, bounds: bool = True) -> dict:
         """Artwork for a species or one of its forms. Never substitutes base or placeholder art for a form."""
         def u(folder, f):
             return f"/assets/private/{folder}/{f}?v={self.asset_version}" if f else None
@@ -330,6 +363,14 @@ class DexService:
         if lib is not None and lib.installed:
             out.update(lib.urls(lib_key))
             out["library"] = lib.provenance(lib_key)
+        # visible bounds per artwork (so transparent margins don't change the visual size) + the parent's size tier
+        # (measured only for the Summary; lists don't need them and the first measurement reads every PNG)
+        files = loc if form_key else (self.sprites.get(sid) or {})
+        out["bounds"] = {k: self._bounds("icons" if k.startswith("icon") else "battle", files.get(k))
+                         for k in ("icon", "icon_shiny", "front", "front_shiny") if files.get(k)} if bounds else {}
+        if bounds and lib is not None and lib.installed:
+            out["bounds"].update(lib.bounds(lib_key))
+        out["size"] = self.size_tier(sid)
         return out
 
     INHERIT_KINDS = ("cosmetic", "season")

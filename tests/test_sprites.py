@@ -317,3 +317,48 @@ def test_report_library_art_only_when_unambiguous(ctx, tmp_path):
     assert a["species_still"]["bbox"] == [10, 10, 90, 90] and a["species_ani"].startswith("/assets/library/ani/130.gif")
     assert c["species_still"] is None and c["species_ani"] is None
     assert "still" in ctx.live.legendaries(None)["current"]["kanto"]
+
+
+# ---------------------------------------------------------------- visual size tiers (docs/build/14)
+LM = json.loads((BUNDLED_DATA_DIR / "legendary_mythical.json").read_text(encoding="utf-8"))
+
+
+def test_legendary_mythical_list_is_the_complete_gen1_5_set():
+    assert len(LM["legendary"]) == 35 and len(LM["mythical"]) == 13 and not set(LM["legendary"]) & set(LM["mythical"])
+    for sid in (144, 145, 146, 150, 243, 244, 245, 249, 250, 377, 380, 381, 382, 383, 384, 480, 483, 487, 488, 638, 641, 643, 646):
+        assert sid in LM["legendary"]
+    for sid in (151, 251, 385, 386, 489, 490, 491, 492, 493, 494, 647, 648, 649):
+        assert sid in LM["mythical"]
+    assert "nothing about whether a Pokémon is obtainable" in LM["about"]
+
+
+def test_legendary_and_mythical_always_use_the_large_tier(ctx):
+    ctx.dex.species = {sid: {"height_dm": 2} for sid in LM["legendary"] + LM["mythical"]}  # tiny on purpose
+    for sid in LM["legendary"] + LM["mythical"]:
+        t = ctx.dex.size_tier(sid)
+        assert t["tier"] == "l" and t["basis"] in ("legendary", "mythical")
+    assert ctx.dex.size_tier(151)["basis"] == "mythical" and ctx.dex.size_tier(150)["basis"] == "legendary"
+
+
+def test_size_tiers_follow_height_not_evolution_stage(ctx):
+    ctx.dex.species = {4: {"height_dm": 6}, 5: {"height_dm": 11}, 6: {"height_dm": 17}, 1: {"height_dm": 7}, 2: {"height_dm": 10},
+                       3: {"height_dm": 20}, 25: {"height_dm": 4}, 95: {"height_dm": 88}, 74: {"height_dm": 4}, 100: {"height_dm": 5}}
+    tier = {sid: ctx.dex.size_tier(sid)["tier"] for sid in ctx.dex.species}
+    assert (tier[4], tier[5], tier[6]) == ("s", "m", "l") and (tier[1], tier[2], tier[3]) == ("s", "m", "l")
+    assert tier[25] == "xs" and tier[95] == "l"  # an unevolved Onix is large; actual size wins over stage
+    assert ctx.dex.size_tier(7)["tier"] == "m" and ctx.dex.size_tier(7)["basis"] == "unknown"  # no data → medium
+    # forms and shiny share the parent's tier, and availability is untouched by it
+    assert ctx.dex.art(6)["size"]["tier"] == "l"
+    assert "size" not in ctx.dex.availability(151) and ctx.dex.availability(151)["membership"]["state"] in ("unknown", "yes", "no", "conditional")
+
+
+@needs_dumps
+def test_tiers_and_bounds_from_the_real_dump(dump_paths):
+    from companion.services.dex import DexService
+    dex = DexService(dump_paths)
+    t = lambda s: dex.size_tier(s)["tier"]  # noqa: E731
+    assert [t(s) for s in (4, 5, 6, 1, 2, 3, 7, 8, 9)] == ["s", "m", "l"] * 3
+    assert all(t(s) == "l" for s in (151, 251, 385, 492, 494, 150, 144, 243))
+    a = dex.art(4)
+    assert a["bounds"]["front"] and a["bounds"]["front"][2] - a["bounds"]["front"][0] < 96  # margins measured
+    assert dex.art(479, "wash")["size"]["tier"] == dex.size_tier(479)["tier"]  # forms use the parent's tier
