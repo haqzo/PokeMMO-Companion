@@ -20,7 +20,7 @@ const entryRoute = (s) => '#/pokedex/' + s.id + (s.form_key ? '/' + s.form_key :
 const DEFAULT_F = { q: '', gen: 'all', types: [], typeSlot: 'any', region: '', horde: '', egg: '', fav: false, sort: 'num', season: '',
   ability: '', held: '', statKey: '', statMin: '', classes: [], reg: [] };
 let F = null;
-let ui = { drawer: false, tab: 'summary', side: null, scroll: 0, locSeason: 'all', moveTab: 'level', shiny: false };
+let ui = { drawer: false, tab: 'summary', side: null, scroll: 0, locSeason: 'all', moveFilter: 'all', moveSort: 'method', shiny: false };
 let unsub = [];
 let gridEl = null, countEl = null, meta = null;
 
@@ -717,27 +717,67 @@ function locations(d) {
   return wrap;
 }
 
-const MOVE_TABS = [['level', 'Level-up', (m) => m.method === 'level'], ['egg', 'Egg', (m) => m.method === 'EGG' || m.method === 'EGG & ITEM'],
-  ['tutor', 'Tutor', (m) => m.method === 'TUTOR'], ['tm', 'TM (unconfirmed)', (m) => m.method === 'TM??'],
-  ['other', 'Other', (m) => !['level', 'EGG', 'EGG & ITEM', 'TUTOR', 'TM??'].includes(m.method)]];
+// One continuous moves table (2026-11-23). Every method a move is learned by stays on its row, with its level;
+// methods are the client's own (Start = level 1 in your dump). TM/HM come from the client's "TM??" label, read
+// against the machine items in your client's item data — the "??" stays in the badge's details.
+const MOVE_FILTERS = [['all', 'All'], ['levelup', 'Level-up', ['start', 'level']], ['machine', 'TM/HM', ['machine']], ['egg', 'Egg', ['egg', 'egg-item']],
+  ['tutor', 'Tutor', ['tutor']], ['evolve', 'Evolve', ['evolve']], ['other', 'Other', ['special', 'prevo', 'other']]];
+const MOVE_SORTS = { method: 'Method', level: 'Level', name: 'Move', type: 'Type' };
+const METHOD_RANK = ['start', 'level', 'evolve', 'machine', 'egg', 'egg-item', 'tutor', 'special', 'prevo', 'other'];
+function methodBadge(m) {
+  const lvl = m.code === 'level' ? ` ${m.level}` : '';
+  const title = m.code === 'start' ? 'Known from the start (level 1 in your dump)' : m.code === 'level' ? `Learned at level ${m.level}` : m.note || `Learn method in your dump: ${m.raw}`;
+  const item = (m.machine_items || [])[0];
+  const badge = h(item ? 'a' : 'span', { class: `mv-badge mv-${m.code}`, title, 'aria-label': `${m.label}${lvl}. ${title}`, href: item ? `#/tools/items/${item.item_id}` : null }, m.label + lvl);
+  if (m.code === 'machine') badge.append(h('sup', { class: 'mv-q', 'aria-hidden': 'true' }, '?'));
+  return badge;
+}
 function moves(d) {
-  const holder = h('div');
-  const draw = () => {
-    const [, , pred] = MOVE_TABS.find((t) => t[0] === ui.moveTab) || MOVE_TABS[0];
-    let ms = d.moves.filter(pred);
-    const seen = new Set(); ms = ms.filter((m) => { const k = m.id + '|' + m.level + '|' + m.method; if (seen.has(k)) return false; seen.add(k); return true; });
-    if (ui.moveTab === 'level') ms.sort((a, b) => (a.level || 0) - (b.level || 0)); else ms.sort((a, b) => a.name.localeCompare(b.name));
-    mount(holder, ms.length ? h('table', { class: 'table compact' },
-      h('thead', null, h('tr', null, [ui.moveTab === 'level' ? 'Lv' : '', 'Move', 'Type', 'Cat.', 'Pow', 'Acc', 'PP'].map((c) => h('th', null, c)))),
-      h('tbody', null, ms.map((m) => h('tr', null, h('td', { class: 'muted' }, ui.moveTab === 'level' ? m.level : ui.moveTab === 'other' ? m.method : ''),
-        h('td', null, m.name), m.verified_meta ? [h('td', null, typeChip(m.type, true)), h('td', { class: 'small' }, m.category), h('td', null, m.power || '—'),
-          h('td', null, m.accuracy > 100 ? '—' : m.accuracy), h('td', null, m.pp)] : h('td', { colspan: 5, class: 'small', style: { color: 'var(--st-dump)' } }, 'Details awaiting verification (no move metadata in dump)'))))) :
-      h('div', { class: 'empty' }, 'No moves in this category.'));
+  const rows = d.move_rows || [];
+  ui.moveFilter = ui.moveFilter || 'all';
+  ui.moveSort = ui.moveSort || 'method';
+  const holder = h('div', { class: 'moves-scroll' });
+  const firstRank = (r) => Math.min(...r.methods.map((m) => (METHOD_RANK.indexOf(m.code) + 1 || 99)));
+  const cmp = {
+    method: (a, b) => firstRank(a) - firstRank(b) || (a.min_level ?? 999) - (b.min_level ?? 999) || a.name.localeCompare(b.name),
+    level: (a, b) => (a.min_level ?? 999) - (b.min_level ?? 999) || firstRank(a) - firstRank(b) || a.name.localeCompare(b.name),
+    name: (a, b) => a.name.localeCompare(b.name),
+    type: (a, b) => (a.type || '~').localeCompare(b.type || '~') || a.name.localeCompare(b.name),
   };
-  const counts = Object.fromEntries(MOVE_TABS.map(([k, , p]) => [k, d.moves.filter(p).length]));
-  const wrap = h('div', { class: 'stack' });
-  wrap.append(h('div', null, tabs(MOVE_TABS.map(([k, l]) => ({ id: k, label: l, count: counts[k] })), ui.moveTab, (t) => { ui.moveTab = t; wrap.replaceWith(moves(d)); }, 'Move categories')),
-    ui.moveTab === 'tm' ? notice('warn', '“TM??” in the dump means the TM source is unconfirmed — not promised to be purchasable or learnable as a TM.') : null, holder);
+  const counts = Object.fromEntries(MOVE_FILTERS.map(([k, , codes]) => [k, codes ? rows.filter((r) => r.methods.some((m) => codes.includes(m.code))).length : rows.length]));
+  const dash = (title) => h('span', { class: 'muted', title }, '—');
+  const draw = () => {
+    const f = MOVE_FILTERS.find((x) => x[0] === ui.moveFilter) || MOVE_FILTERS[0];
+    const list = rows.filter((r) => !f[2] || r.methods.some((m) => f[2].includes(m.code))).sort(cmp[ui.moveSort]);
+    const th = (label, key) => h('th', key ? { 'aria-sort': ui.moveSort === key ? 'ascending' : 'none' } : null,
+      key ? h('button', { class: 'th-sort' + (ui.moveSort === key ? ' on' : ''), onclick: () => { ui.moveSort = key; draw(); } }, label) : label);
+    mount(holder, list.length ? h('table', { class: 'table compact moves-table' },
+      h('thead', null, h('tr', null, th('Method', 'method'), th('Level', 'level'), th('Move', 'name'), th('Type', 'type'), th('Category'), th('Power'), th('Accuracy'), th('PP'))),
+      h('tbody', null, list.map((r) => {
+        const miss = 'Not in your client dump';
+        const levels = r.methods.filter((m) => m.level != null).map((m) => m.level);
+        return h('tr', { dataset: { move: r.name } },
+          h('td', { class: 'mv-methods' }, r.methods.map(methodBadge)),
+          h('td', { class: 'num' }, levels.length ? levels.join(', ') : dash('No level for this method')),
+          h('td', { class: 'mv-name' }, r.name),
+          h('td', null, r.type ? typeChip(r.type, true) : dash(miss)),
+          h('td', { class: 'small' }, r.category || dash(miss)),
+          h('td', { class: 'num' }, r.power ? r.power : r.verified_meta ? dash('No base power (status or variable)') : dash(miss)),
+          h('td', { class: 'num' }, r.accuracy == null ? dash(miss) : r.accuracy > 100 ? dash('Never misses') : r.accuracy),
+          h('td', { class: 'num' }, r.pp ?? dash(miss)));
+      }))) : h('div', { class: 'empty' }, 'No moves for this method.'));
+  };
+  const wrap = h('div', { class: 'stack tight' },
+    h('div', { class: 'row wrap moves-tools' },
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Show moves learned by' }, MOVE_FILTERS.filter(([k]) => k === 'all' || counts[k]).map(([k, label]) =>
+        h('button', { class: 'chip btnlike' + (ui.moveFilter === k ? ' active' : ''), 'aria-pressed': String(ui.moveFilter === k), onclick: (e) => {
+          const me = e.currentTarget; ui.moveFilter = k;
+          me.parentElement.querySelectorAll('.chip').forEach((c) => { c.classList.toggle('active', c === me); c.setAttribute('aria-pressed', String(c === me)); }); draw(); } },
+          label, h('span', { class: 'count' }, counts[k])))),
+      h('span', { class: 'grow' }), h('span', { class: 'tiny muted' }, `${rows.length} moves`)),
+    holder,
+    counts.machine ? h('p', { class: 'tiny muted', style: { margin: 0 } }, 'TM/HM', h('sup', null, '?'),
+      ': your client lists these as “TM??”. The badge says TM or HM when your client also has that machine item (select it to open the item). Where to get a machine, and its price, are not covered.') : null);
   draw();
   return wrap;
 }
@@ -784,8 +824,8 @@ function notesSection(d) {
       h('textarea', { class: 'input', rows: 4, placeholder: 'Hunting spots you like, natures you want, reminders…', oninput: (e) => { status.textContent = 'Saving…'; save(e.target.value); } }, d.note || '')),
     linkedNotes('species', String(d.id), d.base_name || d.name),
     h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'label' }, `In My Box (${(d.box_entries || []).length})`), h('span', { class: 'grow' }),
-      h('button', { class: 'btn small', onclick: () => openRoute(`#/tools/box/new?species=${d.id}`) }, icon('plus'), 'Add to My Box')),
-    (d.box_entries || []).length ? h('div', { class: 'row wrap' }, d.box_entries.map((e) => h('button', { class: 'mini-mon', onclick: () => openRoute('#/tools/box/' + e.id) },
+      h('button', { class: 'btn small', onclick: () => openRoute(`#/collection/pokemon/new?species=${d.id}`) }, icon('plus'), 'Add to My Box')),
+    (d.box_entries || []).length ? h('div', { class: 'row wrap' }, d.box_entries.map((e) => h('button', { class: 'mini-mon', onclick: () => openRoute('#/collection/pokemon/' + e.id) },
       e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, (e.nickname || e.species_name) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
       h('div', { class: 'small muted' }, 'No Box entries for this species.')));
 }

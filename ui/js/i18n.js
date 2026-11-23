@@ -36,6 +36,8 @@ const ES = {
   'dex.availability': 'Disponibilidad', 'dex.report': 'Informe de disponibilidad', 'dex.listed': 'Aparece', 'dex.not_listed': 'No aparece',
   'popout.text_size_hint': 'Tamaño del texto de esta ventana (60–200 %)',
   'links.title': 'Webs y enlaces', 'links.desc': 'Tus marcadores de PokeMMO, abiertos en tu navegador', 'shortcuts.title': 'Atajos de teclado',
+  'calc.title': 'Calculadora', 'nav.typechart': 'Tabla de tipos', 'nav.notes': 'Notas', 'nav.collection': 'Colección',
+  'collection.title': 'Colección', 'collection.desc': 'Tus Pokémon registrados y tus vitrinas', 'collection.mine': 'Mis Pokémon', 'collection.showcases': 'Vitrinas',
 };
 
 const ZH = {
@@ -63,6 +65,8 @@ const ZH = {
   'dex.availability': '获取方式', 'dex.report': '获取方式报告', 'dex.listed': '已列出', 'dex.not_listed': '未列出',
   'popout.text_size_hint': '此窗口的文字大小（60–200%）',
   'links.title': '网站与链接', 'links.desc': '你的 PokeMMO 书签，在浏览器中打开', 'shortcuts.title': '键盘快捷键',
+  'calc.title': '计算器', 'nav.typechart': '属性相克', 'nav.notes': '笔记', 'nav.collection': '收藏',
+  'collection.title': '收藏', 'collection.desc': '你记录的宝可梦和展示柜', 'collection.mine': '我的宝可梦', 'collection.showcases': '展示柜',
 };
 
 const EN = {
@@ -90,6 +94,8 @@ const EN = {
   'dex.availability': 'Availability', 'dex.report': 'Availability report', 'dex.listed': 'It’s listed', 'dex.not_listed': 'Not listed',
   'popout.text_size_hint': 'Text size for this window (60–200%)',
   'links.title': 'Websites & links', 'links.desc': 'Your PokeMMO bookmarks, opened in your browser', 'shortcuts.title': 'Keyboard shortcuts',
+  'calc.title': 'Calculator', 'nav.typechart': 'Type matchups', 'nav.notes': 'Notes', 'nav.collection': 'Collection',
+  'collection.title': 'Collection', 'collection.desc': 'Pokémon you chose to record, and your Showcases', 'collection.mine': 'My Pokémon', 'collection.showcases': 'Showcases',
 };
 
 const DICTS = { en: EN, es: ES, zh: ZH };

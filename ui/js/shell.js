@@ -5,17 +5,31 @@ import * as pokedex from './pages/pokedex.js';
 import * as tools from './pages/tools.js';
 import * as live from './pages/live.js';
 import * as guides from './pages/guides.js';
+import * as collection from './pages/collection.js';
 import * as settingsPage from './pages/settings.js';
 import { t, LANGS, lang } from './i18n.js';
 
+// Main navigation. Frequently used tools are first-class entries (they open the same tool pages);
+// Collection groups My Pokémon (Box) and Showcases. Alt+1…8 follow this order.
 export const NAV = [
   { id: 'home', label: 'Home', icon: 'home', page: home },
   { id: 'pokedex', label: 'Pokédex', icon: 'dex', page: pokedex },
+  { id: 'typechart', label: 'Type matchups', icon: 'shield', route: '#/tools/typechart' },
+  { id: 'notes', label: 'Notes', icon: 'note', route: '#/tools/notes' },
+  { id: 'collection', label: 'Collection', icon: 'box', page: collection },
   { id: 'tools', label: 'Tools', icon: 'tools', page: tools },
   { id: 'live', label: 'Live', icon: 'live', page: live },
   { id: 'guides', label: 'Guides', icon: 'guides', page: guides },
 ];
-const PAGES = { home, news: home, events: home, pokedex, tools, live, guides, settings: settingsPage };
+const PAGES = { home, news: home, events: home, pokedex, tools, live, guides, collection, settings: settingsPage };
+const navRoute = (n) => n.route || '#/' + n.id;
+/** Which main-nav entry a route belongs to (tool pages that have their own entry light that entry). */
+export function navIdFor(r) {
+  if (r.page === 'news' || r.page === 'events') return 'home';
+  if (r.page === 'tools' && ['typechart', 'notes'].includes(r.parts[0])) return r.parts[0];
+  if (r.page === 'tools' && ['box', 'showcase'].includes(r.parts[0])) return 'collection';
+  return r.page;
+}
 
 let root, mainEl, quickEl, current = { page: null, mod: null };
 
@@ -50,14 +64,14 @@ export function startApp(el) {
 }
 
 function globalKeys(e) {
-  if (e.altKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); go('#/' + NAV[Number(e.key) - 1].id); }
+  if (e.altKey && /^[1-9]$/.test(e.key) && NAV[Number(e.key) - 1]) { e.preventDefault(); go(navRoute(NAV[Number(e.key) - 1])); }
   if (e.ctrlKey && e.key === ',') { e.preventDefault(); go('#/settings'); }
 }
 
 function navButton(n, active) {
   const label = t('nav.' + n.id);
   return h('button', { class: 'nav-item' + (active ? ' active' : ''), 'aria-current': active ? 'page' : null, dataset: { nav: n.id },
-    title: `${label} (Alt+${NAV.indexOf(n) + 1})`, onclick: () => go('#/' + n.id) },
+    title: `${label} (Alt+${NAV.indexOf(n) + 1})`, onclick: () => go(navRoute(n)) },
   icon(n.icon), h('span', { class: 'label' }, label));
 }
 
@@ -100,7 +114,7 @@ function toolbarExtras(compact) {
 export function renderChrome() {
   const vertical = setting('appearance.nav') !== 'horizontal';
   const r = parseRoute();
-  const activeId = ({ news: 'home', events: 'home' })[r.page] || r.page;
+  const activeId = navIdFor(r);
   const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: 'Settings (Ctrl+,)', 'aria-label': 'Settings',
     onclick: () => go('#/settings') }, icon('gear'));
   const brand = h('div', { class: 'brand' }, logo(28), h('div', { class: 'text' },
@@ -137,7 +151,7 @@ function renderRoute() {
   const mod = PAGES[r.page];
   if (!mod) { go('#/home'); return; }
   // update active nav without rebuilding chrome
-  const activeId = ({ news: 'home', events: 'home' })[r.page] || r.page;
+  const activeId = navIdFor(r);
   document.querySelectorAll('.nav-item').forEach((b) => {
     const on_ = b.dataset.nav === activeId;
     b.classList.toggle('active', on_); b.setAttribute('aria-current', on_ ? 'page' : 'false');
@@ -166,6 +180,7 @@ export const POPOUT_TOOLS = {
   notes: { title: 'Notes', w: 420, h: 520, i18n: 'notes.title' }, items: { title: 'Item Library', w: 460, h: 600, i18n: 'items.title' },
   showcase: { title: 'Showcase', w: 520, h: 420, i18n: 'showcase.title' }, customguide: { title: 'Guide steps', w: 400, h: 520, i18n: 'cguide.title' },
   locations: { title: 'Locations', w: 480, h: 620, i18n: 'loc.title' }, box: { title: 'My Box', w: 480, h: 600, i18n: 'box.title' },
+  calculator: { title: 'Calculator', w: 300, h: 420, i18n: 'calc.title' },
 };
 export function popoutSize(tool, mode) {
   const custom = (setting(`window.${tool}.sizes`) || {})[mode];
@@ -201,10 +216,11 @@ export const QA_TOOLS = {
   ev: { label: 'EV & horde planner', icon: 'target', route: '#/tools/ev' },
   stats: { label: 'Stat calculator', icon: 'calc', route: '#/tools/stats' },
   catch: { label: 'Catch calculator', icon: 'target', route: '#/tools/catch' },
+  calculator: { label: 'Calculator', i18n: 'calc.title', icon: 'calc', route: '#/tools/calculator', popout: 'calculator' },
   items: { label: 'Item Library', i18n: 'items.title', icon: 'bag', route: '#/tools/items', popout: 'items' },
   notes: { label: 'Notes', i18n: 'notes.title', icon: 'note', route: '#/tools/notes', popout: 'notes' },
-  box: { label: 'My Box', i18n: 'box.title', icon: 'box', route: '#/tools/box', popout: 'box' },
-  showcase: { label: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', route: '#/tools/showcase', popout: 'showcase' },
+  box: { label: 'My Pokémon', i18n: 'collection.mine', icon: 'box', route: '#/collection', popout: 'box' },
+  showcase: { label: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', route: '#/collection/showcases', popout: 'showcase' },
   cguides: { label: 'My guides', i18n: 'cguide.title', icon: 'list', route: '#/tools/cguides', popout: 'customguide' },
   locations: { label: 'Location explorer', i18n: 'loc.title', icon: 'map', route: '#/tools/locations', popout: 'locations' },
   links: { label: 'Websites & links', i18n: 'links.title', icon: 'external', route: '#/tools/links' },

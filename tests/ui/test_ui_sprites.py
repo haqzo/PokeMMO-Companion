@@ -15,12 +15,15 @@ needs_dumps = pytest.mark.skipif(not DUMPS, reason="needs POKEMMO_DUMPS_DIR")
 
 
 def _reports(app):
+    """Recent reports (so they count as current) on Alphapedia's real topics; received on reconnect (replay)."""
+    import time
     app.ctx.storage.execute("DELETE FROM reports")
-    ing = lambda mid, title, body, topic: app.ctx.live.ingest(  # noqa: E731
-        {"id": mid, "event": "message", "time": 1_763_000_000, "topic": topic, "title": title, "message": body}, replay=True)
-    a = ing("g1", "Gyarados", "Kanto, Route 12", "alpha")
-    b = ing("f1", "Swarm spotted", "Hoenn, Route 119 — Feebas swarm", "swarm")
-    c = ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarm")
+    now = int(time.time())
+    ing = lambda mid, title, body, topic, ago: app.ctx.live.ingest(  # noqa: E731
+        {"id": mid, "event": "message", "time": now - ago * 60, "topic": topic, "title": title, "message": body}, replay=True)
+    a = ing("g1", "Gyarados", "Kanto, Route 12", "alphapings", 5)
+    b = ing("f1", "Swarm spotted", "Hoenn, Route 119 — Feebas swarm", "swarmpings", 7)
+    c = ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarmpings", 9)
     t = app.ctx.live.create_test("swarm")
     return a, b, c, t
 
@@ -43,16 +46,18 @@ def test_home_live_card_shows_large_sharp_sprites_with_fallbacks(app, browser): 
     a, b, c, t = _reports(app)
     pg = browser.new_context(viewport={"width": 1600, "height": 1000}).new_page()
     pg.goto(app.url("#/home"))
-    pg.wait_for_selector(".area-live .live-row")
-    rows = pg.locator(".area-live .live-row")
-    assert rows.count() == 3  # TEST entries never appear on Home
-    assert rows.nth(0).locator(".rep-sprite img").count() == 1 and "Gyarados" in rows.nth(0).inner_text()
-    assert _width(pg, ".area-live .rep-sprite img") == 72  # 2× the 36 px box icon
-    assert pg.locator(".area-live .rep-sprite img").first.evaluate("e => getComputedStyle(e).imageRendering") == "pixelated"
-    assert rows.nth(1).locator(".rep-sprite img").count() == 1 and "Feebas" in rows.nth(1).inner_text()
-    assert rows.nth(2).locator(".rep-fallback").count() == 1 and rows.nth(2).locator("img").count() == 0  # two species named
-    assert "Kanto, Route 12" in rows.nth(0).inner_text()
-    assert "feed off" in pg.locator(".area-live").inner_text()
+    pg.wait_for_selector(".home-live .cur-card")
+    cards = pg.locator(".home-live .cur-card")
+    assert cards.count() == 3  # TEST entries never appear on Home
+    names = cards.evaluate_all("els => els.map(e => e.querySelector('.cur-name').textContent)")
+    assert set(names) == {"Gyarados", "Feebas", "Swarm"}
+    g = pg.locator(".home-live .cur-card", has_text="Gyarados")
+    assert g.locator(".rep-sprite img").count() == 1 and "Kanto · Route 12" in g.inner_text()
+    assert pg.locator(".home-live .cur-card", has_text="Gyarados").locator(".rep-sprite img").evaluate("e => getComputedStyle(e).imageRendering") == "pixelated"
+    amb = pg.locator(".home-live .cur-card", has_text="Swarm").filter(has_not_text="Feebas")
+    assert amb.locator(".rep-fallback").count() == 1 and amb.locator("img").count() == 0  # two species named → no sprite
+    assert "caught up on reconnect" in g.inner_text() and "left (estimate)" in g.inner_text()
+    assert "feed off" in pg.locator(".home-live").inner_text().lower()
     pg.context.close()
 
 
@@ -65,7 +70,7 @@ def test_live_list_and_detail_sprites_and_test_labels(app, browser):  # noqa: F8
     test_row = pg.locator(".report-row", has_text="TEST — demo")
     assert "TEST · NOT REAL" in test_row.inner_text().upper() and test_row.locator(".rep-fallback").count() == 1
     assert _width(pg, ".report-row .rep-sprite img") == 72
-    assert "replayed history" in pg.locator(".report-row", has_text="Gyarados").inner_text()
+    assert "received on reconnect" in pg.locator(".report-row", has_text="Gyarados").inner_text()
     pg.wait_for_selector(".rep-detail-head .rep-sprite.battle img")
     assert _width(pg, ".rep-detail-head .rep-sprite.battle img") == 192  # 2× the 96 px battle sprite
     detail = pg.locator(".card", has=pg.locator(".rep-detail-head")).inner_text()

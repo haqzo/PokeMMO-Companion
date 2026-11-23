@@ -38,7 +38,8 @@ log = logging.getLogger("companion.qt")
 TOOL_TITLES = {"storyline": "Storyline", "pokedex": "Pokédex", "reports": "Alpha & Swarm reports",
                "typechart": "Type matchups", "breeding": "Breeding", "legendaries": "Legendaries",
                "cave": "Altering Cave", "natures": "Natures", "notes": "Notes", "items": "Item Library",
-               "showcase": "Showcase", "customguide": "My guide", "locations": "Locations", "box": "My Box"}
+               "showcase": "Showcase", "customguide": "My guide", "locations": "Locations", "box": "My Box",
+               "calculator": "Calculator"}
 
 QSS = """
 QWidget#bar { background: rgba(30, 36, 55, 242); border-top-left-radius: 10px; border-top-right-radius: 10px;

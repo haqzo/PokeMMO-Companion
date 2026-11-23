@@ -288,10 +288,12 @@ def test_grid_uses_trimmed_gen5_stills_with_the_same_size_rule(app, page, librar
 
 # ---------------------------------------------------------------- 6. Home / Live
 def _reports(app):
+    import time
     app.ctx.storage.execute("DELETE FROM reports")
+    now = int(time.time())
     ing = lambda mid, t, b, topic: app.ctx.live.ingest(  # noqa: E731
-        {"id": mid, "event": "message", "time": 1_763_000_000, "topic": topic, "title": t, "message": b}, replay=True)
-    return ing("g1", "Gyarados", "Kanto, Route 12", "alpha"), ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarm")
+        {"id": mid, "event": "message", "time": now - 300, "topic": topic, "title": t, "message": b}, replay=True)
+    return ing("g1", "Gyarados", "Kanto, Route 12", "alphapings"), ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarmpings")
 
 
 def test_home_and_live_use_library_art_selectively(app, browser, library):  # noqa: F811
@@ -300,12 +302,13 @@ def test_home_and_live_use_library_art_selectively(app, browser, library):  # no
     ctx = browser.new_context(viewport={"width": 1600, "height": 1000})
     pg = ctx.new_page()
     pg.goto(app.url("#/home"))
-    pg.wait_for_selector(".area-live .live-row .still-art img")
-    rows = pg.locator(".area-live .live-row")
-    assert rows.nth(0).locator(".still-art img").get_attribute("src").startswith("/assets/library/static/130.png")
-    assert rows.nth(1).locator(".rep-fallback").count() == 1 and rows.nth(1).locator("img").count() == 0
-    assert pg.locator(".area-live img[src*='.gif']").count() == 0  # Home rows never animate
-    assert "Kanto, Route 12" in rows.nth(0).inner_text()
+    pg.wait_for_selector(".home-live .cur-card .still-art img")
+    g_card = pg.locator(".home-live .cur-card", has_text="Gyarados")
+    assert g_card.locator(".still-art img").get_attribute("src").startswith("/assets/library/static/130.png")
+    amb_card = pg.locator(".home-live .cur-card", has_text="Swarm")
+    assert amb_card.locator(".rep-fallback").count() == 1 and amb_card.locator("img").count() == 0
+    assert pg.locator(".home-live img[src*='.gif']").count() == 0  # report cards on Home never animate
+    assert "Kanto · Route 12" in g_card.inner_text()
     pg.goto(app.url("#/live/reports/" + g["id"]))
     pg.wait_for_selector(".rep-detail-head img.rep-ani")
     assert pg.locator(".rep-detail-head img.rep-ani").get_attribute("src").startswith("/assets/library/ani/130.gif")

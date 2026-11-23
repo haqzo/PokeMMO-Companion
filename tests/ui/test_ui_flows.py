@@ -324,6 +324,8 @@ def test_quick_access_pin_reorder_unpin_and_persist(app, page):
     page.wait_for_timeout(600)
     assert "Pikachu" in page.locator(".quick").inner_text()
     page.reload()
+    page.wait_for_selector(".dex-summary .detail-head h2")  # the reloaded route reopens the Summary (it takes focus)
+    page.keyboard.press("Escape")
     page.wait_for_selector(".quick .qa-item")
     assert page.locator(".quick .qa-item .label").all_inner_texts()[:2] == ["Type matchups", "Natures"]
     page.locator(".quick .qa-item").first.focus()
@@ -342,12 +344,15 @@ def test_quick_access_pin_reorder_unpin_and_persist(app, page):
 
 def test_home_has_no_blocking_modal_and_keeps_news_details(app, page):
     go(page, app, "#/home")
-    page.wait_for_selector(".area-hero")
-    page.wait_for_selector(".area-more")
+    page.wait_for_selector(".home-update")
+    page.wait_for_selector(".home-news")
     assert page.locator(".modal-back").count() == 0
     txt = page.locator(".main").inner_text()
-    for part in ("Latest official update", "Official news source", "Official events", "Quick access", "Live", "More official updates"):
+    for part in ("Latest official update", "Official events", "Quick access", "Alpha & Swarm", "Roaming Legendaries", "More official updates"):
         assert part.lower() in txt.lower(), part
+    # the news-source status now lives in the latest-update card's footer (check now, provenance, feed state)
+    foot = page.locator(".home-update .update-foot")
+    assert foot.get_by_role("button", name="Check now").count() == 1 and "summaries written" in foot.inner_text()
     page.get_by_role("button", name="Read details").click()
     page.wait_for_selector("article")
 

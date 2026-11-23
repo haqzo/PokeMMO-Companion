@@ -6,6 +6,63 @@ import { go, popoutButton } from '../shell.js';
 let unsub = [];
 let ui = { kind: 'all', q: '', hideTests: false, calendar: false };
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
+
+// ---------------------------------------------------------------- current reports & estimated timers
+// Times come from the server ("now" + each report's start), so a wrong or changed local clock only shifts the
+// offset once per refresh. Timers tick locally; the list is re-fetched every minute and whenever the window
+// becomes visible again (sleep/resume), which also re-classifies reports.
+const STATE_CLASS = { recent: 'ok', uncertain: 'warn', ended: 'muted', replayed: 'muted', test: 'test', info: 'muted' };
+const durText = (s) => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+export function timerText(st, nowMs) {
+  if (!st || !st.duration_min) return '';
+  const end = Date.parse(st.ends_at);
+  const left = Math.round((end - nowMs) / 1000);
+  if (st.state === 'recent' && left > 0) return `≈ ${durText(left)} left (estimate)`;
+  if (left <= 0 && (st.state === 'recent' || st.state === 'uncertain')) return `Estimated window ended ${durText(-left)} ago`;
+  return '';
+}
+export function startTimers(root, skewMs, onExpire) {
+  let seen = false;
+  const tick = () => {
+    if (!root.isConnected) { if (seen) clearInterval(id); return; }  // not in the page yet, or gone (page switched)
+    seen = true;
+    const now = Date.now() + skewMs;
+    let expired = false;
+    root.querySelectorAll('[data-ends]').forEach((el) => {
+      const st = { state: el.dataset.state, duration_min: 1, ends_at: el.dataset.ends };
+      el.textContent = timerText(st, now);
+      if (el.dataset.state === 'recent' && Date.parse(el.dataset.ends) <= now) expired = true;
+    });
+    if (expired && onExpire) onExpire();
+  };
+  const id = setInterval(tick, 15000);
+  tick();
+  requestAnimationFrame(tick);
+  return () => clearInterval(id);
+}
+const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+/** Card for one current Alpha/Swarm (several identical reports are one card, timed from the earliest). */
+export function currentCard(g, { compact = false } = {}) {
+  const st = g.status;
+  const sure = g.species_name && g.species_match !== 'ambiguous';  // a report naming several Pokémon shows its own title
+  const where = [g.region && cap(g.region), g.location].filter(Boolean).join(' · ');
+  return h('button', { class: `cur-card kind-${g.kind}${compact ? ' compact' : ''}`, dataset: { report: g.id, state: st.state },
+    onclick: () => go('#/live/reports/' + g.id), 'aria-label': `${g.kind} ${sure ? g.species_name : g.title}, ${where}, ${st.label}` },
+  reportSprite(g),
+  h('div', { class: 'cur-text' },
+    h('div', { class: 'row tight' }, h('span', { class: `kind-label kind-${g.kind}` }, g.kind),
+      h('span', { class: `cur-state ${STATE_CLASS[st.state]}` }, st.state === 'recent' ? 'Likely active' : st.label)),
+    h('div', { class: 'cur-name ellipsis' }, (sure ? g.species_name : g.title) || '(no title)'),
+    sure || !g.species_name ? null : h('div', { class: 'tiny muted ellipsis' }, 'Names several Pokémon'),
+    where ? h('div', { class: 'small ellipsis cur-where' }, where) : h('div', { class: 'small muted' }, 'Location not identified'),
+    h('div', { class: 'tiny muted' }, `Reported ${timeOf(st.start)} · ${relTime(st.start)}`, g.duplicates ? ` · reported ${g.duplicates + 1}×` : '', g.caught_up ? ' · caught up on reconnect' : ''),
+    h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, ''),
+    compact ? null : h('div', { class: 'tiny muted' }, `${g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider} · community report`, st.notes.length ? ' · ⚠ ' + st.notes[0] : '')));
+}
+export function estimatesNote(est) {
+  return h('p', { class: 'tiny muted', style: { margin: 0 } }, `Timers are estimates counted from when a Pokémon was reported (not when it spawned): Alpha ${est.alpha_minutes} min (official changelog), `,
+    `Swarm ~${est.swarm_minutes} min (community estimate, not official — adjustable in Settings › Live). Nothing here confirms a Pokémon is still there.`);
+}
 const ROUTE_LABEL = { off: 'Off', toast: 'Companion toast', os: 'OS notification', both: 'Toast + OS' };
 
 export async function render(el, route) {
@@ -81,7 +138,29 @@ async function renderReports(el, selectedId, src) {
     } else mount(inspector, h('div', { class: 'card muted small' }, 'Select a report to see its source details.'));
   };
   const notifier = state.boot.notifier;
+  const curBox = h('div', { class: 'cur-grid' });
+  const curNote = h('div');
+  let stopTimers = null;
+  const loadCurrent = async () => {
+    const c = await get('/api/live/current');
+    const skew = Date.parse(c.now) - Date.now();
+    const warn = !c.source.enabled ? notice('info', c.current.length ? 'The report feed is off — new reports are not being received. These cards were received while it was on.'
+      : 'The report feed is off, so nothing is claimed about current Alphas or Swarms.')
+      : !c.complete ? notice('warn', `The feed is ${c.source.status}${c.source.last_success_at ? ` (last data ${relTime(c.source.last_success_at)})` : ''} — recent reports may be missing. This does not mean none are active.`) : null;
+    mount(curBox, c.current.length ? c.current.map((g) => currentCard(g)) :
+      h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, 'No Alpha or Swarm reported recently. This does not mean none are active.'));
+    mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
+    if (stopTimers) stopTimers();
+    stopTimers = startTimers(curBox, skew, () => loadCurrent());
+  };
+  const refreshCurrent = () => { if (document.visibilityState !== 'hidden') loadCurrent(); };
+  const every = setInterval(refreshCurrent, 60000);
+  document.addEventListener('visibilitychange', refreshCurrent);
+  unsub.push(() => { clearInterval(every); document.removeEventListener('visibilitychange', refreshCurrent); if (stopTimers) stopTimers(); });
   el.append(h('div', { class: 'stack' }, sourceBar(src),
+    h('section', { class: 'stack tight', 'aria-labelledby': 'cur-h' }, h('div', { class: 'row' }, h('h2', { class: 'section-title', id: 'cur-h' }, 'Current / recently reported'),
+      h('span', { class: 'grow' }), h('span', { class: 'tiny muted' }, 'TEST entries and old history never appear here')), curBox, curNote),
+    h('h2', { class: 'section-title history-title' }, 'Report history'),
     h('div', { class: 'row wrap' },
       seg([['all', 'All'], ['alpha', 'Alpha'], ['swarm', 'Swarm'], ['other', 'Other']], ui.kind, (v) => { ui.kind = v; load(); }, 'Report type'),
       h('div', { class: 'search', style: { flex: '1 1 200px', maxWidth: '300px' } }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search reports', value: ui.q,
@@ -94,8 +173,8 @@ async function renderReports(el, selectedId, src) {
     h('div', { class: 'grid-2', style: { gridTemplateColumns: 'minmax(0,1.3fr) minmax(300px,1fr)', alignItems: 'start' } }, listBox, inspector),
     h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmDialog('Clear TEST entries', 'Remove all TEST notifications from history?')) { await post('/api/live/clear', { tests_only: true }); load(); } } }, 'Clear TEST entries'),
       h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmDialog('Clear report history', 'Remove all saved reports? Settings are kept.', 'Clear', true)) { await post('/api/live/clear', {}); load(); } } }, 'Clear history'))));
-  await load();
-  unsub.push(on('live.report', load));
+  await Promise.all([load(), loadCurrent()]);
+  unsub.push(on('live.report', () => { load(); loadCurrent(); }));
   unsub.push(on('live.source', (s) => { const bar = el.querySelector('.source-bar'); if (bar) bar.replaceWith(sourceBar(s)); }));
 }
 
@@ -144,7 +223,9 @@ export function reportRow(r, selected, compact) {
   reportSprite(r),
   h('div', { style: { minWidth: 0 } }, h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST · not real' : kind),
     r.species_name && (r.species_icon || r.species_still) ? h('span', { class: 'small rep-species' }, r.species_name) : null,
-    r.kind_basis === 'text-keyword' ? h('span', { class: 'tiny muted' }, '(detected from text)') : null, r.is_replay ? h('span', { class: 'tiny muted' }, '· replayed history') : null),
+    r.kind_basis === 'text-keyword' ? h('span', { class: 'tiny muted' }, '(detected from text)') : null,
+    r.status && !r.is_test ? h('span', { class: `cur-state ${STATE_CLASS[r.status.state]}` }, r.status.state === 'recent' ? 'Likely active' : r.status.label) : null,
+    r.is_replay ? h('span', { class: 'tiny muted' }, '· received on reconnect') : null),
   h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, r.title || r.body), compact ? null : h('div', { class: 'small muted ellipsis' }, r.body)),
   h('div', { class: 'small muted nowrap' }, 'Reported ', relTime(r.source_time || r.received_at)));
 }
@@ -165,7 +246,9 @@ function renderReportDetail(el, r) {
     h('dl', { class: 'kv small' },
       h('dt', null, 'Reported'), h('dd', null, r.source_time ? fmtDate(r.source_time, true) + ` (${relTime(r.source_time)})` : 'No source time'),
       h('dt', null, 'Received'), h('dd', null, fmtDate(r.received_at, true) + (r.is_replay ? ' — replayed from history, no alert' : '')),
-      h('dt', null, 'Status'), h('dd', null, 'Reported — not confirmed active; no despawn time is known'),
+      h('dt', null, 'Status'), h('dd', null, r.status ? [r.status.label, r.status.duration_min ? ` — ${timerText(r.status, Date.now()) || 'estimate passed'}` : '',
+        h('div', { class: 'tiny muted' }, r.status.estimate ? `${r.status.estimate}, counted from the ${r.status.start_basis}. Not a confirmation that it is still there.` : 'No timer for this report type.',
+          ...r.status.notes.map((n) => h('div', null, '⚠ ' + n)))] : 'Reported — not confirmed active'),
       h('dt', null, 'Source'), h('dd', null, `${r.provider}${r.topic ? ' / ' + r.topic : ''} · message ${r.message_id}`),
       h('dt', null, 'Parser'), h('dd', null, r.parser_version + (r.provider === 'ntfy' ? ' (payload format not yet validated)' : '')),
       h('dt', null, 'Delivery'), h('dd', null, deliveryText(d))),

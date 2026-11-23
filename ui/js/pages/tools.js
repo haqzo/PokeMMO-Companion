@@ -1,5 +1,7 @@
 // Tools workspace (docs/design/07): grouped hub + individual tools.
 import { t as tr } from '../i18n.js';
+import * as calcPage from './calculator.js';
+import { legacyRoute } from './collection.js';
 import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on } from '../core.js';
 import { go, popoutButton, pinButton, makePinDraggable, openPopout, isPinned, pinToSidebar } from '../shell.js';
 import { speciesPicker, speciesIndex, natureSelect } from '../components.js';
@@ -7,7 +9,7 @@ import * as breeding from './breeding.js';
 
 const STATS = [['hp', 'HP'], ['attack', 'Atk'], ['defense', 'Def'], ['sp_attack', 'SpA'], ['sp_defense', 'SpD'], ['speed', 'Spe']];
 let unsub = [];
-export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose();  if (typeof ownMod !== 'undefined' && ownMod && ownMod.dispose) ownMod.dispose(); }
+export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose(); calcPage.dispose();  if (typeof ownMod !== 'undefined' && ownMod && ownMod.dispose) ownMod.dispose(); }
 
 const TOOLS = {
   typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy) + defensive checker', render: renderTypeChart },
@@ -17,10 +19,11 @@ const TOOLS = {
   team: { title: 'Team builder', icon: 'team', group: 'planning', status: 'CORROBORATED', desc: 'Type coverage and weaknesses for six slots', render: renderTeam },
   ev: { title: 'EV & horde planner', icon: 'target', group: 'planning', status: 'DUMP_ONLY', desc: 'EV yields and horde arithmetic', render: renderEv },
   catch: { title: 'Catch calculator', icon: 'target', group: 'planning', status: '', desc: 'Capture chance per ball with PokeMMO ball conditions', render: renderCatch },
+  calculator: { title: 'Calculator', icon: 'calc', group: 'planning', status: '', desc: 'Everyday arithmetic: + − × ÷, percent, keyboard input', render: (el) => calcPage.renderCalculator(el) },
   // Connected tools render their own full page (header, pin, popout).
   items: { title: 'Item Library', i18n: 'items.title', icon: 'bag', group: 'collection', status: '', own: () => import('./items.js'), descKey: 'items.desc', popout: 'items' },
   notes: { title: 'Notes', i18n: 'notes.title', icon: 'note', group: 'collection', status: '', own: () => import('./notes.js'), descKey: 'notes.desc', popout: 'notes' },
-  box: { title: 'My Box', i18n: 'box.title', icon: 'box', group: 'collection', status: '', own: () => import('./box.js'), descKey: 'box.desc', popout: 'box' },
+  box: { title: 'My Pokémon', i18n: 'collection.mine', icon: 'box', group: 'collection', status: '', own: () => import('./box.js'), descKey: 'box.desc', popout: 'box' },
   showcase: { title: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', group: 'collection', status: '', own: () => import('./box.js').then((m) => ({ render: m.renderShowcasePage, dispose: m.dispose })), descKey: 'showcase.desc', popout: 'showcase' },
   cguides: { title: 'My guides', i18n: 'cguide.title', icon: 'list', group: 'collection', status: '', own: () => import('./cguides.js'), descKey: 'cguide.desc', popout: 'customguide' },
   locations: { title: 'Location explorer', i18n: 'loc.title', icon: 'map', group: 'collection', status: '', own: () => import('./locations.js'), descKey: 'loc.desc', popout: 'locations' },
@@ -39,6 +42,9 @@ export async function render(el, route) {
   if (ownMod && ownMod.dispose) ownMod.dispose();
   ownMod = null;
   const tool = route.parts[0];
+  if (tool === 'box' || tool === 'showcase') {  // My Box and Showcase now live in Collection
+    location.replace(legacyRoute(tool, route.parts.slice(1), route.query)); return;
+  }
   if (tool === 'damage') { toast('The Damage calculator was removed in v0.1.0. Use Type matchups and the Stat calculator.', { kind: 'warn', timeout: 5000 }); go('#/tools'); return; }
   if (tool && TOOLS[tool] && TOOLS[tool].own) {
     ownMod = await TOOLS[tool].own();
@@ -53,7 +59,7 @@ export async function render(el, route) {
       h('div', null, h('h1', null, t.title), h('div', { class: 'sub' }, t.desc)),
       h('div', { class: 'actions' }, statusBadge(t),
         pinButton({ kind: 'tool', id: tool }),
-        ['typechart', 'natures', 'breeding'].includes(tool) ? popoutButton(tool) : null)));
+        ['typechart', 'natures', 'breeding', 'calculator'].includes(tool) ? popoutButton(tool) : null)));
     const body = h('div');
     page.append(body);
     await t.render(body, route);

@@ -1,9 +1,9 @@
 // Home + in-app official news / changelog / event reader (docs/design/03).
-import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, stillArt, seg, pad3 } from '../core.js';
+import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3 } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { loadList } from './pokedex.js';
-import { reportSprite } from './live.js';
+import { currentCard, startTimers } from './live.js';
 
 let unsub = [];
 let newsCache = null;
@@ -28,80 +28,53 @@ function provenanceLine(item) {
     h('span', null, 'Published ', fmtDate(item.published)), item.updated ? h('span', null, '· updated ', fmtDate(item.updated)) : null);
 }
 
+// Home sections. Default: roamers, live, update, news, events, quick. The storyline run and favourites cards are
+// opt-in (Settings › Appearance › Home sections). Lists saved by earlier builds are translated, never discarded:
+// update → update + news, live → live + roamers, shortcuts → quick + run (Altering Cave is no longer on Home).
+export const HOME_SECTIONS = [['roamers', 'Roaming Legendaries'], ['live', 'Alpha & Swarm'], ['update', 'Latest official update'], ['news', 'More official updates'],
+  ['events', 'Official events'], ['quick', 'Quick access'], ['run', 'Storyline run'], ['favourites', 'Favourite Pokémon']];
+export const HOME_DEFAULT = ['roamers', 'live', 'update', 'news', 'events', 'quick'];
+export function homeSections(saved = setting('home.sections')) {
+  if (!Array.isArray(saved)) return [...HOME_DEFAULT];
+  const known = new Set(HOME_SECTIONS.map(([k]) => k));
+  const legacy = saved.length > 0 && saved.every((k) => ['update', 'events', 'live', 'shortcuts'].includes(k)) &&
+    (saved.includes('shortcuts') || !saved.some((k) => ['roamers', 'news', 'quick'].includes(k)));
+  if (!legacy) return saved.filter((k) => known.has(k));
+  const out = [];
+  for (const k of saved) out.push(...({ update: ['update', 'news'], live: ['live', 'roamers'], shortcuts: ['quick', 'run'], events: ['events'] })[k] || []);
+  return [...new Set(out)];
+}
+
 async function renderHome(el) {
+  dispose();
   const page = h('div', { class: 'page home-page' });
   mount(el, page);
-  // Favourites come from the Pokédex list that is already cached (no second 0.5 MB download, and the cache stays warm).
-  const [n, rep, leg, runs, data, species] = await Promise.all([news(), get('/api/live/reports?tests=1'), get('/api/live/legendaries'),
-    get('/api/guides/runs'), get('/api/data/status'), loadList().catch(() => [])]);
-  const idx = { species };
-  const sections = setting('home.sections') || ['update', 'events', 'live', 'shortcuts'];
-  const grid = h('div', { class: 'home-v2' });
-
-  page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()),
-    h('div', { class: 'sub' }, 'Official PokeMMO updates, your current run and the tools you use most — each item shows its source and age.')),
-  h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: () => go('#/settings/appearance') }, icon('gear'), 'Customize Home'))));
+  const sections = homeSections();
+  const on_ = (k) => sections.includes(k);
+  const [n, cur, leg, runs, data, species] = await Promise.all([news(), get('/api/live/current'), get('/api/live/legendaries'),
+    get('/api/guides/runs'), get('/api/data/status'), on_('favourites') ? loadList().catch(() => []) : Promise.resolve([])]);
+  const active = cur.current.filter((g) => g.status.state === 'recent').length;
+  const status = [
+    !cur.source.enabled ? 'Alpha/Swarm feed off' : `${active} Alpha/Swarm report${active === 1 ? '' : 's'} likely active`,
+    `Roaming this month: ${leg.current.kanto.name} & ${leg.current.johto.name}`,
+    n.latest ? `Latest update ${fmtDate(n.latest.published)}` : null].filter(Boolean).join(' · ');
+  page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()), h('div', { class: 'sub' }, status)),
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost small', onclick: () => go('#/settings/appearance') }, icon('gear'), 'Customize Home'))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, () => renderHome(el)));
   else if (!data.installed && data.candidates.length) page.append(installBanner(data, () => renderHome(el)));
   else if (data.update_available) page.append(installBanner(data, () => renderHome(el), true));
+  const grid = h('div', { class: 'home-v3' });
   page.append(grid);
 
-  // Featured official update (hero)
-  if (sections.includes('update') && n.latest) {
-    const full = await get('/api/news/' + n.latest.id);
-    const points = (full.groups || []).flatMap((g) => g.points).slice(0, 3);
-    grid.append(h('section', { class: 'card hero area-hero', 'aria-labelledby': 'latest-h' },
-      h('div', { class: 'hero-eyebrow' }, icon('book'), 'Latest official update', h('span', { class: 'grow' }), provenanceLine(n.latest)),
-      h('h2', { class: 'headline', id: 'latest-h' }, n.latest.title),
-      h('p', { class: 'hero-summary' }, n.latest.summary),
-      points.length ? h('ul', { class: 'hero-points' }, points.map((p) => h('li', null, p))) : null,
-      h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: () => go('#/news/' + n.latest.id) }, 'Read details'),
-        h('button', { class: 'btn', onclick: () => go('#/news') }, 'All updates & events'))));
-    grid.append(feedCard(n, () => renderHome(el)));
-  }
+  if (on_('roamers')) grid.append(roamersCard(leg));
+  if (on_('live')) grid.append(liveCard(cur, el));
+  if (on_('update') && n.latest) grid.append(await updateCard(n, () => { newsCache = null; renderHome(el); }));
+  if (on_('events') || on_('quick')) grid.append(h('div', { class: 'home-side stack' }, on_('events') ? eventsCard(n) : null, on_('quick') ? quickCard() : null));
+  if (on_('news')) grid.append(newsCard(n));
+  if (on_('run')) grid.append(await continueCard(runs, () => renderHome(el)));
+  if (on_('favourites')) grid.append(favouritesCard(species));
+  grid.querySelectorAll(':scope > *').forEach((c, i, all) => { if (i === all.length - 1 && all.length % 2 === 1 && c.classList.contains('half')) c.classList.add('wide'); });
 
-  // Continue + quick access
-  if (sections.includes('shortcuts')) {
-    grid.append(await continueCard(runs, () => renderHome(el)));
-    grid.append(quickCard());
-  }
-
-  // Events
-  if (sections.includes('events')) {
-    const card = h('section', { class: 'card area-events' }, h('div', { class: 'card-head' }, h('h2', null, 'Official events'), h('div', { class: 'right' },
-      h('button', { class: 'btn ghost small', onclick: () => go('#/events') }, 'All events', icon('chev')))));
-    if (!n.upcoming.length) card.append(h('div', { class: 'notice info', style: { marginBottom: '10px' } }, icon('calendar'),
-      h('div', null, h('strong', null, 'No upcoming official events confirmed'), ` (snapshot ${fmtDate(n.snapshot_checked_at)}${n.feed && n.feed.ok ? `, feed checked ${relTime(n.feed.checked_at)}` : ''}).`)));
-    const rows = [...n.upcoming, ...n.events.filter((e) => !n.upcoming.includes(e))].slice(0, 4);
-    card.append(h('div', { class: 'list-rows' }, rows.map((e) => eventRow(e))));
-    grid.append(card);
-  }
-
-  // Live status
-  if (sections.includes('live')) grid.append(liveCard(rep, leg));
-
-  // More updates + new titles
-  if (sections.includes('update')) {
-    const more = n.articles.filter((a) => !n.latest || a.id !== n.latest.id).slice(0, 4);
-    grid.append(h('section', { class: 'card area-more' }, h('div', { class: 'card-head' }, h('h2', null, 'More official updates'),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/news') }, 'All', icon('chev')))),
-    n.new_posts.length ? h('div', { class: 'stack tight', style: { marginBottom: '10px' } }, n.new_posts.slice(0, 3).map((p) => h('div', { class: 'list-row new-post' },
-      h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'), h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, p.title),
-        h('div', { class: 'tiny muted' }, `${fmtDate(p.published)} · Summary pending verification`)), extLink(p.link, 'Open')))) : null,
-    h('div', { class: 'list-rows' }, more.map((a) => h('button', { class: 'list-row', onclick: () => go('#/news/' + a.id) },
-      a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, KIND_LABEL[a.kind] || a.kind),
-      h('span', { class: 'grow ellipsis' }, a.title), h('span', { class: 'when' }, fmtDate(a.published)))))));
-  }
-
-  // Favourites
-  const favs = idx.species.filter((s) => s.fav).slice(0, 18);
-  grid.append(h('section', { class: 'card area-favs' }, h('div', { class: 'card-head' }, h('h2', null, 'Favourite Pokémon'),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/pokedex') }, 'Pokédex', icon('chev')))),
-  favs.length ? h('div', { class: 'fav-strip' }, favs.map((s) => h('button', { class: 'fav-tile', title: `${s.name} — ${s.avail}`, onclick: () => go('#/pokedex/' + s.id) },
-    s.still ? stillArt(s.still, s, 48) : spriteOrFallback(s.icon, s, 48), h('span', { class: 'tiny' }, s.name)))) :
-    h('div', { class: 'small muted' }, 'Star Pokémon in the Pokédex to keep them here.')));
-
-  unsub.push(on('live.report', () => { if (location.hash.startsWith('#/home')) renderHome(el); }));
   unsub.push(on('news', () => { if (location.hash.startsWith('#/home')) { newsCache = null; renderHome(el); } }));
 }
 
@@ -110,75 +83,153 @@ function greeting() {
   return hr < 5 ? 'Good night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-function feedCard(n, rerender) {
+// ------------------------------------------------------------ roaming Legendaries
+function motionOK() {
+  const pref = setting('pokedex.animate');
+  if (pref === true || pref === false) return pref;
+  return !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) && !document.documentElement.classList.contains('reduced-motion');
+}
+/** Animated Gen V sprite from your sprite library (only these two on Home), else the still; large tier, never stretched. */
+function roamerArt(m, size) {
+  if (m.ani && motionOK()) {
+    const img = h('img', { class: 'pixel', src: m.ani, alt: m.name, decoding: 'async', style: { visibility: 'hidden' } });
+    const box = h('div', { class: 'still-art roamer-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier: 'l' } }, img);
+    img.addEventListener('load', () => {
+      const f = fitSprite(img.naturalWidth, img.naturalHeight, null, 'l', size, size);
+      Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
+      box.classList.toggle('smooth', f.smooth);
+    });
+    img.addEventListener('error', () => box.replaceWith(sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' })));
+    return box;
+  }
+  return sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' });
+}
+function roamersCard(leg) {
+  const cur = leg.current, nxt = leg.next;
+  const month = (mm, y) => new Date(y, mm - 1, 1).toLocaleString(undefined, { month: 'long' });
+  const tile = (region, m) => h('button', { class: 'roamer', onclick: () => go('#/pokedex/' + m.id), title: `${m.name} — open in the Pokédex` },
+    roamerArt(m, 116), h('div', { class: 'roamer-name' }, m.name), h('div', { class: 'tiny muted roamer-region' }, cap(region)), typeChips(m.types, true));
+  return h('section', { class: 'card home-roamers half', 'aria-labelledby': 'roam-h' },
+    h('div', { class: 'card-head' }, h('h2', { id: 'roam-h' }, 'Roaming Legendaries'), h('span', { class: 'tiny muted' }, month(cur.month, cur.year)),
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/legendaries') }, 'Calendar', icon('chev')))),
+    h('div', { class: 'roamer-row' }, tile('kanto', cur.kanto), tile('johto', cur.johto)),
+    h('div', { class: 'tiny muted roamer-foot', title: leg.status_note },
+      h('span', { class: 'chip' }, 'Community cycle'), ' Not checked in-game this month · rollover time unknown',
+      nxt ? ` · ${month(nxt.month, nxt.year)}: ${nxt.kanto.name} & ${nxt.johto.name}` : '', ' · ', extLink(leg.source_url, 'Source')));
+}
+
+// ------------------------------------------------------------ Alpha & Swarm
+function liveCard(cur, el) {
+  const box = h('div', { class: 'cur-grid home-cur' });
+  const head = h('div', { class: 'row small home-feed' });
+  const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
+    h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, 'Alpha & Swarm'), h('span', { class: 'tiny muted' }, 'recently reported'),
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, 'History', icon('chev')))), head, box);
+  let stop = null;
+  const draw = (c) => {
+    const src = c.source;
+    mount(head, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), h('span', { class: 'muted' },
+      !src.enabled ? (c.current.length ? 'Feed off — showing reports received while it was on' : 'Feed off — no claim about current Alphas or Swarms') : src.status === 'connected' ? `Feed connected${src.last_success_at ? ' · last data ' + relTime(src.last_success_at) : ''}`
+        : `Feed ${src.status}${src.last_success_at ? ' · last data ' + relTime(src.last_success_at) : ''} — reports may be missing`));
+    const list = c.current.slice(0, 4);
+    mount(box, list.length ? list.map((g) => currentCard(g, { compact: true })) :
+      h('div', { class: 'small muted', style: { gridColumn: '1/-1', padding: '6px 2px' } }, src.enabled ? 'Nothing reported recently. This does not mean none are active.' : 'Connect the read-only report feed in Live to see community reports here.'));
+    if (stop) stop();
+    stop = startTimers(box, Date.parse(c.now) - Date.now(), () => refresh());
+  };
+  const refresh = async () => { if (!card.isConnected || document.visibilityState === 'hidden') return; draw(await get('/api/live/current')); };
+  draw(cur);
+  const every = setInterval(refresh, 60000);
+  document.addEventListener('visibilitychange', refresh);
+  unsub.push(() => { clearInterval(every); document.removeEventListener('visibilitychange', refresh); if (stop) stop(); });
+  unsub.push(on('live.report', refresh));
+  void el;
+  return card;
+}
+
+// ------------------------------------------------------------ official updates
+async function updateCard(n, rerender) {
+  const full = await get('/api/news/' + n.latest.id);
+  const points = (full.groups || []).flatMap((g) => g.points).slice(0, 3);
   const f = n.feed;
-  const status = !f ? 'Not checked yet' : f.ok ? (f.unchanged ? `Up to date · checked ${relTime(f.checked_at)}` : `Checked ${relTime(f.checked_at)} · ${f.count} official posts listed`)
+  const feed = !f ? 'Official feed not checked yet' : f.ok ? (f.unchanged ? `Official feed up to date · checked ${relTime(f.checked_at)}` : `Official feed checked ${relTime(f.checked_at)} · ${f.count} posts listed`)
     : `Last check failed ${relTime(f.checked_at)} — ${f.error}. Showing saved summaries.`;
-  return h('section', { class: 'card area-feed stack tight' },
-    h('div', { class: 'card-head', style: { margin: 0 } }, h('h2', null, 'Official news source')),
-    h('div', { class: 'row' }, h('span', { class: 'dot ' + (!f ? '' : f.ok ? 'connected' : 'offline') }), h('span', { class: 'small' }, status)),
-    h('div', { class: 'small muted' }, n.auto_check ? `Automatic check every ${n.check_hours} h (titles, dates and links from the official Updates feed).` : 'Automatic checks are off (Settings › Live sources & news).'),
-    h('div', { class: 'small muted' }, `In-app summaries: written and dated (${fmtDate(n.snapshot_checked_at)}). New titles show “Summary pending verification” until summarised.`),
-    n.new_posts.length ? h('div', { class: 'small' }, h('strong', null, `${n.new_posts.length} new official post(s)`), ' since the summaries were written.') : null,
-    h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/news/check');
-      toast(r.throttled ? 'Checked less than a minute ago.' : r.ok ? `Official feed checked${r.unchanged ? ' — no changes' : ''}.` : `Could not refresh: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 });
-      newsCache = null; rerender(); } }, icon('refresh'), 'Check now')));
+  return h('section', { class: 'card hero home-update', 'aria-labelledby': 'latest-h' },
+    h('div', { class: 'hero-eyebrow' }, icon('book'), 'Latest official update', h('span', { class: 'grow' }), provenanceLine(n.latest)),
+    h('h2', { class: 'headline', id: 'latest-h' }, n.latest.title),
+    h('p', { class: 'hero-summary' }, n.latest.summary),
+    points.length ? h('ul', { class: 'hero-points' }, points.map((p) => h('li', null, p))) : null,
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn primary small', onclick: () => go('#/news/' + n.latest.id) }, 'Read details'),
+      h('button', { class: 'btn small', onclick: () => go('#/news') }, 'All updates & events')),
+    h('div', { class: 'update-foot row wrap tiny' }, h('span', { class: 'dot ' + (!f ? '' : f.ok ? 'connected' : 'offline') }), h('span', null, feed),
+      h('span', { class: 'muted' }, n.auto_check ? `· automatic check every ${n.check_hours} h` : '· automatic checks off'),
+      h('span', { class: 'muted', title: 'Summaries in the Companion are written and dated by hand; new official titles show “Summary pending verification” until then.' },
+        `· summaries written ${fmtDate(n.snapshot_checked_at)}`),
+      n.new_posts.length ? h('strong', null, `· ${n.new_posts.length} new post${n.new_posts.length === 1 ? '' : 's'} since`) : null,
+      h('span', { class: 'grow' }),
+      h('button', { class: 'btn ghost small', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/news/check');
+        toast(r.throttled ? 'Checked less than a minute ago.' : r.ok ? `Official feed checked${r.unchanged ? ' — no changes' : ''}.` : `Could not refresh: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 });
+        rerender(); } }, icon('refresh'), 'Check now')));
+}
+
+function newsCard(n) {
+  const rows = [
+    ...n.new_posts.slice(0, 3).map((p) => h('div', { class: 'list-row compact new-post' }, h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'),
+      h('span', { class: 'grow ellipsis' }, p.title, h('span', { class: 'tiny muted' }, ' · summary pending verification')), h('span', { class: 'when' }, fmtDate(p.published)), extLink(p.link, 'Open'))),
+    ...n.articles.filter((a) => !n.latest || a.id !== n.latest.id).slice(0, 5 - Math.min(3, n.new_posts.length)).map((a) => h('button', { class: 'list-row compact', onclick: () => go('#/news/' + a.id) },
+      a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, KIND_LABEL[a.kind] || a.kind),
+      h('span', { class: 'grow ellipsis' }, a.title), h('span', { class: 'when' }, fmtDate(a.published))))];
+  return h('section', { class: 'card home-news half' }, h('div', { class: 'card-head' }, h('h2', null, 'More official updates'),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/news') }, 'All', icon('chev')))),
+  h('div', { class: 'list-rows' }, rows));
+}
+
+function eventsCard(n) {
+  // Upcoming first; concluded events only fill in (at most 2) when nothing upcoming is confirmed.
+  const upcoming = n.upcoming.slice(0, 3);
+  const past = upcoming.length ? [] : n.events.filter((e) => !n.upcoming.includes(e)).slice(0, 2);
+  return h('section', { class: 'card home-events' }, h('div', { class: 'card-head' }, h('h2', null, 'Official events'), h('div', { class: 'right' },
+    h('button', { class: 'btn ghost small', onclick: () => go('#/events') }, 'All', icon('chev')))),
+  upcoming.length ? null : h('div', { class: 'small muted', style: { marginBottom: '6px' } }, 'No upcoming official events confirmed',
+    h('span', { class: 'tiny' }, ` (snapshot ${fmtDate(n.snapshot_checked_at)}${n.feed && n.feed.ok ? `, feed checked ${relTime(n.feed.checked_at)}` : ''})`)),
+  h('div', { class: 'list-rows' + (upcoming.length ? '' : ' muted-rows') }, [...upcoming, ...past].map((e) => eventRow(e))));
 }
 
 async function continueCard(runs, rerender) {
   const run = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
   if (!run) {
-    return h('section', { class: 'card area-continue continue-card stack' }, h('div', { class: 'card-head', style: { margin: 0 } }, icon('guides'), h('h2', null, 'Your storyline run')),
-      h('p', { class: 'muted', style: { margin: 0 } }, 'Create a named run to track storyline progress per character in all five regions.'),
-      h('div', null, h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) rerender(); } }, icon('plus'), 'Create a run')));
+    return h('section', { class: 'card half home-run row' }, icon('guides'), h('div', { class: 'grow small' }, h('strong', null, 'Storyline run'), h('div', { class: 'muted' }, 'Track storyline progress per character.')),
+      h('button', { class: 'btn small', onclick: async () => { if (await createRun()) rerender(); } }, icon('plus'), 'Create a run'));
   }
   const st = await get(`/api/guides/runs/${run.id}/state?region=${run.last_region}`);
   const step = st.steps.find((x) => x.id === st.active_step_id);
   const c = st.source === 'imported' ? st.counts.unclassified : st.counts.mandatory;
   const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
-  return h('section', { class: 'card area-continue continue-card stack tight' },
+  return h('section', { class: 'card half home-run stack tight' },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow' },
-      h('div', { class: 'eyebrow-text' }, 'Continue'), h('div', { style: { fontWeight: 700, fontSize: '1.1rem' } }, `${run.display} — ${cap(st.region)}`))),
+      h('div', { class: 'eyebrow-text' }, 'Continue'), h('div', { style: { fontWeight: 700 } }, `${run.display} — ${cap(st.region)}`)),
+      h('button', { class: 'btn small', onclick: () => go('#/guides?jump=1') }, 'Open guide'), h('button', { class: 'btn ghost small', title: 'Storyline popout', onclick: () => openPopout('storyline') }, icon('popout'))),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'small nowrap' }, `${c.done}/${c.total}`)),
-    step ? h('div', { class: 'current-step' }, h('div', { class: 'tiny muted' }, `Current step · ${step.chapter}`), h('div', null, step.text)) : h('div', { class: 'muted small' }, 'No current step.'),
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: () => go('#/guides?jump=1') }, 'Open guide'),
-      h('button', { class: 'btn', onclick: () => openPopout('storyline') }, icon('popout'), 'Storyline popout')));
+    step ? h('div', { class: 'small' }, h('span', { class: 'muted' }, `${step.chapter} · `), step.text) : null);
 }
 
 function quickCard() {
   const list = (setting('nav.quick_access') || []).map((it) => ({ it, info: qaInfo(it) })).filter((x) => x.info);
-  return h('section', { class: 'card area-quick' }, h('div', { class: 'card-head' }, h('h2', null, 'Quick access'),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/tools') }, 'Add tools', icon('chev')))),
-  list.length ? h('div', { class: 'quick-tiles' }, list.map(({ info }) => h('button', { class: 'quick-tile' + (info.disabled ? ' disabled' : ''), title: info.disabled || info.label,
+  return h('section', { class: 'card home-quick' }, h('div', { class: 'card-head' }, h('h2', null, 'Quick access'),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/tools') }, 'Tools', icon('chev')))),
+  list.length ? h('div', { class: 'quick-chips' }, list.map(({ info }) => h('button', { class: 'quick-chip' + (info.disabled ? ' disabled' : ''), title: info.disabled || info.label,
     onclick: () => (info.disabled ? toast(info.disabled, { kind: 'warn' }) : go(info.route)) },
-  info.sprite ? h('img', { class: 'pixel', src: info.sprite, width: 32, height: 32, alt: '' }) : icon(info.icon), h('span', null, info.label)))) :
-    h('div', { class: 'small muted' }, 'Pin tools from the Tools page (drag them onto the sidebar or use “Pin to sidebar”). They appear here and in the sidebar.'));
+  info.sprite ? h('img', { class: 'pixel', src: info.sprite, width: 24, height: 24, alt: '' }) : icon(info.icon), h('span', null, info.label)))) :
+    h('div', { class: 'small muted' }, 'Pin tools with “Pin to sidebar”; they appear here and in the sidebar.'));
 }
 
-function liveCard(rep, leg) {
-  const src = rep.source;
-  const real = rep.reports.filter((r) => !r.is_test).slice(0, 3);
-  const status = !src.enabled ? 'Alpha/Swarm feed off (opt-in in Live)' : src.status === 'connected' ? `Feed connected · last data ${relTime(src.last_success_at)}`
-    : `Reports unavailable — ${src.status}${src.last_success_at ? ', last update ' + relTime(src.last_success_at) : ''}`;
-  const cur = leg.current;
-  return h('section', { class: 'card area-live' }, h('div', { class: 'card-head' }, h('h2', null, 'Live'),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live') }, 'Open Live', icon('chev')))),
-  h('div', { class: 'row small', style: { marginBottom: '8px' } }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), h('span', { class: 'muted' }, status)),
-  h('div', { class: 'list-rows live-rows' }, real.length ? real.map((r) => h('button', { class: 'list-row live-row', onclick: () => go('#/live/reports/' + r.id) },
-    reportSprite(r),
-    h('div', { class: 'live-row-text' },
-      h('div', { class: 'row' }, h('span', { class: `kind-label kind-${r.kind}` }, r.kind),
-        (r.species_icon || r.species_still) && r.species_name ? h('span', { class: 'small rep-species' }, r.species_name) : null,
-        h('span', { class: 'grow' }), h('span', { class: 'when' }, relTime(r.source_time || r.received_at))),
-      h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, r.title || r.body),
-      r.region ? h('div', { class: 'small muted ellipsis' }, cap(r.region) + (r.location ? ', ' + r.location : '')) : null))) :
-    h('div', { class: 'small muted', style: { padding: '2px' } }, src.enabled ? 'No reports received yet — this does not mean none are active.' : 'Nothing is claimed about current Alphas or Swarms while the feed is off.')),
-  h('div', { class: 'live-mini' },
-    h('button', { class: 'mini-tile', onclick: () => go('#/live/legendaries') }, h('div', { class: 'row' },
-      ...[cur.kanto, cur.johto].map((m) => (m.still ? stillArt(m.still, m, 72) : spriteOrFallback(m.icon, m, 72)))),
-    h('div', { class: 'small' }, `${cur.kanto.name} · ${cur.johto.name}`), h('div', { class: 'tiny muted' }, 'Roamers this month (community cycle)')),
-    h('button', { class: 'mini-tile', onclick: () => go('#/live/cave') }, icon('crystal'), h('div', { class: 'small' }, 'Altering Cave: unknown'),
-      h('div', { class: 'tiny muted' }, 'No verified live source'))));
+function favouritesCard(species) {
+  const favs = species.filter((x) => x.fav).slice(0, 18);
+  return h('section', { class: 'card half home-favs' }, h('div', { class: 'card-head' }, h('h2', null, 'Favourite Pokémon'),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/pokedex') }, 'Pokédex', icon('chev')))),
+  favs.length ? h('div', { class: 'fav-strip' }, favs.map((x) => h('button', { class: 'fav-tile', title: `${x.name} — ${x.avail}`, onclick: () => go('#/pokedex/' + x.id) },
+    sizedSprite(x, 48, { still: x.still, url: x.icon, tier: x.size || 'm' }), h('span', { class: 'tiny' }, x.name)))) :
+    h('div', { class: 'small muted' }, 'Star Pokémon in the Pokédex to keep them here.'));
 }
 
 function getStarted(data, runs, rerender) {

@@ -74,6 +74,7 @@ class AppContext:
         self.dex.library = self.sprite_library
         self.guides = GuideService(self.storage, self.paths)
         self.items = ItemService(self.paths, self.storage)
+        self.dex.machines = self.items.machines
         self.notes = NotesService(self.storage)
         self.box = BoxService(self.storage, self.dex)
         self.showcases = ShowcaseService(self.storage, self.box)

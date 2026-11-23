@@ -466,6 +466,7 @@ def build_router(ctx: AppContext) -> Router:
         return {"reports": ctx.live.list(req.q("kind"), req.q("q"), req.q("tests", "1") == "1"),
                 "source": ctx.live.source_status(), "notifier": ctx.notifier.describe()}
     r.add("GET", "/api/live/reports", live_reports)
+    r.add("GET", "/api/live/current", lambda req: ctx.live.current())
 
     def live_report(req: Request) -> dict:
         try:

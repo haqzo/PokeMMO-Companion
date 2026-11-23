@@ -20,6 +20,7 @@ PRESETS: dict[str, dict[str, tuple[int, int]]] = {
     "customguide": {"compact": (320, 240), "standard": (400, 520), "expanded": (520, 700)},
     "locations":   {"compact": (330, 440), "standard": (480, 620), "expanded": (820, 700)},
     "box":         {"compact": (320, 420), "standard": (480, 600), "expanded": (820, 700)},
+    "calculator":  {"compact": (240, 330), "standard": (300, 420), "expanded": (380, 520)},
 }
 
 

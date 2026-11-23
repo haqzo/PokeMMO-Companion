@@ -1,4 +1,5 @@
 // Settings (docs/design/16) + data import + first-run onboarding.
+import { HOME_SECTIONS, homeSections } from './home.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
@@ -116,10 +117,13 @@ async function appearance(b) {
     row('Reduced motion', 'Turns off transitions and shimmer.', switchEl(s['appearance.reduced_motion'], set('appearance.reduced_motion'))),
     row('Stat bars', 'Better Default “Soft colours” or a single accent colour.', seg([['soft', 'Soft colours'], ['accent', 'Accent']], s['appearance.stat_bars'], set('appearance.stat_bars'))),
     row('Reopen last page', 'Start where you left off.', switchEl(s['app.restore_last_page'], set('app.restore_last_page'))),
-    row('Home sections', 'Choose what Home shows.', h('div', { class: 'row wrap' }, [['update', 'Latest update'], ['events', 'Events'], ['live', 'Live activity'], ['shortcuts', 'Continue']].map(([k, l]) =>
-      h('label', { class: 'chip btnlike' }, h('input', { type: 'checkbox', class: 'check', checked: s['home.sections'].includes(k), onchange: (e) => {
-        const cur = new Set(state.settings['home.sections']); e.target.checked ? cur.add(k) : cur.delete(k); set('home.sections')([...cur]); } }), l)))),
-    row('Home shortcuts', 'Up to a few “Continue” actions.', h('div', { class: 'row wrap' }, [['guide', 'Current guide step'], ['pokedex_last', 'Last Pokémon'], ['breeding', 'Breeding planner'], ['typechart', 'Type matchups']].map(([k, l]) =>
+    row('Home sections', 'Choose what Home shows. Storyline run and Favourite Pokémon are off by default; your runs and favourites are kept either way.',
+      h('div', { class: 'row wrap' }, HOME_SECTIONS.map(([k, l]) =>
+        h('label', { class: 'chip btnlike' + (homeSections(s['home.sections']).includes(k) ? ' active' : '') }, h('input', { type: 'checkbox', class: 'check', checked: homeSections(s['home.sections']).includes(k), onchange: (e) => {
+          const cur = new Set(homeSections(state.settings['home.sections'])); e.target.checked ? cur.add(k) : cur.delete(k);
+          e.target.parentElement.classList.toggle('active', e.target.checked);
+          set('home.sections')(HOME_SECTIONS.map(([x]) => x).filter((x) => cur.has(x))); } }), l)))),
+    false && row('Home shortcuts', 'Up to a few “Continue” actions.', h('div', { class: 'row wrap' }, [['guide', 'Current guide step'], ['pokedex_last', 'Last Pokémon'], ['breeding', 'Breeding planner'], ['typechart', 'Type matchups']].map(([k, l]) =>
       h('label', { class: 'chip btnlike' }, h('input', { type: 'checkbox', class: 'check', checked: s['home.shortcuts'].includes(k), onchange: (e) => {
         const cur = new Set(state.settings['home.shortcuts']); e.target.checked ? cur.add(k) : cur.delete(k); set('home.shortcuts')([...cur]); } }), l)))),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
@@ -216,6 +220,11 @@ async function sources(b) {
     row('Feed server and topic', 'Advanced. HTTPS only.', h('div', { class: 'row wrap' },
       h('input', { class: 'input', style: { width: '260px' }, value: state.settings['live.ntfy.server'], onchange: (e) => set('live.ntfy.server')(e.target.value.trim()) }),
       h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: 'Comma-separated topics', onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
+    row('Swarm duration estimate', 'Used only for the “≈ time left” estimate on swarm reports. Community reports disagree (≈15, 20 or 30 min); this is not an official despawn time. Alphas use 75 min from the official changelog.',
+      h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 5, max: 120, value: state.settings['live.swarm_estimate_minutes'], style: { width: '80px' },
+        'aria-label': 'Swarm duration estimate in minutes', onchange: (e) => set('live.swarm_estimate_minutes')(Math.max(5, Math.min(120, Number(e.target.value) || 20))) }), h('span', { class: 'small' }, 'minutes'))),
+    row('Reports caught up on reconnect', 'When the Companion starts or reconnects it catches up on recent reports. Show those in “Current” if their own report time is still recent (they never trigger alerts).',
+      switchEl(state.settings['live.current_include_catchup'] !== false, set('live.current_include_catchup'))),
     row('Official news snapshot', `Bundled, independently written summaries checked ${fmtDate(n.snapshot_checked_at)}.`, h('span', { class: 'small' }, `${n.articles.length} posts · ${n.events.length} events`)),
     row('Automatic check of official news', 'Fetches only the official Updates feed (titles, dates, links) in the background, at most hourly. New titles show “Summary pending verification”.',
       h('div', { class: 'row wrap' }, switchEl(state.settings['updates.auto_check'], set('updates.auto_check')),

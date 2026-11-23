@@ -10,7 +10,7 @@ from typing import Any
 from .storage import Storage
 
 TOOLS = ("pokedex", "storyline", "reports", "typechart", "breeding", "legendaries", "cave", "natures",
-         "notes", "items", "showcase", "customguide", "locations", "box")
+         "notes", "items", "showcase", "customguide", "locations", "box", "calculator")
 LANGUAGES = ("en", "es", "zh")
 MODES = ("compact", "standard", "expanded")
 ROUTES = ("off", "toast", "os", "both")
@@ -29,7 +29,8 @@ DEFAULTS: dict[str, Any] = {
     "app.close_behavior": "quit",            # quit | tray  (tray must be explicitly chosen)
     "app.onboarded": False,
     "app.window_backend": "auto",            # auto | wayland | xwayland (applies at next launch)
-    "home.sections": ["update", "events", "live", "shortcuts"],
+    # Home (2026-11-23): storyline run and favourites are opt-in; lists saved by older builds are translated in the UI.
+    "home.sections": ["roamers", "live", "update", "news", "events", "quick"],
     "home.shortcuts": ["guide", "pokedex_last", "breeding"],
     # Pokédex
     "pokedex.last_species": None,
@@ -38,6 +39,8 @@ DEFAULTS: dict[str, Any] = {
     "guides.active_run": None,
     # Live / notifications
     "live.ntfy.enabled": False,              # opt-in only
+    "live.swarm_estimate_minutes": 20,       # provisional swarm duration estimate (community reports disagree: ~15/20/30)
+    "live.current_include_catchup": True,    # reports caught up after (re)connecting count in "Current" by their own time
     "live.ntfy.consented": False,
     "live.ntfy.server": "https://ntfy.pokemmotools.org",
     "live.ntfy.topic": "alphapings,swarmpings",   # Alphapedia publishes Alphas and Swarms on separate topics
@@ -56,8 +59,8 @@ DEFAULTS: dict[str, Any] = {
     "updates.auto_check": True,
     "updates.check_hours": 3,
     # Sidebar Quick Access (ordered list of {kind, id}); horizontal nav shows the same items as a strip
-    "nav.quick_access": [{"kind": "tool", "id": "typechart"}, {"kind": "tool", "id": "breeding"},
-                         {"kind": "guide", "id": "current"}],
+    # (Type matchups, Notes and Collection are in the main navigation since 2026-11-23, so not repeated here.)
+    "nav.quick_access": [{"kind": "tool", "id": "breeding"}, {"kind": "guide", "id": "current"}],
     # Pokédex
     "pokedex.scope": "reference",            # reference (all 649, default) | pokemmo (hide species YOU marked "Not listed")
     "pokedex.density": "standard",           # compact | standard | large
@@ -108,6 +111,7 @@ _ENUMS = {
     "box.view": ("grid", "list"),
 }
 _RANGES = {
+    "live.swarm_estimate_minutes": (5, 120),
     "appearance.text_scale": (80, 160),
     "notify.toast_duration": (3, 60),
     "notify.toast_opacity": (60, 100),
@@ -190,6 +194,8 @@ def validate(key: str, value: Any) -> Any:
         raise SettingsError(f"{key} must be an id or null")
     if key == "items.filters" and not isinstance(value, dict):
         raise SettingsError("items.filters must be an object")
+    if key == "live.current_include_catchup" and not isinstance(value, bool):
+        raise SettingsError("live.current_include_catchup must be true or false")
     if key == "pokedex.animate" and value is not None and not isinstance(value, bool):
         raise SettingsError("pokedex.animate must be true, false or null (follow the system)")
     if key == "pokedex.progress_run" and value is not None and not isinstance(value, str):

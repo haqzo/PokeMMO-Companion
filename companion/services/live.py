@@ -42,6 +42,63 @@ REGION_NAMES = {"kanto", "johto", "hoenn", "sinnoh", "unova"}
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
+# ---------------------------------------------------------------- report status & estimated timers
+# Alpha: 75 real-world minutes (official PokeMMO changelog, see docs/build/15). Swarms: community estimates
+# disagree (≈15 / 20 / 30 min), so a provisional, user-adjustable estimate is used (default 20 min).
+# A report's time is when someone REPORTED it, not when it spawned: timers are estimates of the latest
+# possible end, never a confirmation that the Pokémon is still there, and there is no next-spawn countdown.
+ALPHA_MINUTES = 75
+FUTURE_TOLERANCE = timedelta(minutes=2)
+
+
+def _parse_iso(v: str | None) -> datetime | None:
+    if not v:
+        return None
+    try:
+        d = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def report_status(r: dict, now: datetime, swarm_minutes: int = 20) -> dict:
+    """Classify one report: test · replayed · recent (likely active) · uncertain · ended · info (no timer)."""
+    received = _parse_iso(r.get("received_at")) or now
+    reported = _parse_iso(r.get("source_time"))
+    notes = []
+    start, basis = reported, "report time"
+    if reported is None:
+        start, basis = received, "time received"
+        notes.append("The report has no timestamp; the time it reached the Companion is used.")
+    elif reported > now + FUTURE_TOLERANCE or reported > received + FUTURE_TOLERANCE:
+        start, basis = received, "time received"
+        notes.append("The report's timestamp is in the future (clock difference); the time it reached the Companion is used.")
+    kind = "test" if r.get("is_test") else r.get("kind")
+    minutes = ALPHA_MINUTES if kind == "alpha" else swarm_minutes if kind == "swarm" else None
+    if minutes and reported and received - reported > timedelta(minutes=minutes):
+        notes.append("This report reached the Companion after its estimated window had already passed.")
+    age = max(0.0, (now - start).total_seconds())
+    out = {"start": start.isoformat(timespec="seconds"), "start_basis": basis, "age_s": int(age), "notes": notes,
+           "duration_min": minutes, "ends_at": (start + timedelta(minutes=minutes)).isoformat(timespec="seconds") if minutes else None,
+           "estimate": None if not minutes else ("Alpha duration 75 min (official changelog)" if kind == "alpha"
+                                                 else f"Swarm duration ~{minutes} min (community estimate, not official)")}
+    if kind == "test":
+        state = "test"
+    elif not minutes:
+        state = "info"
+    elif age < minutes * 60:
+        state = "recent"
+    elif age < minutes * 60 + max(15 * 60, minutes * 30):
+        state = "uncertain"
+    else:
+        state = "replayed" if r.get("is_replay") else "ended"
+    out["state"] = state
+    out["label"] = {"test": "TEST entry", "info": "Report", "recent": "Recently reported · likely active",
+                    "uncertain": "Status uncertain", "ended": "Old · likely ended", "replayed": "Replayed history"}[state]
+    out["remaining_s"] = int(minutes * 60 - age) if state == "recent" else 0
+    return out
+
+
 def sanitize(text: object, limit: int = 2000) -> str:
     if text is None:
         return ""
@@ -172,7 +229,57 @@ class LiveService:
         r["species_still"] = self.dex.still(sid) if ok else None
         lib = self.dex.library
         r["species_ani"] = (lib.urls(str(sid)).get("ani") if ok and lib is not None and lib.installed else None)
+        r["status"] = report_status(r, datetime.now(timezone.utc), self.swarm_minutes())
         return r
+
+    def swarm_minutes(self) -> int:
+        try:
+            return max(5, min(120, int(self.settings.get("live.swarm_estimate_minutes") or 20)))
+        except (TypeError, ValueError):
+            return 20
+
+    def current(self, now: datetime | None = None) -> dict:
+        """Featured 'Current / recently reported': credible Alpha & Swarm reports whose estimated window is open
+        (or just closed → 'status uncertain'). TEST entries and old history never appear here. Several reports of
+        the same Pokémon at the same place within one window are one entry, timed from the EARLIEST report.
+        Reports caught up after (re)connecting count by their own timestamp and are labelled as such."""
+        now = now or datetime.now(timezone.utc)
+        sw = self.swarm_minutes()
+        horizon = (now - timedelta(minutes=max(ALPHA_MINUTES, sw) * 3)).isoformat(timespec="seconds")
+        rows = [self._row(r) for r in self.db.query(
+            "SELECT * FROM reports WHERE is_test=0 AND kind IN ('alpha','swarm') AND COALESCE(source_time, received_at) >= ? "
+            "ORDER BY COALESCE(source_time, received_at) ASC", (horizon,))]
+        include_catchup = self.settings.get("live.current_include_catchup") is not False
+        groups: list[dict] = []
+        for r in rows:
+            st = r["status"]
+            if st["state"] not in ("recent", "uncertain") or (r["is_replay"] and not include_catchup):
+                continue
+            who = r.get("species_id") if r.get("species_match") in ("title", "single-mention") else None
+            key = (r["kind"], who or (r.get("title") or "").strip().lower(), (r.get("region") or "").lower(),
+                   (r.get("location") or "").lower())
+            start = _parse_iso(st["start"])
+            g = next((g for g in groups if g["key"] == key and start - g["_start"] < timedelta(minutes=st["duration_min"])), None)
+            if g:
+                g["count"] += 1
+                g["report_ids"].append(r["id"])
+                g["latest"] = r
+                continue
+            groups.append({"key": key, "_start": start, "first": r, "latest": r, "count": 1, "report_ids": [r["id"]]})
+        out = []
+        for g in groups:
+            first = g["first"]
+            st = report_status(first, now, sw)  # the timer runs from the earliest report of the group
+            if st["state"] not in ("recent", "uncertain"):
+                continue
+            out.append({**first, "status": st, "duplicates": g["count"] - 1, "report_ids": g["report_ids"],
+                        "latest_id": g["latest"]["id"], "caught_up": bool(first["is_replay"])})
+        out.sort(key=lambda x: (x["status"]["state"] != "recent", -_parse_iso(x["status"]["start"]).timestamp()))
+        src = self.source_status()
+        return {"now": now.isoformat(timespec="seconds"), "current": out, "source": src,
+                "estimates": {"alpha_minutes": ALPHA_MINUTES, "alpha_basis": "official PokeMMO changelog",
+                              "swarm_minutes": sw, "swarm_basis": "provisional community estimate (reports say ~15, 20 or 30 min)"},
+                "complete": bool(src.get("enabled")) and src.get("status") == "connected"}
 
     def species_match(self, title: str, body: str, sid: int) -> str:
         """How reliably a report identifies species `sid`: 'title' (the title is exactly the name),
@@ -356,7 +463,9 @@ class LiveService:
             out = {}
             for region in ("kanto", "johto"):
                 sid = cyc[region][str(m)]
+                lib = self.dex.library
                 out[region] = {"id": sid, "name": self.dex.name(sid), "icon": self.dex.sprite_url(sid), "still": self.dex.still(sid),
+                               "ani": lib.urls(str(sid)).get("ani") if lib is not None and lib.installed else None,
                                "types": self.dex.index[sid]["types"]}
             return out
         caught = {}

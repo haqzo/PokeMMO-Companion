@@ -150,9 +150,17 @@ class ItemService:
                     self.catalog = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 self.catalog = None
+            self.machine_items: dict[str, list[dict]] = {}
             for g in (self.catalog or {}).get("groups", []):
                 for r in g["records"]:
                     self.by_id[r["id"]] = g
+                # "TM - Focus Punch" / "HM - Cut" items in your client (used to read the client's "TM??" move method)
+                kind = g["name"][:2] if g["name"].startswith(("TM - ", "HM - ")) else None
+                if kind and g.get("move_name"):
+                    self.machine_items.setdefault(g["move_name"].lower(), []).append({"kind": kind, "item_id": g["id"], "name": g["name"]})
+
+    def machines(self, move_name: str) -> list[dict]:
+        return self.machine_items.get((move_name or "").lower(), []) if self.catalog else []
 
     @property
     def available(self) -> bool:

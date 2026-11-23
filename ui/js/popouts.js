@@ -143,7 +143,7 @@ function mainRoute() {
   return { storyline: '#/guides?jump=1', pokedex: hash.startsWith('species/') ? '#/pokedex/' + hash.split('/')[1] : '#/pokedex', reports: '#/live/reports',
     typechart: '#/tools/typechart', natures: '#/tools/natures', breeding: '#/tools/breeding', legendaries: '#/live/legendaries', cave: '#/live/cave',
     notes: '#/tools/notes' + (hash.startsWith('note/') ? '/' + hash.split('/')[1] : ''), items: '#/tools/items' + (hash.startsWith('item/') ? '/' + hash.split('/')[1] : ''),
-    showcase: '#/tools/showcase', customguide: '#/tools/cguides', locations: '#/tools/locations', box: '#/tools/box' }[POPOUT] || '#/home';
+    showcase: '#/collection/showcases', customguide: '#/tools/cguides', locations: '#/tools/locations', box: '#/collection', calculator: '#/tools/calculator' }[POPOUT] || '#/home';
 }
 
 async function renderBody() {
@@ -151,7 +151,8 @@ async function renderBody() {
   try {
     const fn = { storyline, pokedex, reports, typechart, breeding, legendaries, cave, natures,
       notes: (el) => renderNotesPopout(el, mode), items: (el) => renderItemsPopout(el, mode), showcase: (el) => renderShowcasePopout(el, mode),
-      customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode) }[POPOUT];
+      customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode),
+      calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })) }[POPOUT];
     if (!fn) { mount(bodyEl, notice('bad', 'Unknown popout: ' + POPOUT)); return; }
     await fn(bodyEl);
   } catch (e) { mount(bodyEl, notice('bad', e.message)); }

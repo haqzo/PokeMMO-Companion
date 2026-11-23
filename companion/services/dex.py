@@ -307,6 +307,47 @@ class DexService:
                         out["front"], out["front_shiny"] = ff.get("front"), ff.get("front_shiny")
             self.local_form_art[key] = out
 
+    # ------------------------------------------------------------ moves
+    # The client's learn methods, kept exactly. "TM??" is the client's own label for machine compatibility; it is
+    # shown as TM / HM only when your client also has a "TM - <move>" / "HM - <move>" item, and keeps its "??" note.
+    MOVE_METHODS = {"level": ("level", "Level"), "EVOLVE": ("evolve", "Evolve"), "TM??": ("machine", "TM"),
+                    "EGG": ("egg", "Egg"), "EGG & ITEM": ("egg-item", "Egg + item"), "TUTOR": ("tutor", "Tutor"),
+                    "SPECIAL": ("special", "Special"), "PREVO": ("prevo", "Pre-evolution")}
+    METHOD_RANK = ["start", "level", "evolve", "machine", "egg", "egg-item", "tutor", "special", "prevo"]
+    machines = None  # callable(move_name) -> [{"kind": "TM"|"HM", "item_id", "name"}], set by the app (Item Library)
+
+    def move_rows(self, moves: list[dict]) -> list[dict]:
+        """One row per move with every method it is learned by (levels kept). No records are dropped except
+        byte-identical duplicates; metadata comes only from your dump (None when the dump has none)."""
+        rows: dict = {}
+        for m in moves:
+            key = m.get("id") if m.get("id") is not None else m.get("name")
+            r = rows.get(key)
+            if r is None:
+                r = rows[key] = {"id": m.get("id"), "name": m.get("name"), "verified_meta": bool(m.get("verified_meta")),
+                                 **{k: m.get(k) for k in ("type", "category", "power", "accuracy", "pp", "priority")}, "methods": []}
+            raw = m.get("method")
+            code, label = self.MOVE_METHODS.get(raw, ("other", str(raw)))
+            lvl = m.get("level")
+            if code == "level" and lvl == 1:
+                code, label = "start", "Start"
+            meth = {"code": code, "label": label, "raw": raw, "level": lvl if code in ("level", "start") else None}
+            if code == "machine":
+                found = self.machines(m.get("name")) if self.machines else []
+                kinds = sorted({x["kind"] for x in found}, key=lambda k: k != "TM")
+                meth.update({"label": "/".join(kinds) if kinds else "TM??", "machine_items": found,
+                             "note": ("Your client lists this as “TM??”. " + (f"It also has a {' and '.join(x['name'] for x in found)} item. "
+                                      if found else "No matching TM/HM item was found in your client's item data. ")
+                                      + "Where to get it, and its price, are not covered.")})
+            if meth not in r["methods"]:
+                r["methods"].append(meth)
+        out = list(rows.values())
+        for r in out:
+            r["methods"].sort(key=lambda x: (self.METHOD_RANK.index(x["code"]) if x["code"] in self.METHOD_RANK else 99, x["level"] or 0))
+            levels = [x["level"] for x in r["methods"] if x["level"] is not None]
+            r["min_level"] = min(levels) if levels else None
+        return out
+
     # Visual size tiers (docs/build/14): one rule for grid, Summary and popouts. Heights are the species'
     # height from your installed dump; every Legendary/Mythical uses the large tier whatever its height.
     SIZE_TIERS = (("xs", 0.5), ("s", 0.9), ("m", 1.5))  # height below the limit (metres) → tier; otherwise "l"
@@ -486,7 +527,7 @@ class DexService:
             "ev_yield": {ref.EV_KEYS[k]: v for k, v in sp["yields"].items() if k in ref.EV_KEYS and v},
             "exp_yield": sp["yields"].get("exp"), "held_items": sp["held_items"], "tiers": sp["tiers"],
             "obtainable_flag": sp["obtainable_flag"], "types_raw_duplicated": sp["types_raw_duplicated"],
-            "forms": sp["forms"], "moves": sp["moves"], "locations": sp["locations"],
+            "forms": sp["forms"], "moves": sp["moves"], "move_rows": self.move_rows(sp["moves"]), "locations": sp["locations"],
             "evolution_chain": self.evolution_chain(sid),
         })
         return result

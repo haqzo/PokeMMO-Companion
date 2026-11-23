@@ -28,6 +28,19 @@ export function boxCard(e, onOpen, selected) {
   h('div', { class: 'bc-marks' }, marks(e), e.iv_total != null ? h('span', { class: 'tiny muted' }, `IV ${e.iv_total}`) : null));
 }
 
+/** Collection = My Pokémon (your manually recorded entries; nothing is imported from the Pokédex) + Showcases.
+ *  Same records, APIs and popouts as the former My Box and Showcase pages; their old routes redirect here. */
+function collectionHead(active, actions, style) {
+  const tab = (id, label, route) => h('button', { role: 'tab', class: 'tab' + (active === id ? ' active' : ''), 'aria-selected': String(active === id), onclick: () => go(route) }, label);
+  return h('div', { class: 'page-head collection-head', style },
+    h('div', null, h('h1', null, t('collection.title')),
+      h('div', { class: 'sub' }, active === 'pokemon' ? 'Only the Pokémon you choose to record — not your whole PC or Pokédex. Entered by you; never read from the game.'
+        : 'Pick recorded Pokémon to display. Sensitive details (OT, IVs, encounter counts) stay hidden unless you switch them on.'),
+      h('div', { class: 'tabs collection-tabs', role: 'tablist', 'aria-label': t('collection.title') },
+        tab('pokemon', t('collection.mine'), '#/collection'), tab('showcases', t('collection.showcases'), '#/collection/showcases'))),
+    h('div', { class: 'actions' }, actions));
+}
+
 export async function render(el, route) {
   dispose();
   const [data, sp] = await Promise.all([get('/api/box'), speciesIndex()]);
@@ -36,12 +49,8 @@ export async function render(el, route) {
   const f = { q: '', run: '', shiny: false, alpha: false, status: 'kept' };
   const page = h('div', { class: 'page flush' });
   mount(el, page);
-  page.append(h('div', { class: 'page-head', style: { padding: '14px 18px 4px' } },
-    h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), t('tools.title')),
-    h('div', null, h('h1', null, t('box.title')), h('div', { class: 'sub' }, 'Only the Pokémon you choose to record — not your whole PC. Entered by you; never read from the game.')),
-    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => go('#/tools/box/new') }, icon('plus'), t('box.add')),
-      h('button', { class: 'btn ghost', onclick: () => go('#/tools/showcase') }, icon('sparkle'), t('showcase.title')),
-      pinButton({ kind: 'tool', id: 'box' }), popoutButton('box'))));
+  page.append(collectionHead('pokemon', [h('button', { class: 'btn primary', onclick: () => go('#/collection/pokemon/new') }, icon('plus'), t('box.add')),
+    pinButton({ kind: 'tool', id: 'box' }), popoutButton('box')], { padding: '14px 18px 4px' }));
   const layout = h('div', { class: 'dex-layout' + (sel || isNew ? ' split' : '') });
   page.append(layout);
   const left = h('div', { class: 'dex-grid-wrap' });
@@ -52,9 +61,9 @@ export async function render(el, route) {
     const list = data.entries.filter((e) => (!q || (e.nickname || '').toLowerCase().includes(q) || e.species_name.toLowerCase().includes(q) || (e.tags || []).some((x) => x.includes(q))) &&
       (!f.run || e.run_id === f.run) && (!f.shiny || e.shiny) && (!f.alpha || e.alpha) && (f.status === 'all' || e.status === f.status));
     count.textContent = `${list.length} of ${data.entries.length}`;
-    mount(grid, list.length ? list.map((e) => boxCard(e, (x) => go('#/tools/box/' + x.id), x === sel)) :
+    mount(grid, list.length ? list.map((e) => boxCard(e, (x) => go('#/collection/pokemon/' + x.id), e.id === sel)) :
       h('div', { class: 'empty', style: { gridColumn: '1/-1' } }, data.entries.length ? 'No entries match.' : h('div', null, h('h3', null, 'Your Box is empty'),
-        h('p', null, 'Add a Pokémon you want to remember — a shiny, a breeding parent, a competitive build.'), h('button', { class: 'btn primary', onclick: () => go('#/tools/box/new') }, t('box.add')))));
+        h('p', null, 'Add a Pokémon you want to remember — a shiny, a breeding parent, a competitive build.'), h('button', { class: 'btn primary', onclick: () => go('#/collection/pokemon/new') }, t('box.add')))));
   };
   const chip = (label, key) => h('button', { class: 'chip btnlike', 'aria-pressed': 'false', onclick: (e) => { f[key] = !f[key]; e.currentTarget.classList.toggle('active', f[key]); e.currentTarget.setAttribute('aria-pressed', String(f[key])); draw(); } }, label);
   left.append(h('div', { class: 'dex-toolbar' },
@@ -71,7 +80,7 @@ export async function render(el, route) {
     layout.append(pane);
     const entry = sel ? data.entries.find((e) => e.id === sel) || await get('/api/box/' + sel).catch(() => null) : { species_id: Number(route.query.get('species')) || null, ivs: {}, evs: {}, moves: [], tags: [], status: 'kept', showcase_ok: true, gender: 'unknown' };
     if (!entry) { mount(pane, notice('bad', 'Entry not found')); return; }
-    await boxEditor(pane, entry, { runs: data.runs, species: sp, onSaved: (e) => go('#/tools/box/' + e.id), onClose: () => go('#/tools/box') });
+    await boxEditor(pane, entry, { runs: data.runs, species: sp, onSaved: (e) => go('#/collection/pokemon/' + e.id), onClose: () => go('#/collection') });
   }
   unsub.push(on('box', (d, ev) => { if (ev.origin !== WINDOW_ID) render(el, route); }));
 }
@@ -168,12 +177,12 @@ export async function renderBoxPopout(el, mode) {
       e.iv_total != null ? h('div', { class: 'small' }, 'IVs ', STATS.map(([k, l]) => `${l} ${e.ivs[k] ?? '—'}`).join(' · ')) : null,
       (e.moves || []).length ? h('div', { class: 'small' }, 'Moves: ', e.moves.join(', ')) : null,
       e.location ? h('div', { class: 'small muted' }, [e.location, e.region && cap(e.region), e.obtained_date].filter(Boolean).join(' · ')) : null,
-      h('button', { class: 'btn small', onclick: () => openRoute('#/tools/box/' + e.id) }, t('common.open_main'))));
+      h('button', { class: 'btn small', onclick: () => openRoute('#/collection/pokemon/' + e.id) }, t('common.open_main'))));
     return;
   }
   const kept = data.entries.filter((e) => e.status === 'kept');
   mount(el, kept.length ? h('div', { class: 'box-grid' + (mode === 'compact' ? ' compact' : '') }, kept.map((e) => boxCard(e, (x) => { location.hash = '#/owned/' + x.id; }))) :
-    h('div', { class: 'empty' }, 'Your Box is empty. ', h('button', { class: 'btn small', onclick: () => openRoute('#/tools/box/new') }, t('box.add'))));
+    h('div', { class: 'empty' }, 'Your Box is empty. ', h('button', { class: 'btn small', onclick: () => openRoute('#/collection/pokemon/new') }, t('box.add'))));
 }
 
 // --------------------------------------------------------------- Showcase
@@ -204,12 +213,10 @@ export async function renderShowcasePage(el, route) {
   const selId = route.parts[1] || list.active || (list.showcases[0] && list.showcases[0].id);
   const page = h('div', { class: 'page' });
   mount(el, page);
-  page.append(h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), t('tools.title')),
-    h('div', null, h('h1', null, t('showcase.title')), h('div', { class: 'sub' }, 'Pick Box entries to display. Sensitive details (OT, IVs, encounter counts) stay hidden unless you switch them on.')),
-    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: async () => { const sc = await post('/api/showcases', { name: 'My showcase' }); go('#/tools/showcase/' + sc.id); } }, icon('plus'), t('common.new')),
-      pinButton({ kind: 'tool', id: 'showcase' }), popoutButton('showcase'))));
+  page.append(collectionHead('showcases', [h('button', { class: 'btn primary', onclick: async () => { const sc = await post('/api/showcases', { name: 'My showcase' }); go('#/collection/showcases/' + sc.id); } }, icon('plus'), t('common.new')),
+    pinButton({ kind: 'tool', id: 'showcase' }), popoutButton('showcase')]));
   if (!list.showcases.length) { page.append(h('div', { class: 'empty' }, h('h3', null, 'No showcases yet'), h('p', null, box.entries.length ? 'Create one and choose entries from your Box.' : 'Add Pokémon to My Box first.'),
-    h('button', { class: 'btn', onclick: () => go(box.entries.length ? '#/tools/showcase' : '#/tools/box/new') }, box.entries.length ? 'Create a showcase above' : t('box.add')))); return; }
+    h('button', { class: 'btn', onclick: () => go(box.entries.length ? '#/collection/showcases' : '#/collection/pokemon/new') }, box.entries.length ? 'Create a showcase above' : t('box.add')))); return; }
   const sc = await get('/api/showcases/' + selId).catch(() => null) || await get('/api/showcases/' + list.showcases[0].id);
   const v = { name: sc.name, template: sc.template, entries: [...sc.entries], options: JSON.parse(JSON.stringify(sc.options)) };
   const preview = h('div', { class: 'sc-preview' });
@@ -221,7 +228,7 @@ export async function renderShowcasePage(el, route) {
   const eligible = box.entries.filter((e) => e.showcase_ok);
   page.append(h('div', { class: 'grid-2', style: { gridTemplateColumns: 'minmax(280px, 380px) 1fr', alignItems: 'start' } },
     h('div', { class: 'card stack tight' },
-      h('select', { class: 'input', 'aria-label': 'Showcase', onchange: (e) => go('#/tools/showcase/' + e.target.value) }, list.showcases.map((x) => h('option', { value: x.id, selected: x.id === sc.id ? 'selected' : null }, x.name))),
+      h('select', { class: 'input', 'aria-label': 'Showcase', onchange: (e) => go('#/collection/showcases/' + e.target.value) }, list.showcases.map((x) => h('option', { value: x.id, selected: x.id === sc.id ? 'selected' : null }, x.name))),
       h('label', { class: 'label' }, 'Name'), h('input', { class: 'input', value: v.name, maxlength: 80, oninput: (e) => { v.name = e.target.value; save(); } }),
       h('label', { class: 'label' }, 'Title shown in the window'), h('input', { class: 'input', value: v.options.title || '', maxlength: 80, oninput: (e) => { v.options.title = e.target.value; save(); } }),
       h('label', { class: 'label' }, 'Layout'), h('select', { class: 'input', onchange: (e) => { v.template = e.target.value; save(); } },
@@ -242,7 +249,7 @@ export async function renderShowcasePage(el, route) {
         h('img', { class: 'pixel', src: e.icon, width: 28, height: 28, alt: '' }), h('span', { class: 'small' }, (e.nickname || e.species_name) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
         h('div', { class: 'small muted' }, 'No Box entries allowed in Showcase yet.'),
       h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: async () => { await saveSettings({ 'showcase.active': sc.id }); toast('Shown in the Showcase window'); } }, 'Use in Showcase window'),
-        h('span', { class: 'grow' }), h('button', { class: 'btn danger ghost small', onclick: async () => { if (await confirmDialog('Delete showcase?', 'Box entries are not affected.', t('common.delete'), true)) { await api('DELETE', '/api/showcases/' + sc.id); go('#/tools/showcase'); } } }, t('common.delete')))),
+        h('span', { class: 'grow' }), h('button', { class: 'btn danger ghost small', onclick: async () => { if (await confirmDialog('Delete showcase?', 'Box entries are not affected.', t('common.delete'), true)) { await api('DELETE', '/api/showcases/' + sc.id); go('#/collection/showcases'); } } }, t('common.delete')))),
     h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'label' }, 'Preview'), h('span', { class: 'grow' }),
       v.template === 'featured' ? [h('button', { class: 'btn ghost small', onclick: () => { idx -= 1; redraw(); } }, '‹'), h('button', { class: 'btn ghost small', onclick: () => { idx += 1; redraw(); } }, '›')] : null), preview)));
   redraw();
@@ -251,7 +258,7 @@ export async function renderShowcasePage(el, route) {
 export async function renderShowcasePopout(el, mode) {
   const list = await get('/api/showcases');
   const id = setting('showcase.active') || (list.showcases[0] && list.showcases[0].id);
-  if (!id) { mount(el, h('div', { class: 'empty' }, 'No showcase yet. ', h('button', { class: 'btn small', onclick: () => openRoute('#/tools/showcase') }, 'Create one'))); return; }
+  if (!id) { mount(el, h('div', { class: 'empty' }, 'No showcase yet. ', h('button', { class: 'btn small', onclick: () => openRoute('#/collection/showcases') }, 'Create one'))); return; }
   let sc;
   try { sc = await get('/api/showcases/' + id); } catch (_) { sc = await get('/api/showcases/' + list.showcases[0].id); }
   let idx = 0;
