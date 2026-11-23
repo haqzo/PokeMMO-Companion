@@ -173,26 +173,31 @@ async function updateCard(n, rerender) {
 }
 
 function newsCard(n) {
+  // Home lists only posts PUBLISHED in the last 90 days (n.home, computed by the backend). A post the feed check
+  // only just discovered can still be old news (e.g. last year's holiday event) — that stays in the archive.
+  const hm = n.home || { new_posts: n.new_posts, articles: n.articles, window_days: 90 };
+  const fresh = hm.new_posts.slice(0, 3);
+  const rest = hm.articles.filter((a) => !n.latest || a.id !== n.latest.id).slice(0, 5 - fresh.length);
   const rows = [
-    ...n.new_posts.slice(0, 3).map((p) => h('div', { class: 'list-row compact new-post' }, h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'),
+    ...fresh.map((p) => h('div', { class: 'list-row compact new-post' }, h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'),
       h('span', { class: 'grow ellipsis' }, p.title, h('span', { class: 'tiny muted' }, ' · summary pending verification')), h('span', { class: 'when' }, fmtDate(p.published)), extLink(p.link, 'Open'))),
-    ...n.articles.filter((a) => !n.latest || a.id !== n.latest.id).slice(0, 5 - Math.min(3, n.new_posts.length)).map((a) => h('button', { class: 'list-row compact', onclick: () => go('#/news/' + a.id) },
+    ...rest.map((a) => h('button', { class: 'list-row compact', onclick: () => go('#/news/' + a.id) },
       a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, KIND_LABEL[a.kind] || a.kind),
       h('span', { class: 'grow ellipsis' }, a.title), h('span', { class: 'when' }, fmtDate(a.published))))];
   return h('section', { class: 'card home-news half' }, h('div', { class: 'card-head' }, h('h2', null, 'More official updates'),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/news') }, 'All', icon('chev')))),
-  h('div', { class: 'list-rows' }, rows));
+    h('span', { class: 'tiny muted' }, `published in the last ${hm.window_days} days`),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/news') }, 'Archive', icon('chev')))),
+  rows.length ? h('div', { class: 'list-rows' }, rows) : h('div', { class: 'small muted home-empty' }, `Nothing published in the last ${hm.window_days} days besides the update above. Older posts are in the archive.`));
 }
 
 function eventsCard(n) {
-  // Upcoming first; concluded events only fill in (at most 2) when nothing upcoming is confirmed.
-  const upcoming = n.upcoming.slice(0, 3);
-  const past = upcoming.length ? [] : n.events.filter((e) => !n.upcoming.includes(e)).slice(0, 2);
+  // Only ongoing (scheduled window open) and upcoming events. Past events live in the archive, not on Home.
+  const evs = ((n.home && n.home.events) || n.upcoming).slice(0, 3);
   return h('section', { class: 'card home-events' }, h('div', { class: 'card-head' }, h('h2', null, 'Official events'), h('div', { class: 'right' },
-    h('button', { class: 'btn ghost small', onclick: () => go('#/events') }, 'All', icon('chev')))),
-  upcoming.length ? null : h('div', { class: 'small muted', style: { marginBottom: '6px' } }, 'No upcoming official events confirmed',
-    h('span', { class: 'tiny' }, ` (snapshot ${fmtDate(n.snapshot_checked_at)}${n.feed && n.feed.ok ? `, feed checked ${relTime(n.feed.checked_at)}` : ''})`)),
-  h('div', { class: 'list-rows' + (upcoming.length ? '' : ' muted-rows') }, [...upcoming, ...past].map((e) => eventRow(e))));
+    h('button', { class: 'btn ghost small', onclick: () => go('#/events') }, 'Archive', icon('chev')))),
+  evs.length ? h('div', { class: 'list-rows' }, evs.map((e) => eventRow(e))) :
+    h('div', { class: 'small muted home-empty' }, 'No ongoing or upcoming official events',
+      h('span', { class: 'tiny' }, ` (snapshot ${fmtDate(n.snapshot_checked_at)}${n.feed && n.feed.ok ? `, feed checked ${relTime(n.feed.checked_at)}` : ''})`)));
 }
 
 async function continueCard(runs, rerender) {

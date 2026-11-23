@@ -15,6 +15,7 @@ import { renderNotesPopout } from './pages/notes.js';
 import { renderBoxPopout, renderShowcasePopout } from './pages/box.js';
 import { renderCustomGuidePopout } from './pages/cguides.js';
 import { renderLocationsPopout } from './pages/locations.js';
+import { installTimerSound } from './timer-sound.js';
 
 let root, bodyEl, mode, savedMode;
 const MODES = [['compact', 'C', 'Compact'], ['standard', 'S', 'Standard'], ['expanded', 'E', 'Expanded']];
@@ -33,6 +34,7 @@ export function startPopout(el) {
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
   document.title = def.title + ' — PokeMMO Companion';
   bodyEl = h('div', { class: 'popout-body readable' });
+  installTimerSound();
   draw();
   document.addEventListener('settings-changed', (ev) => {
     const keys = Object.keys((ev && ev.detail) || {});
@@ -143,7 +145,7 @@ function mainRoute() {
   return { storyline: '#/guides?jump=1', pokedex: hash.startsWith('species/') ? '#/pokedex/' + hash.split('/')[1] : '#/pokedex', reports: '#/live/reports',
     typechart: '#/tools/typechart', natures: '#/tools/natures', breeding: '#/tools/breeding', legendaries: '#/live/legendaries', cave: '#/live/cave',
     notes: '#/tools/notes' + (hash.startsWith('note/') ? '/' + hash.split('/')[1] : ''), items: '#/tools/items' + (hash.startsWith('item/') ? '/' + hash.split('/')[1] : ''),
-    showcase: '#/collection/showcases', customguide: '#/tools/cguides', locations: '#/tools/locations', box: '#/collection', calculator: '#/tools/calculator' }[POPOUT] || '#/home';
+    showcase: '#/collection/showcases', customguide: '#/tools/cguides', locations: '#/tools/locations', box: '#/collection', calculator: '#/tools/calculator', timers: '#/tools/timers' }[POPOUT] || '#/home';
 }
 
 async function renderBody() {
@@ -152,7 +154,8 @@ async function renderBody() {
     const fn = { storyline, pokedex, reports, typechart, breeding, legendaries, cave, natures,
       notes: (el) => renderNotesPopout(el, mode), items: (el) => renderItemsPopout(el, mode), showcase: (el) => renderShowcasePopout(el, mode),
       customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode),
-      calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })) }[POPOUT];
+      calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })),
+      timers: (el) => import('./pages/timers.js').then((m) => m.renderTimers(el, { variant: mode })) }[POPOUT];
     if (!fn) { mount(bodyEl, notice('bad', 'Unknown popout: ' + POPOUT)); return; }
     await fn(bodyEl);
   } catch (e) { mount(bodyEl, notice('bad', e.message)); }

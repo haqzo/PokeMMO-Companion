@@ -87,7 +87,8 @@ const P = {
   calendar: 'M4 5h16v16H4zM4 9h16M8 3v4M16 3v4', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
   dots: 'M5 12h.01M12 12h.01M19 12h.01', target: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0',
   external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5', note: 'M5 3h10l4 4v14H5zM14 3v5h5M8 13h8M8 17h5',
-  map: 'M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15',
+  map: 'M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15', clock: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5', fit: 'M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5M9 9h6v6H9z',
   globe: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18', note: 'M5 3h10l4 4v14H5zM15 3v4h4M8 12h8M8 16h6',
   bag: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2', box: 'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10', sparkle: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
   textsize: 'M4 18L9 6l5 12M6 14h6M15 18l3-7 3 7M16 16h4', archive: 'M3 4h18v4H3zM5 8v12h14V8M10 12h4', list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01', minus: 'M5 12h14', bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
@@ -179,16 +180,16 @@ export function reportToast(p, openFn) {
   // In-window custom toast (browser mode). Native shell shows its own frameless toast window.
   const stack = document.getElementById('toasts');
   if (!stack) return;
-  const img = p.species_icon ? h('img', { class: 'pixel', src: p.species_icon, width: 36, height: 36, alt: '' }) : icon(p.kind === 'test' ? 'bell' : 'live');
+  const img = p.species_icon ? h('img', { class: 'pixel', src: p.species_icon, width: 36, height: 36, alt: '' }) : icon(p.kind === 'test' ? 'bell' : p.kind === 'timer' ? 'clock' : 'live');
   const el = h('div', { class: 'toast' + (p.is_test ? ' test' : ''), role: 'alert' },
     h('div', { class: 't-icon' }, img),
     h('div', null,
       h('div', { class: `kind-label kind-${p.kind}` }, p.is_test ? 'TEST · not a real report' : p.kind),
       h('div', { class: 't-title' }, p.title),
       p.line ? h('div', { class: 't-line' }, p.line) : null,
-      h('div', { class: 't-meta' }, 'Reported ', relTime(p.reported)),
+      h('div', { class: 't-meta' }, p.meta || ['Reported ', relTime(p.reported)]),
       h('div', { class: 'row', style: { marginTop: '6px' } },
-        h('button', { class: 'btn small', onclick: () => { openFn && openFn(p.id); el.remove(); } }, 'Open in Live'))),
+        h('button', { class: 'btn small', onclick: () => { openFn && openFn(p.id, p); el.remove(); } }, p.open_label || 'Open in Live'))),
     h('button', { class: 'icon-btn', 'aria-label': 'Dismiss', onclick: () => el.remove() }, icon('close')));
   stack.append(el);
   while (stack.children.length > 4) stack.firstChild.remove();

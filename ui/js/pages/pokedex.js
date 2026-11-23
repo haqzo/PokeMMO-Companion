@@ -710,7 +710,9 @@ function locations(d) {
   };
   const holder = h('div');
   const redraw = () => mount(holder, draw());
-  wrap.append(h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Season'), seg(SEASONS.map((s) => [s, s === 'all' ? 'All' : s]), ui.locSeason, (v) => { ui.locSeason = v; redraw(); }, 'Season')),
+  const firstRegion = d.locations[0] && d.locations[0].region;
+  wrap.append(h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Season'), seg(SEASONS.map((s) => [s, s === 'all' ? 'All' : s]), ui.locSeason, (v) => { ui.locSeason = v; redraw(); }, 'Season'),
+    h('span', { class: 'grow' }), h('a', { class: 'btn small ghost', href: `#/tools/locations?region=${firstRegion || 'kanto'}&species=${d.id}`, title: 'Highlight every location of this Pokémon in the Location explorer' }, icon('map'), 'Show in Location explorer')),
     h('p', { class: 'tiny muted', style: { margin: 0 } }, '“Lure only”, “Special” and “Unknown rate” are shown exactly as the dump states them — never as 0% or 100%. Percentages are from your dump and may predate later patches (e.g. 29 Jul 2026 encounter rebuild, Altering Cave rotation).'),
     holder);
   redraw();

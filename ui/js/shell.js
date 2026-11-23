@@ -1,4 +1,5 @@
 // Main window chrome, navigation and router.
+import { installTimerSound } from './timer-sound.js';
 import { h, mount, icon, logo, state, setting, saveSettings, on, reportToast, post, SHELL, TOKEN, toast, debounce, get, pad3 } from './core.js';
 import * as home from './pages/home.js';
 import * as pokedex from './pages/pokedex.js';
@@ -56,7 +57,8 @@ export function startApp(el) {
   document.addEventListener('settings-changed', () => {
     if (setting('appearance.nav') !== lastNav) { lastNav = setting('appearance.nav'); renderChrome(); }
   });
-  on('toast', (p) => reportToast(p, (id) => go(`#/live/reports/${id}`)));
+  on('toast', (p) => reportToast(p, (id, pl) => go(pl && pl.route ? pl.route : `#/live/reports/${id}`)));
+  installTimerSound();
   on('navigate', (d) => d && d.route && go(d.route));
   on('settings', (d) => { if (d && Object.keys(d).includes('nav.quick_access')) setTimeout(renderQuick, 50); });
   document.addEventListener('keydown', globalKeys);
@@ -181,6 +183,7 @@ export const POPOUT_TOOLS = {
   showcase: { title: 'Showcase', w: 520, h: 420, i18n: 'showcase.title' }, customguide: { title: 'Guide steps', w: 400, h: 520, i18n: 'cguide.title' },
   locations: { title: 'Locations', w: 480, h: 620, i18n: 'loc.title' }, box: { title: 'My Box', w: 480, h: 600, i18n: 'box.title' },
   calculator: { title: 'Calculator', w: 300, h: 420, i18n: 'calc.title' },
+  timers: { title: 'Timers', w: 360, h: 480 },
 };
 export function popoutSize(tool, mode) {
   const custom = (setting(`window.${tool}.sizes`) || {})[mode];
@@ -217,6 +220,7 @@ export const QA_TOOLS = {
   stats: { label: 'Stat calculator', icon: 'calc', route: '#/tools/stats' },
   catch: { label: 'Catch calculator', icon: 'target', route: '#/tools/catch' },
   calculator: { label: 'Calculator', i18n: 'calc.title', icon: 'calc', route: '#/tools/calculator', popout: 'calculator' },
+  timers: { label: 'Timers', icon: 'clock', route: '#/tools/timers', popout: 'timers' },
   items: { label: 'Item Library', i18n: 'items.title', icon: 'bag', route: '#/tools/items', popout: 'items' },
   notes: { label: 'Notes', i18n: 'notes.title', icon: 'note', route: '#/tools/notes', popout: 'notes' },
   box: { label: 'My Pokémon', i18n: 'collection.mine', icon: 'box', route: '#/collection', popout: 'box' },

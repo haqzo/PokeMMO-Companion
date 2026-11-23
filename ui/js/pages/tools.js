@@ -20,6 +20,7 @@ const TOOLS = {
   ev: { title: 'EV & horde planner', icon: 'target', group: 'planning', status: 'DUMP_ONLY', desc: 'EV yields and horde arithmetic', render: renderEv },
   catch: { title: 'Catch calculator', icon: 'target', group: 'planning', status: '', desc: 'Capture chance per ball with PokeMMO ball conditions', render: renderCatch },
   calculator: { title: 'Calculator', icon: 'calc', group: 'planning', status: '', desc: 'Everyday arithmetic: + − × ÷, percent, keyboard input', render: (el) => calcPage.renderCalculator(el) },
+  timers: { title: 'Timers', icon: 'clock', group: 'planning', status: '', own: () => import('./timers.js'), desc: 'Several named countdowns with presets, repeat, sound and notifications', popout: 'timers' },
   // Connected tools render their own full page (header, pin, popout).
   items: { title: 'Item Library', i18n: 'items.title', icon: 'bag', group: 'collection', status: '', own: () => import('./items.js'), descKey: 'items.desc', popout: 'items' },
   notes: { title: 'Notes', i18n: 'notes.title', icon: 'note', group: 'collection', status: '', own: () => import('./notes.js'), descKey: 'notes.desc', popout: 'notes' },

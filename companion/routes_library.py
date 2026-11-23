@@ -293,6 +293,23 @@ def register(r, ctx, ApiError, Request) -> None:
         return d
     add("GET", "/api/locations/<lid>", loc_detail)
 
+    def loc_encounters(req):
+        """Compact encounter rows for one region, for the Location Explorer's filters and Pokémon highlighting.
+        Row: [location_id, species_id, method, horde (0/3/5), season, times bitmask (1 morning, 2 day, 4 night), min, max]."""
+        region = (req.query.get("region") or [""])[0]
+        if not hasattr(ctx.dex, "_locations"):
+            ctx.dex._build_locations()
+        out = []
+        for key, v in ctx.dex._locations.items():
+            if region and v["region"] != region:
+                continue
+            for r in v["rows"]:
+                times = (1 if r.get("morning") else 0) | (2 if r.get("day") else 0) | (4 if r.get("night") else 0)
+                out.append([key, r["species_id"], r["method"], 5 if r.get("horde5") else 3 if r.get("horde3") else 0,
+                            r.get("season") or "", times, r.get("min"), r.get("max")])
+        return {"region": region, "rows": out, "imported": ctx.dex.imported}
+    add("GET", "/api/locations-encounters", loc_encounters)
+
     # -------------------------------------------------- dex observations
     def obs_list(req):
         rows = ctx.storage.query("SELECT * FROM dex_observations ORDER BY observed_at DESC, created_at DESC")

@@ -112,7 +112,7 @@ def test_home_reads_official_update_in_app(app, page):
     assert "Defog" in text and "Original post" in text
     page.get_by_role("button", name="Back").click()
     page.wait_for_selector(".headline")
-    assert "No upcoming official events confirmed" in page.locator(".main").inner_text()
+    assert "No ongoing or upcoming official events" in page.locator(".main").inner_text()
 
 
 def test_pokedex_search_detail_and_favourite(app, page):

@@ -17,6 +17,8 @@ from .services.items import ItemService
 import threading
 
 from .services.sprite_library import SpriteLibrary
+from .services.region_maps import RegionMaps
+from .services.timers import TimerService
 from .services.importer import recover_interrupted_swap, sync_existing_import
 from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
@@ -85,6 +87,12 @@ class AppContext:
         self.news = NewsService(self.storage)
         self.notifier = Notifier()
         self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier)
+        self.region_maps = RegionMaps(self.paths, self.storage, self.bus)
+        try:
+            self.region_maps.recover()
+        except OSError:
+            log.exception("Could not check region-map artwork")
+        self.timers = TimerService(self.storage, self.settings, self.bus, self.notifier)
         self.shell = ShellBridge()
         self.load_roster_checks()
         self.token = secrets.token_urlsafe(24)
@@ -149,8 +157,10 @@ class AppContext:
         threading.Thread(target=self.sync_local_data, name="data-sync", daemon=True).start()
         self.live.apply_settings()
         self.news.start_auto(self.settings, self.bus)
+        self.timers.start()
 
     def shutdown(self) -> None:
         self.live.stop()
+        self.timers.stop()
         self.news.stop_auto()
         self.storage.close()

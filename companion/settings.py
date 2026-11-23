@@ -10,7 +10,7 @@ from typing import Any
 from .storage import Storage
 
 TOOLS = ("pokedex", "storyline", "reports", "typechart", "breeding", "legendaries", "cave", "natures",
-         "notes", "items", "showcase", "customguide", "locations", "box", "calculator")
+         "notes", "items", "showcase", "customguide", "locations", "box", "calculator", "timers")
 LANGUAGES = ("en", "es", "zh")
 MODES = ("compact", "standard", "expanded")
 ROUTES = ("off", "toast", "os", "both")
@@ -47,6 +47,7 @@ DEFAULTS: dict[str, Any] = {
     "notify.alpha": "both",
     "notify.swarm": "both",
     "notify.other": "toast",
+    "notify.timer": "both",                  # Tools › Timers completions
     "notify.test": "both",
     "notify.toast_corner": "top-right",      # owner default (video review); all four corners remain selectable
     "notify.toast_screen": "primary",        # primary | main-window | <index>
@@ -77,6 +78,8 @@ DEFAULTS: dict[str, Any] = {
     "showcase.active": None,                 # showcase id shown by the Showcase popout
     "customguide.active": None,              # custom guide shown by the Guide steps popout
     "box.view": "grid",                      # grid | list
+    "locations.region": "kanto",             # Location explorer: last region tab
+    "locations.maps": {},                    # Location explorer: last sub-map per region {region: map id}
     # Keyboard shortcuts (docs/design/20 §B): stable action id -> combo; focused Companion windows only.
     "shortcuts.bindings": None,              # None = registered defaults
     "shortcuts.enabled": True,
@@ -96,12 +99,13 @@ for _tool in TOOLS:
     DEFAULTS[f"window.{_tool}.text_outline"] = False     # dark outline behind text for low-opacity backgrounds
 
 _ENUMS = {
+    "locations.region": ("kanto", "johto", "hoenn", "sinnoh", "unova"),
     "appearance.nav": ("vertical", "horizontal"),
     "appearance.stat_bars": ("soft", "accent"),
     "appearance.density": ("comfortable", "compact"),
     "app.close_behavior": ("quit", "tray"),
     "app.window_backend": ("auto", "wayland", "xwayland"),
-    "notify.alpha": ROUTES, "notify.swarm": ROUTES, "notify.other": ROUTES, "notify.test": ROUTES,
+    "notify.alpha": ROUTES, "notify.swarm": ROUTES, "notify.other": ROUTES, "notify.timer": ROUTES, "notify.test": ROUTES,
     "notify.toast_corner": ("top-left", "top-right", "bottom-left", "bottom-right"),
     "pokedex.scope": ("pokemmo", "reference"),
     "pokedex.density": ("compact", "standard", "large"),
@@ -192,6 +196,10 @@ def validate(key: str, value: Any) -> Any:
     if key in ("notes.popout_note", "showcase.active", "customguide.active") and value is not None and not (
             isinstance(value, str) and len(value) <= 24):
         raise SettingsError(f"{key} must be an id or null")
+    if key == "locations.maps":
+        if not isinstance(value, dict) or len(value) > 10 or any(not isinstance(k, str) or not isinstance(v, str) or len(v) > 40 for k, v in value.items()):
+            raise SettingsError("locations.maps must map region names to sub-map ids")
+        return value
     if key == "items.filters" and not isinstance(value, dict):
         raise SettingsError("items.filters must be an object")
     if key == "live.current_include_catchup" and not isinstance(value, bool):

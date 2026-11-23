@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 from .. import __version__
@@ -34,6 +34,24 @@ def _parse_dt(value: str) -> datetime:
     v = value.replace("Z", "+00:00")
     dt = datetime.fromisoformat(v)
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+HOME_WINDOW_DAYS = 90
+
+
+def published_within(items: list[dict], now: datetime, days: int = HOME_WINDOW_DAYS) -> list[dict]:
+    """Items PUBLISHED in the last `days` days (newest first). Discovery time is irrelevant: a feed post we only
+    just noticed but that was published a year ago is history, not news. Items without a readable date are left out."""
+    cutoff = now - timedelta(days=days)
+    out = []
+    for it in items:
+        try:
+            pub = _parse_dt(it.get("published") or "")
+        except (ValueError, TypeError):
+            continue
+        if cutoff <= pub <= now + timedelta(days=1):
+            out.append((pub, it))
+    return [it for _, it in sorted(out, key=lambda x: x[0], reverse=True)]
 
 
 class NewsService:
@@ -66,11 +84,12 @@ class NewsService:
             return {"code": "window_open", "label": "Scheduled window open — not confirmed live"}
         return {"code": "unknown", "label": "Status unknown"}
 
-    def listing(self) -> dict:
+    def listing(self, now: datetime | None = None) -> dict:
+        now = now or datetime.now(timezone.utc)
         articles = sorted(self.snapshot["articles"], key=lambda a: a.get("updated") or a["published"], reverse=True)
         events = []
         for e in self.snapshot["events"]:
-            events.append({**e, "status": self.event_status(e)})
+            events.append({**e, "status": self.event_status(e, now)})
         upcoming = [e for e in events if e["status"]["code"] in ("upcoming", "window_open")]
         feed = self.db.get_setting("news.feed_cache", None)
         known = self._topic_ids()
@@ -91,7 +110,14 @@ class NewsService:
                 "events": events, "upcoming": upcoming, "feed": feed_info,
                 "auto_check": bool(self.db.get_setting("updates.auto_check", True)),
                 "check_hours": self.db.get_setting("updates.check_hours", 3),
-                "new_posts": new_posts}
+                "new_posts": new_posts,
+                # Home shows only what was published recently, and only ongoing / upcoming events.
+                "home": {"window_days": HOME_WINDOW_DAYS,
+                         "new_posts": published_within(new_posts, now),
+                         "articles": published_within([self._brief(a) for a in articles], now),
+                         "events": sorted([e for e in events if e["status"]["code"] in ("window_open", "upcoming")],
+                                         key=lambda e: (e["status"]["code"] != "window_open", e.get("starts") or "")),
+                         "older_new_posts": len(new_posts) - len(published_within(new_posts, now))}}
 
     @staticmethod
     def _brief(a: dict) -> dict:

@@ -643,7 +643,7 @@ def build_router(ctx: AppContext) -> Router:
     def shell_cmd(req: Request) -> dict:
         cmd = req.body or {}
         allowed = {"open_popout", "close_popout", "pin", "window_opacity", "mode", "lock", "focus_main",
-                   "navigate_main", "minimize", "quit", "pick_folder", "toast_preview", "raise_popout", "toggle_popout"}
+                   "navigate_main", "minimize", "quit", "pick_folder", "pick_file", "toast_preview", "raise_popout", "toggle_popout"}
         if cmd.get("action") not in allowed:
             raise ApiError(400, "Unknown shell action")
         return ctx.shell.submit(cmd)
@@ -651,6 +651,8 @@ def build_router(ctx: AppContext) -> Router:
     r.add("GET", "/api/shell/capabilities", lambda req: {"mode": ctx.shell.mode, **ctx.shell.capabilities})
     from . import routes_library
     routes_library.register(r, ctx, ApiError, Request)
+    from . import routes_maps
+    routes_maps.register(r, ctx, ApiError, Request)
     return r
 
 
@@ -732,6 +734,15 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
             if path.startswith("/assets/library/"):
                 cache = "private, max-age=31536000, immutable" if query.get("v") else None
                 return self._static(ctx.sprite_library.root, path[len("/assets/library/"):], image_only=True, cache=cache)
+            if path.startswith("/assets/maps/"):
+                # Region artwork you extracted locally (private). Never part of the app or the repository.
+                rest = path[len("/assets/maps/"):]
+                where, _, rel = rest.partition("/")
+                found = ctx.region_maps.file(where, rel)
+                if not found:
+                    return self._send(404, b"Not found", "text/plain")
+                cache = "private, max-age=31536000, immutable" if query.get("v") else "no-store"
+                return self._send(200, found.read_bytes(), "image/png", {"Cache-Control": cache})
             if path.startswith("/assets/private/"):
                 # Versioned URLs (?v=<install>) never change content, so the browser may keep them; others are not cached.
                 cache = "private, max-age=31536000, immutable" if query.get("v") else None

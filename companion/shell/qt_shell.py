@@ -38,7 +38,7 @@ log = logging.getLogger("companion.qt")
 TOOL_TITLES = {"storyline": "Storyline", "pokedex": "Pokédex", "reports": "Alpha & Swarm reports",
                "typechart": "Type matchups", "breeding": "Breeding", "legendaries": "Legendaries",
                "cave": "Altering Cave", "natures": "Natures", "notes": "Notes", "items": "Item Library",
-               "showcase": "Showcase", "customguide": "My guide", "locations": "Locations", "box": "My Box",
+               "showcase": "Showcase", "customguide": "My guide", "locations": "Locations", "timers": "Timers", "box": "My Box",
                "calculator": "Calculator"}
 
 QSS = """
@@ -441,10 +441,10 @@ class Toast(QWidget):
         line.setObjectName("tline")
         line.setWordWrap(True)
         line.setTextFormat(Qt.PlainText)
-        meta = QLabel("Reported " + _rel(payload.get("reported")))
+        meta = QLabel(payload.get("meta") or ("Reported " + _rel(payload.get("reported"))))
         meta.setObjectName("tmeta")
         btns = QHBoxLayout()
-        open_b = QPushButton("Open in Live")
+        open_b = QPushButton(payload.get("open_label") or "Open in Live")
         open_b.setFocusPolicy(Qt.NoFocus)
         open_b.clicked.connect(self._open)
         btns.addWidget(open_b)
@@ -473,7 +473,8 @@ class Toast(QWidget):
         return pix.scaled(QSize(40, 40), Qt.KeepAspectRatio, Qt.FastTransformation) if not pix.isNull() else None
 
     def _open(self):
-        self.shell.navigate_main(f"#/live/reports/{self.payload.get('id')}")
+        route = self.payload.get("route")
+        self.shell.navigate_main(route if isinstance(route, str) and route.startswith("#/") else f"#/live/reports/{self.payload.get('id')}")
         self.close()
 
     def closeEvent(self, e):  # noqa: N802
@@ -571,6 +572,7 @@ class QtShell:
         if self.tray is not None:
             ctx.notifier.shell_backend = self._queue_os_notification
         ctx.live.toast_backend = self._queue_toast
+        ctx.timers.toast_backend = self._queue_toast
         self.main = MainWindow(self)
         self.sid, self.events = ctx.bus.subscribe()
         self.timer = QTimer()
@@ -639,6 +641,10 @@ class QtShell:
         elif a == "pick_folder":
             path = QFileDialog.getExistingDirectory(self.main, "Choose folder", str(Path.home() / "Documents"))
             self.ctx.bus.publish("shell.folder", {"purpose": cmd.get("purpose"), "path": path or None})
+        elif a == "pick_file":
+            path, _ = QFileDialog.getOpenFileName(self.main, "Choose your ROM file (opened read-only)", str(Path.home()),
+                                                  "Game Boy Advance / Nintendo DS ROMs (*.gba *.nds);;All files (*)")
+            self.ctx.bus.publish("shell.file", {"purpose": cmd.get("purpose"), "path": path or None})
         elif a == "quit":
             self.quit()
         elif a == "_toast":

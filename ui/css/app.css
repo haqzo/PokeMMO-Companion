@@ -923,3 +923,117 @@ a.mv-badge:hover { background: color-mix(in srgb, var(--mv) 34%, transparent); }
 .quick-chip:hover { color: var(--text-primary); border-color: var(--border-strong); }
 .quick-chip svg { width: 15px; height: 15px; }
 .home-run.row { gap: 10px; align-items: center; }
+
+/* ---------------------------------------------------------------- Location explorer + region maps (2026-11-23) */
+.warn-text { color: var(--warn); }
+.loc-page { display: flex; flex-direction: column; min-height: 0; }
+.loc-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.loc-explorer { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; padding: 0 18px 12px; }
+.popout .loc-explorer { padding: 0; }
+.loc-tabs { flex: none; }
+.loc-grid { display: grid; grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(300px, 400px); gap: 12px; min-height: 0; flex: 1; }
+.loc-left, .loc-side { min-height: 0; overflow: auto; }
+.loc-filters { display: flex; flex-direction: column; gap: 8px; }
+.loc-filters .search { display: flex; align-items: center; gap: 6px; }
+.loc-filter-grid { display: flex; flex-direction: column; gap: 6px; }
+.loc-filter-grid .chip { align-self: flex-start; }
+.loc-poke:empty { display: none; }
+.loc-poke { background: var(--bg-card); border-radius: var(--radius); padding: 6px; }
+.loc-map { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+.loc-map.pseudo-fs, .loc-map:fullscreen { position: fixed; inset: 0; z-index: 50; background: var(--bg-window); padding: 10px; }
+.loc-submaps { display: flex; flex-wrap: wrap; gap: 4px; }
+.map-tools { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.map-box { position: relative; flex: 1; min-height: 320px; overflow: hidden; background: var(--bg-inset); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius); cursor: grab; touch-action: none; user-select: none; }
+.map-box:active { cursor: grabbing; }
+.map-box.editing[data-tool=point], .map-box.editing[data-tool=rect], .map-box.editing[data-tool=poly] { cursor: crosshair; }
+.map-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.map-img { display: block; image-rendering: pixelated; image-rendering: crisp-edges; pointer-events: none; }
+.map-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.mk { cursor: pointer; }
+.mk circle, .mk rect, .mk polygon { fill: rgba(143, 177, 230, .28); stroke: #fff; }
+.mk.point circle { fill: var(--link); }
+.mk.mk-transition circle, .mk.mk-transition rect, .mk.mk-transition polygon { fill: rgba(210, 165, 69, .35); stroke: var(--warn); stroke-dasharray: 3 2; }
+.mk.point.mk-transition circle { fill: var(--warn); }
+.mk.dim { opacity: .28; }
+.mk.hit circle, .mk.hit rect, .mk.hit polygon { fill: rgba(74, 171, 77, .55); stroke: #eaffea; }
+.mk.hit.point circle { fill: var(--good); }
+.mk.sel circle, .mk.sel rect, .mk.sel polygon, .mk.editing circle, .mk.editing rect, .mk.editing polygon { stroke: #ffd84a; fill-opacity: .9; }
+.mk.unmatched circle, .mk.unmatched rect, .mk.unmatched polygon { stroke: var(--danger); }
+.mk text { fill: #fff; stroke: rgba(0, 0, 0, .8); paint-order: stroke; font-family: var(--font); pointer-events: none; }
+.mk-draft { fill: rgba(255, 216, 74, .25); stroke: #ffd84a; }
+polyline.mk-draft { fill: none; }
+.map-tip { position: absolute; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: var(--radius-sm); background: var(--overlay); font-size: .85rem; display: none; pointer-events: none; }
+.map-tip.on { display: block; }
+.loc-prov { line-height: 1.3; }
+.loc-edit-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--bg-card); }
+.loc-unmapped { display: flex; flex-wrap: wrap; gap: 4px; max-height: 160px; overflow: auto; padding-top: 6px; }
+.map-unavailable { flex: 1; min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;
+  border: 1px dashed var(--border-subtle); border-radius: var(--radius); padding: 24px; background: var(--bg-inset); }
+.map-unavailable h3 { margin: 0; }
+.map-unavailable p { max-width: 46ch; margin: 0; }
+.map-unavailable-art svg { width: 44px; height: 44px; color: var(--text-muted); }
+.map-thumb { margin: 0; display: inline-flex; flex-direction: column; gap: 2px; }
+.map-thumb img { image-rendering: pixelated; border: 1px solid var(--border-subtle); height: auto; }
+.loc-listwrap { display: flex; flex-direction: column; gap: 4px; }
+.loc-count { padding: 0 8px; }
+.loc-side .loc-list { padding: 0 0 12px; }
+.loc-detail .detail-head { padding: 0 0 8px; }
+.loc-detail .detail-body { padding: 0; }
+.table-scroll { overflow-x: auto; }
+.loc-enc td.loc-sprite { width: 44px; padding: 0 2px; }
+.loc-enc td.loc-sprite > * { width: 40px; height: 40px; }
+@media (max-width: 1180px) {
+  .loc-grid { grid-template-columns: minmax(190px, 220px) minmax(0, 1fr); grid-template-rows: minmax(340px, 1fr) auto; }
+  .loc-side { grid-column: 1 / -1; max-height: none; }
+}
+@media (max-width: 760px) {
+  .loc-grid { grid-template-columns: minmax(0, 1fr); }
+  .loc-left { order: 0; } .loc-map { order: 1; min-height: 300px; } .loc-side { order: 2; }
+}
+.loc-explorer.v-compact .loc-grid, .loc-explorer.v-standard .loc-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+.loc-explorer.v-standard .loc-left { display: none; }
+.loc-explorer.v-standard .map-box { min-height: 220px; }
+.loc-explorer.v-expanded .loc-grid { grid-template-columns: minmax(170px, 200px) minmax(0, 1fr); }
+.loc-explorer.v-expanded .loc-side { grid-column: 1 / -1; }
+
+/* ---------------------------------------------------------------- Timers */
+.tm-wrap { display: flex; flex-direction: column; gap: 12px; }
+.tm-top { display: flex; flex-direction: column; gap: 8px; }
+.tm-form { display: flex; flex-direction: column; gap: 6px; max-width: 560px; }
+.tm-num { width: 64px; }
+.tm-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px; }
+.tm-list.compact { grid-template-columns: 1fr; gap: 4px; }
+.tm-list.standard { grid-template-columns: 1fr; }
+.tm-card { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: var(--radius-lg); background: var(--bg-card); border: 1px solid var(--border-subtle); }
+.tm-list.compact .tm-card { padding: 6px 8px; }
+.tm-card.done { border-color: var(--good); }
+.tm-card.paused { opacity: .85; }
+.tm-ringwrap { position: relative; display: grid; place-items: center; flex: none; }
+.tm-ringwrap .tm-time { position: absolute; font-size: .95rem; }
+.tm-ring-bg { fill: none; stroke: var(--bg-inset); stroke-width: 6; }
+.tm-ring-fg { fill: none; stroke: var(--link); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .2s linear; }
+.tm-card.done .tm-ring-fg { stroke: var(--good); }
+.tm-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.tm-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-time { font-variant-numeric: tabular-nums; font-weight: 600; }
+.tm-list.compact .tm-time { font-size: 1.15rem; min-width: 5ch; }
+.tm-actions { flex-wrap: wrap; }
+.tm-bar { flex: 1; height: 6px; background: var(--bg-inset); border-radius: 3px; overflow: hidden; }
+.tm-bar > span { display: block; height: 100%; background: var(--link); }
+.tm-help p { margin: 6px 0; max-width: 80ch; }
+.loc-side .loc-row { flex-wrap: wrap; row-gap: 0; align-items: center; }
+.loc-side .loc-row > .grow { flex: 1 1 auto; }
+.loc-side .loc-row > .tiny.muted:last-child { flex: 1 1 100%; }
+.tm-list { margin: 0; padding: 0; }
+/* Home alignment (2026-11-23): the Latest-update card and the right column (Events + Quick access) share one row
+   and end on the same line; the update card keeps its footer at the bottom. No fixed heights, no filler. */
+@media (min-width: 1000px) {
+  .home-v3 > .home-update, .home-v3 > .home-side { align-self: stretch; }
+  .home-v3 > .home-side { display: flex; flex-direction: column; }
+  .home-v3 > .home-side > :last-child { flex: 1 1 auto; }
+}
+.home-v3 > .home-update { display: flex; flex-direction: column; }
+.home-v3 > .home-update .update-foot { margin-top: auto; }
+.home-v3 > .home-update .row.wrap:not(.update-foot) { margin-bottom: 10px; }
+.home-empty { padding: 4px 2px; }
