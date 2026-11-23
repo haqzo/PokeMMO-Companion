@@ -299,6 +299,7 @@ export async function data(b) {
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, guidePath), browse(guidePath, 'guides'), h('button', { class: 'btn primary', onclick: () => runImport('guides', guidePath.value) }, icon('download'), 'Import walkthroughs')),
     h('div', { class: 'tiny muted' }, 'Reads “KANTO COMPLETE WALKTHROUGH.odt” etc. Re-importing keeps your checkmarks (stable step IDs) and flags any step whose wording changed.'),
     jobBox,
+    await spriteLibrarySection(browse),
     h('h3', null, 'Backup'),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn', onclick: async () => downloadJson(`pokemmo-companion-backup-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')) }, icon('download'), 'Export backup (JSON)'),
       h('button', { class: 'btn', onclick: () => importBackup('merge') }, icon('upload'), 'Import backup — merge'),
@@ -319,6 +320,63 @@ export async function data(b) {
       setTimeout(() => location.reload(), 900);
     } catch (e) { toast(e.message, { kind: 'warn', timeout: 6000 }); }
   }
+}
+
+// Optional sprite library: animated Gen V battle sprites the user supplies (never bundled or downloaded by the app).
+async function spriteLibrarySection(browse) {
+  const st = await get('/api/sprites/library');
+  const box = h('div', { class: 'stack tight' });
+  const path = h('input', { class: 'input', placeholder: '/home/you/Downloads/sprites-master  (folder or .zip)', 'aria-label': 'Sprite library folder', value: st.source || '' });
+  const msg = h('div', { class: 'small' });
+  const c = st.coverage;
+  const lf = st.local_forms || {};
+  const refresh = () => render(document.getElementById('main'), { parts: ['data'] });
+  const run = async () => {
+    try {
+      await post('/api/sprites/library/import', { folder: path.value.trim() });
+      mount(msg, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), 'Reading the sprite files… your current library stays in use until this finishes.'));
+      const poll = async () => {
+        const j = (await get('/api/sprites/library')).job;
+        if (j.state === 'running') { setTimeout(poll, 500); return; }
+        if (j.state === 'error') { mount(msg, notice('bad', j.error)); return; }
+        toast(`Sprite library installed: ${j.forms} forms, ${j.species} species${j.refused ? `, ${j.refused} files refused` : ''}`, { timeout: 7000 });
+        state.dexCache = null; refresh();
+      };
+      poll();
+    } catch (e) { mount(msg, notice('bad', e.message)); }
+  };
+  box.append(h('h3', null, 'Animated sprite library (optional)'),
+    h('p', { class: 'small muted', style: { margin: 0 } }, 'The Companion ships no Pokémon artwork. Your PokeMMO client provides box icons and still battle sprites; ',
+      `it has correct art for ${lf.verified || 0} of ${c.forms_total} alternate forms`, lf['same-as-base'] ? ` (${lf['same-as-base']} more only reuse the base art)` : '', '. ',
+      'For animated Black/White-style sprites and the remaining forms you can point the Companion at your own copy of a sprite collection — for example a download of ',
+      extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), ' or ', extLink('https://github.com/smogon/sprites', 'Smogon sprites'),
+      '. Their artwork is © Nintendo / Game Freak / The Pokémon Company (Smogon also asks to be contacted before its community-made sprites are reused), so it is copied only into your private data folder, for your own use, and never shared.'),
+    st.installed ? h('div', { class: 'card inset small stack tight' },
+      h('div', null, badge('LOCAL', 'Your files'), ` Installed ${fmtDate(st.imported_at, true)} from `, h('span', { class: 'mono' }, st.source)),
+      h('div', null, `Forms: ${c.forms_ani} animated · ${c.forms_ani_shiny} animated shiny · ${c.forms_static} still — of ${c.forms_total}. `,
+        `Species: ${c.species_ani} animated · ${c.species_ani_shiny} animated shiny — of ${c.species_total}.`),
+      st.refused_count ? h('details', null, h('summary', null, `${st.refused_count} files refused`),
+        h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', r.reason)))) : null) :
+      h('div', { class: 'small muted' }, 'No sprite library installed. Summaries use your PokeMMO client artwork.'),
+    h('div', { class: 'row' }, h('div', { class: 'grow' }, path), browse(path, 'sprites'),
+      h('button', { class: 'btn primary', onclick: run }, icon('download'), st.installed ? 'Re-install' : 'Install sprite library'),
+      st.installed ? h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Remove sprite library', 'Remove the copied sprite files? Your source folder is not touched.', 'Remove', true)) {
+        await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, 'Remove') : null),
+    h('div', { class: 'tiny muted' }, 'Accepted layouts: PokéAPI …/black-white/animated[/shiny]/479-wash.gif, Smogon src/sprites/gen5/srotom-owash.gif, Showdown gen5ani[-shiny]/rotom-wash.gif. A file is used only for the exact species or form its name states; copies of base-form art are refused. Grid tiles keep the small static icons.'),
+    msg,
+    h('details', null, h('summary', { class: 'small' }, 'Form artwork report'), await formArtReport()));
+  return box;
+}
+async function formArtReport() {
+  const r = await get('/api/dex/art');
+  const label = { verified: 'Client ✓', unverified: 'Client (changed)', 'same-as-base': 'Base art only', placeholder: 'Placeholder', none: '—' };
+  return h('div', { class: 'stack tight' }, h('div', { class: 'tiny muted' }, `Client slots checked by eye on ${r.checked}. “Known sources” lists where an exact file name exists in each public repository (not downloaded).`),
+    h('table', { class: 'table compact sprite-cov tiny' }, h('thead', null, h('tr', null, ['Form', 'Your client', 'Your library', 'Known sources'].map((x) => h('th', null, x)))),
+      h('tbody', null, r.forms.map((f) => h('tr', null, h('td', null, `${f.species} — ${f.name}`),
+        h('td', { title: f.local_reason }, label[f.local_status] || f.local_status),
+        h('td', null, f.library.length ? f.library.join(', ').replace(/_/g, ' ') : '—'),
+        h('td', null, [f.known_sources.pokeapi_animated ? 'PokéAPI anim' : null, f.known_sources.pokeapi_animated_shiny ? '+shiny' : null,
+          f.known_sources.smogon_animated ? 'Smogon anim' : null, f.known_sources.pokesprite_icon ? 'PokéSprite icon' : null].filter(Boolean).join(' · ') || '—'))))));
 }
 
 // ---------------------------------------------------------------- about

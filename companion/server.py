@@ -25,6 +25,7 @@ from .data import reference as ref
 from .data.window_presets import PRESETS
 from .services import backup, breeding, calcs, importer
 from .services.guides import GuideError
+from .services.sprite_library import SpriteLibraryError
 from .settings import SettingsError
 from .storage import utcnow
 
@@ -268,6 +269,46 @@ def build_router(ctx: AppContext) -> Router:
         ref_doc = json.loads((Path(__file__).parent / "data" / "catalog_reference_synergy.json").read_text(encoding="utf-8"))
         return ctx.dex.parity(ref_doc)
     r.add("GET", "/api/dex/catalog/parity", dex_parity)
+
+    # Optional sprite library you supply yourself (animated Gen V sprites). Nothing is downloaded by the Companion.
+    def sprites_status(req: Request) -> dict:
+        st = ctx.sprite_library.status()
+        st["local_forms"] = {}
+        for k, v in getattr(ctx.dex, "local_form_art", {}).items():
+            st["local_forms"][v["status"]] = st["local_forms"].get(v["status"], 0) + 1
+        return st
+    r.add("GET", "/api/sprites/library", sprites_status)
+
+    def sprites_import(req: Request) -> dict:
+        folder = str((req.body or {}).get("folder") or "").strip()
+        if not folder:
+            raise ApiError(400, "Choose the folder or .zip that contains the sprites")
+        try:
+            return {"job": ctx.sprite_library.start_import(folder)}
+        except SpriteLibraryError as exc:
+            raise ApiError(400, str(exc))
+    r.add("POST", "/api/sprites/library/import", sprites_import)
+
+    def sprites_remove(req: Request) -> dict:
+        ctx.sprite_library.remove()
+        ctx.bus.publish("sprites", {"state": "removed"})
+        return {"ok": True}
+    r.add("DELETE", "/api/sprites/library", sprites_remove)
+
+    def dex_art_report(req: Request) -> dict:
+        """Per-form artwork status: what your client has, what your sprite library has, and where else it exists."""
+        rows = []
+        for key, e in ctx.dex.form_art["forms"].items():
+            sid, fk = key.split(":")
+            a = ctx.dex.art(int(sid), fk)
+            rows.append({"key": key, "name": (ctx.dex.forms.get(key) or {}).get("form_name"), "species": ctx.dex.name(int(sid)),
+                         "local_status": a["local_status"], "local_reason": a["local_reason"],
+                         "library": sorted(k for k in ("ani", "ani_shiny", "static", "static_shiny") if a.get(k)),
+                         "known_sources": {"pokeapi_animated": e["pokeapi"]["animated"], "pokeapi_animated_shiny": e["pokeapi"]["animated_shiny"],
+                                           "smogon_animated": e["smogon"]["animated"], "smogon_shiny": e["smogon"]["shiny"],
+                                           "pokesprite_icon": e["pokesprite"]["exists"]}})
+        return {"forms": rows, "checked": ctx.dex.form_art["checked"], "sources": ctx.dex.form_art["sources"]}
+    r.add("GET", "/api/dex/art", dex_art_report)
 
     def fav_set(req: Request) -> dict:
         sid = int_param(req.params["sid"], "species id")
@@ -619,6 +660,9 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
     class H(BaseHTTPRequestHandler):
         server_version = "PokeMMOCompanion"
         protocol_version = "HTTP/1.1"
+        # Headers and body are written separately; without TCP_NODELAY every response on a reused
+        # keep-alive connection waited ~40 ms for a delayed ACK (measured 2026-11-23: 100 sprites 4.3 s → see report 12).
+        disable_nagle_algorithm = True
 
         def log_message(self, fmt: str, *args: Any) -> None:  # quiet
             log.debug("%s - %s", self.address_string(), fmt % args)
@@ -628,7 +672,8 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
+            if not (extra and "Cache-Control" in extra):
+                self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
             for k, v in (extra or {}).items():
@@ -683,8 +728,13 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 if not found:
                     return self._send(404, b"Not found", "text/plain")
                 return self._send(200, found[0].read_bytes(), found[1], {"Cache-Control": "private, max-age=3600"})
+            if path.startswith("/assets/library/"):
+                cache = "private, max-age=31536000, immutable" if query.get("v") else None
+                return self._static(ctx.sprite_library.root, path[len("/assets/library/"):], image_only=True, cache=cache)
             if path.startswith("/assets/private/"):
-                return self._static(assets_root, path[len("/assets/private/"):], png_only=True)
+                # Versioned URLs (?v=<install>) never change content, so the browser may keep them; others are not cached.
+                cache = "private, max-age=31536000, immutable" if query.get("v") else None
+                return self._static(assets_root, path[len("/assets/private/"):], png_only=True, cache=cache)
             if path in ("/", "/index.html", "/popout"):
                 return self._static(ui_root, "index.html")
             return self._static(ui_root, path.lstrip("/"))
@@ -714,13 +764,15 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 log.error("API error %s %s\n%s", method, path, traceback.format_exc())
                 self._json(500, {"error": f"Internal error: {type(exc).__name__}"})
 
-        def _static(self, root: Path, rel: str, png_only: bool = False) -> None:
+        def _static(self, root: Path, rel: str, png_only: bool = False, cache: str | None = None, image_only: bool = False) -> None:
             try:
                 target = (root / rel).resolve()
                 target.relative_to(root.resolve())
             except (ValueError, OSError):
                 return self._send(404, b"Not found", "text/plain")
             if png_only and target.suffix.lower() != ".png":
+                return self._send(404, b"Not found", "text/plain")
+            if image_only and target.suffix.lower() not in (".png", ".gif"):
                 return self._send(404, b"Not found", "text/plain")
             if not target.is_file():
                 return self._send(404, b"Not found", "text/plain")
@@ -729,7 +781,7 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 ctype += "; charset=utf-8"
             if target.suffix == ".js":
                 ctype = "text/javascript; charset=utf-8"
-            extra = {}
+            extra = {"Cache-Control": cache} if cache else {}
             if target.name == "index.html":
                 extra["Content-Security-Policy"] = (
                     "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "

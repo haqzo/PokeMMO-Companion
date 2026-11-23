@@ -3,7 +3,7 @@
 // alternate forms remain selectable INSIDE their species details, not as duplicate cards.
 // Reference catalog, in-game membership, acquisition and manual registration stay independent.
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
-  spriteOrFallback, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
+  spriteOrFallback, silhouette, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
 import { downloadJson } from '../components.js';
 import { linkedNotes, openRoute } from '../links.js';
@@ -42,6 +42,22 @@ export async function loadList(force) {
   return state.dexCache;
 }
 export function dexMeta() { return meta; }
+// The cached list is shared with Home and the popouts; drop it whenever its contents change elsewhere,
+// even while the Pokédex page isn't open, so nothing shows stale favourites or registrations.
+for (const t of ['favourites', 'dex.roster', 'dex.progress']) on(t, () => { state.dexCache = null; });
+on('import', (d) => { if (d && d.state === 'done') state.dexCache = null; });
+// Lower-case "form name + full name" text of each species' alternate forms, built once per loaded list (search).
+let formTextFor = null, formTextMap = new Map();
+function formText() {
+  if (formTextFor !== state.dexForms) {
+    formTextFor = state.dexForms; formTextMap = new Map();
+    for (const f of state.dexForms || []) formTextMap.set(f.id, (formTextMap.get(f.id) || '') + ` ${f.form_name || ''} ${f.name || ''}`.toLowerCase());
+  }
+  return formTextMap;
+}
+// Main-grid card elements are built once per loaded list and reused by filters, search, sort and returning to the page.
+// Anything that changes a card's content (favourite, registration, import) reloads the list, which empties this cache.
+const cardCache = { list: null, sig: '', cards: new Map() };
 const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': { ...F, q: '' } }).catch(() => {}), 700);
 export function currentFilters() { if (!F) F = { ...DEFAULT_F, ...(setting('pokedex.filters') || {}) }; return F; }
 
@@ -52,8 +68,7 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
     if (scope === 'pokemmo' && s.dex === 'no') return false;
     if (q) {
       const num = q.replace(/^#/, '');
-      const formHit = (state.dexForms || []).some((f) => f.id === s.id &&
-        (`${f.form_name || ''} ${f.name || ''}`).toLowerCase().includes(q));
+      const formHit = (formText().get(s.id) || '').includes(q);
       const hit = s.name.toLowerCase().includes(q) || formHit || (/^\d+$/.test(num) && String(s.id) === String(Number(num))) ||
         (s.abilities || []).some((a) => a.toLowerCase().includes(q)) || s.types.includes(q);
       if (!hit) return false;
@@ -96,11 +111,18 @@ const rerender = () => { pageKey = null; return render(document.getElementById('
 // Opening/closing it only changes the URL hash; the grid, its search/filters and scroll stay mounted.
 let pageKey = null;      // route state other than the selection; when unchanged, only the popup is updated
 let lastFocus = null;
-let staleGrid = false;   // a registration was saved inside the popup; redraw the grid (same filters/scroll) once it closes
+let staleGrid = false;
+let renderSeq = 0;       // a render that a newer navigation overtook stops before touching the page
+// Escape closes the Summary. Registered once, so it also works while a refresh is rebuilding the page.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && location.hash.startsWith('#/pokedex/') && document.querySelector('#main .dex-summary-back') &&
+      !document.querySelector('.modal-back, .menu')) { e.preventDefault(); go('#/pokedex'); }
+});   // a registration was saved inside the popup; redraw the grid (same filters/scroll) once it closes
 function routeKey(route) {
   const q = new URLSearchParams(route.query); q.delete('tab');
   return q.toString();
 }
+function closeIfStale() { if (!/^#\/pokedex\/\d/.test(location.hash)) closeSummary(); }
 function closeSummary() {
   const back = document.querySelector('#main .dex-summary-back');
   if (back) back.remove();
@@ -129,12 +151,13 @@ async function openSummary(el, sel, selForm) {
 }
 
 export async function render(el, route) {
+  const seq = ++renderSeq;
   const sel = route.parts[0] ? Number(route.parts[0]) : null;
   const selForm = route.parts[1] || null;
   if (route.query.get('tab')) { ui.tab = route.query.get('tab'); }
   // Same grid state, only the selection changed → update the popup, keep the grid exactly as it is.
   if (gridEl && gridEl.isConnected && el.contains(gridEl) && pageKey === routeKey(route)) {
-    if (sel) { await openSummary(el, sel, selForm); return; }
+    if (sel) { await openSummary(el, sel, selForm); if (seq !== renderSeq) closeIfStale(); return; }
     closeSummary(); lastFocus = null;
     if (!staleGrid) return;
   }
@@ -142,6 +165,7 @@ export async function render(el, route) {
   dispose();
   currentFilters();
   const all = await loadList();
+  if (seq !== renderSeq) return;
   pageKey = routeKey(route);
   const page = h('div', { class: 'page flush dex-page' });
   mount(el, page);
@@ -150,6 +174,7 @@ export async function render(el, route) {
   const gridWrap = h('div', { class: 'dex-grid-wrap' });
   layout.append(gridWrap);
   await buildToolbar(gridWrap, all);
+  if (seq !== renderSeq) return;
   const scroll = h('div', { class: 'dex-scroll', tabindex: '-1' });
   gridEl = h('div', { class: 'dex-grid density-' + (setting('pokedex.density') || 'standard'), role: 'grid', 'aria-label': 'Pokémon' });
   scroll.append(gridEl);
@@ -162,17 +187,13 @@ export async function render(el, route) {
     if (card && !ui.scroll) card.scrollIntoView({ block: 'center' });
     lastFocus = card || null;
     await openSummary(el, sel, selForm);
+    if (seq !== renderSeq) return;
   }
   const refresh = async () => { await loadList(true); if (gridEl && gridEl.isConnected) rerender(); };
   unsub.push(on('favourites', refresh));
   unsub.push(on('dex.roster', refresh));
   unsub.push(on('dex.progress', (d, ev) => { if (ev.origin !== WINDOW_ID) refresh(); }));
   unsub.push(on('import', async (d) => { if (d.state === 'done' && d.kind === 'dumps') refresh(); }));
-  const keyh = (e) => {
-    if (e.key === 'Escape' && el.querySelector('.dex-summary-back') && !document.querySelector('.modal-back, .menu')) { e.preventDefault(); go('#/pokedex'); }
-  };
-  document.addEventListener('keydown', keyh);
-  unsub.push(() => document.removeEventListener('keydown', keyh));
   unsub.push(() => { pageKey = null; });
 }
 function parseHash() { const raw = location.hash.replace(/^#\/?/, ''); const [p, qs] = raw.split('?'); const parts = p.split('/').filter(Boolean);
@@ -312,19 +333,30 @@ function drawGrid(all, sel = Number(parseHash().parts[0]) || null, selForm = par
   }
   const density = setting('pokedex.density') || 'standard';
   const tracking = !!setting('pokedex.progress_run');
-  gridEl.append(catalogFragment(list, { sel, selForm, density, tracking, onOpen: (s) => go(entryRoute(s)), onKey: gridKeys, grouped: F.sort === 'num' }));
+  const sig = `${density}|${tracking}`;
+  if (cardCache.list !== all || cardCache.sig !== sig) { cardCache.list = all; cardCache.sig = sig; cardCache.cards = new Map(); }
+  gridEl.append(catalogFragment(list, { sel, selForm, density, tracking, onOpen: (s) => go(entryRoute(s)), onKey: gridKeys, grouped: F.sort === 'num', cache: cardCache.cards }));
 }
 /** Cards with Generation headings (when sorted by number). Shared by the main grid and popouts. */
-export function catalogFragment(list, { sel, selForm, density, tracking, onOpen, onKey, grouped }) {
+export function catalogFragment(list, { sel, selForm, density, tracking, onOpen, onKey, grouped, cache }) {
   const frag = document.createDocumentFragment();
+  const perGen = new Map();
+  if (grouped) for (const x of list) perGen.set(x.gen, (perGen.get(x.gen) || 0) + 1);
   let gen = null;
   for (const s of list) {
     if (grouped && s.gen !== gen) {
       gen = s.gen;
-      const n = list.filter((x) => x.gen === gen).length;
-      frag.append(h('h3', { class: 'gen-head', role: 'presentation' }, GEN_NAMES[gen - 1] || 'Generation ' + gen, h('span', { class: 'tiny muted' }, ` · ${n}`)));
+      frag.append(h('h3', { class: 'gen-head', role: 'presentation' }, GEN_NAMES[gen - 1] || 'Generation ' + gen, h('span', { class: 'tiny muted' }, ` · ${perGen.get(gen)}`)));
     }
-    frag.append(dexCard(s, { selected: s.id === sel && (s.form_key || null) === (selForm || null), density, tracking, onOpen, onKey }));
+    const selected = s.id === sel && (s.form_key || null) === (selForm || null);
+    const key = s.form_key ? `${s.id}:${s.form_key}` : String(s.id);
+    let card = cache && cache.get(key);
+    if (card) card.classList.toggle('selected', selected);
+    else {
+      card = dexCard(s, { selected, density, tracking, onOpen, onKey });
+      if (cache) cache.set(key, card);
+    }
+    frag.append(card);
   }
   return frag;
 }
@@ -436,6 +468,48 @@ const evoText = (via) => (EVO[via.method] ? EVO[via.method](via) : via.method.re
 const MAIN_TABS = [['summary', 'Summary'], ['moves', 'Moves'], ['stats', 'Base Stats'], ['locations', 'Wild Locations'], ['evolution', 'Evolution Tree'], ['matchups', 'Type Matchups']];
 const SIDE_TABS = [['registration', 'My registration'], ['breeding', 'Breeding'], ['notes', 'Notes & Box']];
 
+/** Choose the artwork to show for a species or form. Order: animated (your sprite library, if motion is on) →
+ *  still battle art (library, then your client) → client box icon → an explicit "no artwork" placeholder.
+ *  Base-species or placeholder art is never used for a form (the server already refuses it). */
+export function pickArt(a, { shiny = false, isForm = false } = {}) {
+  a = a || {};
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pref = setting('pokedex.animate');
+  const motion = pref === undefined || pref === null ? !reduce : !!pref;
+  const shinyAvail = !!(a.ani_shiny || a.static_shiny || a.front_shiny || a.icon_shiny);
+  const sh = shiny && shinyAvail;
+  const pickS = (n) => (sh ? a[n + '_shiny'] : a[n]);
+  const lib = (k) => (a.library || {})[sh ? k + '_shiny' : k];
+  const libLabel = (k) => { const p = lib(k); return p ? ({ pokeapi: 'PokéAPI', smogon: 'Smogon', showdown: 'Showdown' }[p.layout] || p.layout) : ''; };
+  const hasAni = !!pickS('ani');
+  const base = { shinyAvail, hasAni, motion, isForm };
+  if (motion && hasAni) return { ...base, kind: 'ani', url: pickS('ani'), label: `Animated · your sprite library (${libLabel('ani')} files)`, detail: lib('ani') && lib('ani').path };
+  if (pickS('static')) return { ...base, kind: 'static', url: pickS('static'), label: `Still · your sprite library (${libLabel('static')} files)`, detail: lib('static') && lib('static').path };
+  if (pickS('front')) return { ...base, kind: 'front', url: pickS('front'), label: 'Your PokeMMO client · battle sprite' };
+  if (hasAni) return { ...base, kind: 'ani-still', url: pickS('ani'), label: 'Still frame · your sprite library' };
+  if (pickS('icon')) return { ...base, kind: 'icon', url: pickS('icon'), label: isForm ? `Your PokeMMO client · box icon${a.local_status === 'unverified' ? ' (not re-verified)' : ''}` : 'Your PokeMMO client · box icon' };
+  return { ...base, kind: 'none', url: null, label: isForm ? 'No verified artwork for this form' : 'No artwork installed', detail: a.local_reason };
+}
+/** Pixel art at the largest whole-number scale that fits `box` (sharp, never blurred). A reduced-motion still of an
+ *  animation is drawn as its first frame on a canvas. */
+export function artImage(art, sp, { box = 200 } = {}) {
+  if (!art.url) return h('div', { class: 'art-missing', title: art.detail || art.label, role: 'img', 'aria-label': art.label },
+    silhouette(sp, Math.min(box, 120)), h('span', { class: 'tiny' }, art.isForm ? 'No form artwork' : ''));
+  const img = h('img', { class: 'pixel art-img', src: art.url, alt: sp.name, decoding: 'async', style: { visibility: 'hidden' } });
+  const fit = () => {
+    const w = img.naturalWidth || 96, ht = img.naturalHeight || 96;
+    const k = Math.max(1, Math.floor(box / Math.max(w, ht)));
+    img.style.width = w * k + 'px'; img.style.height = ht * k + 'px'; img.style.visibility = '';
+    if (art.kind === 'ani-still') {
+      const c = h('canvas', { class: 'pixel art-img', width: w, height: ht, role: 'img', 'aria-label': sp.name, style: { width: w * k + 'px', height: ht * k + 'px' } });
+      try { c.getContext('2d').drawImage(img, 0, 0); img.replaceWith(c); } catch (_) { /* keep the image */ }
+    }
+  };
+  img.addEventListener('load', fit);
+  img.addEventListener('error', () => img.replaceWith(h('div', { class: 'art-missing', role: 'img', 'aria-label': 'Artwork file missing' }, silhouette(sp, Math.min(box, 120)))));
+  return img;
+}
+
 export async function renderDetail(pane, id, { back, popout = false, mode = 'expanded', form = null } = {}) {
   clear(pane).append(h('div', { class: 'detail-body' }, h('div', { class: 'skeleton', style: { height: '120px' } })));
   let d;
@@ -447,15 +521,19 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
   if (fm) { d = { ...d, base_name: d.name, base_types: d.types, name: fm.name, types: fm.types, type_matchups: d.form_matchups,
     stats: fm.stats && Object.keys(fm.stats).length ? fm.stats : d.stats, abilities: fm.abilities_source === 'same as base species' ? d.abilities : fm.abilities.map((n, i) => ({ name: n, slot: 'ability' + (i + 1) })) };
     d.bst = Object.values(d.stats || {}).reduce((a, b) => a + (b || 0), 0) || d.bst; }
-  const shinyAvail = !fm && (d.sprites.front_shiny || d.sprites.icon_shiny);
-  const art = fm ? (fm.front || fm.icon) : ui.shiny && shinyAvail ? (d.sprites.front_shiny || d.sprites.icon_shiny) : (d.sprites.front || d.sprites.icon);
+  const art = pickArt(fm ? fm.art : d.art, { shiny: ui.shiny, isForm: !!fm });
   const formNav = (k) => (popout ? (location.hash = '#/species/' + id + (k ? '/' + k : '')) : go('#/pokedex/' + id + (k ? '/' + k : '')));
   const av = d.availability;
   const avClass = av.permanent ? 'good' : av.permanent === false ? 'warn' : 'unknown';
   const head = h('div', { class: 'detail-head' },
-    h('div', { class: 'art' }, spriteOrFallback(art, d, art && art.includes('/battle/') ? 96 : 72, true),
-      shinyAvail ? h('button', { class: 'shiny-toggle' + (ui.shiny ? ' on' : ''), title: ui.shiny ? 'Show normal colours' : 'Show shiny colours (artwork only — not ownership)',
-        'aria-pressed': String(ui.shiny), onclick: () => { ui.shiny = !ui.shiny; renderDetail(pane, id, { back, popout, mode, form }); } }, '✦') : null),
+    h('div', { class: 'art-col' },
+      h('div', { class: 'art' + (art.kind === 'ani' ? ' animated' : '') }, artImage(art, d, { box: popout && mode !== 'expanded' ? 96 : 200 }),
+        art.shinyAvail ? h('button', { class: 'shiny-toggle' + (ui.shiny ? ' on' : ''), title: ui.shiny ? 'Show normal colours' : 'Show shiny colours (artwork only — not ownership)',
+          'aria-label': 'Shiny colours', 'aria-pressed': String(ui.shiny), onclick: () => { ui.shiny = !ui.shiny; renderDetail(pane, id, { back, popout, mode, form }); } }, '✦') : null,
+        art.hasAni ? h('button', { class: 'motion-toggle' + (art.motion ? ' on' : ''), title: art.motion ? 'Show still artwork' : 'Play animation',
+          'aria-label': 'Animate sprite', 'aria-pressed': String(art.motion), onclick: async () => {
+            await saveSettings({ 'pokedex.animate': !art.motion }); renderDetail(pane, id, { back, popout, mode, form }); } }, art.motion ? '❚❚' : '▶') : null),
+      h('div', { class: 'art-src tiny muted', title: art.detail || '' }, art.label)),
     h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, 'No. ' + pad3(d.id)), h('span', { class: 'grow' }), favToggle(d),
         !popout ? pinButton({ kind: 'pokemon', id: d.id }) : null,
@@ -473,7 +551,8 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
   }
   if (fm) pane.append(h('div', { class: 'detail-body', style: { paddingBottom: 0 } }, notice('info', h('strong', null, fm.form_name + '. '),
     fm.note ? fm.note + ' ' : '', `Types: ${fm.types_source}. Stats: ${fm.stats_source}. Abilities: ${fm.abilities_source}.`,
-    fm.in_client === false ? ' Your installed client dump has no record for this form.' : '', fm.client_record && !fm.own_sprite ? ' Your client labels this record “Egg”, so the base sprite is shown.' : '', fm.mismatch.length ? ` ⚠ Your client differs from the manifest (${fm.mismatch.join(', ')}); the client value is shown.` : '',
+    fm.in_client === false ? ' Your installed client dump has no record for this form.' : '',
+    !fm.own_sprite ? ` Artwork: ${fm.art.local_reason} Add a sprite library in Settings › Data to show it.` : '', fm.mismatch.length ? ` ⚠ Your client differs from the manifest (${fm.mismatch.join(', ')}); the client value is shown.` : '',
     ' Moves and locations below are the base species’ — form-specific moves are not listed.')));
   const body = h('div', { class: 'detail-body' });
   pane.append(body);

@@ -722,13 +722,46 @@ kbd.kb.none { color: var(--text-muted); border-style: dashed; }
   border-radius: var(--radius-lg); box-shadow: 0 18px 60px rgba(0,0,0,.55); outline: none; overscroll-behavior: contain; }
 .dex-summary .detail-head { position: sticky; top: 0; z-index: 2; background: var(--bg-window); border-bottom: 1px solid var(--border-subtle);
   padding: 16px 22px 12px; gap: 18px; }
-.dex-summary .detail-head .art { width: 140px; height: 140px; }
-.dex-summary .detail-head .art img { width: 128px; height: 128px; }
+.dex-summary .detail-head .art { width: 212px; height: 212px; }
 .dex-summary .detail-head h2 { font-size: 1.6rem; }
 .dex-summary .form-strip { padding: 10px 22px 0; }
 .dex-summary .form-strip .chip { padding: 5px 12px; font-size: .9rem; }
 .dex-summary .detail-body { padding: 14px 22px 24px; font-size: 1rem; }
 .dex-summary .facts { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-@media (max-width: 720px) { .dex-summary .detail-head .art img { width: 96px; height: 96px; } .dex-summary .detail-head { padding: 12px 14px; } .dex-summary .detail-body { padding: 12px 14px 18px; } }
+@media (max-width: 720px) { .dex-summary .detail-head .art { width: 120px; height: 120px; } .dex-summary .detail-head .art .art-img { max-width: 112px; max-height: 112px; object-fit: contain; } .dex-summary .detail-head { padding: 12px 14px; } .dex-summary .detail-body { padding: 12px 14px 18px; } }
 @keyframes dexsum-in { from { opacity: 0; } }
 .reduced-motion .dex-summary-back { animation: none; }
+
+/* ---- Alpha/Swarm report sprites (2026-11-23). Box icons are 36 px art, battle sprites 96 px:
+   shown only at whole-number scales (1×/2×) with nearest-neighbour scaling so they stay sharp. */
+.rep-sprite { --rs: 72px; width: var(--rs); height: var(--rs); flex: none; display: grid; place-items: center;
+  border-radius: var(--radius); background: var(--bg-inset); overflow: hidden; }
+.rep-sprite img { width: var(--rs); height: var(--rs); image-rendering: pixelated; object-fit: contain; }
+.rep-sprite.battle { --rs: 192px; }
+.rep-fallback { display: grid; place-items: center; width: 100%; height: 100%; color: var(--text-muted); }
+.rep-fallback svg { width: 40%; height: 40%; }
+.report-row { grid-template-columns: auto 1fr auto; }
+.report-row .rep-species { color: var(--text-secondary); font-weight: 600; }
+.rep-detail-head { display: flex; gap: var(--sp-3); align-items: center; }
+.live-row { gap: var(--sp-3); padding: 6px 12px 6px 6px; }
+.list-rows.live-rows, .report-list, .stack:has(> .report-row) { container-type: inline-size; }
+.card:has(> .rep-detail-head) { container-type: inline-size; }
+.live-row { text-align: left; }
+.live-row-text { min-width: 0; flex: 1; display: grid; gap: 1px; }
+@container (max-width: 280px) { .rep-sprite { --rs: 36px; } }
+@container (max-width: 420px) {
+  .rep-sprite.battle { --rs: 96px; }
+  .rep-detail-head { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 480px) { .rep-sprite { --rs: 36px; } .rep-sprite.battle { --rs: 96px; } }
+
+/* ---- Summary artwork (2026-11-23): whole-number pixel scaling is set in JS; boxes only size the frame. */
+.detail-head .art .art-img { width: auto; height: auto; image-rendering: pixelated; }
+.detail-head .art { overflow: hidden; }
+.art-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; max-width: 230px; }
+.art-src { text-align: center; line-height: 1.25; max-width: 212px; }
+.art-missing { display: grid; place-items: center; gap: 4px; color: var(--text-muted); }
+.motion-toggle { position: absolute; left: 4px; bottom: 4px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border-strong);
+  background: var(--bg-card); color: var(--text-muted); cursor: pointer; font-size: .62rem; line-height: 1; }
+.motion-toggle.on { color: var(--text-primary); }
+.sprite-cov td, .sprite-cov th { padding: 3px 8px; }

@@ -2,6 +2,8 @@
 import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, seg, pad3 } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
+import { loadList } from './pokedex.js';
+import { reportSprite } from './live.js';
 
 let unsub = [];
 let newsCache = null;
@@ -29,9 +31,10 @@ function provenanceLine(item) {
 async function renderHome(el) {
   const page = h('div', { class: 'page home-page' });
   mount(el, page);
-  const [n, rep, leg, runs, data, idx] = await Promise.all([news(), get('/api/live/reports?tests=1'), get('/api/live/legendaries'),
-    get('/api/guides/runs'), get('/api/data/status'), get('/api/dex/species')]);
-  state.dexCache = null;
+  // Favourites come from the Pokédex list that is already cached (no second 0.5 MB download, and the cache stays warm).
+  const [n, rep, leg, runs, data, species] = await Promise.all([news(), get('/api/live/reports?tests=1'), get('/api/live/legendaries'),
+    get('/api/guides/runs'), get('/api/data/status'), loadList().catch(() => [])]);
+  const idx = { species };
   const sections = setting('home.sections') || ['update', 'events', 'live', 'shortcuts'];
   const grid = h('div', { class: 'home-v2' });
 
@@ -161,13 +164,18 @@ function liveCard(rep, leg) {
   return h('section', { class: 'card area-live' }, h('div', { class: 'card-head' }, h('h2', null, 'Live'),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live') }, 'Open Live', icon('chev')))),
   h('div', { class: 'row small', style: { marginBottom: '8px' } }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), h('span', { class: 'muted' }, status)),
-  h('div', { class: 'list-rows' }, real.length ? real.map((r) => h('button', { class: 'list-row', onclick: () => go('#/live/reports/' + r.id) },
-    h('span', { class: `kind-label kind-${r.kind}` }, r.kind), h('span', { class: 'grow ellipsis' }, r.title || r.body, r.region ? h('span', { class: 'muted' }, ` · ${cap(r.region)}${r.location ? ', ' + r.location : ''}`) : null),
-    h('span', { class: 'when' }, relTime(r.source_time || r.received_at)))) :
+  h('div', { class: 'list-rows live-rows' }, real.length ? real.map((r) => h('button', { class: 'list-row live-row', onclick: () => go('#/live/reports/' + r.id) },
+    reportSprite(r),
+    h('div', { class: 'live-row-text' },
+      h('div', { class: 'row' }, h('span', { class: `kind-label kind-${r.kind}` }, r.kind),
+        r.species_icon && r.species_name ? h('span', { class: 'small rep-species' }, r.species_name) : null,
+        h('span', { class: 'grow' }), h('span', { class: 'when' }, relTime(r.source_time || r.received_at))),
+      h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, r.title || r.body),
+      r.region ? h('div', { class: 'small muted ellipsis' }, cap(r.region) + (r.location ? ', ' + r.location : '')) : null))) :
     h('div', { class: 'small muted', style: { padding: '2px' } }, src.enabled ? 'No reports received yet — this does not mean none are active.' : 'Nothing is claimed about current Alphas or Swarms while the feed is off.')),
   h('div', { class: 'live-mini' },
     h('button', { class: 'mini-tile', onclick: () => go('#/live/legendaries') }, h('div', { class: 'row' },
-      spriteOrFallback(cur.kanto.icon, cur.kanto, 32), spriteOrFallback(cur.johto.icon, cur.johto, 32)),
+      spriteOrFallback(cur.kanto.icon, cur.kanto, 72), spriteOrFallback(cur.johto.icon, cur.johto, 72)),
     h('div', { class: 'small' }, `${cur.kanto.name} · ${cur.johto.name}`), h('div', { class: 'tiny muted' }, 'Roamers this month (community cycle)')),
     h('button', { class: 'mini-tile', onclick: () => go('#/live/cave') }, icon('crystal'), h('div', { class: 'small' }, 'Altering Cave: unknown'),
       h('div', { class: 'tiny muted' }, 'No verified live source'))));

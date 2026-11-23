@@ -464,7 +464,8 @@ class Toast(QWidget):
     def _icon(self, url: str | None):
         if not url or not url.startswith("/assets/private/"):
             return None
-        path = self.shell.ctx.paths.assets_dir / url[len("/assets/private/"):]
+        rel = url[len("/assets/private/"):].split("?", 1)[0]  # sprite URLs carry a ?v= cache version
+        path = self.shell.ctx.paths.assets_dir / rel
         if not path.is_file():
             return None
         pix = QPixmap(str(path))

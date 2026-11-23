@@ -16,6 +16,7 @@ from .services.bookmarks import BookmarkService
 from .services.items import ItemService
 import threading
 
+from .services.sprite_library import SpriteLibrary
 from .services.importer import recover_interrupted_swap, sync_existing_import
 from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
@@ -67,6 +68,10 @@ class AppContext:
             log.exception("Could not check for an interrupted data update")
         self.data_sync: dict = {"state": "pending"}
         self.dex = DexService(self.paths)
+        self.sprite_library = SpriteLibrary(self.paths, self.bus)
+        self.sprite_library.recover()
+        self.sprite_library.reload()
+        self.dex.library = self.sprite_library
         self.guides = GuideService(self.storage, self.paths)
         self.items = ItemService(self.paths, self.storage)
         self.notes = NotesService(self.storage)

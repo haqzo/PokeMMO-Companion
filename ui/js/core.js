@@ -82,16 +82,24 @@ const P = {
   bag: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2', box: 'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10', sparkle: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
   textsize: 'M4 18L9 6l5 12M6 14h6M15 18l3-7 3 7M16 16h4', archive: 'M3 4h18v4H3zM5 8v12h14V8M10 12h4', list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01', minus: 'M5 12h14', bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
 };
+const ICON_TPL = new Map();
+/** Inline SVG icon. Built once per name, then cloned (cheap when a page shows hundreds of them). */
 export function icon(name, cls) {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
-  svg.setAttribute('aria-hidden', 'true');
+  const key = P[name] ? name : 'dots';
+  let tpl = ICON_TPL.get(key);
+  if (!tpl) {
+    tpl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    tpl.setAttribute('viewBox', '0 0 24 24');
+    tpl.setAttribute('fill', 'none'); tpl.setAttribute('stroke', 'currentColor');
+    tpl.setAttribute('stroke-width', '1.8'); tpl.setAttribute('stroke-linecap', 'round'); tpl.setAttribute('stroke-linejoin', 'round');
+    tpl.setAttribute('aria-hidden', 'true');
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', P[key]);
+    tpl.appendChild(p);
+    ICON_TPL.set(key, tpl);
+  }
+  const svg = tpl.cloneNode(true);
   if (cls) svg.setAttribute('class', cls);
-  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  p.setAttribute('d', P[name] || P.dots);
-  svg.appendChild(p);
   return svg;
 }
 export function logo(size = 28) {
@@ -240,7 +248,7 @@ export function notice(kind, ...content) {
 }
 export function spriteOrFallback(url, sp, size = 72, eager = false) {
   if (url) {
-    const img = h('img', { class: 'pixel', src: url, width: size, height: size, alt: sp.name, loading: eager ? 'eager' : 'lazy' });
+    const img = h('img', { class: 'pixel', src: url, width: size, height: size, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });
     img.addEventListener('error', () => img.replaceWith(silhouette(sp, size)));
     return img;
   }

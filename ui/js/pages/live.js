@@ -99,12 +99,31 @@ async function renderReports(el, selectedId, src) {
   unsub.push(on('live.source', (s) => { const bar = el.querySelector('.source-bar'); if (bar) bar.replaceWith(sourceBar(s)); }));
 }
 
+/** Pokémon sprite for a report, or a neutral fallback when the report doesn't name one species clearly.
+ *  Box icons are 36 px art and battle sprites 96 px; CSS shows them at whole-number scales so pixels stay sharp. */
+export function reportSprite(r, { battle = false } = {}) {
+  const kind = r.is_test ? 'test' : r.kind;
+  const url = battle ? (r.species_front || r.species_icon) : r.species_icon;
+  if (url) {
+    const img = h('img', { class: 'pixel', src: url, alt: r.species_name || '', decoding: 'async', title: r.species_name || null });
+    img.addEventListener('error', () => img.replaceWith(spriteFallback(r, kind)));
+    return h('div', { class: 'rep-sprite' + (battle && r.species_front ? ' battle' : '') }, img);
+  }
+  return h('div', { class: 'rep-sprite' + (battle ? ' battle' : '') }, spriteFallback(r, kind));
+}
+function spriteFallback(r, kind) {
+  const why = r.species_match === 'ambiguous' ? 'This report mentions more than one Pokémon — no sprite shown'
+    : r.species_id ? 'No local sprite — install your PokeMMO data' : 'No Pokémon identified in this report';
+  return h('span', { class: 'rep-fallback', title: why, 'aria-label': why }, icon(kind === 'test' ? 'bell' : 'live'));
+}
+
 export function reportRow(r, selected, compact) {
   const kind = r.is_test ? 'test' : r.kind;
   return h('div', { class: 'report-row' + (selected ? ' selected' : ''), role: 'button', tabindex: '0', onclick: () => go('#/live/reports/' + r.id),
     onkeydown: (e) => { if (e.key === 'Enter') go('#/live/reports/' + r.id); } },
-  h('div', { class: 'ic' }, r.species_icon ? h('img', { class: 'pixel', src: r.species_icon, width: 36, height: 36, alt: '' }) : icon(kind === 'test' ? 'bell' : 'live')),
+  reportSprite(r),
   h('div', { style: { minWidth: 0 } }, h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST · not real' : kind),
+    r.species_name && r.species_icon ? h('span', { class: 'small rep-species' }, r.species_name) : null,
     r.kind_basis === 'text-keyword' ? h('span', { class: 'tiny muted' }, '(detected from text)') : null, r.is_replay ? h('span', { class: 'tiny muted' }, '· replayed history') : null),
   h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, r.title || r.body), compact ? null : h('div', { class: 'small muted ellipsis' }, r.body)),
   h('div', { class: 'small muted nowrap' }, 'Reported ', relTime(r.source_time || r.received_at)));
@@ -116,7 +135,10 @@ function renderReportDetail(el, r) {
   mount(el, h('div', { class: 'card stack' },
     h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST notification' : kind + ' report'), h('span', { class: 'grow' }),
       r.is_test ? badge('TEST', 'Local test — not a real report') : badge('DUMP_ONLY', 'Community report · unverified')),
-    h('h3', { style: { margin: 0 } }, r.title || '(no title)'),
+    h('div', { class: 'rep-detail-head' }, reportSprite(r, { battle: true }),
+      h('div', { style: { minWidth: 0 } }, h('h3', { style: { margin: 0 } }, r.title || '(no title)'),
+        r.species_name && (r.species_name !== r.title || r.species_match === 'ambiguous') ? h('div', { class: 'small muted' }, r.species_name,
+          r.species_match === 'ambiguous' ? ' — the report names several Pokémon, so no sprite is shown' : '') : null)),
     r.body ? h('p', { style: { margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' } }, r.body) : null,
     r.species_id ? h('div', { class: 'row' }, h('span', { class: 'small muted' }, 'Species mentioned (detected from text):'),
       h('button', { class: 'btn small', onclick: () => go('#/pokedex/' + r.species_id) }, r.species_name, icon('chev'))) : null,

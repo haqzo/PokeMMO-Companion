@@ -160,9 +160,29 @@ class LiveService:
     def _row(self, r: dict) -> dict:
         r["tags"] = json.loads(r["tags"] or "[]")
         r["delivery"] = json.loads(r["delivery"]) if r.get("delivery") else None
-        r["species_name"] = self.dex.name(r["species_id"]) if r.get("species_id") else None
-        r["species_icon"] = self.dex.sprite_url(r["species_id"]) if r.get("species_id") else None
+        sid = r.get("species_id")
+        r["species_name"] = self.dex.name(sid) if sid else None
+        # Sprites are shown only when the report names its species unambiguously (display-only check; the
+        # stored detection is unchanged). A report mentioning several species keeps its link but gets no sprite.
+        r["species_match"] = self.species_match(r.get("title") or "", r.get("body") or "", sid) if sid else None
+        ok = r["species_match"] in ("title", "single-mention")
+        r["species_icon"] = self.dex.sprite_url(sid) if ok else None
+        r["species_front"] = self.dex.sprite_url(sid, "front") if ok else None
         return r
+
+    def species_match(self, title: str, body: str, sid: int) -> str:
+        """How reliably a report identifies species `sid`: 'title' (the title is exactly the name),
+        'single-mention' (the only species named in the text) or 'ambiguous'."""
+        if title and self.dex.find_by_name(title) == sid:
+            return "title"
+        hay = f"{title} {body}".lower()
+        found = set()
+        for name, other in self._names:
+            pat = r"(?<![\w])" + re.escape(name.lower()) + r"(?![\w])"
+            if re.search(pat, hay):
+                found.add(other)
+                hay = re.sub(pat, " ", hay)  # "Mr. Mime" must not also count as another name inside it
+        return "single-mention" if found == {sid} else "ambiguous"
 
     def get(self, rid: str) -> dict:
         r = self.db.query_one("SELECT * FROM reports WHERE id=?", (rid,))

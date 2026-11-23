@@ -7,6 +7,7 @@ Missing data is reported as unavailable, never invented.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -41,6 +42,8 @@ class DexService:
         self.registry = json.loads((BUNDLED_DATA_DIR / "pokemmo_availability.json").read_text(encoding="utf-8"))
         self.forms_doc = json.loads((BUNDLED_DATA_DIR / "forms.json").read_text(encoding="utf-8"))
         self.forms = {f"{f['species_id']}:{f['form_key']}": f for f in self.forms_doc["forms"]}
+        self.form_art = json.loads((BUNDLED_DATA_DIR / "form_art.json").read_text(encoding="utf-8"))
+        self.library = None  # optional SpriteLibrary, set by the app
         self.user_checks: dict[int, dict] = {}  # set by the app from storage (your dated in-game checks)
         self.reload()
 
@@ -63,6 +66,9 @@ class DexService:
             except (OSError, ValueError) as exc:  # corrupt import → behave as not imported
                 self.manifest = {"error": f"Imported data could not be read: {exc}"}
                 self.species, self.extras, self.sprites = {}, {}, {}
+            # Changes whenever data is (re)installed, so sprite URLs can be cached by the browser safely.
+            self.asset_version = hashlib.sha1(str((self.manifest or {}).get("imported_at", "")).encode()).hexdigest()[:10]
+            self._resolve_local_form_art()
             self._egg_index: dict[str, list[int]] = {}
             for sid, sp in self.species.items():
                 for g in sp.get("egg_groups", []):
@@ -91,7 +97,7 @@ class DexService:
         if not f:
             return None
         folder = "icons" if kind.startswith("icon") else "battle"
-        return f"/assets/private/{folder}/{f}"
+        return f"/assets/private/{folder}/{f}?v={self.asset_version}"
 
     def name(self, sid: int) -> str:
         return self.index.get(sid, {}).get("name", f"#{sid:03d}")
@@ -237,10 +243,7 @@ class DexService:
         if rec and f.get("stats") and rec.get("stats") and rec["stats"] != f["stats"]:
             mismatch.append("stats")
         cid = f.get("client_record") if isinstance(f.get("client_record"), int) else None
-        # The client lists some form records with a placeholder label ("Egg") and egg artwork: never show that as the form's sprite.
-        sprite_ok = bool(cid) and not (rec and (rec.get("form_label") or "").lower() == "egg")
-        icon = self.sprite_url(cid, "icon") if sprite_ok else None
-        front = self.sprite_url(cid, "front") if sprite_ok else None
+        art = self.art(sid, f["form_key"])
         if rec and rec.get("abilities"):
             rec = {**rec, "abilities": [a for a in dict.fromkeys(rec["abilities"]) if a and a != "--"]}
         return {"key": key, "id": sid, "form_key": f["form_key"], "form_name": f["form_name"], "kind": f["kind"],
@@ -249,8 +252,80 @@ class DexService:
                 "types": types, "types_source": types_src, "stats": stats, "stats_source": stats_src,
                 "abilities": abil, "abilities_source": abil_src, "gen": base["gen"], "note": f.get("note"),
                 "client_record": cid, "in_client": bool(rec) if self.imported and cid else None,
-                "own_sprite": bool(icon or front), "icon": icon or self.sprite_url(sid, "icon"),
-                "front": front or self.sprite_url(sid, "front"), "mismatch": mismatch}
+                "own_sprite": bool(art["icon"] or art["front"] or art["ani"]), "icon": art["icon"], "front": art["front"],
+                "art": art, "mismatch": mismatch}
+
+    # ------------------------------------------------------------ artwork
+    def _file_sha(self, folder: str, name: str | None) -> str | None:
+        if not name:
+            return None
+        p = self.paths.assets_dir / folder / name
+        try:
+            return hashlib.sha1(p.read_bytes()).hexdigest()[:12]
+        except OSError:
+            return None
+
+    def _resolve_local_form_art(self) -> None:
+        """Decide, per catalogued form, whether the installed client art really shows that form.
+        Client record ids are NOT art slots, so slots come from form_art.json (checked by eye) and every
+        candidate file is fingerprinted: egg/Unown placeholders and copies of the base species art are
+        refused; a file that differs from the checked fingerprint is used but labelled unverified."""
+        self.local_form_art: dict[str, dict] = {}
+        if not self.sprites:
+            return
+        ph = self.form_art.get("placeholder_slots", {})
+        def icon_sha(slot):
+            return self._file_sha("icons", (self.sprites.get(slot) or {}).get("icon"))
+        egg = {icon_sha(x) for x in ph.get("egg", [])} - {None}
+        unown = {icon_sha(x) for x in ph.get("unown", [])} - {None}
+        for key, e in self.form_art["forms"].items():
+            sid = int(key.split(":")[0])
+            c = e.get("client") or {}
+            out: dict = {"status": "none", "reason": "Your PokeMMO client has no artwork for this form."}
+            slot = c.get("icon_slot")
+            files = self.sprites.get(slot) or {} if slot else {}
+            got = icon_sha(slot) if slot else None
+            if slot and got:
+                base = icon_sha(sid)
+                if got in egg or (sid != 201 and got in unown):
+                    out = {"status": "placeholder", "reason": "The client slot for this form holds placeholder artwork (Egg/Unown); not shown."}
+                elif got == base:
+                    out = {"status": "same-as-base", "reason": "Your client uses the base species artwork for this form; not shown as form art."}
+                else:
+                    ok = got == c.get("icon_sha1")
+                    out = {"status": "verified" if ok else "unverified", "icon": files.get("icon"), "icon_shiny": files.get("icon_shiny"),
+                           "reason": "Client artwork checked against this form on 2026-11-23." if ok else
+                           "Client artwork differs from the version checked on 2026-11-23 (client update?) — not re-verified."}
+                    fslot = c.get("front_slot")
+                    ff = self.sprites.get(fslot) or {} if fslot else {}
+                    fsha = self._file_sha("battle", ff.get("front"))
+                    if fsha and fsha == c.get("front_sha1") and fsha != self._file_sha("battle", (self.sprites.get(sid) or {}).get("front")):
+                        out["front"], out["front_shiny"] = ff.get("front"), ff.get("front_shiny")
+            self.local_form_art[key] = out
+
+    def art(self, sid: int, form_key: str | None = None) -> dict:
+        """Artwork for a species or one of its forms. Never substitutes base or placeholder art for a form."""
+        def u(folder, f):
+            return f"/assets/private/{folder}/{f}?v={self.asset_version}" if f else None
+        if form_key:
+            loc = getattr(self, "local_form_art", {}).get(f"{sid}:{form_key}") or {"status": "none", "reason": "No artwork for this form."}
+            out = {"icon": u("icons", loc.get("icon")), "icon_shiny": u("icons", loc.get("icon_shiny")),
+                   "front": u("battle", loc.get("front")), "front_shiny": u("battle", loc.get("front_shiny")),
+                   "local_status": loc["status"], "local_reason": loc["reason"]}
+            lib_key = f"{sid}-{form_key}"
+        else:
+            sp = self.sprites.get(sid) or {}
+            out = {"icon": u("icons", sp.get("icon")), "icon_shiny": u("icons", sp.get("icon_shiny")),
+                   "front": u("battle", sp.get("front")), "front_shiny": u("battle", sp.get("front_shiny")),
+                   "local_status": "verified" if sp else "none", "local_reason": "Your PokeMMO client artwork." if sp else "No PokeMMO data installed."}
+            lib_key = str(sid)
+        lib = self.library
+        out.update({k: None for k in ("ani", "ani_shiny", "static", "static_shiny")})
+        out["library"] = {}
+        if lib is not None and lib.installed:
+            out.update(lib.urls(lib_key))
+            out["library"] = lib.provenance(lib_key)
+        return out
 
     INHERIT_KINDS = ("cosmetic", "season")
 
@@ -343,6 +418,7 @@ class DexService:
         sp = self.species.get(sid)
         result = {"id": sid, "name": base["name"], "types": base["types"], "gen": base["gen"],
                   "fav": sid in favourites, "note": note, "imported": sp is not None,
+                  "art": self.art(sid),
                   "sprites": {k: self.sprite_url(sid, k) for k in
                               ("icon", "icon_f", "icon_shiny", "front", "front_f", "front_shiny")},
                   "availability": self.availability(sid),

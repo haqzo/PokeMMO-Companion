@@ -1,0 +1,259 @@
+"""UI: Alpha/Swarm report sprites (Home + Live), Pokédex loading regressions, Summary artwork
+(animated / shiny / still / missing) and the Listed/Not-listed view (2026-11-23 pass)."""
+import sys
+from pathlib import Path
+
+import pytest
+
+from tests.ui.test_ui_flows import DUMPS, app, browser, data_dir, go, page  # noqa: F401  (fixtures)
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from gifgen import make_gif, make_png  # noqa: E402
+
+pytestmark = pytest.mark.ui
+needs_dumps = pytest.mark.skipif(not DUMPS, reason="needs POKEMMO_DUMPS_DIR")
+
+
+def _reports(app):
+    app.ctx.storage.execute("DELETE FROM reports")
+    ing = lambda mid, title, body, topic: app.ctx.live.ingest(  # noqa: E731
+        {"id": mid, "event": "message", "time": 1_763_000_000, "topic": topic, "title": title, "message": body}, replay=True)
+    a = ing("g1", "Gyarados", "Kanto, Route 12", "alpha")
+    b = ing("f1", "Swarm spotted", "Hoenn, Route 119 — Feebas swarm", "swarm")
+    c = ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarm")
+    t = app.ctx.live.create_test("swarm")
+    return a, b, c, t
+
+
+def _until(page, expr, timeout=15000):
+    """Poll a JS expression (page.wait_for_function's string form is blocked by the app's CSP)."""
+    for _ in range(timeout // 100):
+        if page.evaluate(expr):
+            return
+        page.wait_for_timeout(100)
+    raise AssertionError("timed out waiting for " + expr)
+
+
+def _width(page, sel):
+    return page.locator(sel).first.evaluate("e => e.getBoundingClientRect().width")
+
+
+@needs_dumps
+def test_home_live_card_shows_large_sharp_sprites_with_fallbacks(app, browser):  # noqa: F811
+    a, b, c, t = _reports(app)
+    pg = browser.new_context(viewport={"width": 1600, "height": 1000}).new_page()
+    pg.goto(app.url("#/home"))
+    pg.wait_for_selector(".area-live .live-row")
+    rows = pg.locator(".area-live .live-row")
+    assert rows.count() == 3  # TEST entries never appear on Home
+    assert rows.nth(0).locator(".rep-sprite img").count() == 1 and "Gyarados" in rows.nth(0).inner_text()
+    assert _width(pg, ".area-live .rep-sprite img") == 72  # 2× the 36 px box icon
+    assert pg.locator(".area-live .rep-sprite img").first.evaluate("e => getComputedStyle(e).imageRendering") == "pixelated"
+    assert rows.nth(1).locator(".rep-sprite img").count() == 1 and "Feebas" in rows.nth(1).inner_text()
+    assert rows.nth(2).locator(".rep-fallback").count() == 1 and rows.nth(2).locator("img").count() == 0  # two species named
+    assert "Kanto, Route 12" in rows.nth(0).inner_text()
+    assert "feed off" in pg.locator(".area-live").inner_text()
+    pg.context.close()
+
+
+@needs_dumps
+def test_live_list_and_detail_sprites_and_test_labels(app, browser):  # noqa: F811
+    a, b, c, t = _reports(app)
+    pg = browser.new_context(viewport={"width": 1600, "height": 1000}).new_page()
+    pg.goto(app.url("#/live/reports/" + a["id"]))
+    pg.wait_for_selector(".report-row")
+    test_row = pg.locator(".report-row", has_text="TEST — demo")
+    assert "TEST · NOT REAL" in test_row.inner_text().upper() and test_row.locator(".rep-fallback").count() == 1
+    assert _width(pg, ".report-row .rep-sprite img") == 72
+    assert "replayed history" in pg.locator(".report-row", has_text="Gyarados").inner_text()
+    pg.wait_for_selector(".rep-detail-head .rep-sprite.battle img")
+    assert _width(pg, ".rep-detail-head .rep-sprite.battle img") == 192  # 2× the 96 px battle sprite
+    detail = pg.locator(".card", has=pg.locator(".rep-detail-head")).inner_text()
+    assert "Community report" in detail and "ntfy / alpha" in detail
+    pg.goto(app.url("#/live/reports/" + c["id"]))
+    pg.wait_for_selector(".rep-detail-head")
+    assert pg.locator(".rep-detail-head .rep-fallback").count() == 1
+    assert "names several Pokémon" in pg.locator(".rep-detail-head").inner_text()
+    pg.goto(app.url("#/live/reports/" + t["id"]))
+    pg.wait_for_selector(".rep-detail-head")
+    assert "TEST NOTIFICATION" in pg.locator(".card", has=pg.locator(".rep-detail-head")).inner_text().upper()
+    pg.context.close()
+
+
+@needs_dumps
+def test_report_sprites_shrink_in_narrow_windows_and_popout(app, browser):  # noqa: F811
+    _reports(app)
+    pg = browser.new_context(viewport={"width": 460, "height": 800}).new_page()
+    pg.goto(app.url("#/live/reports"))
+    pg.wait_for_selector(".report-row .rep-sprite img")
+    assert _width(pg, ".report-row .rep-sprite img") == 36
+    pop = browser.new_context(viewport={"width": 360, "height": 520}).new_page()
+    pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=reports&mode=compact&shell=browser")
+    pop.wait_for_selector(".report-row .rep-sprite")
+    assert pop.locator(".report-row").count() >= 1
+    assert all(w <= 72 for w in pop.locator(".report-row .rep-sprite").evaluate_all("els => els.map(e => e.getBoundingClientRect().width)"))
+    pg.context.close()
+    pop.context.close()
+
+
+# ---------------------------------------------------------------- Pokédex loading
+def test_returning_to_pokedex_reuses_cards_and_home_does_not_refetch(app, page):
+    go(page, app, "#/pokedex")
+    _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 649")
+    page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe = 1")
+    reqs = []
+    page.on("request", lambda r: reqs.append(r.url))
+    page.evaluate("location.hash = '#/home'")
+    page.wait_for_selector(".home-page .card")
+    page.wait_for_timeout(400)
+    page.evaluate("location.hash = '#/pokedex'")
+    _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 649")
+    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe") == 1  # same element, not rebuilt
+    assert not [u for u in reqs if "/api/dex/species" in u]  # Home and the return trip use the cached list
+    page.get_by_role("radio", name="II", exact=True).click()
+    _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 100")
+    page.get_by_role("radio", name="All", exact=True).click()
+    _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 649")
+    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe") == 1
+    heads = page.locator(".gen-head").all_inner_texts()
+    assert [h.split("·")[1].strip() for h in heads] == ["151", "100", "135", "107", "156"]
+    page.wait_for_timeout(1200)  # filter save debounce
+
+
+def test_grid_uses_static_lazy_icons_only(app, page):
+    go(page, app, "#/pokedex")
+    page.wait_for_selector(".dex-grid .dex-card")
+    srcs = page.locator(".dex-grid img").evaluate_all("els => els.map(e => [e.getAttribute('src'), e.loading])")
+    assert all(not s.split("?")[0].endswith(".gif") for s, _ in srcs)
+    assert all(l == "lazy" for _, l in srcs)
+
+
+def test_favourite_and_registration_still_update_cached_cards(app, page):
+    run = app.ctx.guides.create_run("CacheCheck")
+    go(page, app, "#/pokedex")
+    page.wait_for_selector('.dex-card[data-id="1"]')
+    page.locator('.dex-card[data-id="1"] .fav-btn').click()
+    page.wait_for_timeout(600)
+    assert "on" in page.locator('.dex-card[data-id="1"] .fav-btn').get_attribute("class")
+    page.evaluate("location.hash = '#/home'")
+    page.wait_for_timeout(600)
+    page.evaluate("location.hash = '#/pokedex'")
+    page.wait_for_selector('.dex-card[data-id="1"]')
+    assert "on" in page.locator('.dex-card[data-id="1"] .fav-btn').get_attribute("class")
+    page.locator('.dex-card[data-id="1"] .fav-btn').click()
+    page.wait_for_timeout(600)
+    page.select_option("select[aria-label='Registration tracking']", run["id"])
+    page.wait_for_timeout(700)
+    page.locator('.dex-grid .dex-card[data-id="4"]').click()
+    page.wait_for_selector(".dex-summary .detail-head h2")
+    page.locator(".dex-summary").get_by_role("button", name="My registration").click()
+    page.locator(".dex-summary").get_by_role("radio", name="Seen").click()
+    page.wait_for_timeout(500)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(600)
+    assert "reg-seen" in page.locator('.dex-grid .dex-card[data-id="4"]').get_attribute("class")
+    page.select_option("select[aria-label='Registration tracking']", "")
+    page.wait_for_timeout(500)
+
+
+# ---------------------------------------------------------------- Summary artwork
+@pytest.fixture
+def library(app, tmp_path):
+    bw = tmp_path / "s/sprites/pokemon/versions/generation-v/black-white"
+    (bw / "animated/shiny").mkdir(parents=True)
+    base = make_gif(colour=(150, 80, 200))
+    for name, data in {"animated/479-wash.gif": make_gif(colour=(60, 120, 230), seed=1),
+                       "animated/shiny/479-wash.gif": make_gif(colour=(230, 60, 160), seed=2),
+                       "479-wash.png": make_png(48, 48), "animated/479.gif": make_gif(colour=(230, 120, 40)),
+                       "animated/649.gif": base, "animated/649-chill.gif": base,
+                       "animated/646-black.gif": make_gif(colour=(40, 40, 40), seed=3)}.items():
+        (bw / name).write_bytes(data)
+    app.ctx.sprite_library.import_from(tmp_path / "s")
+    app.ctx.settings.update({"pokedex.animate": None})
+    yield app.ctx.sprite_library
+    app.ctx.sprite_library.remove()
+
+
+def _art(page):
+    return page.locator(".dex-summary .detail-head .art")
+
+
+def test_summary_plays_animated_form_sprite_with_shiny_and_still(app, page, library):
+    go(page, app, "#/pokedex/479/wash")
+    page.wait_for_selector(".dex-summary .art img.art-img")
+    img = _art(page).locator("img.art-img")
+    assert "/assets/library/ani/479-wash.gif" in img.get_attribute("src")
+    _until(page, "document.querySelector('.dex-summary .art img.art-img').style.visibility === ''")
+    assert img.evaluate("e => e.getBoundingClientRect().width") == 200  # 40 px art at 5×, whole-number scale
+    assert "Animated · your sprite library (PokéAPI files)" in page.locator(".dex-summary .art-src").inner_text()
+    _art(page).get_by_role("button", name="Shiny colours").click()
+    page.wait_for_selector(".dex-summary .art img[src*='ani-shiny/479-wash.gif']")
+    _art(page).get_by_role("button", name="Shiny colours").click()
+    _art(page).get_by_role("button", name="Animate sprite").click()
+    page.wait_for_selector(".dex-summary .art img[src*='/static/479-wash.png']")
+    assert "Still" in page.locator(".dex-summary .art-src").inner_text()
+    assert app.ctx.settings.get("pokedex.animate") is False
+    app.ctx.settings.update({"pokedex.animate": None})
+
+
+def test_summary_reduced_motion_shows_still_and_forms_switch_art(app, browser, library):  # noqa: F811
+    ctx = browser.new_context(viewport={"width": 1280, "height": 820}, reduced_motion="reduce")
+    pg = ctx.new_page()
+    pg.goto(app.url("#/pokedex/646/black"))
+    pg.wait_for_selector(".dex-summary .art canvas.art-img, .dex-summary .art img.art-img")
+    pg.wait_for_timeout(400)
+    assert pg.locator(".dex-summary .art canvas.art-img").count() == 1  # first frame only, no animation
+    assert "Still frame" in pg.locator(".dex-summary .art-src").inner_text()
+    pg.locator(".dex-summary .form-strip button", has_text="White Kyurem").click()
+    pg.wait_for_timeout(500)
+    assert pg.locator(".dex-summary .detail-head h2").inner_text() == "White Kyurem"
+    assert pg.locator(".dex-summary .art .art-missing").count() == 1
+    assert "No verified artwork for this form" in pg.locator(".dex-summary .art-src").inner_text()
+    ctx.close()
+
+
+def test_genesect_drive_never_shows_base_art(app, page, library):
+    go(page, app, "#/pokedex/649/chill")
+    page.wait_for_selector(".dex-summary .detail-head h2")
+    page.wait_for_timeout(300)
+    assert page.locator(".dex-summary .art img").count() == 0 and page.locator(".dex-summary .art .art-missing").count() == 1
+    page.locator(".dex-summary .form-strip button", has_text="Genesect").first.click()
+    page.wait_for_selector(".dex-summary .art img[src*='/ani/649.gif']")
+
+
+@needs_dumps
+def test_form_uses_verified_client_icon_without_library(app, page):
+    app.ctx.sprite_library.remove()
+    go(page, app, "#/pokedex/479/wash")
+    page.wait_for_selector(".dex-summary .art img.art-img")
+    assert "/assets/private/icons/693-0.png" in page.locator(".dex-summary .art img.art-img").get_attribute("src")
+    assert "Your PokeMMO client · box icon" in page.locator(".dex-summary .art-src").inner_text()
+    go(page, app, "#/pokedex/201/b")
+    page.wait_for_selector(".dex-summary .art img.art-img")
+    assert "/battle/652-front-n.png" in page.locator(".dex-summary .art img.art-img").get_attribute("src")
+
+
+# ---------------------------------------------------------------- Listed / Not listed
+@needs_dumps
+def test_listed_checks_drive_the_pokemmo_view(app, page):
+    go(page, app, "#/pokedex/640")
+    page.wait_for_selector(".avail-block")
+    page.locator(".dex-summary").get_by_role("button", name="Not listed").click()
+    page.keyboard.press("Escape")  # immediately: closing must win over the refresh the check triggers
+    page.wait_for_timeout(1500)
+    assert page.locator(".dex-summary-back").count() == 0 and page.url.endswith("#/pokedex")
+    page.wait_for_timeout(400)
+    assert "absent" in page.locator('.dex-card[data-entry="640"]').get_attribute("class")
+    page.get_by_role("button", name="Filters").click()
+    page.get_by_role("button", name="Hide species I marked “Not listed”").click()
+    page.wait_for_timeout(600)
+    assert page.locator('.dex-card[data-entry="640"]').count() == 0
+    assert "648 of 648" in page.locator(".dex-info").inner_text()
+    # stored on this computer only
+    assert app.ctx.storage.query_one("SELECT in_dex FROM roster_checks WHERE species_id=640")["in_dex"] == "no"
+    page.get_by_role("button", name="Hide species I marked “Not listed”").click()
+    page.wait_for_timeout(500)
+    go(page, app, "#/pokedex/640")
+    page.wait_for_selector(".avail-block")
+    app.ctx.storage.execute("DELETE FROM roster_checks")
+    app.ctx.load_roster_checks()

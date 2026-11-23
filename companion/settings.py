@@ -62,6 +62,7 @@ DEFAULTS: dict[str, Any] = {
     "pokedex.scope": "reference",            # reference (all 649, default) | pokemmo (hide species YOU marked "Not listed")
     "pokedex.density": "standard",           # compact | standard | large
     "pokedex.progress_run": None,            # run id whose manual registration is shown, or None (= not tracked)
+    "pokedex.animate": None,                 # animated Summary sprites: None = follow the system's reduced-motion setting
     # Language (UI strings; game item names from your own client strings when available). English fallback.
     "pokedex.catalog": "forms",              # forms (649 species + alternate forms, default) | species
     "app.language": "en",
@@ -189,6 +190,8 @@ def validate(key: str, value: Any) -> Any:
         raise SettingsError(f"{key} must be an id or null")
     if key == "items.filters" and not isinstance(value, dict):
         raise SettingsError("items.filters must be an object")
+    if key == "pokedex.animate" and value is not None and not isinstance(value, bool):
+        raise SettingsError("pokedex.animate must be true, false or null (follow the system)")
     if key == "pokedex.progress_run" and value is not None and not isinstance(value, str):
         raise SettingsError("progress run must be a run id or null")
     if key == "app.last_route" and not (isinstance(value, str) and value.startswith("#/") and len(value) < 300):
