@@ -90,25 +90,62 @@ function activeFilterCount() {
   return F.types.length + (F.region ? 1 : 0) + (F.horde ? 1 : 0) + (F.egg ? 1 : 0) + (F.fav ? 1 : 0) + (F.season ? 1 : 0) +
     (F.ability ? 1 : 0) + (F.held ? 1 : 0) + (F.statKey && F.statMin !== '' ? 1 : 0) + F.classes.length + F.reg.length;
 }
-const rerender = () => render(document.getElementById('main'), parseHash());
+const rerender = () => { pageKey = null; return render(document.getElementById('main'), parseHash()); };
+
+// Pokémon Summary = large popup INSIDE the Companion, layered over the grid (owner decision 2026-11-23).
+// Opening/closing it only changes the URL hash; the grid, its search/filters and scroll stay mounted.
+let pageKey = null;      // route state other than the selection; when unchanged, only the popup is updated
+let lastFocus = null;
+let staleGrid = false;   // a registration was saved inside the popup; redraw the grid (same filters/scroll) once it closes
+function routeKey(route) {
+  const q = new URLSearchParams(route.query); q.delete('tab');
+  return q.toString();
+}
+function closeSummary() {
+  const back = document.querySelector('#main .dex-summary-back');
+  if (back) back.remove();
+  document.querySelector('#main .dex-page')?.removeAttribute('aria-hidden');
+  if (lastFocus && lastFocus.isConnected) lastFocus.focus({ preventScroll: true });
+}
+async function openSummary(el, sel, selForm) {
+  const host = el.querySelector('.dex-page');
+  let back = el.querySelector('.dex-summary-back');
+  if (!back) {
+    if (!lastFocus) lastFocus = document.activeElement;
+    back = h('div', { class: 'dex-summary-back', onmousedown: (e) => { if (e.target === back) go('#/pokedex'); } },
+      h('div', { class: 'dex-summary', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pokémon summary', tabindex: '-1' }));
+    el.append(back);
+    host && host.setAttribute('aria-hidden', 'true');
+  }
+  const pane = back.firstChild;
+  const keepScroll = pane.dataset.id === String(sel) ? pane.scrollTop : 0;
+  pane.dataset.id = String(sel);
+  await renderDetail(pane, sel, { back: () => go('#/pokedex'), form: selForm });
+  pane.scrollTop = keepScroll;
+  if (!pane.contains(document.activeElement)) pane.focus({ preventScroll: true });
+  gridEl && gridEl.querySelectorAll('.dex-card.selected').forEach((c) => c.classList.remove('selected'));
+  const card = gridEl && gridEl.querySelector(`[data-entry="${sel}"]`);
+  if (card) card.classList.add('selected');
+}
 
 export async function render(el, route) {
-  dispose();
-  currentFilters();
-  const all = await loadList();
   const sel = route.parts[0] ? Number(route.parts[0]) : null;
   const selForm = route.parts[1] || null;
   if (route.query.get('tab')) { ui.tab = route.query.get('tab'); }
-  const wide = el.clientWidth >= 1080;
-  const page = h('div', { class: 'page flush' });
-  mount(el, page);
-  if (sel && !wide) {
-    const pane = h('div', { class: 'dex-detail', style: { borderLeft: 0, flex: 1 } });
-    page.append(pane);
-    await renderDetail(pane, sel, { back: () => go('#/pokedex'), form: selForm });
-    return;
+  // Same grid state, only the selection changed → update the popup, keep the grid exactly as it is.
+  if (gridEl && gridEl.isConnected && el.contains(gridEl) && pageKey === routeKey(route)) {
+    if (sel) { await openSummary(el, sel, selForm); return; }
+    closeSummary(); lastFocus = null;
+    if (!staleGrid) return;
   }
-  const layout = h('div', { class: 'dex-layout' + (sel ? ' split' : '') });
+  staleGrid = false;
+  dispose();
+  currentFilters();
+  const all = await loadList();
+  pageKey = routeKey(route);
+  const page = h('div', { class: 'page flush dex-page' });
+  mount(el, page);
+  const layout = h('div', { class: 'dex-layout' });
   page.append(layout);
   const gridWrap = h('div', { class: 'dex-grid-wrap' });
   layout.append(gridWrap);
@@ -121,11 +158,10 @@ export async function render(el, route) {
   scroll.scrollTop = ui.scroll;
   scroll.addEventListener('scroll', () => { ui.scroll = scroll.scrollTop; });
   if (sel) {
-    const pane = h('div', { class: 'dex-detail' });
-    layout.append(pane);
-    await renderDetail(pane, sel, { back: () => go('#/pokedex'), form: selForm });
     const card = gridEl.querySelector(`[data-entry="${sel}"]`);
-    if (card) card.scrollIntoView({ block: 'nearest' });
+    if (card && !ui.scroll) card.scrollIntoView({ block: 'center' });
+    lastFocus = card || null;
+    await openSummary(el, sel, selForm);
   }
   const refresh = async () => { await loadList(true); if (gridEl && gridEl.isConnected) rerender(); };
   unsub.push(on('favourites', refresh));
@@ -133,10 +169,11 @@ export async function render(el, route) {
   unsub.push(on('dex.progress', (d, ev) => { if (ev.origin !== WINDOW_ID) refresh(); }));
   unsub.push(on('import', async (d) => { if (d.state === 'done' && d.kind === 'dumps') refresh(); }));
   const keyh = (e) => {
-    if (e.key === 'Escape' && sel && !document.querySelector('.modal-back')) go('#/pokedex');
+    if (e.key === 'Escape' && el.querySelector('.dex-summary-back') && !document.querySelector('.modal-back, .menu')) { e.preventDefault(); go('#/pokedex'); }
   };
   document.addEventListener('keydown', keyh);
   unsub.push(() => document.removeEventListener('keydown', keyh));
+  unsub.push(() => { pageKey = null; });
 }
 function parseHash() { const raw = location.hash.replace(/^#\/?/, ''); const [p, qs] = raw.split('?'); const parts = p.split('/').filter(Boolean);
   return { page: parts[0], parts: parts.slice(1), query: new URLSearchParams(qs || ''), hash: location.hash }; }
@@ -184,7 +221,8 @@ async function infoBar(all) {
   return h('div', { class: 'dex-info' },
     h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } },
       countEl,
-      h('span', { class: 'small muted' }, `${all.length} Pokémon species${forms ? ` · ${forms} alternate forms available within Pokémon details` : ''} · listing does not mean obtainable in PokeMMO`),
+      h('span', { class: 'small muted', title: 'PokeMMO’s own Seen / Owned / Caught counters use different, patch-dependent totals. Record yours in the Availability report.' },
+        `Gen I–V reference: ${all.length} species${forms ? ` · ${forms} alternate forms inside each Pokémon’s summary` : ''} · not the in-game Pokédex total, and being listed does not mean obtainable`),
       scope === 'pokemmo' && hidden ? h('span', { class: 'small muted' }, `${hidden} you marked “Not listed” hidden`) : null,
       h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, icon('info'), 'Availability report'),
       reg ? h('span', { class: 'tiny muted' }, `Registry ${reg.registry_version}`) : null,
@@ -425,10 +463,11 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
         back ? h('button', { class: 'icon-btn', title: 'Close (Esc)', 'aria-label': 'Close details', onclick: back }, icon('close')) : null),
       h('h2', null, d.name),
       h('div', { class: 'row wrap', style: { marginTop: '4px' } }, typeChips(d.types),
-        h('span', { class: 'badge ' + avClass, title: av.evidence }, fm && fm.kind !== 'cosmetic' && fm.kind !== 'season' ? 'Form change not verified' : av.label))));
+        fm && fm.kind !== 'cosmetic' && fm.kind !== 'season' ? h('span', { class: 'badge unknown', title: 'Whether this form can be obtained or switched to in PokeMMO is not verified' }, 'Form change not verified') :
+          h('span', { class: 'badge ' + avClass, title: av.evidence }, av.label))));
   pane.replaceChildren(head);
   if (d.catalog_forms && d.catalog_forms.length) {
-    pane.append(h('div', { class: 'form-strip', role: 'group', 'aria-label': 'Forms' }, h('span', { class: 'tiny muted' }, 'Forms:'),
+    pane.append(h('div', { class: 'form-strip', role: 'group', 'aria-label': `${d.base_name || d.name} forms` }, h('span', { class: 'label' }, 'Form'),
       d.catalog_forms.map((f) => h('button', { class: 'chip btnlike' + ((f.base ? !fm : fm && fm.form_key === f.form_key) ? ' active' : ''), 'aria-pressed': String(f.base ? !fm : !!(fm && fm.form_key === f.form_key)),
         onclick: () => formNav(f.base ? null : f.form_key) }, f.form_name))));
   }
@@ -619,7 +658,7 @@ function registration(d) {
   if (!run) return h('div', { class: 'stack tight' }, notice('info', 'Registration is not being tracked. Choose a character run in the Pokédex toolbar (“Registration: …”) to record Seen / Owned / Caught OT / Alpha / Shiny / Costume for that character.'),
     h('div', { class: 'small muted' }, 'The Companion cannot read your PokeMMO account; everything here is entered by you.'));
   const p = { ...(d.progress || { status: 'unregistered' }) };
-  const save = async () => { await api('PUT', `/api/dex/progress/${run}/${d.id}`, p); toast('Saved'); state.dexCache = null; };
+  const save = async () => { await api('PUT', `/api/dex/progress/${run}/${d.id}`, p); toast('Saved'); state.dexCache = null; staleGrid = true; };
   return h('div', { class: 'stack' }, h('div', { class: 'small muted' }, 'Your manual record for the selected character. Not read from your account.'),
     seg(REG_LEVELS, p.status, (v) => { p.status = v; save(); }, 'Registration status'),
     h('div', { class: 'row wrap' }, [['caught_alpha', 'Caught Alpha'], ['owned_shiny', 'Owned Shiny'], ['owned_costume', 'Owned Costume']].map(([k, l]) =>

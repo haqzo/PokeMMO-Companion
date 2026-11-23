@@ -1,4 +1,10 @@
 # v0.1.0 Pokédex direction — Synergy reference roster and forms
+
+> **Superseded on 2026-11-23 (owner correction):** the Pokédex shows **one tile per species** (649 Gen I–V species).
+> Alternate forms are no longer separate tiles; they are chosen inside the Pokémon Summary popup, and searching a
+> form's name finds its parent species. The 731-key Synergy parity check stays as an internal data test only.
+> See `docs/build/11-V0.1.0-CRITICAL-CORRECTION-REPORT.md`.
+
 **Decision recorded:** 2026-11-22 · **State:** approved product direction; IMPLEMENTATION NOT YET DONE.
 **Reference supplied by owner:** 50.54-second portrait recording of https://synergymmo.com/pokedex/ (`1000037758.mp4`, private, not committed).
 **Public page:** https://synergymmo.com/pokedex/ · source viewed 2026-11-22.

@@ -117,7 +117,7 @@ def build_router(ctx: AppContext) -> Router:
         return importer.detect_sources(folder)
     r.add("POST", "/api/import/detect", import_detect)
 
-    r.add("GET", "/api/data/status", lambda req: importer.data_status(ctx.paths))
+    r.add("GET", "/api/data/status", lambda req: {**importer.data_status(ctx.paths), "sync": ctx.data_sync})
 
     def import_suggest(req: Request) -> dict:
         home = Path.home()

@@ -132,10 +132,10 @@ def test_pokedex_filters_show_and_clear(app, page):
     go(page, app, "#/pokedex")
     page.get_by_role("radio", name="V", exact=True).click()
     page.wait_for_timeout(400)
-    assert "175 of 731 entries shown" in page.locator(".dex-info").inner_text()  # 156 Gen V species + 19 Gen V forms
+    assert "156 of 649 Pokémon shown" in page.locator(".dex-info").inner_text()  # one tile per Gen V species
     page.locator(".active-filters button", has_text="Clear all").click()
     page.wait_for_timeout(400)
-    assert "731 of 731 entries shown" in page.locator(".dex-info").inner_text()
+    assert "649 of 649 Pokémon shown" in page.locator(".dex-info").inner_text()
 
 
 def _create_run(page, name, label):
@@ -263,14 +263,14 @@ def test_pokedex_popout_has_no_cap_in_any_mode(app, browser, mode):
     pop.wait_for_selector(".dex-card")
     pop.wait_for_timeout(400)
     n = pop.locator(".popout-body .dex-card").count()
-    assert n == 731 and "731 of 731" in pop.locator(".popout-body").inner_text()
+    assert n == 649 and "649 of 649" in pop.locator(".popout-body").inner_text()
     last = pop.locator(".popout-body .dex-card").last
     last.scroll_into_view_if_needed()
-    assert last.get_attribute("data-entry") == "649:chill" and last.is_visible()
+    assert last.get_attribute("data-entry") == "649" and last.is_visible()
     pop.fill("input[aria-label='Search Pokémon']", "pi")
     pop.wait_for_timeout(400)
     shown = pop.locator(".popout-body .dex-card").count()
-    assert 0 < shown < 731 and f"{shown} of 731" in pop.locator(".popout-body").inner_text()
+    assert 0 < shown < 649 and f"{shown} of 649" in pop.locator(".popout-body").inner_text()
     pop.context.close()
 
 

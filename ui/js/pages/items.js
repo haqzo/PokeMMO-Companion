@@ -57,8 +57,10 @@ export async function render(el, route) {
     h('div', { class: 'actions' }, badge('DUMP_ONLY', 'Your dump'), pinButton({ kind: 'tool', id: 'items' }), popoutButton('items')));
   page.append(head);
   if (!data.available) {
-    page.append(h('div', { style: { padding: '0 18px' } }, notice('info', t('items.not_installed'), ' ',
-      h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, 'Settings › Data'))));
+    page.append(h('div', { style: { padding: '0 18px' } }, notice(data.syncing ? 'info' : 'warn', data.reason || t('items.not_installed'), ' ',
+      data.syncing ? null : h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, 'Settings › Data'))));
+    unsub.push(on('import', async (d) => { if (d.state === 'done') { await load(true); render(el, route); } }));
+    if (data.syncing) setTimeout(async () => { if (el.isConnected && location.hash.startsWith('#/tools/items')) { await load(true); render(el, route); } }, 4000);
     return;
   }
   const sel = route.parts[1] ? Number(route.parts[1]) : null;
@@ -155,7 +157,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
 export async function renderItemsPopout(el, mode) {
   filters();
   const data = await load();
-  if (!data.available) { mount(el, notice('info', t('items.not_installed'))); return; }
+  if (!data.available) { mount(el, notice('info', data.reason || t('items.not_installed'))); return; }
   const m = location.hash.match(/^#\/item\/(\d+)/);
   if (m) {
     const pane = h('div', { class: 'popout-detail' });

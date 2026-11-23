@@ -88,7 +88,20 @@ def register(r, ctx, ApiError, Request) -> None:
         r.add(method, pattern, nf(fn))
 
     # ------------------------------------------------------------- items
-    add("GET", "/api/items", lambda req: ctx.items.listing(req.q("lang") or lang()))
+    def items_list(req):
+        res = ctx.items.listing(req.q("lang") or lang())
+        if not res["available"]:
+            sync = ctx.data_sync or {}
+            if not ctx.dex.imported:
+                res["reason"] = "Install your PokeMMO data once (Settings › Data) to build the Item Library."
+            elif sync.get("state") in ("pending", "running"):
+                res["reason"] = "Updating your installed PokeMMO data for the Item Library… this takes a few seconds and needs no action."
+                res["syncing"] = True
+            elif sync.get("reason"):
+                res["reason"] = sync["reason"]
+                res["sync_state"] = sync.get("state")
+        return res
+    add("GET", "/api/items", items_list)
 
     def item_detail(req):
         d = ctx.items.detail(int(req.params["iid"]), ctx.dex, req.q("lang") or lang())

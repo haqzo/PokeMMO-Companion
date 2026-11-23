@@ -14,7 +14,9 @@ from .services.dex import DexService
 from .services.guides import GuideService
 from .services.bookmarks import BookmarkService
 from .services.items import ItemService
-from .services.importer import sync_existing_import
+import threading
+
+from .services.importer import recover_interrupted_swap, sync_existing_import
 from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
 from .services.news import NewsService
@@ -56,17 +58,14 @@ class AppContext:
         self.storage = Storage(self.paths.db, self.paths.backups)
         self.settings = Settings(self.storage)
         self.bus = EventBus()
-        # An older installed private dump can lack the newer Item Library catalog.
-        # Rebuild it from the SAME previously selected local source, once, before
-        # the services load. Never require a second manual import or bundle assets.
+        # Interrupted earlier swap? Put the last complete private install back before anything reads it.
         try:
-            sync = sync_existing_import(self.paths, progress=log.info)
-            if sync["state"] == "synchronized":
-                log.info("Private PokeMMO data synchronized: %s", sync)
-            elif sync["state"] not in ("current", "not-installed"):
-                log.warning("Private PokeMMO data sync deferred: %s", sync)
-        except Exception:
-            log.exception("Local PokeMMO data sync failed; existing data preserved")
+            restored = recover_interrupted_swap(self.paths)
+            if restored:
+                log.warning("Restored previous private PokeMMO data after an interrupted update: %s", restored)
+        except OSError:
+            log.exception("Could not check for an interrupted data update")
+        self.data_sync: dict = {"state": "pending"}
         self.dex = DexService(self.paths)
         self.guides = GuideService(self.storage, self.paths)
         self.items = ItemService(self.paths, self.storage)
@@ -110,7 +109,29 @@ class AppContext:
         if kept != qa:
             self.settings.update({"nav.quick_access": kept})
 
+    def sync_local_data(self) -> dict:
+        """Bring an existing private install up to date from its previously approved local source.
+
+        Runs once per start, off the UI thread. Installed data stays in use until a complete new copy
+        is ready; any failure keeps it unchanged. Users never have to re-import after an update."""
+        self.data_sync = {"state": "running"}
+        try:
+            res = sync_existing_import(self.paths, progress=log.info)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Local PokeMMO data sync failed; existing data preserved")
+            res = {"state": "source-error", "reason": str(exc)}
+        if res["state"] == "synchronized":
+            self.dex.reload()
+            self.items.reload()
+            self.bus.publish("import", {"state": "done", "auto": True, "reason": res.get("reason")})
+            log.info("Private PokeMMO data synchronized: %s", res)
+        elif res["state"] not in ("current", "not-installed"):
+            log.warning("Private PokeMMO data sync not applied: %s", res)
+        self.data_sync = res
+        return res
+
     def start_background(self) -> None:
+        threading.Thread(target=self.sync_local_data, name="data-sync", daemon=True).start()
         self.live.apply_settings()
         self.news.start_auto(self.settings, self.bus)
 

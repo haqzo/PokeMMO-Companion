@@ -440,9 +440,10 @@ def sync_existing_import(paths: Paths, progress: Callable[[str], None] | None = 
 
     Never bundle source assets in Git; never modify original dump archives.
     """
+    recovered = recover_interrupted_swap(paths)
     manifest_file = paths.dex_dir / "manifest.json"
     if not manifest_file.is_file():
-        return {"state": "not-installed"}
+        return {"state": "not-installed", "recovered": recovered}
     try:
         previous = json.loads(manifest_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -503,23 +504,84 @@ def sync_existing_import(paths: Paths, progress: Callable[[str], None] | None = 
             if new_fp is not None and new_fp != old_fp:
                 changed = True
                 break
-        if not needs_catalog and not changed:
+        outdated = previous.get("importer") != IMPORTER_VERSION
+        if not needs_catalog and not changed and not outdated:
             return {"state": "current"}
+        reason = ("missing item catalog" if needs_catalog else "installed by an older Companion version" if outdated else "local source changed")
         try:
-            result = import_dumps(paths, folder=str(folder), progress=progress)
-            return {"state": "synchronized", "reason": "missing item catalog" if needs_catalog else "local source changed",
+            result = import_dumps(paths, folder=str(folder), progress=progress, guard=True)
+            return {"state": "synchronized", "reason": reason, "folder": str(folder),
                     "items": result.get("counts", {}).get("item_groups", 0)}
         except (ImportError_, OSError, ValueError, zipfile.BadZipFile) as exc:
-            return {"state": "source-error", "reason": str(exc)}
+            return {"state": "source-error", "reason": str(exc), "folder": str(folder)}
 
     # No previous source available: leave the installed Pokémon data completely intact.
-    return {"state": "source-unavailable" if needs_catalog else "current"}
+    folders = [str(f) for f in original_folders]
+    if needs_catalog:
+        return {"state": "source-unavailable", "folders": folders,
+                "reason": "Your earlier installation did not keep the full item list, and the original dump folder is no longer "
+                          "available. Pokémon data stays installed; reinstall from the folder that contains ItemSpriteDump.zip "
+                          "and PokedexData.zip to build the Item Library."}
+    return {"state": "current" if previous.get("importer") == IMPORTER_VERSION else "outdated-source-unavailable", "folders": folders}
 
 
 
 # ------------------------------------------------------------------ entry
+def _guard_against_shrink(paths: Paths, new: dict) -> None:
+    """Automatic refreshes must never replace a complete install with a smaller one."""
+    try:
+        old = json.loads((paths.dex_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    oc, nc = old.get("counts") or {}, new.get("counts") or {}
+    for key in ("species", "species_with_icon", "species_with_front", "icons", "battle"):
+        if isinstance(oc.get(key), int) and isinstance(nc.get(key), int) and nc[key] < oc[key]:
+            raise ImportError_(f"The local source now has fewer {key.replace('_', ' ')} ({nc[key]}) than your installed data "
+                               f"({oc[key]}); the installed data was kept.")
+
+
+def recover_interrupted_swap(paths: Paths) -> list[str]:
+    """If a previous swap was interrupted, put the last complete install back. Never deletes data."""
+    restored = []
+    for live in (paths.dex_dir, paths.assets_dir):
+        prev = live.with_name(live.name + ".prev")
+        if prev.is_dir() and not live.exists():
+            prev.rename(live)
+            restored.append(live.name)
+    return restored
+
+
+def _swap_in(paths: Paths, tmp: Path, assets_tmp: Path) -> None:
+    """Replace dex/ and assets/ together. On any failure the previous install is restored."""
+    pairs = [(paths.dex_dir, tmp), (paths.assets_dir, assets_tmp)]
+    for live, _ in pairs:
+        prev = live.with_name(live.name + ".prev")
+        if prev.exists() and live.exists():
+            shutil.rmtree(prev)  # stale backup of an install that is still complete
+    moved: list[tuple[Path, Path]] = []
+    placed: list[Path] = []
+    try:
+        for live, new in pairs:
+            prev = live.with_name(live.name + ".prev")
+            if live.exists():
+                live.rename(prev)
+                moved.append((live, prev))
+            new.rename(live)
+            placed.append(live)
+    except OSError:
+        for live in placed:
+            if live.exists():
+                shutil.rmtree(live, ignore_errors=True)
+        for live, prev in moved:
+            if prev.exists() and not live.exists():
+                prev.rename(live)
+        raise
+    for _live, prev in moved:
+        shutil.rmtree(prev, ignore_errors=True)
+
+
 def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None = None,
-                 progress: Callable[[str], None] | None = None) -> dict:
+                 progress: Callable[[str], None] | None = None, guard: bool = False) -> dict:
     say = progress or (lambda _m: None)
     found = detect_sources(folder) if folder else {"dumps": {}, "combined": [], "folder": None}
     if explicit:
@@ -609,16 +671,9 @@ def import_dumps(paths: Paths, folder: str | None = None, explicit: dict | None 
     manifest["counts"]["form_records_with_sprite"] = sum(1 for k, v in sprites.items() if k > 649 and "front" in v)
     (tmp / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
 
-    # Atomic-ish swap: keep previous import as .prev until the new one is in place.
-    for live, new in ((paths.dex_dir, tmp), (paths.assets_dir, assets_tmp)):
-        prev = live.with_name(live.name + ".prev")
-        if prev.exists():
-            shutil.rmtree(prev)
-        if live.exists():
-            live.rename(prev)
-        new.rename(live)
-        if prev.exists():
-            shutil.rmtree(prev)
+    if guard:
+        _guard_against_shrink(paths, manifest)
+    _swap_in(paths, tmp, assets_tmp)
     say("Import complete.")
     return manifest
 

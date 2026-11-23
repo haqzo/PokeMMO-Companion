@@ -12,7 +12,7 @@ def test_pokedex_shows_one_card_per_species_with_forms_inside_details(app, page)
     page.wait_for_selector(".dex-card")
     info = page.locator(".dex-info").inner_text()
     assert "649 of 649 Pokémon shown" in info
-    assert "82 alternate forms available within Pokémon details" in info
+    assert "82 alternate forms inside each Pokémon’s summary" in info and "not the in-game Pokédex total" in info
     assert page.locator(".dex-grid .gen-head").count() == 5
     assert page.locator(".dex-grid .dex-card").count() == 649
     assert page.locator('.dex-card[data-entry="479"]').count() == 1
@@ -20,20 +20,103 @@ def test_pokedex_shows_one_card_per_species_with_forms_inside_details(app, page)
     assert "unavailable" not in page.locator('.dex-card[data-entry="640"]').get_attribute("aria-label").lower()
 
 
-def test_form_detail_and_back_keeps_filters(app, page):
+def test_form_search_finds_parent_species_only(app, page):
     go(page, app, "#/pokedex")
-    page.fill("#dex-search", "kyurem")
+    for q, sid in (("wash", "479"), ("chill drive", "649"), ("attack forme", "386"), ("black kyurem", "646"), ("sunny", "351")):
+        page.fill("#dex-search", q)
+        page.wait_for_timeout(350)
+        entries = page.locator(".dex-grid .dex-card").evaluate_all("els => els.map(e => e.dataset.entry)")
+        assert entries == [sid], (q, entries)
+    page.fill("#dex-search", "")
+
+
+def _summary_box(page):
+    return page.locator(".dex-summary").bounding_box()
+
+
+@pytest.mark.parametrize("size", [(900, 640), (1280, 820), (1920, 1080)])
+def test_summary_is_large_in_app_popup_over_the_grid(app, browser, size):  # noqa: F811
+    ctx = browser.new_context(viewport={"width": size[0], "height": size[1]})
+    page = ctx.new_page()
+    go(page, app, "#/pokedex")
+    page.wait_for_selector('.dex-card[data-entry="479"]')
+    page.locator('.dex-card[data-entry="479"]').click()
+    page.wait_for_selector(".dex-summary .detail-head h2")
+    assert page.locator(".dex-layout.split").count() == 0 and page.locator(".dex-detail").count() == 0  # no right sidebar
+    assert page.locator(".dex-grid .dex-card").count() == 649  # grid still mounted behind it
+    assert page.locator(".dex-summary").get_attribute("role") == "dialog"
+    box, main = _summary_box(page), page.locator("#main").bounding_box()
+    assert box["width"] >= min(main["width"] * 0.85, 1100) and box["height"] >= main["height"] * 0.8, (box, main)
+    assert len(page.context.pages) == 1  # not a separate window
+    ctx.close()
+
+
+def test_summary_close_restores_scroll_and_filters(app, page):
+    go(page, app, "#/pokedex")
+    page.get_by_role("radio", name="IV", exact=True).click()
     page.wait_for_timeout(400)
-    assert page.locator(".dex-grid .dex-card").count() == 1
-    page.locator('.dex-card[data-entry="646"]').click()
-    page.wait_for_selector(".form-strip")
-    page.locator(".form-strip button", has_text="Black Kyurem").click()
-    page.wait_for_timeout(400)
-    assert "Black Kyurem" in page.locator(".detail-head h2").inner_text()
-    assert "Form change not verified" in page.locator(".detail-head").inner_text()
-    page.locator(".form-strip button", has_text="Kyurem").first.click()
-    page.wait_for_timeout(400)
-    assert page.locator(".dex-grid .dex-card").count() == 1  # same search filter
+    try:
+        page.locator(".dex-scroll").evaluate("e => e.scrollTop = 900")
+        page.wait_for_timeout(200)
+        # pick a card that is already on screen, so nothing needs scrolling before the click
+        sid = page.evaluate("""() => { const r = document.querySelector('.dex-scroll').getBoundingClientRect();
+            const c = [...document.querySelectorAll('.dex-grid .dex-card')].find((e) => { const b = e.getBoundingClientRect();
+              return b.top > r.top + 40 && b.bottom < r.bottom - 40; });
+            return c.dataset.entry; }""")
+        before = page.locator(".dex-scroll").evaluate("e => e.scrollTop")
+        assert before > 500
+        page.locator(f'.dex-card[data-entry="{sid}"]').click()
+        page.wait_for_selector(".dex-summary .detail-head h2")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+        assert page.locator(".dex-summary-back").count() == 0 and page.url.endswith("#/pokedex")
+        assert page.locator(".dex-scroll").evaluate("e => e.scrollTop") == before
+        assert "107 of 649" in page.locator(".dex-info").inner_text()  # Gen IV filter kept
+        page.locator(f'.dex-card[data-entry="{sid}"]').click()
+        page.wait_for_selector(".dex-summary")
+        page.locator(".dex-summary .detail-head").get_by_role("button", name="Close details").click()
+        page.wait_for_timeout(300)
+        assert page.locator(".dex-summary-back").count() == 0
+        assert page.locator(".dex-scroll").evaluate("e => e.scrollTop") == before
+    finally:
+        page.get_by_role("radio", name="All", exact=True).click()
+        page.wait_for_timeout(1200)  # filters are saved after a short debounce
+
+
+@pytest.mark.parametrize("sid,form,name,types", [(479, "Wash Rotom", "Wash Rotom", "water"), (386, "Speed Forme", "Deoxys (Speed Forme)", "psychic"),
+                                                  (649, "Chill Drive", "Genesect (Chill Drive)", "bug"), (646, "Black Kyurem", "Black Kyurem", "ice")])
+def test_forms_selected_inside_summary(app, page, sid, form, name, types):
+    run = app.ctx.guides.create_run(f"F{sid}")
+    app.ctx.settings.update({"pokedex.progress_run": run["id"]})
+    go(page, app, "#/pokedex")
+    page.locator(f'.dex-card[data-entry="{sid}"]').click()
+    page.wait_for_selector(".dex-summary .form-strip")
+    base_stats = page.locator(".dex-summary").inner_text()
+    page.locator(".dex-summary .form-strip button", has_text=form).click()
+    page.wait_for_timeout(500)
+    assert page.locator(".dex-summary .detail-head h2").inner_text() == name
+    assert types in page.locator(".dex-summary .detail-head").inner_text().lower()
+    assert page.locator(".dex-grid .dex-card").count() == 649  # still one tile per species, popup still over the grid
+    page.locator(".dex-summary .detail-tabs").get_by_role("tab", name="Base Stats").click()
+    page.wait_for_timeout(300)
+    assert page.locator(".dex-summary").inner_text() != base_stats
+    # selecting a form never registers anything
+    assert app.ctx.storage.query("SELECT * FROM dex_progress WHERE run_id=?", (run["id"],)) == []
+    page.keyboard.press("Escape")
+    app.ctx.settings.update({"pokedex.progress_run": None})
+
+
+def test_summary_tabs_and_companion_sections_still_work(app, page):
+    go(page, app, "#/pokedex/25")
+    page.wait_for_selector(".dex-summary .detail-tabs")
+    for tab in ("Moves", "Base Stats", "Wild Locations", "Evolution Tree", "Type Matchups", "Summary"):
+        page.locator(".dex-summary .detail-tabs").get_by_role("tab", name=tab).click()
+        page.wait_for_timeout(200)
+    page.locator(".dex-summary").get_by_role("button", name="Notes & Box").click()
+    page.wait_for_selector(".dex-summary textarea")
+    page.locator(".dex-summary").get_by_role("button", name="My registration").click()
+    page.wait_for_timeout(200)
+    assert page.locator(".dex-summary-back").count() == 1
 
 
 @pytest.mark.parametrize("mode", ["compact", "expanded"])
