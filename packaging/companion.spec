@@ -1,17 +1,35 @@
-# PyInstaller spec for PokeMMO Companion (onedir build). Used by packaging/linux/build-appimage.sh and
-# packaging/windows/build.ps1. Bundles the Python runtime, PySide6 + QtWebEngine, the UI and the approved
-# reference data. Never bundles ROMs, dumps, private/ or any user data (that lives in the per-user data folder).
-# Status 2026-11-24: written but NOT yet built or tested on Linux or Windows (see docs/build/19).
+"""PyInstaller onedir spec shared by Linux and Windows."""
+import re
 import sys
 from pathlib import Path
 
 root = Path(SPECPATH).resolve().parent
-datas = [(str(root / "ui"), "ui"), (str(root / "companion" / "data"), "companion/data")]
+# Explicit asset paths and formats. No whole-tree copy of data, settings, relay code or tooling.
+asset_patterns = (
+    r"ui/(?:index\.html|css/[a-z-]+\.css|img/[a-z-]+\.svg|js/(?:pages/)?[a-z-]+\.js)",
+    r"companion/data/[a-z_]+\.json",
+    r"companion/data/item-icons/[0-9]+\.png",
+    r"companion/data/sprites/(?:static(?:-shiny)?|ani(?:-shiny)?)/[A-Za-z0-9_-]+\.(?:png|gif)",
+    r"companion/data/maps/(?:[a-z0-9-]+\.svg|geometry\.json|game/[a-z0-9-]+\.png)",
+    r"companion/data/reference/(?:manifest\.json|(?:extras|items|species)\.json\.gz)",
+    r"companion/data/walkthroughs/(?:kanto|johto|hoenn|sinnoh|unova)\.json",
+)
+allow = re.compile("|".join(asset_patterns))
+datas = [(str(root / "CREDITS.md"), ".")]
+for directory in ("ui", "companion/data"):
+    for file in sorted((root / directory).rglob("*")):
+        relative = file.relative_to(root)
+        if file.is_file() and allow.fullmatch(relative.as_posix()):
+            if file.resolve() != file:
+                raise ValueError(f"Packaged asset must be a regular file: {relative}")
+            datas.append((str(file), relative.parent.as_posix()))
+
 hidden = ["companion.shell.qt_shell", "cryptography.hazmat.primitives.asymmetric.ed25519"]
 excludes = ["tkinter", "pytest", "playwright"]
-
-a = Analysis([str(root / "packaging" / "entry.py")], pathex=[str(root)], datas=datas, hiddenimports=hidden, excludes=excludes)
+a = Analysis([str(root / "packaging" / "entry.py")], pathex=[str(root)], datas=datas,
+             hiddenimports=hidden, excludes=excludes)
 pyz = PYZ(a.pure)
-icon = str(root / "packaging" / "windows" / "pokemmo-companion.ico") if sys.platform.startswith("win") else None
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="pokemmo-companion", console=False, icon=icon)
+# The repository has no Windows .ico file. PyInstaller supplies its default icon.
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="pokemmo-companion",
+          console=not sys.platform.startswith("win"))
 coll = COLLECT(exe, a.binaries, a.datas, name="pokemmo-companion")

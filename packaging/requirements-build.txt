@@ -1,0 +1,15 @@
+# Build toolchain for x86_64 Linux and Windows.
+PySide6==6.10.2
+PySide6_Addons==6.10.2
+PySide6_Essentials==6.10.2
+shiboken6==6.10.2
+cryptography==50.0.2
+cffi==2.1.1
+pycparser==3.12
+pyinstaller==6.19.0
+pyinstaller-hooks-contrib==2026.10
+altgraph==0.17.5
+packaging==26.4
+setuptools==84.2.1
+pefile==2024.8.26; sys_platform == "win32"
+pywin32-ctypes==0.2.3; sys_platform == "win32"
