@@ -78,6 +78,10 @@ DEFAULTS: dict[str, Any] = {
     "pokedex.scope": "reference",            # reference (all 649, default) | pokemmo (hide species YOU marked "Not listed")
     "pokedex.density": "standard",           # compact | standard | large
     "pokedex.progress_run": None,            # run id whose manual registration is shown, or None (= not tracked)
+    "sprites.motion": "system",              # system (follow reduced motion) | on | off — overrides every context
+    "sprites.animation": {},                 # per context: static | animated (missing = default, see ui/js/sprites.js)
+    "sprites.size": {},                      # per context: percent 50..200
+    "pokedex.shiny": False,                  # Pokédex grid shows shiny artwork (display only, never ownership)
     "pokedex.animate": None,                 # animated Summary sprites: None = follow the system's reduced-motion setting
     # Language (UI strings; game item names from your own client strings when available). English fallback.
     "pokedex.catalog": "forms",              # forms (649 species + alternate forms, default) | species
@@ -120,6 +124,7 @@ _ENUMS = {
     "appearance.stat_bars": ("soft", "accent"),
     "appearance.density": ("comfortable", "compact"),
     "app.close_behavior": ("quit", "tray"),
+    "sprites.motion": ("system", "on", "off"),
     "game.on_exit": ("keep", "minimize", "quit"),
     "app.window_backend": ("auto", "wayland", "xwayland"),
     "notify.alpha": ROUTES, "notify.swarm": ROUTES, "notify.other": ROUTES, "notify.timer": ROUTES, "notify.test": ROUTES,
@@ -226,6 +231,17 @@ def validate(key: str, value: Any) -> Any:
         raise SettingsError("pokedex.animate must be true, false or null (follow the system)")
     if key == "pokedex.progress_run" and value is not None and not isinstance(value, str):
         raise SettingsError("progress run must be a run id or null")
+    if key == "sprites.animation":
+        ok = ("dex_grid", "summary", "roamers", "report_active", "report_expired", "live_history", "locations", "team", "compare")
+        if not isinstance(value, dict) or any(k not in ok or v not in ("static", "animated") for k, v in value.items()):
+            raise SettingsError("sprite animation preferences must map known places to static or animated")
+        return value
+    if key == "sprites.size":
+        if not isinstance(value, dict) or any(not isinstance(v, (int, float)) or not 50 <= v <= 200 for v in value.values()) or len(value) > 20:
+            raise SettingsError("sprite sizes must be percentages between 50 and 200")
+        return {str(k): int(v) for k, v in value.items()}
+    if key == "pokedex.shiny" and not isinstance(value, bool):
+        raise SettingsError("pokedex.shiny must be true or false")
     if key == "game.launcher_path":
         if not isinstance(value, str) or len(value) > 1000:
             raise SettingsError("launcher path must be a file path")

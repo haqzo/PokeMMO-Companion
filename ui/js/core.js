@@ -311,7 +311,14 @@ function placeSprite(img, box, f) {
   box.dataset.scale = f.k.toFixed(3);
 }
 /** Grid/row sprite in a size×size frame. With `still` ({url, w, h, bbox}) the size is known before loading. */
-export function sizedSprite(sp, size, { still = null, url = null, tier = 'm', eager = false } = {}) {
+export function sizedSprite(sp, size, { still = null, url = null, tier = 'm', eager = false, ani = null } = {}) {
+  if (ani) {   // animated Gen V sprite (already cropped to the Pokémon), fitted by the same size rule
+    const img = h('img', { src: ani, alt: sp.name, decoding: 'async', style: { visibility: 'hidden' } });
+    const box = h('div', { class: 'still-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier } }, img);
+    img.addEventListener('load', () => { placeSprite(img, box, fitSprite(img.naturalWidth, img.naturalHeight, null, tier, size, size)); img.style.visibility = ''; });
+    img.addEventListener('error', () => box.replaceWith(sizedSprite(sp, size, { still, url, tier, eager })));
+    return box;
+  }
   const src = still ? still.url : url;
   if (!src) return silhouette(sp, size);
   const img = h('img', { src, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });

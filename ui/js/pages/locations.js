@@ -3,6 +3,7 @@
 // data when you imported it). The interactive map work (artwork, geometry, personal marks) is kept in the
 // repository and database but is no longer part of this page (owner decision, 2026-11-24).
 import { h, mount, icon, get, debounce, cap, pad3, typeChips, notice, sizedSprite, TYPE_LIST, setting, saveSettings } from '../core.js';
+import { animatedIn, scaled } from '../sprites.js';
 import { go, popoutButton, pinButton } from '../shell.js';
 import { t } from '../i18n.js';
 import { linkedNotes, openRoute } from '../links.js';
@@ -350,7 +351,7 @@ export async function renderLocation(pane, id, { back, popout, nav, onMap, embed
           h('tbody', null, [...m.values()].sort((x, y) => x.name.localeCompare(y.name)).map((r) => {
             const sp = species[r.species_id] || { id: r.species_id, name: r.name, types: r.types, icon: r.icon };
             return h('tr', { dataset: { sid: r.species_id } },
-              h('td', { class: 'loc-sprite' }, sizedSprite(sp, 36, { still: sp.still, url: sp.icon || r.icon, tier: sp.size || 'm' })),
+              h('td', { class: 'loc-sprite' }, sizedSprite(sp, scaled('locations', 36), { still: sp.still, url: sp.icon || r.icon, tier: sp.size || 'm', ani: animatedIn('locations') ? sp.ani : null })),
               h('td', null, h('a', { href: '#/pokedex/' + r.species_id, onclick: (e) => { e.preventDefault(); go_('#/pokedex/' + r.species_id + '?tab=locations'); } }, r.name),
                 h('span', { class: 'tiny muted' }, ' #' + pad3(r.species_id)), r.horde5 ? h('span', { class: 'chip tiny' }, 'Horde ×5') : r.horde3 ? h('span', { class: 'chip tiny' }, 'Horde ×3') : null,
                 h('div', null, typeChips(r.types || sp.types || [], true))),

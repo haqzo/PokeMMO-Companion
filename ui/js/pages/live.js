@@ -1,4 +1,5 @@
 // Live workspace (docs/design/10–13): Reports, Legendaries, Altering Cave.
+import { animatedIn, motionGlobal } from '../sprites.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, relTime, fmtDate, cap, tabs, seg, toast, confirmDialog, modal,
   on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite, sourceInfo } from '../core.js';
 import { go, popoutButton } from '../shell.js';
@@ -48,7 +49,7 @@ export function currentCard(g, { compact = false, animate = false } = {}) {
   const where = [g.region && cap(g.region), g.location].filter(Boolean).join(' · ');
   return h('button', { class: `cur-card kind-${g.kind}${compact ? ' compact' : ''}`, dataset: { report: g.id, state: st.state },
     onclick: () => go('#/live/reports/' + g.id), 'aria-label': `${g.kind} ${sure ? g.species_name : g.title}, ${where}, ${st.label}` },
-  reportSprite(g, { animate: animate && likelyActive(g) }),
+  reportSprite(g, { animate }),
   h('div', { class: 'cur-text' },
     h('div', { class: 'row tight' }, h('span', { class: `kind-label kind-${g.kind}` }, g.kind),
       h('span', { class: `cur-state ${STATE_CLASS[st.state]}` }, st.state === 'recent' ? 'Likely active' : st.label)),
@@ -226,11 +227,7 @@ export function reportSprite(r, { battle = false, animate = false } = {}) {
   }
   return wrap(spriteFallback(r, kind));
 }
-function motionAllowed() {
-  const pref = setting('pokedex.animate');
-  if (pref === true || pref === false) return pref;
-  return !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) && !document.documentElement.classList.contains('reduced-motion');
-}
+const motionAllowed = () => motionGlobal();
 function spriteFallback(r, kind) {
   const why = r.species_match === 'ambiguous' ? 'This report mentions more than one Pokémon — no sprite shown'
     : r.species_id ? 'No local sprite — install your PokeMMO data' : 'No Pokémon identified in this report';
@@ -241,7 +238,7 @@ export function reportRow(r, selected, compact) {
   const kind = r.is_test ? 'test' : r.kind;
   return h('div', { class: 'report-row' + (selected ? ' selected' : ''), role: 'button', tabindex: '0', onclick: () => go('#/live/reports/' + r.id),
     onkeydown: (e) => { if (e.key === 'Enter') go('#/live/reports/' + r.id); } },
-  reportSprite(r),
+  reportSprite(r, { animate: animatedIn('live_history') }),
   h('div', { style: { minWidth: 0 } }, h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST · not real' : kind),
     r.species_name && (r.species_icon || r.species_still) ? h('span', { class: 'small rep-species' }, r.species_name) : null,
     r.kind_basis === 'text-keyword' ? h('span', { class: 'tiny muted' }, '(detected from text)') : null,
@@ -257,7 +254,7 @@ function renderReportDetail(el, r) {
   mount(el, h('div', { class: 'card stack' },
     h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST notification' : kind + ' report'), h('span', { class: 'grow' }),
       r.is_test ? badge('TEST', 'Local test — not a real report') : sourceInfo('REPORTED', 'Community report.')),
-    h('div', { class: 'rep-detail-head' }, reportSprite(r, { battle: true }),
+    h('div', { class: 'rep-detail-head' }, reportSprite(r, { battle: true, animate: animatedIn('live_history') }),
       h('div', { style: { minWidth: 0 } }, h('h3', { style: { margin: 0 } }, r.title || '(no title)'),
         r.species_name && (r.species_name !== r.title || r.species_match === 'ambiguous') ? h('div', { class: 'small muted' }, r.species_name,
           r.species_match === 'ambiguous' ? ' — the report names several Pokémon, so no sprite is shown' : '') : null)),

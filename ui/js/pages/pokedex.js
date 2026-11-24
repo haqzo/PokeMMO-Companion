@@ -2,6 +2,7 @@
 // Main Pokédex shows one tile for each of 649 Gen I–V species. The 82 researched
 // alternate forms remain selectable INSIDE their species details, not as duplicate cards.
 // Reference catalog, in-game membership, acquisition and manual registration stay independent.
+import { animatedIn, motionGlobal, spriteScale } from '../sprites.js';
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
   spriteOrFallback, silhouette, sizedSprite, fitSprite, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID, sourceInfo } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
@@ -20,7 +21,7 @@ const entryRoute = (s) => '#/pokedex/' + s.id + (s.form_key ? '/' + s.form_key :
 const DEFAULT_F = { q: '', gen: 'all', types: [], typeSlot: 'any', region: '', horde: '', egg: '', fav: false, sort: 'num', season: '',
   ability: '', held: '', statKey: '', statMin: '', classes: [], reg: [] };
 let F = null;
-let ui = { drawer: false, tab: 'summary', side: null, scroll: 0, locSeason: 'all', moveFilter: 'all', moveSort: 'method', shiny: false };
+let ui = { drawer: false, tab: 'summary', side: null, scroll: 0, locSeason: 'all', moveFilter: 'all', moveSort: 'method', shiny: null, shinyFor: null, anim: null, female: false };
 let unsub = [];
 let gridEl = null, countEl = null, meta = null;
 
@@ -214,6 +215,11 @@ async function buildToolbar(wrap, all) {
     filterBtn, sort,
     seg([['compact', 'Small'], ['standard', 'Medium'], ['large', 'Large']], setting('pokedex.density') || 'standard', async (v) => {
       await saveSettings({ 'pokedex.density': v }); gridEl.className = 'dex-grid density-' + v; drawGrid(all); }, 'Card size'),
+    // Display only: never ownership, never availability. Cards are updated in place (filters & scroll stay).
+    seg([['normal', 'Normal'], ['shiny', 'Shiny']], setting('pokedex.shiny') ? 'shiny' : 'normal', async (v) => {
+      await saveSettings({ 'pokedex.shiny': v === 'shiny' }); refreshGridArt(); }, 'Normal or shiny artwork'),
+    seg([['static', 'Static'], ['animated', 'Animated']], animatedIn('dex_grid') ? 'animated' : 'static', async (v) => {
+      await saveSettings({ 'sprites.animation': { ...(setting('sprites.animation') || {}), dex_grid: v } }); refreshGridArt(); }, 'Static or animated sprites'),
     h('span', { class: 'grow' }), popoutButton('pokedex')));
   wrap.append(await infoBar(all));
   if (ui.drawer) wrap.append(filterDrawer(all));
@@ -360,6 +366,45 @@ export function catalogFragment(list, { sel, selForm, density, tracking, onOpen,
   return frag;
 }
 
+/** Grid artwork: still (normal or shiny) by default; animated only while a card is on screen (IntersectionObserver),
+ *  so a 649-card grid never decodes hundreds of animations at once. */
+const gridArtObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver((entries) => {
+  for (const e of entries) setCardArt(e.target, e.isIntersecting);
+}, { rootMargin: '150px 0px' }) : null;
+function cardArt(s, density) {
+  const shiny = !!setting('pokedex.shiny');
+  const area = density === 'large' ? 96 : density === 'compact' ? 56 : 72;
+  const still = shiny ? (s.still_shiny || null) : s.still;
+  return { area, still, ani: shiny ? s.ani_shiny : s.ani, shiny, missingShiny: shiny && !s.still_shiny && !s.ani_shiny };
+}
+function setCardArt(card, visible) {
+  const s = card.__s; if (!s) return;
+  const a = cardArt(s, card.__density);
+  const want = visible && a.ani && animatedIn('dex_grid') ? 'ani' : 'still';
+  const k = `${want}|${a.shiny}`;
+  if (card.__artKey === k) return;
+  card.__artKey = k;
+  const box = card.querySelector('.sprite');
+  if (!box) return;
+  if (want === 'ani') {
+    const img = h('img', { class: 'pixel', src: a.ani, alt: '', decoding: 'async', style: { visibility: 'hidden', position: 'absolute' } });
+    const holder = h('div', { class: 'still-art', style: { width: a.area + 'px', height: a.area + 'px' } }, img);
+    img.addEventListener('load', () => {
+      const f = fitSprite(img.naturalWidth, img.naturalHeight, null, s.size || 'm', a.area, a.area);
+      Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
+      holder.classList.toggle('smooth', f.smooth);
+    });
+    mount(box, holder);
+  } else {
+    // unloading the <img> stops the animation's decoding work when the card leaves the screen
+    mount(box, sizedSprite(s, a.area, { still: a.still, url: a.shiny ? null : s.icon, tier: s.size || 'm' }));
+  }
+  card.classList.toggle('no-shiny-art', a.missingShiny);
+}
+export function refreshGridArt(root = document) {
+  root.querySelectorAll('.dex-card').forEach((c) => { c.__artKey = null; const r = c.getBoundingClientRect(); setCardArt(c, r.bottom > -150 && r.top < innerHeight + 150); });
+}
+
 /** One sprite card. Used by the main grid and the popout (same look, no caps). */
 export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   const p = s.progress || { status: 'unregistered' };
@@ -367,7 +412,7 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   const regClass = tracking ? ' reg-' + p.status : '';
   const absent = s.dex === 'no';
   const area = density === 'large' ? 96 : density === 'compact' ? 56 : 72;
-  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') }, sizedSprite(s, area, { still: s.still, url: s.icon, tier: s.size || 'm' }));
+  const sprite = h('div', { class: 'sprite' + (unseen ? ' unseen' : '') });
   const marks = tracking ? h('span', { class: 'marks' }, p.caught_alpha ? h('span', { title: 'Caught Alpha (your entry)' }, 'α') : null,
     p.owned_shiny ? h('span', { title: 'Owned Shiny (your entry)' }, '✦') : null, p.owned_costume ? h('span', { title: 'Owned Costume (your entry)' }, '♛') : null) : null;
   const unverified = (s.tags || []).includes('unverified');
@@ -384,6 +429,9 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   density === 'large' ? h('div', { class: 'avail' }, s.avail + (s.bst ? ` · BST ${s.bst}` : '')) :
     density === 'standard' ? h('div', { class: 'avail' }, absent ? 'Not listed (your check)' : s.avail) : null);
   makePinDraggable(el, { kind: 'pokemon', id: s.id });
+  el.__s = s; el.__density = density;
+  setCardArt(el, false);
+  if (gridArtObserver) gridArtObserver.observe(el);
   return el;
 }
 function favButton(s) {
@@ -471,11 +519,9 @@ const SIDE_TABS = [['registration', 'My registration'], ['breeding', 'Breeding']
 /** Choose the artwork to show for a species or form. Order: animated (your sprite library, if motion is on) →
  *  still battle art (library, then your client) → client box icon → an explicit "no artwork" placeholder.
  *  Base-species or placeholder art is never used for a form (the server already refuses it). */
-export function pickArt(a, { shiny = false, isForm = false } = {}) {
+export function pickArt(a, { shiny = false, isForm = false, animated = null, ctx = 'summary' } = {}) {
   a = a || {};
-  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const pref = setting('pokedex.animate');
-  const motion = pref === undefined || pref === null ? !reduce : !!pref;
+  const motion = animated === null ? animatedIn(ctx) : !!animated && motionGlobal();
   const shinyAvail = !!(a.ani_shiny || a.static_shiny || a.front_shiny || a.icon_shiny);
   const sh = shiny && shinyAvail;
   const pickS = (n) => (sh ? a[n + '_shiny'] : a[n]);
@@ -486,10 +532,10 @@ export function pickArt(a, { shiny = false, isForm = false } = {}) {
   const key = (n) => (sh ? n + '_shiny' : n);
   base.bounds = a.bounds || {};
   base.tier = (a.size && a.size.tier) || 'm';
-  if (motion && hasAni) return { ...base, kind: 'ani', key: key('ani'), url: pickS('ani'), label: `Animated · your sprite library (${libLabel('ani')} files)`, detail: lib('ani') && lib('ani').path };
-  if (pickS('static')) return { ...base, kind: 'static', key: key('static'), url: pickS('static'), label: `Still · your sprite library (${libLabel('static')} files)`, detail: lib('static') && lib('static').path };
-  if (pickS('front')) return { ...base, kind: 'front', key: key('front'), url: pickS('front'), label: 'Your PokeMMO client · battle sprite' };
-  if (hasAni) return { ...base, kind: 'ani-still', key: key('ani'), url: pickS('ani'), label: 'Still frame · your sprite library' };
+  if (motion && hasAni) return { ...base, kind: 'ani', key: key('ani'), url: pickS('ani'), label: 'Animated', detail: lib('ani') && lib('ani').path };
+  if (pickS('static')) return { ...base, kind: 'static', key: key('static'), url: pickS('static'), label: 'Still', detail: lib('static') && lib('static').path };
+  if (pickS('front')) return { ...base, kind: 'front', key: key('front'), url: pickS('front'), label: 'PokeMMO client sprite' };
+  if (hasAni) return { ...base, kind: 'ani-still', key: key('ani'), url: pickS('ani'), label: 'Still frame' };
   if (pickS('icon')) return { ...base, kind: 'icon', key: key('icon'), url: pickS('icon'), label: isForm ? `Your PokeMMO client · box icon${a.local_status === 'unverified' ? ' (not re-verified)' : ''}` : 'Your PokeMMO client · box icon' };
   return { ...base, kind: 'none', url: null, label: isForm ? 'No verified artwork for this form' : 'No artwork available', detail: a.local_reason };
 }
@@ -542,19 +588,29 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
   if (fm) { d = { ...d, base_name: d.name, base_types: d.types, name: fm.name, types: fm.types, type_matchups: d.form_matchups,
     stats: fm.stats && Object.keys(fm.stats).length ? fm.stats : d.stats, abilities: fm.abilities_source === 'same as base species' ? d.abilities : fm.abilities.map((n, i) => ({ name: n, slot: 'ability' + (i + 1) })) };
     d.bst = Object.values(d.stats || {}).reduce((a, b) => a + (b || 0), 0) || d.bst; }
-  const art = pickArt(fm ? fm.art : d.art, { shiny: ui.shiny, isForm: !!fm });
+  // Summary display choices: start from the Pokédex grid's Normal/Shiny mode and the Summary animation
+  // preference, then each can be changed here (display only — never ownership).
+  if (ui.shiny === null || ui.shinyFor !== id) { ui.shiny = !!setting('pokedex.shiny'); ui.shinyFor = id; ui.anim = null; ui.female = false; }
+  const srcArt = fm ? fm.art : d.art;
+  const femaleArt = !fm && srcArt && srcArt.female ? { ...srcArt, ...srcArt.female, library: {} } : null;
+  const art = pickArt(ui.female && femaleArt ? femaleArt : srcArt, { shiny: ui.shiny, isForm: !!fm, animated: ui.anim });
+  const redraw = () => renderDetail(pane, id, { back, popout, mode, form });
+  const segBtn = (on, label, onclick, title) => h('button', { class: on ? 'active' : '', 'aria-pressed': String(on), title: title || null, onclick }, label);
+  const artControls = h('div', { class: 'art-controls' },
+    art.shinyAvail ? h('div', { class: 'seg small', role: 'group', 'aria-label': 'Colours' },
+      segBtn(!ui.shiny, 'Normal', () => { ui.shiny = false; redraw(); }), segBtn(ui.shiny, 'Shiny', () => { ui.shiny = true; redraw(); }, 'Shiny colours (display only — not ownership)')) : null,
+    art.hasAni ? h('div', { class: 'seg small', role: 'group', 'aria-label': 'Motion' },
+      segBtn(!art.motion, 'Static', () => { ui.anim = false; redraw(); }), segBtn(art.motion, 'Animated', () => { ui.anim = true; redraw(); },
+        motionGlobal() ? null : 'Animations are switched off in Settings › Pokémon & sprites')) : null,
+    femaleArt ? h('div', { class: 'seg small', role: 'group', 'aria-label': 'Gender' },
+      segBtn(!ui.female, '♂', () => { ui.female = false; redraw(); }, 'Male / default artwork'), segBtn(ui.female, '♀', () => { ui.female = true; redraw(); }, 'Female artwork')) : null);
   const formNav = (k) => (popout ? (location.hash = '#/species/' + id + (k ? '/' + k : '')) : go('#/pokedex/' + id + (k ? '/' + k : '')));
   const av = d.availability;
   const avClass = av.permanent ? 'good' : av.permanent === false ? 'warn' : 'unknown';
   const head = h('div', { class: 'detail-head' },
     h('div', { class: 'art-col' },
-      h('div', { class: 'art' + (art.kind === 'ani' ? ' animated' : '') }, artImage(art, d),
-        art.shinyAvail ? h('button', { class: 'shiny-toggle' + (ui.shiny ? ' on' : ''), title: ui.shiny ? 'Show normal colours' : 'Show shiny colours (artwork only — not ownership)',
-          'aria-label': 'Shiny colours', 'aria-pressed': String(ui.shiny), onclick: () => { ui.shiny = !ui.shiny; renderDetail(pane, id, { back, popout, mode, form }); } }, '✦') : null,
-        art.hasAni ? h('button', { class: 'motion-toggle' + (art.motion ? ' on' : ''), title: art.motion ? 'Show still artwork' : 'Play animation',
-          'aria-label': 'Animate sprite', 'aria-pressed': String(art.motion), onclick: async () => {
-            await saveSettings({ 'pokedex.animate': !art.motion }); renderDetail(pane, id, { back, popout, mode, form }); } }, art.motion ? '❚❚' : '▶') : null),
-      h('div', { class: 'art-src tiny muted', title: art.detail || '' }, art.label)),
+      h('div', { class: 'art' + (art.kind === 'ani' ? ' animated' : ''), style: { '--art-scale': spriteScale('summary') } }, artImage(art, d)),
+      artControls),
     h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, 'No. ' + pad3(d.id)), h('span', { class: 'grow' }), favToggle(d),
         !popout ? pinButton({ kind: 'pokemon', id: d.id }) : null,

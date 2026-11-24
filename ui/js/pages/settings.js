@@ -1,4 +1,5 @@
 // Settings (docs/design/16) + data import + first-run onboarding.
+import { CONTEXTS } from '../sprites.js';
 import { HOME_SECTIONS, homeSections } from './home.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
@@ -7,7 +8,7 @@ import { createRun } from './guides.js';
 import { LANGS, coverage, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
-const SECTIONS = [['appearance', 'Appearance'], ['language', 'Language'], ['startup', 'Startup & game'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
+const SECTIONS = [['appearance', 'Appearance'], ['sprites', 'Pokémon & sprites'], ['language', 'Language'], ['startup', 'Startup & game'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
   ['sources', 'Live sources & news'], ['guides', 'Guides & characters'], ['updates', 'Updates'], ['backup', 'Backup & recovery'], ['data', 'Data & privacy'], ['about', 'About & diagnostics']];
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
@@ -24,7 +25,7 @@ export async function render(el, route) {
   const body = h('div', { class: 'card' });
   page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': 'Settings sections' },
     SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, l))), body));
-  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, data, about })[sec](body);
+  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, sprites: spritesSec, data, about })[sec](body);
 }
 
 // --------------------------------------------------------------- language
@@ -383,6 +384,35 @@ async function formArtReport() {
 }
 
 // ---------------------------------------------------------------- about
+// --------------------------------------------------------------- Pokémon & sprites
+async function spritesSec(b) {
+  const s = state.settings;
+  const anim = { ...(s['sprites.animation'] || {}) };
+  const size = { ...(s['sprites.size'] || {}) };
+  const lib = await get('/api/sprites/library').catch(() => null);
+  const redraw = () => { b.innerHTML = ''; spritesSec(b); };
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Pokémon & sprites'),
+    row('Animations', 'Follow the system’s reduced-motion setting, always allow, or switch every animation off. This overrides the choices below.',
+      seg([['system', 'Follow system'], ['on', 'On'], ['off', 'Off']], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, 'Animations')),
+    row('Pokédex colours', 'Show the whole Pokédex grid in normal or shiny colours. Display only — nothing is marked as owned.',
+      seg([['normal', 'Normal'], ['shiny', 'Shiny']], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), 'Pokédex colours')),
+    h('h3', null, 'Where sprites move'),
+    h('div', { class: 'sprite-prefs' }, CONTEXTS.map(([id, label, def, hasSize]) => h('div', { class: 'set-row' },
+      h('div', null, h('div', { style: { fontWeight: 600 } }, label), h('div', { class: 'desc' }, `Default: ${def === 'animated' ? 'animated' : 'static'}`)),
+      h('div', { class: 'row wrap tight' },
+        seg([['static', 'Static'], ['animated', 'Animated']], anim[id] || def, async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, label + ' animation'),
+        hasSize ? h('label', { class: 'row tight small' }, 'Size', h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': label + ' size',
+          onchange: async (e) => { const v = Number(e.target.value); if (v === 100) delete size[id]; else size[id] = v; await saveSettings({ 'sprites.size': { ...size } }); } },
+          [70, 85, 100, 115, 130, 150].map((p) => h('option', { value: p, selected: (size[id] || 100) === p ? 'selected' : null }, p + ' %')))) : null)))),
+    h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost small', onclick: async () => {
+      await saveSettings({ 'sprites.animation': {}, 'sprites.size': {}, 'sprites.motion': 'system' }); toast('Sprite settings reset'); redraw(); } }, 'Reset sprite settings')),
+    h('h3', null, 'Artwork'),
+    lib ? h('div', { class: 'small' }, lib.source_kind === 'personal' ? 'Using your own sprite library (Settings › Advanced). ' : 'Built-in sprites: ',
+      `${lib.coverage.species_static} species, ${lib.coverage.forms_ani} alternate forms, ${lib.female} female variants — static and animated, normal and shiny. `,
+      lib.derived_stills ? `${lib.derived_stills} form stills are the first frame of that form’s animation. ` : '',
+      h('a', { href: '#/settings/about' }, 'Credits')) : null));
+}
+
 // --------------------------------------------------------------- startup & game integration
 async function startupSec(b) {
   const g = await get('/api/game/status');

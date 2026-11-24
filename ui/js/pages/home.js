@@ -3,6 +3,7 @@ import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, se
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { LANGS } from '../i18n.js';
+import { animatedIn, scaled } from '../sprites.js';
 import { loadList } from './pokedex.js';
 import { currentCard, startTimers, likelyActive } from './live.js';
 
@@ -84,11 +85,7 @@ function greeting() {
 }
 
 // ------------------------------------------------------------ roaming Legendaries
-function motionOK() {
-  const pref = setting('pokedex.animate');
-  if (pref === true || pref === false) return pref;
-  return !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) && !document.documentElement.classList.contains('reduced-motion');
-}
+const motionOK = () => animatedIn('roamers');
 /** Animated Gen V sprite from your sprite library (only these two on Home), else the still; large tier, never stretched. */
 function roamerArt(m, size) {
   if (m.ani && motionOK()) {
@@ -108,7 +105,7 @@ function roamersCard(leg) {
   const cur = leg.current, nxt = leg.next;
   const month = (mm, y) => new Date(y, mm - 1, 1).toLocaleString(undefined, { month: 'long' });
   const tile = (region, m) => h('button', { class: 'roamer', onclick: () => go('#/pokedex/' + m.id), title: `${m.name} — open in the Pokédex` },
-    roamerArt(m, 116), h('div', { class: 'roamer-name' }, m.name), h('div', { class: 'tiny muted roamer-region' }, cap(region)), typeChips(m.types, true));
+    roamerArt(m, scaled('roamers', 116)), h('div', { class: 'roamer-name' }, m.name), h('div', { class: 'tiny muted roamer-region' }, cap(region)), typeChips(m.types, true));
   return h('section', { class: 'card home-roamers half', 'aria-labelledby': 'roam-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'roam-h' }, 'Roaming Legendaries'), h('span', { class: 'tiny muted' }, month(cur.month, cur.year)),
       h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/legendaries') }, 'Calendar', icon('chev')))),
@@ -137,7 +134,8 @@ function liveCard(cur, el) {
     // restarts because the list or a countdown was refreshed.
     const keep = new Map();
     const cards = list.map((g) => {
-      const anim = likelyActive(g, Date.now() + skew);
+      // Active reports and expired ones each follow their own Static/Animated preference (Settings › Pokémon & sprites).
+      const anim = likelyActive(g, Date.now() + skew) ? animatedIn('report_active') : animatedIn('report_expired');
       const k = `${g.id}:${anim ? 'a' : 's'}`;
       const node = currentCard(g, { compact: true, animate: anim });
       const old = sprites.get(k);

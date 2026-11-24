@@ -1229,3 +1229,11 @@ polyline.mk-draft { fill: none; }
 .gx-pop .gx-panel { margin-top: 6px; }
 .gx-pop .card { padding: 8px 10px; }
 .pop-step .gx-step { margin-top: 2px; }
+
+/* ---------------------------------------------------------------- summary sprite controls (2026-11-24) */
+.art-controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; max-width: 100%; }
+.art-controls .seg button { padding: 3px 10px; font-size: .82rem; min-height: 26px; }
+.dex-summary .detail-head .art { width: calc(240px * var(--art-scale, 1)); height: calc(212px * var(--art-scale, 1)); max-width: 100%; }
+.popout-root.mode-expanded .detail-head .art { width: calc(220px * var(--art-scale, 1)); height: calc(196px * var(--art-scale, 1)); }
+.dex-card.no-shiny-art .sprite { opacity: .45; }
+.dex-card .sprite { position: relative; }

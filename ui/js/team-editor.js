@@ -2,6 +2,7 @@
 // so a team linked to several guides is the same team everywhere. Only the Pokémon is needed; every other field
 // is optional. Coverage uses types only (no abilities or items), from moves when moves are entered.
 import { h, mount, get, post, api, toast, typeChip, cap, sizedSprite, pad3, confirmDialog, modal } from './core.js';
+import { animatedIn, scaled } from './sprites.js';
 import { speciesPicker, NATURES } from './components.js';
 
 export const PURPOSES = [['', '—'], ['gym_rerun', 'Gym reruns'], ['elite_four', 'Elite Four'], ['pvp', 'PvP'], ['storyline', 'Storyline'], ['custom', 'Custom']];
@@ -31,7 +32,7 @@ export async function teamStrip(team) {
   return h('div', { class: 'team-strip' }, t.slots.map((s) => {
     const sp = s && idx.find((x) => x.id === s.species);
     return h('div', { class: 'team-strip-slot' + (sp ? '' : ' vacant'), title: sp ? sp.name + (s.level ? ` · Lv ${s.level}` : '') : 'Empty slot' },
-      sp ? sizedSprite(sp, 40, { still: sp.still, url: sp.icon, tier: sp.size || 'm' }) : null);
+      sp ? sizedSprite(sp, scaled('team', 40), { still: sp.still, url: sp.icon, tier: sp.size || 'm', ani: animatedIn('team') ? sp.ani : null }) : null);
   }));
 }
 
