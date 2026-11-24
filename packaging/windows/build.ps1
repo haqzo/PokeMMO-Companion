@@ -1,4 +1,6 @@
 # Build an unsigned, local Windows x86_64 portable ZIP and checksum.
+param([string]$PythonExecutable)
+
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..\..")
 $env:PYTHONUTF8 = "1"
@@ -10,8 +12,10 @@ function Invoke-Checked([string]$Command, [string[]]$Arguments) {
     }
 }
 
-Invoke-Checked py @("-3.13", "-c", "import platform, sys; sys.exit(platform.machine().lower() not in ('amd64', 'x86_64'))")
-Invoke-Checked py @("-3.13", "-m", "venv", ".build-venv")
+$interpreter = if ($PythonExecutable) { $PythonExecutable } else { "py" }
+$prefix = if ($PythonExecutable) { @() } else { @("-3.13") }
+Invoke-Checked $interpreter (@($prefix) + @("-c", "import platform, sys; sys.exit(sys.version_info[:2] != (3, 13) or platform.machine().lower() not in ('amd64', 'x86_64'))"))
+Invoke-Checked $interpreter (@($prefix) + @("-m", "venv", ".build-venv"))
 $python = ".\.build-venv\Scripts\python.exe"
 Invoke-Checked $python @("-m", "pip", "install", "--requirement", "packaging\requirements-build.txt")
 Invoke-Checked $python @("-m", "PyInstaller", "--noconfirm", "--workpath", "build\pyinstaller",
