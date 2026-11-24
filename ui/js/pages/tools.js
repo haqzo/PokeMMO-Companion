@@ -1,4 +1,5 @@
 // Tools workspace (docs/design/07): grouped hub + individual tools.
+import { teamEditor, purposeLabel } from '../team-editor.js';
 import { t as tr } from '../i18n.js';
 import * as calcPage from './calculator.js';
 import { legacyRoute } from './collection.js';
@@ -26,7 +27,6 @@ const TOOLS = {
   notes: { title: 'Notes', i18n: 'notes.title', icon: 'note', group: 'collection', status: '', own: () => import('./notes.js'), descKey: 'notes.desc', popout: 'notes' },
   box: { title: 'My Pokémon', i18n: 'collection.mine', icon: 'box', group: 'collection', status: '', own: () => import('./box.js'), descKey: 'box.desc', popout: 'box' },
   showcase: { title: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', group: 'collection', status: '', own: () => import('./box.js').then((m) => ({ render: m.renderShowcasePage, dispose: m.dispose })), descKey: 'showcase.desc', popout: 'showcase' },
-  cguides: { title: 'My guides', i18n: 'cguide.title', icon: 'list', group: 'collection', status: '', own: () => import('./cguides.js'), descKey: 'cguide.desc', popout: 'customguide' },
   locations: { title: 'Location explorer', i18n: 'loc.title', icon: 'map', group: 'collection', status: '', own: () => import('./locations.js'), descKey: 'loc.desc', popout: 'locations' },
   links: { title: 'Websites & links', i18n: 'links.title', icon: 'external', group: 'collection', status: '', own: () => import('./websites.js'), descKey: 'links.desc' },
 };
@@ -355,46 +355,16 @@ async function renderEv(el) {
 
 // ------------------------------------------------------------- team
 async function renderTeam(el, route) {
-  tc = tc || await get('/api/tools/typechart');
-  const idx = await speciesIndex();
   const teams = (await get('/api/docs/team')).items;
   const want = route.query.get('team');
-  let doc = teams.find((t) => t.id === want) || null;
-  let slots = doc ? [...doc.data.slots] : [null, null, null, null, null, null];
-  let name = doc ? doc.name : 'New team';
-  const out = h('div');
-  const save = async () => {
-    const res = doc ? await api('PUT', `/api/docs/team/${doc.id}`, { name, data: { slots } }) : await post('/api/docs/team', { name, data: { slots } });
-    doc = res; toast('Team saved'); go('#/tools/team?team=' + res.id);
-  };
-  const analyse = () => {
-    const members = slots.map((id) => idx.find((s) => s.id === id)).filter(Boolean);
-    if (!members.length) return h('div', { class: 'muted' }, 'Add Pokémon to see coverage.');
-    const def = tc.types.map((a, i) => {
-      const ms = members.map((m) => m.types.reduce((acc, d) => acc * tc.matrix[i][tc.types.indexOf(d)], 1));
-      return { a, weak: ms.filter((m) => m > 1).length, resist: ms.filter((m) => m < 1 && m > 0).length, immune: ms.filter((m) => m === 0).length };
-    });
-    const stab = [...new Set(members.flatMap((m) => m.types))];
-    const covered = tc.types.filter((d, j) => stab.some((a) => tc.matrix[tc.types.indexOf(a)][j] > 1));
-    return h('div', { class: 'stack' },
-      h('div', null, h('div', { class: 'label', style: { marginBottom: '6px' } }, 'Defensive overview (members weak / resistant / immune per attacking type)'),
-        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Attacking', 'Weak', 'Resist', 'Immune'].map((c) => h('th', null, c)))),
-          h('tbody', null, def.map((r) => h('tr', null, h('td', null, typeChip(r.a, true)), h('td', { style: { color: r.weak >= 3 ? '#e07b77' : null, fontWeight: r.weak >= 3 ? 700 : 400 } }, r.weak || '—'),
-            h('td', null, r.resist || '—'), h('td', null, r.immune || '—')))))),
-      h('div', null, h('div', { class: 'label', style: { marginBottom: '6px' } }, `Same-type (STAB) super-effective coverage: ${covered.length}/17`),
-        h('div', { class: 'row wrap' }, tc.types.map((t) => h('span', { style: { opacity: covered.includes(t) ? 1 : 0.3 } }, typeChip(t, true))))),
-      h('p', { class: 'tiny muted', style: { margin: 0 } }, 'Types only — abilities (e.g. Levitate), moves and items are not considered.'));
-  };
-  const slotEls = slots.map((id, i) => h('div', { class: 'card tight' }, speciesPicker({ label: `Slot ${i + 1}`, value: id, onChange: (sid) => { slots[i] = sid; mount(out, analyse()); } })));
-  mount(el, h('div', { class: 'stack' },
-    h('div', { class: 'card row wrap' }, h('div', { class: 'field grow' }, h('label', null, 'Team name'), h('input', { class: 'input', value: name, maxlength: 60, oninput: (e) => { name = e.target.value; } })),
-      h('div', { class: 'field' }, h('label', null, 'Saved teams'), h('select', { class: 'input', onchange: (e) => go(e.target.value ? `#/tools/team?team=${e.target.value}` : '#/tools/team') },
-        h('option', { value: '' }, '— New team —'), teams.map((t) => h('option', { value: t.id, selected: doc && t.id === doc.id ? 'selected' : null }, t.name)))),
-      h('button', { class: 'btn primary', onclick: save }, 'Save team'),
-      doc ? h('button', { class: 'btn danger', onclick: async () => { if (await confirmDialog('Delete team', `Delete “${doc.name}”?`, 'Delete', true)) { await api('DELETE', `/api/docs/team/${doc.id}`); go('#/tools/team'); } } }, 'Delete') : null),
-    h('div', { class: 'team-slots' }, slotEls),
-    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Coverage')), out)));
-  mount(out, analyse());
+  const doc = teams.find((x) => x.id === want) || null;
+  const used = doc ? (await get(`/api/teams/${doc.id}/guides`)).guides : [];
+  const picker = h('div', { class: 'card row wrap' },
+    h('div', { class: 'field' }, h('label', null, 'Saved teams'), h('select', { class: 'input', onchange: (e) => go(e.target.value ? `#/tools/team?team=${e.target.value}` : '#/tools/team') },
+      h('option', { value: '' }, '— New team —'), teams.map((x) => h('option', { value: x.id, selected: doc && x.id === doc.id ? 'selected' : null }, x.name + (x.data && x.data.purpose ? ` · ${purposeLabel(x.data.purpose)}` : ''))))),
+    used.length ? h('span', { class: 'small muted' }, `Used in ${used.length} guide(s) — changes show there too.`) : null);
+  const editor = await teamEditor(doc, { onSaved: (res) => go('#/tools/team?team=' + res.id), onDeleted: () => go('#/tools/team') });
+  mount(el, h('div', { class: 'stack' }, picker, editor));
 }
 
 function needsImport() {

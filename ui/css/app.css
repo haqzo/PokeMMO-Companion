@@ -1064,3 +1064,76 @@ polyline.mk-draft { fill: none; }
 .loc-enc td { vertical-align: middle; }
 .loc-enc td.rate.none { color: var(--text-muted); font-size: .8rem; }
 .loc-grid { grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) minmax(340px, 460px); }
+
+/* ---------------------------------------------------------------- Location directory (2026-11-24, maps removed from the page) */
+.loc-dir { display: flex; flex-direction: column; gap: 8px; padding: 0 18px 14px; min-height: 0; }
+.popout .loc-dir { padding: 0; }
+.loc-dir-grid { display: grid; grid-template-columns: minmax(200px, 230px) minmax(0, 1fr) minmax(360px, 520px); gap: 14px; align-items: start; }
+.loc-dir:not(.has-sel) .loc-dir-grid { grid-template-columns: minmax(200px, 230px) minmax(0, 1fr); }
+.loc-dir:not(.has-sel) .loc-detail-pane { display: none; }
+.loc-dir .loc-left { position: sticky; top: 0; }
+.loc-filter-toggle { display: none; }
+.loc-listpane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.loc-cats, .loc-subs .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.loc-cats .count, .loc-tabs .count { margin-left: 4px; opacity: .75; }
+.loc-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+.loc-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 10px; border-radius: var(--radius);
+  background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-primary); cursor: pointer; min-height: 52px; }
+.loc-card:hover { border-color: var(--border-strong); background: var(--bg-hover, var(--bg-card)); }
+.loc-card.selected { border-color: var(--link); box-shadow: 0 0 0 1px var(--link) inset; }
+.loc-card.empty { opacity: .6; }
+.loc-card-name { font-weight: 600; font-size: .92rem; }
+.loc-group-head { font-size: .95rem; margin: 8px 0 4px; }
+.loc-detail-pane { min-width: 0; position: sticky; top: 0; max-height: calc(100vh - 120px); overflow: auto; }
+.loc-back { display: none; }
+/* narrow windows and popouts: detail replaces the list; filters fold away */
+.loc-dir.narrow .loc-dir-grid, .loc-dir.narrow.has-sel .loc-dir-grid { grid-template-columns: minmax(0, 1fr); }
+.loc-dir.narrow .loc-left { position: static; }
+.loc-dir.narrow .loc-filter-toggle { display: inline-flex; align-self: flex-start; }
+.loc-dir.narrow:not(.filters-open) .loc-filters { display: none; }
+.loc-dir.narrow.has-sel .loc-listpane, .loc-dir.narrow.has-sel .loc-left, .loc-dir.narrow.has-sel .loc-tabs { display: none; }
+.loc-dir.narrow .loc-detail-pane { position: static; max-height: none; }
+.loc-dir.narrow .loc-back { display: inline-flex; }
+.loc-dir.v-compact .loc-card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.loc-poke .row { flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------- Guides hub (2026-11-24) */
+.guides-tabs { display: flex; gap: 4px; padding: 14px 24px 0; flex-wrap: wrap; }
+.guides-tabs .tab { padding: 6px 14px; }
+.guides-all { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.guides-regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.guides-region { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: var(--radius); background: var(--bg-inset); border: 1px solid var(--border-subtle); color: inherit; text-align: left; cursor: pointer; }
+.guides-region:hover { border-color: var(--border-strong); }
+
+/* ---------------------------------------------------------------- guide timers & team (2026-11-24) */
+.gx-panel { gap: 12px; }
+.gx-timer { padding: 6px 0; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; }
+.gx-timer:first-of-type { border-top: 0; }
+.gx-rem { font-variant-numeric: tabular-nums; min-width: 4.5ch; text-align: right; }
+.gx-step { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.gx-step:empty { display: none; }
+.gx-step-timer { display: inline-flex; gap: 6px; align-items: center; padding: 3px 6px; border-radius: var(--radius); background: var(--bg-inset); border: 1px solid var(--border-subtle); }
+.step:not(:hover):not(:focus-within):not(.current) .gx-add-step, .cg-step-wrap:not(:hover):not(:focus-within) .gx-add-step {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
+@media (hover: none) { .step .gx-add-step, .cg-step-wrap .gx-add-step { position: static !important; width: auto !important; height: auto !important; clip-path: none !important; } }
+.gx-story { margin-bottom: 14px; }
+.gx-story > summary { cursor: pointer; margin-bottom: 8px; color: var(--text-secondary); }
+.gx-story .gx-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.team-strip { display: flex; gap: 4px; flex-wrap: wrap; }
+.team-strip-slot { width: 46px; height: 46px; display: grid; place-items: center; border-radius: var(--radius); background: var(--bg-inset); border: 1px solid var(--border-subtle); }
+.team-strip-slot.vacant { opacity: .45; }
+.team-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.team-slot-details summary { cursor: pointer; color: var(--text-secondary); margin-top: 6px; }
+.team-slot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.team-moves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.team-stats { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.team-stats label { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.team-stats .tm-num { width: 52px; }
+.tm-upreset { display: inline-flex; align-items: center; gap: 0; }
+.tm-owner { gap: 4px; }
+.gx-h { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 1rem; }
+.gx-tname { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.team-strip-slot .still-art, .team-strip-slot .silhouette { max-width: 40px; max-height: 40px; }
+.gx-team .team-strip { flex-wrap: nowrap; }
+.gx-team .team-strip-slot { width: 40px; height: 40px; flex: 1 1 0; min-width: 0; max-width: 46px; }
+.gx-step { position: relative; }

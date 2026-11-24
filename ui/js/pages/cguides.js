@@ -1,11 +1,13 @@
 // My guides — user-authored guides with checklists and repeatable cycles (docs/design/18 §5).
 // The bundled storyline guides and character runs are untouched; these are separate records.
+import { guideExtras } from '../guide-extras.js';
 import { h, mount, icon, get, api, post, setting, saveSettings, on, notice, toast, relTime, fmtDate, cap, confirmDialog, modal, WINDOW_ID } from '../core.js';
 import { go, popoutButton, pinButton, openPopout } from '../shell.js';
 import { t } from '../i18n.js';
 import { linkChip, pickLink, linkedNotes, fileToBase64, pickFile, downloadText, openRoute } from '../links.js';
 
-const SCOPES = [['custom', 'Custom'], ['gym_rerun', 'Gym rerun'], ['item_hunt', 'Item hunt'], ['seasonal', 'Seasonal event'], ['breeding', 'Breeding routine'], ['hunting', 'Hunting plan'], ['storyline', 'Storyline']];
+export const SCOPES = [['custom', 'Custom'], ['gym_rerun', 'Gym rerun'], ['elite_four', 'Elite Four rerun'], ['money', 'Money-making'], ['farming', 'Farming'],
+  ['shiny', 'Shiny hunting'], ['daily', 'Daily routine'], ['item_hunt', 'Item hunt'], ['seasonal', 'Seasonal event'], ['breeding', 'Breeding routine'], ['hunting', 'Hunting plan'], ['storyline', 'Storyline']];
 const REGIONS = ['', 'kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
@@ -22,13 +24,19 @@ export async function render(el, route) {
   const res = await get('/api/cguides?archived=1');
   const page = h('div', { class: 'page' });
   mount(el, page);
-  page.append(h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), t('tools.title')),
-    h('div', null, h('h1', null, t('cguide.title')), h('div', { class: 'sub' }, 'Write your own checklists — gym reruns, item routes, seasonal tasks — and repeat them as cycles with history.')),
+  page.append(h('div', { class: 'page-head' },
+    h('div', null, h('h1', null, 'My Guides'), h('div', { class: 'sub' }, 'Your own checklists — gym and Elite Four reruns, money-making, farming, shiny hunts, daily routines — with timers, a team and repeatable cycles.')),
     h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => createDialog() }, icon('plus'), t('cguide.new')),
       h('button', { class: 'btn', onclick: () => importDialog() }, icon('download'), t('common.import')),
-      h('button', { class: 'btn ghost', onclick: () => go('#/guides') }, icon('guides'), 'Storyline guides'), pinButton({ kind: 'tool', id: 'cguides' }), popoutButton('customguide'))));
-  const active = res.guides.filter((g) => !g.archived_at), archived = res.guides.filter((g) => g.archived_at);
-  const card = (g) => h('button', { class: 'card cg-card', onclick: () => go('#/tools/cguides/' + g.id) },
+      pinButton({ kind: 'tool', id: 'cguides' }), popoutButton('customguide'))));
+  const cat = route.query.get('cat') || '';
+  const used = [...new Set(res.guides.map((g) => g.scope))];
+  if (used.length > 1) page.append(h('div', { class: 'row wrap', style: { marginBottom: '10px' }, role: 'tablist', 'aria-label': 'Categories' },
+    [['', 'All'], ...SCOPES.filter(([k]) => used.includes(k))].map(([k, l]) => h('button', { class: 'chip btnlike' + (cat === k ? ' active' : ''), role: 'tab', 'aria-selected': String(cat === k),
+      onclick: () => go('#/guides/mine' + (k ? '?cat=' + k : '')) }, l, h('span', { class: 'count' }, k ? res.guides.filter((g) => g.scope === k && !g.archived_at).length : res.guides.filter((g) => !g.archived_at).length)))));
+  const inCat = (g) => !cat || g.scope === cat;
+  const active = res.guides.filter((g) => !g.archived_at && inCat(g)), archived = res.guides.filter((g) => g.archived_at && inCat(g));
+  const card = (g) => h('button', { class: 'card cg-card', onclick: () => go('#/guides/mine/' + g.id) },
     h('div', { class: 'row' }, h('strong', { class: 'grow' }, g.title), h('span', { class: 'chip' }, g.scope_label), g.recurring ? h('span', { class: 'chip', title: 'Repeatable' }, '↻ ' + g.cycle_number) : null),
     h('div', { class: 'small muted' }, [g.region && cap(g.region), g.location].filter(Boolean).join(' · ') || ' '),
     progressBar(g.done, g.checks), h('div', { class: 'tiny muted' }, `${g.done} / ${g.checks} done · edited ${relTime(g.updated_at)}` + (g.cycles_completed ? ` · ${g.cycles_completed} cycles completed` : '')));
@@ -37,6 +45,7 @@ export async function render(el, route) {
       h('button', { class: 'btn primary', onclick: () => createDialog() }, t('cguide.new'))));
   if (archived.length) page.append(h('details', null, h('summary', { class: 'small' }, `${t('notes.archived')} (${archived.length})`), h('div', { class: 'cg-grid' }, archived.map(card))));
   unsub.push(on('cguides', (d, ev) => { if (ev.origin !== WINDOW_ID) render(el, route); }));
+  if (route.query.get('new')) { history.replaceState(null, '', '#/guides/mine'); createDialog(); }
 }
 
 async function createDialog(prefill = {}) {
@@ -53,7 +62,7 @@ async function createDialog(prefill = {}) {
     { label: 'Create', kind: 'primary', value: true, handler: () => (v.title.trim() ? true : (toast('Give the guide a title'), false)) }] });
   if (!ok) return;
   const g = await post('/api/cguides', v);
-  go('#/tools/cguides/' + g.id + '?edit=1');
+  go('#/guides/mine/' + g.id + '?edit=1');
 }
 
 async function importDialog() {
@@ -70,7 +79,7 @@ async function importDialog() {
   actions: [{ label: t('common.cancel'), kind: 'ghost', value: false }, { label: t('common.import'), kind: 'primary', value: true }] });
   if (!ok) return;
   const g = await post('/api/cguides', { title: title.value || prev.title, steps: prev.steps, source: file.name });
-  go('#/tools/cguides/' + g.id);
+  go('#/guides/mine/' + g.id);
 }
 
 export function stepRow(g, s, { onToggle, compact } = {}) {
@@ -85,41 +94,49 @@ export function stepRow(g, s, { onToggle, compact } = {}) {
 
 async function renderGuide(el, id, route) {
   let g;
-  try { g = await get('/api/cguides/' + id); } catch (e) { mount(el, h('div', { class: 'page' }, notice('bad', 'Guide not found'), h('button', { class: 'btn', onclick: () => go('#/tools/cguides') }, t('common.back')))); return; }
+  try { g = await get('/api/cguides/' + id); } catch (e) { mount(el, h('div', { class: 'page' }, notice('bad', 'Guide not found'), h('button', { class: 'btn', onclick: () => go('#/guides/mine') }, t('common.back')))); return; }
   const editing = route.query.get('edit') === '1';
   const page = h('div', { class: 'page' });
   mount(el, page);
   const toggle = async (s, done) => { g = await post(`/api/cguides/${g.id}/mark`, { step_id: s.id, done }); draw(); };
-  const head = () => h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools/cguides') }, icon('back'), t('cguide.title')),
+  const head = () => h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/guides/mine') }, icon('back'), t('cguide.title')),
     h('div', null, h('h1', null, g.title), h('div', { class: 'sub' }, [g.scope_label, g.region && cap(g.region), g.location, g.recurring ? `cycle ${g.cycle ? g.cycle.number : 1}` : null].filter(Boolean).join(' · '))),
-    h('div', { class: 'actions' }, editing ? h('button', { class: 'btn primary', onclick: () => go('#/tools/cguides/' + g.id) }, 'Done editing') :
-      h('button', { class: 'btn', onclick: () => go('#/tools/cguides/' + g.id + '?edit=1') }, icon('edit'), t('common.edit')),
+    h('div', { class: 'actions' }, editing ? h('button', { class: 'btn primary', onclick: () => go('#/guides/mine/' + g.id) }, 'Done editing') :
+      h('button', { class: 'btn', onclick: () => go('#/guides/mine/' + g.id + '?edit=1') }, icon('edit'), t('common.edit')),
     h('button', { class: 'btn ghost', title: 'Open as a floating checklist', onclick: async () => { await saveSettings({ 'customguide.active': g.id }); openPopout('customguide'); } }, icon('popout'), t('common.popout')),
     h('button', { class: 'btn ghost', onclick: async () => { const r = await get(`/api/cguides/${g.id}/export`); downloadText(`${g.title.replace(/[^\w-]+/g, '_')}.md`, r.markdown); } }, icon('download'), 'Markdown')));
   const body = h('div');
+  const gx = guideExtras({ key: 'cg:' + g.id, title: g.title, steps: Object.fromEntries(g.steps.map((s) => [s.id, s.text.slice(0, 40)])),
+    cycle: async (create) => { if (create && !g.cycle) g.cycle = await post(`/api/cguides/${g.id}/cycle`); return g.cycle ? g.cycle.id : null; } });
+  unsub.push(gx.dispose);
+  const gxPanel = gx.panel();
+  const row = (s) => (s.kind === 'check' ? h('div', { class: 'cg-step-wrap' }, stepRow(g, s, { onToggle: toggle }), h('div', { style: { marginLeft: (s.depth * 18 + 28) + 'px' } }, gx.stepTimers(s.id)))
+    : stepRow(g, s, { onToggle: toggle }));
   const draw = () => {
     if (editing) { mount(body, editor(g, (ng) => { g = ng; })); return; }
-    mount(body, h('div', { class: 'grid-2', style: { gridTemplateColumns: 'minmax(0,1fr) minmax(240px, 320px)', alignItems: 'start' } },
+    mount(body, h('div', { class: 'grid-2', style: { gridTemplateColumns: 'minmax(0,1fr) minmax(260px, 370px)', alignItems: 'start' } },
       h('div', { class: 'card stack tight' }, g.description ? h('p', { class: 'small', style: { margin: 0, whiteSpace: 'pre-line' } }, g.description) : null,
         h('div', { class: 'row' }, progressBar(g.done, g.checks), h('span', { class: 'small nowrap' }, `${g.done} / ${g.checks}`)),
-        g.steps.length ? g.steps.map((s) => stepRow(g, s, { onToggle: toggle })) : h('div', { class: 'empty' }, 'No steps yet. ', h('button', { class: 'btn small', onclick: () => go('#/tools/cguides/' + g.id + '?edit=1') }, t('common.edit')))),
+        g.steps.length ? g.steps.map(row) : h('div', { class: 'empty' }, 'No steps yet. ', h('button', { class: 'btn small', onclick: () => go('#/guides/mine/' + g.id + '?edit=1') }, t('common.edit')))),
       h('div', { class: 'stack' },
         h('div', { class: 'card stack tight' }, h('h3', { style: { margin: 0 } }, g.recurring ? `Cycle ${g.cycle ? g.cycle.number : 1}` : 'Progress'),
           g.cycle ? h('div', { class: 'small muted' }, 'Started ' + fmtDate(g.cycle.started_at, true)) : null,
           h('button', { class: 'btn' + (g.done === g.checks && g.checks ? ' primary' : ''), onclick: async () => {
             if (g.done < g.checks && !(await confirmDialog('Finish this cycle?', `${g.checks - g.done} steps are not ticked. They stay unticked in the history.`, 'Finish cycle'))) return;
-            g = await post(`/api/cguides/${g.id}/complete`, { note: '' }); toast(g.recurring ? `Cycle finished — cycle ${g.cycle.number} started` : 'Guide marked complete'); draw(); } },
+            g = await post(`/api/cguides/${g.id}/complete`, { note: '' }); toast(g.recurring ? `Cycle finished — cycle ${g.cycle.number} started` : 'Guide marked complete'); draw(); gx.load(); } },
           g.recurring ? 'Finish cycle & start next' : 'Mark complete'),
           g.history.filter((c) => c.completed_at).length ? h('div', { class: 'stack tight' }, h('span', { class: 'label' }, 'History'),
             g.history.filter((c) => c.completed_at).slice(0, 12).map((c) => h('div', { class: 'small' }, `#${c.number} · ${fmtDate(c.completed_at)} · ${c.done}/${g.checks}`, c.note ? ` · ${c.note}` : ''))) : null),
+        gxPanel,
         linkedNotes('custom_guide', g.id, g.title),
         h('div', { class: 'row wrap' }, h('button', { class: 'btn ghost small', onclick: async () => { g = await post(`/api/cguides/${g.id}/archive`, { archived: !g.archived_at }); draw(); } },
           icon('archive'), g.archived_at ? t('common.unarchive') : t('common.archive')),
         h('button', { class: 'btn danger ghost small', onclick: async () => { if (await confirmDialog('Delete guide?', 'Steps and cycle history will be removed. Export it first if you want a copy.', t('common.delete'), true)) {
-          await api('DELETE', '/api/cguides/' + g.id); go('#/tools/cguides'); } } }, icon('trash'), t('common.delete'))))));
+          await api('DELETE', '/api/cguides/' + g.id); go('#/guides/mine'); } } }, icon('trash'), t('common.delete'))))));
   };
   page.append(head(), body);
   draw();
+  if (!editing) gx.load().catch((e) => console.warn(e));
   unsub.push(on('cguides', async (d, ev) => { if (ev.origin !== WINDOW_ID && d.id === g.id && !editing) { g = await get('/api/cguides/' + g.id); draw(); } }));
 }
 
@@ -172,7 +189,7 @@ export async function renderCustomGuidePopout(el, mode) {
   const list = await get('/api/cguides');
   let id = setting('customguide.active');
   if (!list.guides.some((g) => g.id === id)) id = list.guides[0] && list.guides[0].id;
-  if (!id) { mount(el, h('div', { class: 'empty' }, 'No guides yet. ', h('button', { class: 'btn small', onclick: () => openRoute('#/tools/cguides') }, t('cguide.new')))); return; }
+  if (!id) { mount(el, h('div', { class: 'empty' }, 'No guides yet. ', h('button', { class: 'btn small', onclick: () => openRoute('#/guides/mine') }, t('cguide.new')))); return; }
   let g = await get('/api/cguides/' + id);
   const draw = () => {
     const checks = g.steps.filter((s) => s.kind === 'check');

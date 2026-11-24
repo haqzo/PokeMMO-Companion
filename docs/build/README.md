@@ -24,3 +24,4 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**10 — Accuracy + foundations pass report: update/run, changes, tests, still unverified, next video**](10-V0.1.0-ACCURACY-AND-FOUNDATIONS-REPORT.md)
 - [**16 — Region maps from your own ROMs, Location explorer + Edit map, Timers, Home fixes**](16-V0.1.0-REGION-MAPS-TIMERS-HOME.md)
 - [**17 — Player-ready: built-in PokeMMO data and region maps, no imports**](17-PLAYER-READY-BUILTIN-DATA-AND-MAPS.md)
+- [**18 — Location directory, unified Guides, guide timers, Team Builder v2, Alpha/Swarm animation**](18-GUIDES-TIMERS-TEAMS-LOCATION-DIRECTORY.md)

@@ -426,5 +426,5 @@ export async function onboarding() {
   await saveSettings({ 'app.onboarded': true, 'appearance.nav': nav });
   document.dispatchEvent(new CustomEvent('settings-changed'));
   if (r === 'data') go('#/settings/data');
-  if (r === 'run') { await createRun(); go('#/guides'); }
+  if (r === 'run') { await createRun(); go('#/guides/storyline'); }
 }

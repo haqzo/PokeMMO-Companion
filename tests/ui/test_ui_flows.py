@@ -84,7 +84,7 @@ def go(page, app, route):
 def test_every_route_renders_without_errors(app, page):
     routes = ["#/home", "#/news", "#/news/changelog-2026-11-19", "#/events/event-shiny-wars-2026", "#/pokedex", "#/pokedex/25",
               "#/tools", "#/tools/typechart", "#/tools/natures", "#/tools/stats", "#/tools/damage", "#/tools/breeding",
-              "#/tools/team", "#/tools/ev", "#/tools/catch", "#/live", "#/live/legendaries", "#/live/cave", "#/guides",
+              "#/tools/team", "#/tools/ev", "#/tools/catch", "#/live", "#/live/legendaries", "#/live/cave", "#/guides", "#/guides/storyline", "#/guides/mine",
               "#/settings", "#/settings/windows", "#/settings/notifications", "#/settings/sources", "#/settings/guides",
               "#/settings/data", "#/settings/about"]
     go(page, app, "#/home")
@@ -150,7 +150,7 @@ def test_guides_two_runs_progress_independent_and_survive_restart(data_dir, brow
     ctxb = browser.new_context(viewport={"width": 1280, "height": 820})
     page = ctxb.new_page()
     try:
-        go(page, a, "#/guides")
+        go(page, a, "#/guides/storyline")
         if page.get_by_role("button", name="Create run").count():
             page.get_by_role("button", name="Create run").click()
         else:
@@ -166,13 +166,13 @@ def test_guides_two_runs_progress_independent_and_survive_restart(data_dir, brow
         assert page.locator(".step input.check:checked").count() == 0  # new run starts empty
         page.locator(".step input.check").nth(2).check()
         page.wait_for_timeout(500)
-        page.evaluate("location.hash = '#/guides'")
+        page.evaluate("location.hash = '#/guides/storyline'")
     finally:
         a.stop()
     # full restart: new backend process state, same data folder
     b = Running(data_dir)
     try:
-        page.goto(b.url("#/guides"))
+        page.goto(b.url("#/guides/storyline"))
         page.wait_for_selector(".run-pill")
         assert "Alt" in page.locator(".run-pill").inner_text()
         assert page.locator(".step input.check:checked").count() == 1
@@ -199,7 +199,7 @@ def test_live_test_notification_shows_labelled_toast_and_history(app, page):
 
 
 def test_storyline_popout_shares_state_with_main(app, page, browser):
-    go(page, app, "#/guides")
+    go(page, app, "#/guides/storyline")
     run_id = app.ctx.settings.get("guides.active_run")
     if not run_id:
         pytest.skip("no run")

@@ -468,8 +468,9 @@ class ShowcaseService:
 
 
 # ============================================================ custom guides
-SCOPES = {"storyline": "Storyline", "gym_rerun": "Gym rerun", "item_hunt": "Item hunt", "seasonal": "Seasonal event",
-          "breeding": "Breeding routine", "hunting": "Hunting plan", "custom": "Custom"}
+SCOPES = {"gym_rerun": "Gym rerun", "elite_four": "Elite Four rerun", "money": "Money-making", "farming": "Farming",
+          "shiny": "Shiny hunting", "daily": "Daily routine", "item_hunt": "Item hunt", "seasonal": "Seasonal event",
+          "breeding": "Breeding routine", "hunting": "Hunting plan", "storyline": "Storyline", "custom": "Custom"}
 STEP_KINDS = ("heading", "check", "text")
 
 

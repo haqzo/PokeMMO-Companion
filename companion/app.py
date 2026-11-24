@@ -19,6 +19,7 @@ import threading
 from .services.sprite_library import SpriteLibrary
 from .services.region_maps import RegionMaps
 from .services.timers import TimerService
+from .services.guide_extras import GuideExtras
 from .services.importer import recover_interrupted_swap, sync_existing_import
 from .services.library import BoxService, CustomGuideService, MediaService, NotesService, ShowcaseService
 from .services.live import LiveService
@@ -93,6 +94,7 @@ class AppContext:
         except OSError:
             log.exception("Could not check region-map artwork")
         self.timers = TimerService(self.storage, self.settings, self.bus, self.notifier)
+        self.guide_extras = GuideExtras(self.storage)
         self.shell = ShellBridge()
         self.load_roster_checks()
         self.token = secrets.token_urlsafe(24)

@@ -1,6 +1,7 @@
 """UI on a CLEAN installation: no PokeMMO dump, no ROMs, no private data (POKEMMO_DUMPS_DIR is ignored here).
 
-Every region must show its built-in map with clickable areas that open real PokeMMO encounters immediately.
+The Location Explorer is a directory (2026-11-24: interactive maps removed from the player UI): every region lists its
+places as cards, and opening one shows real PokeMMO encounters immediately. Map assets stay in the repository.
 """
 import json
 import time
@@ -11,8 +12,7 @@ import pytest
 from tests.ui.test_ui_flows import Running, browser  # noqa: F401  (fixtures)
 
 pytestmark = pytest.mark.ui
-FIRST = {"kanto": ("r1", "Route 1"), "johto": ("r29", "Route 29"), "hoenn": ("r101", "Route 101"),
-         "sinnoh": ("r201", "Route 201"), "unova": ("r1u", "Route 1")}
+FIRST = {"kanto": "Route 1", "johto": "Route 29", "hoenn": "Route 101", "sinnoh": "Route 201", "unova": "Route 1"}
 
 
 @pytest.fixture(scope="module")
@@ -47,15 +47,11 @@ def _until(page, js, timeout=8.0):
     raise AssertionError("condition not met: " + js)
 
 
-def click_feature(page, fid):
-    page.wait_for_selector(f'.map-svg g[data-feature="{fid}"]', state="attached")
-    pt = page.evaluate(f"""(() => {{ const g = document.querySelector('.map-svg g[data-feature="{fid}"]');
-        const el = g.querySelector('.hit-area, rect, circle');
-        if (el.tagName === 'polyline') {{   // a point ON the route line (its middle), in screen coordinates
-          const p = el.getPointAtLength(el.getTotalLength() / 2); const m = el.getScreenCTM();
-          return [p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f]; }}
-        const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }})()""")
-    page.mouse.click(pt[0], pt[1])
+def open_card(page, name, exact=True):
+    loc = page.locator(".loc-card", has=page.locator(".loc-card-name", has_text=name))
+    if exact:
+        loc = page.locator(".loc-card").filter(has=page.locator(".loc-card-name").get_by_text(name, exact=True))
+    loc.first.click()
 
 
 def test_first_launch_has_no_import_gate(clean, pg):
@@ -72,28 +68,39 @@ def test_first_launch_has_no_import_gate(clean, pg):
 
 
 @pytest.mark.parametrize("region", ["kanto", "johto", "hoenn", "sinnoh", "unova"])
-def test_every_region_map_click_shows_pokemmo_encounters(clean, pg, region):
+def test_every_region_directory_opens_pokemmo_encounters(clean, pg, region):
     pg.goto(clean.url(f"#/tools/locations?region={region}"))
-    pg.wait_for_selector(".map-box img.map-img")
-    _until(pg, "document.querySelector('.map-img').complete && document.querySelector('.map-img').naturalWidth > 0")
-    assert pg.locator(".map-unavailable").count() == 0
-    assert "Import" not in pg.locator(".loc-map").inner_text()
-    n = pg.locator(".map-svg g.mk.builtin").count()
-    assert n >= 40
-    fid, name = FIRST[region]
-    click_feature(pg, fid)
+    pg.wait_for_selector(".loc-card")
+    assert pg.locator(".map-svg, .map-img, .map-box").count() == 0          # no interactive map in the player UI
+    assert pg.locator(".loc-card").count() >= 30
+    assert "Import" not in pg.locator(".loc-dir").inner_text()
+    open_card(pg, FIRST[region])
     pg.wait_for_selector(".loc-detail .loc-enc tbody tr")
-    assert pg.locator(".loc-detail h2").inner_text() == name
-    assert pg.locator(f'.map-svg g.mk.sel[data-feature="{fid}"]').count() == 1
-    rows = pg.locator(".loc-detail .loc-enc tbody tr").count()
-    assert rows > 0 and pg.locator(".loc-detail .loc-method-head").count() >= 1
+    assert pg.locator(".loc-detail h2").inner_text() == FIRST[region]
+    assert pg.locator(".loc-detail .loc-enc tbody tr").count() > 0 and pg.locator(".loc-detail .loc-method-head").count() >= 1
     assert "built-in PokeMMO data" in pg.locator(".loc-detail").inner_text()
     assert not pg.errors
 
 
+def test_categories_and_natural_route_order(clean, pg):
+    pg.goto(clean.url("#/tools/locations?region=kanto"))
+    pg.wait_for_selector(".loc-card")
+    pg.locator('.loc-cats [data-cat="routes"]').click()
+    names = pg.locator(".loc-card .loc-card-name").all_inner_texts()
+    routes = [n for n in names if n.startswith("Route ")]
+    nums = [int(n.split()[1]) for n in routes if n.split()[1].isdigit()]
+    assert nums == sorted(nums) and nums[:3] == [1, 2, 3]                     # Route 2 before Route 10
+    for cat in ("towns", "caves", "forests"):
+        pg.locator(f'.loc-cats [data-cat="{cat}"]').click()
+        assert pg.locator(".loc-card").count() > 0
+    pg.locator('.loc-cats [data-cat="caves"]').click()
+    assert "Mt. Moon" in pg.locator(".loc-cards").inner_text()
+
+
 def test_cave_floors_are_separate_subareas(clean, pg):
     pg.goto(clean.url("#/tools/locations?region=kanto"))
-    click_feature(pg, "mt-moon")
+    pg.wait_for_selector(".loc-card")
+    open_card(pg, "Mt. Moon")
     pg.wait_for_selector(".loc-subareas .tab")
     tabs = pg.locator(".loc-subareas .tab").all_inner_texts()
     assert [t.strip() for t in tabs] == ["1F", "B1F", "B2F"]
@@ -105,81 +112,83 @@ def test_cave_floors_are_separate_subareas(clean, pg):
 
 def test_town_without_wild_pokemon_says_so(clean, pg):
     pg.goto(clean.url("#/tools/locations?region=kanto"))
-    click_feature(pg, "saffron")
+    pg.wait_for_selector(".loc-card")
+    open_card(pg, "Saffron City")
     pg.wait_for_selector(".loc-detail h2")
     assert "No wild Pokémon are listed for Saffron City" in pg.locator(".loc-detail").inner_text()
     assert pg.locator(".loc-detail .loc-enc").count() == 0
 
 
-def test_sevii_submap_and_list_link(clean, pg):
+def test_sevii_sub_region(clean, pg):
     pg.goto(clean.url("#/tools/locations?region=kanto"))
-    pg.wait_for_selector(".loc-submaps")
-    pg.locator(".loc-side .loc-row", has_text="Kindle Road").click()
-    _until(pg, "document.querySelector('.loc-submaps [aria-selected=true]').dataset.map.endsWith('sevii-123')")
+    pg.wait_for_selector('.loc-subs [data-sub="sevii"]')
+    pg.locator('.loc-subs [data-sub="sevii"]').click()
+    txt = pg.locator(".loc-cards").inner_text()
+    assert "Kindle Road" in txt and "Viridian City" not in txt
+    open_card(pg, "Kindle Road")
     pg.wait_for_selector(".loc-detail .loc-enc tbody tr")
     assert pg.locator(".loc-detail h2").inner_text() == "Kindle Road"
-    assert pg.locator('.map-svg g.mk.sel[data-feature="kindle-road"]').count() == 1
 
 
-def test_pokemon_search_highlights_areas_and_zoom_keeps_alignment(clean, pg):
+def test_pokemon_search_across_regions_filters_and_clear(clean, pg):
     pg.goto(clean.url("#/tools/locations?region=unova&species=531"))   # Audino
-    pg.wait_for_selector(".map-svg g.mk.builtin", state="attached")
-    hits = pg.locator(".map-svg g.mk.hit")
-    assert hits.count() > 3
-    assert pg.locator('.map-svg g.mk.hit[data-feature="r1u"]').count() == 1
-    assert pg.locator('.map-svg g.mk.dim[data-feature="castelia"]').count() == 1
-    # area outline and map pixels move together when zooming
-    def rel():
-        return pg.evaluate("""(() => { const img = document.querySelector('.map-img').getBoundingClientRect();
-            const g = document.querySelector('.map-svg g[data-feature="r1u"] .hit-area').getBoundingClientRect();
-            return [(g.x + g.width / 2 - img.x) / img.width, (g.y + g.height / 2 - img.y) / img.height]; })()""")
-    a = rel()
-    pg.get_by_role("button", name="Zoom in").click()
-    pg.get_by_role("button", name="Zoom in").click()
-    b = rel()
-    assert abs(a[0] - b[0]) < 0.01 and abs(a[1] - b[1]) < 0.01
+    pg.wait_for_selector(".loc-card")
+    _until(pg, "document.querySelector('.loc-tabs [data-region=unova] .count') !== null")
+    n_unova = int(pg.locator(".loc-tabs [data-region=unova] .count").inner_text())
+    assert n_unova > 3
+    assert pg.locator(".loc-card").count() == n_unova
+    assert "Castelia City" not in pg.locator(".loc-cards").inner_text()
+    pg.locator(".loc-tabs [data-region=all]").click()
+    _until(pg, "document.querySelectorAll('.loc-group-head').length >= 1")
+    # search by place name and clear everything
+    pg.get_by_role("button", name="Clear filters").click()
+    pg.wait_for_selector(".loc-card")
+    pg.get_by_label("Search locations").fill("Route 10")
+    _until(pg, "[...document.querySelectorAll('.loc-card-name')].some((e) => e.textContent === 'Route 10')")
+    pg.get_by_label("Encounter type").select_option(index=1)
+    assert pg.locator(".loc-count").inner_text() != ""
+    pg.get_by_role("button", name="Clear filters").click()
+    _until(pg, "document.querySelectorAll('.loc-card').length > 30")
     assert not pg.errors
 
 
-def test_personal_marks_overlay_and_reset(clean, pg):
-    pg.goto(clean.url("#/tools/locations?region=hoenn"))
-    pg.wait_for_selector(".map-box img.map-img")
-    builtin_before = pg.locator(".map-svg g.mk.builtin").count()
-    pg.get_by_role("button", name="My marks").click()
-    pg.get_by_role("button", name="+ Marker").click()
-    box = pg.locator(".map-img").bounding_box()
-    pg.mouse.click(box["x"] + box["width"] * 0.5, box["y"] + box["height"] * 0.97)   # open sea, inside the image
-    pg.wait_for_selector(".modal")
-    pg.locator(".modal input[type=search]").fill("Route 101")
-    pg.locator(".modal select[aria-label=Location]").select_option(label="Route 101")
-    pg.locator(".modal .btn.primary").click()
-    _until(pg, "document.querySelectorAll('.map-svg g.mk.personal').length === 1")
-    pg.get_by_role("button", name="Save", exact=True).click()
-    _until(pg, "true")
-    pg.wait_for_timeout(500)
-    lay = clean.ctx.region_maps.layout("hoenn")
-    assert len(lay["marks"]) == 1 and lay["marks"][0]["basis"] == "builtin-v1"
-    assert pg.locator(".map-svg g.mk.builtin").count() == builtin_before        # built-in areas untouched
-    pg.get_by_role("button", name="Reset to shipped map data").click()
-    pg.locator(".modal .btn.danger").click()
-    _until(pg, "document.querySelectorAll('.map-svg g.mk.personal').length === 0")
-    pg.wait_for_timeout(400)
-    assert clean.ctx.region_maps.layout("hoenn")["marks"] == []
+def test_narrow_window_detail_and_back(clean, browser):  # noqa: F811
+    p = browser.new_context(viewport={"width": 760, "height": 800}).new_page()
+    errs = []
+    p.on("pageerror", lambda e: errs.append(str(e)))
+    p.goto(clean.url("#/tools/locations?region=hoenn"))
+    p.wait_for_selector(".loc-dir.narrow .loc-card")
+    open_card(p, "Route 101")
+    p.wait_for_selector(".loc-detail .loc-enc tbody tr")
+    assert p.locator(".loc-back").is_visible()
+    p.locator(".loc-back").click()
+    p.wait_for_selector(".loc-card")
+    assert p.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+    assert not errs
+    p.context.close()
 
 
-def test_locations_popout_on_clean_install(clean, browser):  # noqa: F811
-    clean.ctx.settings.update({"locations.region": "kanto", "locations.maps": {}})
-    for mode, w, h_ in (("standard", 480, 640), ("expanded", 820, 700)):
+def test_locations_popout_modes_on_clean_install(clean, browser):  # noqa: F811
+    clean.ctx.settings.update({"locations.region": "kanto"})
+    for mode, w, h_ in (("compact", 360, 520), ("standard", 480, 640), ("expanded", 820, 700)):
         p = browser.new_context(viewport={"width": w, "height": h_}).new_page()
         errs = []
         p.on("pageerror", lambda e: errs.append(str(e)))
         p.goto(clean.srv.base_url + f"?token={clean.ctx.token}&popout=locations&mode={mode}&shell=browser#/")
-        p.wait_for_selector(".map-box img.map-img")
-        click_feature(p, "r1")
+        p.wait_for_selector(".loc-card")
+        open_card(p, "Route 1")
         p.wait_for_selector(".loc-detail .loc-enc tbody tr")
-        assert p.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+        assert p.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), mode
         assert not errs
         p.context.close()
+
+
+def test_map_assets_and_personal_marks_are_kept(clean):
+    # interactive maps are gone from the UI, but the shipped assets and personal map data stay available
+    root = Path(__file__).resolve().parents[2]
+    assert (root / "companion" / "data" / "maps" / "geometry.json").is_file()
+    assert any((root / "companion" / "data" / "maps" / "game").glob("*.png"))
+    assert clean.ctx.region_maps.layout("hoenn") is not None
 
 
 def test_no_rom_or_dump_files_in_repository():
@@ -195,21 +204,3 @@ def test_no_rom_or_dump_files_in_repository():
     media = (".png", ".jpg", ".jpeg", ".webp", ".webm", ".mp4", ".gif")
     assert not [f for f in files if ("synergy" in f.lower() or "serebii" in f.lower() or "screenshot" in f.lower()) and f.lower().endswith(media)]
     assert not [f for f in files if f.lower().endswith((".gba", ".nds", ".zip", ".7z"))]
-
-
-def test_in_game_and_companion_styles(clean, pg):
-    clean.ctx.settings.update({"locations.style": "game", "locations.maps": {}})
-    pg.goto(clean.url("#/tools/locations?region=kanto"))
-    pg.wait_for_selector(".map-box img.map-img")
-    assert "/game/kanto.png" in pg.locator(".map-img").get_attribute("src")
-    pg.get_by_role("button", name="In-game map").click()
-    _until(pg, "document.querySelector('.map-img') && document.querySelector('.map-img').src.includes('kanto.svg')")
-    click_feature(pg, "r1")
-    pg.wait_for_selector(".loc-detail .loc-enc tbody tr")
-    assert pg.locator(".loc-detail h2").inner_text() == "Route 1"
-    pg.get_by_role("button", name="Companion map").click()
-    _until(pg, "document.querySelector('.map-img').src.includes('game/kanto.png')")
-    pg.locator('.loc-tabs [data-region="unova"]').click()
-    _until(pg, "document.querySelector('.map-img') && document.querySelector('.map-img').src.includes('unova.svg')")
-    assert pg.get_by_role("button", name="In-game map").count() == 0    # no in-game Unova artwork was located
-    assert not pg.errors

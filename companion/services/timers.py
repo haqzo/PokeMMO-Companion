@@ -23,6 +23,9 @@ import uuid
 from ..storage import utcnow
 
 KIND = "timer"
+PRESET_KIND = "timer_preset"
+MAX_PRESETS = 40
+OWNER_KEYS = ("kind", "guide", "step", "run", "cycle", "template", "label")
 MAX_TIMERS = 50
 MAX_SECONDS = 99 * 3600 + 59 * 60 + 59
 PRESETS = [("5 min", 300), ("15 min", 900), ("30 min", 1800), ("1 h", 3600)]
@@ -92,11 +95,77 @@ class TimerService:
         rem = self.remaining(t)
         return {**t, "remaining": round(rem, 3), "progress": round(1 - rem / t["duration"], 4) if t["duration"] else 1}
 
-    def list(self) -> dict:
+    def list(self, guide: str | None = None) -> dict:
+        """All timers (the standalone Timers tool shows every timer, including those started from guides), or only the
+        timers belonging to one guide (guide key such as "cg:<id>" or "story:<run>:<region>")."""
         with self._lock:
             ts = sorted(self.timers.values(), key=lambda t: (t.get("order", 0), t["created_at"]))
+            if guide:
+                ts = [t for t in ts if (t.get("owner") or {}).get("guide") == guide]
             return {"timers": [self.view(t) for t in ts], "presets": [{"label": l, "seconds": s} for l, s in PRESETS],
-                    "server_wall": self.wall(), "clock": self.clock_name}
+                    "user_presets": self.presets(), "server_wall": self.wall(), "clock": self.clock_name}
+
+    # ---------------------------------------------------------- owners (guides) and presets
+    @staticmethod
+    def clean_owner(owner) -> dict | None:
+        """A timer started from a guide remembers where it belongs: guide, step, character run, recurring cycle and the
+        guide's timer template. Different runs / cycles therefore never share a timer."""
+        if owner is None:
+            return None
+        if not isinstance(owner, dict) or owner.get("kind") not in ("guide",) or not isinstance(owner.get("guide"), str):
+            raise TimerError("Invalid timer owner")
+        out = {}
+        for k in OWNER_KEYS:
+            v = owner.get(k)
+            if v is None or v == "":
+                continue
+            if not isinstance(v, (str, int)) or len(str(v)) > 80:
+                raise TimerError(f"Invalid timer owner field {k}")
+            out[k] = str(v)
+        return out
+
+    def find(self, owner: dict) -> dict | None:
+        """The timer instance for one guide template in one run/cycle (or None if the player never started one)."""
+        keys = ("guide", "step", "run", "cycle", "template")
+        with self._lock:
+            for t in self.timers.values():
+                o = t.get("owner") or {}
+                if all(o.get(k) == owner.get(k) for k in keys):
+                    return self.view(t)
+        return None
+
+    def attach(self, tid: str, owner: dict | None) -> dict:
+        """Attach an existing standalone timer to a guide (or detach with owner=None). Its time keeps running."""
+        with self._lock:
+            t = self.get(tid)
+            t["owner"] = self.clean_owner(owner)
+            self._save(t)
+            self._publish("changed", t)
+            return self.view(t)
+
+    def presets(self) -> list[dict]:
+        out = []
+        for doc in self.store.list_documents(PRESET_KIND):
+            d = doc["data"] or {}
+            out.append({"id": doc["id"], "label": doc["name"], "seconds": int(d.get("seconds", 0)), "repeat": bool(d.get("repeat")),
+                        "sound": bool(d.get("sound", True)), "notify": bool(d.get("notify", True))})
+        return sorted(out, key=lambda p: (p["seconds"], p["label"].lower()))
+
+    def save_preset(self, label, seconds, repeat=False, sound=True, notify=True, pid: str | None = None) -> dict:
+        if pid is None and len(self.store.list_documents(PRESET_KIND)) >= MAX_PRESETS:
+            raise TimerError(f"You can keep up to {MAX_PRESETS} presets")
+        pid = pid or uuid.uuid4().hex[:10]
+        doc = self.store.put_document(PRESET_KIND, pid, self._clean_name(label),
+                                      {"seconds": self._clean_duration(seconds), "repeat": bool(repeat), "sound": bool(sound), "notify": bool(notify)})
+        if self.bus:
+            self.bus.publish("timers", {"what": "presets"})
+        return {"id": doc["id"], "label": doc["name"], **doc["data"]}
+
+    def delete_preset(self, pid: str) -> bool:
+        ok = self.store.delete_document(PRESET_KIND, pid)
+        if self.bus:
+            self.bus.publish("timers", {"what": "presets"})
+        return ok
 
     def get(self, tid: str) -> dict:
         t = self.timers.get(tid)
@@ -120,7 +189,7 @@ class TimerService:
             raise TimerError("Duration must be between 1 second and 99:59:59")
         return s
 
-    def create(self, name="", seconds=300, repeat=False, sound=True, notify=True, start=False) -> dict:
+    def create(self, name="", seconds=300, repeat=False, sound=True, notify=True, start=False, owner=None) -> dict:
         with self._lock:
             if len(self.timers) >= MAX_TIMERS:
                 raise TimerError(f"You can keep up to {MAX_TIMERS} timers")
@@ -128,7 +197,8 @@ class TimerService:
             t = {"id": uuid.uuid4().hex[:10], "name": self._clean_name(name), "duration": dur, "remaining": dur,
                  "repeat": bool(repeat), "sound": bool(sound), "notify": bool(notify), "state": "idle", "ends_at": None,
                  "created_at": utcnow(), "completed_at": None, "late_by": 0, "cycles": 0, "last_event": None,
-                 "order": max([x.get("order", 0) for x in self.timers.values()] + [0]) + 1, "pinned": False}
+                 "order": max([x.get("order", 0) for x in self.timers.values()] + [0]) + 1, "pinned": False,
+                 "owner": self.clean_owner(owner)}
             self.timers[t["id"]] = t
             if start:
                 self._start(t)
@@ -182,7 +252,7 @@ class TimerService:
                 self._anchor.pop(tid, None)
                 t.update(state="idle", remaining=t["duration"], ends_at=None, completed_at=None, late_by=0)
             elif act == "duplicate":
-                c = self.create(t["name"] + " (copy)", t["duration"], t["repeat"], t["sound"], t["notify"])
+                c = self.create(t["name"] + " (copy)", t["duration"], t["repeat"], t["sound"], t["notify"])  # copies are standalone
                 return c
             else:
                 raise TimerError("Unknown action")
@@ -240,7 +310,7 @@ class TimerService:
         payload = {"id": t["id"], "kind": "timer", "title": f"Timer finished: {t['name']}", "line": (
             "Repeats — next round started." if t["repeat"] else "Your timer is up.") + late_txt,
                    "reported": utcnow(), "is_test": False, "species_icon": None, "event": event,
-                   "route": "#/tools/timers", "open_label": "Open Timers", "meta": "Tools › Timers (your own timer)",
+                   **self._where(t),
                    "sound": bool(t["sound"]) and not quiet,
                    "corner": self.settings.get("notify.toast_corner"), "duration": self.settings.get("notify.toast_duration"),
                    "opacity": self.settings.get("notify.toast_opacity"), "screen": self.settings.get("notify.toast_screen")}
@@ -263,6 +333,18 @@ class TimerService:
         if route in ("os", "both") and self.notifier:
             result["os"] = self.notifier.notify(payload["title"], payload["line"])
         return result
+
+    @staticmethod
+    def _where(t: dict) -> dict:
+        """Where a completion notification leads: the guide that owns the timer, or the Timers tool."""
+        o = t.get("owner") or {}
+        g = o.get("guide") or ""
+        if g.startswith("cg:"):
+            return {"route": f"#/guides/mine/{g[3:]}", "open_label": "Open guide", "meta": f"Guide timer · {o.get('label') or 'My guide'}"}
+        if g.startswith("story:"):
+            region = g.split(":")[-1]
+            return {"route": f"#/guides/storyline?region={region}", "open_label": "Open guide", "meta": f"Storyline guide timer · {region.title()}"}
+        return {"route": "#/tools/timers", "open_label": "Open Timers", "meta": "Tools › Timers (your own timer)"}
 
     def claim_sound(self, event: str) -> bool:
         """The first window to ask for an event plays the chime; every later window is told not to."""

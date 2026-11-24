@@ -37,6 +37,7 @@ DEFAULTS: dict[str, Any] = {
     "pokedex.filters": {},
     # Guides
     "guides.active_run": None,
+    "guides.extras_open": True,              # storyline: "Timers & team for this region" panel expanded
     # Live / notifications
     "live.ntfy.enabled": False,              # opt-in only
     "live.swarm_estimate_minutes": 20,       # provisional swarm duration estimate (community reports disagree: ~15/20/30)

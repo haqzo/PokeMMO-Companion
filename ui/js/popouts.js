@@ -145,7 +145,7 @@ function mainRoute() {
   return { storyline: '#/guides?jump=1', pokedex: hash.startsWith('species/') ? '#/pokedex/' + hash.split('/')[1] : '#/pokedex', reports: '#/live/reports',
     typechart: '#/tools/typechart', natures: '#/tools/natures', breeding: '#/tools/breeding', legendaries: '#/live/legendaries', cave: '#/live/cave',
     notes: '#/tools/notes' + (hash.startsWith('note/') ? '/' + hash.split('/')[1] : ''), items: '#/tools/items' + (hash.startsWith('item/') ? '/' + hash.split('/')[1] : ''),
-    showcase: '#/collection/showcases', customguide: '#/tools/cguides', locations: '#/tools/locations', box: '#/collection', calculator: '#/tools/calculator', timers: '#/tools/timers' }[POPOUT] || '#/home';
+    showcase: '#/collection/showcases', customguide: '#/guides/mine', locations: '#/tools/locations', box: '#/collection', calculator: '#/tools/calculator', timers: '#/tools/timers' }[POPOUT] || '#/home';
 }
 
 async function renderBody() {
@@ -168,7 +168,7 @@ async function storyline(el) {
   const runs = await get('/api/guides/runs');
   const run = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
   if (!run) { mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'objective' }, 'No character run yet.'),
-    h('button', { class: 'btn', onclick: () => openInMain('#/guides') }, 'Create one in Guides'))); return; }
+    h('button', { class: 'btn', onclick: () => openInMain('#/guides/storyline') }, 'Create one in Guides'))); return; }
   const region = storyRegion || run.last_region;
   const st = await get(`/api/guides/runs/${run.id}/state?region=${region}`);
   const steps = st.steps.filter((s) => st.show_optional || s.mandatory !== false);

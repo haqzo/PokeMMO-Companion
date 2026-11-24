@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .services.region_maps import REGIONS, RegionMapError
 from .services.timers import TimerError
+from .services.guide_extras import GuideExtrasError
 
 
 def register(r, ctx, ApiError, Request) -> None:
@@ -14,7 +15,7 @@ def register(r, ctx, ApiError, Request) -> None:
                 return fn(req)
             except RegionMapError as exc:
                 raise ApiError(400, str(exc))
-            except TimerError as exc:
+            except (TimerError, GuideExtrasError) as exc:
                 raise ApiError(400, str(exc))
         return run
 
@@ -126,14 +127,53 @@ def register(r, ctx, ApiError, Request) -> None:
     # ------------------------------------------------------------ timers
     def timers_list(req):
         ctx.timers.tick()  # also reconciles when no background thread runs (tests, browser self-check)
-        return ctx.timers.list()
+        return ctx.timers.list(req.q("guide") or None)
     add("GET", "/api/timers", guard(timers_list))
 
     def timers_create(req):
         b = req.body or {}
         return ctx.timers.create(b.get("name", ""), b.get("seconds", 300), b.get("repeat", False), b.get("sound", True),
-                                 b.get("notify", True), b.get("start", False))
+                                 b.get("notify", True), b.get("start", False), b.get("owner"))
     add("POST", "/api/timers", guard(timers_create))
+
+    add("GET", "/api/timers/presets", guard(lambda req: {"presets": ctx.timers.presets()}))
+
+    def preset_save(req):
+        b = req.body or {}
+        return ctx.timers.save_preset(b.get("label", ""), b.get("seconds", 300), b.get("repeat", False), b.get("sound", True),
+                                      b.get("notify", True), req.params.get("pid"))
+    add("POST", "/api/timers/presets", guard(preset_save))
+    add("PUT", "/api/timers/presets/<pid>", guard(preset_save))
+    add("DELETE", "/api/timers/presets/<pid>", guard(lambda req: {"ok": ctx.timers.delete_preset(req.params["pid"])}))
+
+    def timer_owner(req):
+        return ctx.timers.attach(req.params["tid"], (req.body or {}).get("owner"))
+    add("PUT", "/api/timers/<tid>/owner", guard(timer_owner))
+
+    add("GET", "/api/dex/moves", lambda req: {"moves": [{"name": m["name"], "type": m.get("type"), "category": m.get("category"),
+                                                         "power": m.get("power")} for m in ctx.dex.skills()]})
+
+    def cg_cycle(req):
+        """The active cycle of one of My Guides (created when missing), so a guide timer can belong to it."""
+        gid = req.params["gid"]
+        ctx.cguides.get(gid)
+        return ctx.cguides.active_cycle(gid, create=True)
+    add("POST", "/api/cguides/<gid>/cycle", cg_cycle)
+
+    # ------------------------------------------------------------ guide extras (timers + team attached to a guide)
+    from urllib.parse import unquote   # the router does not decode path segments ("cg%3A…" from encodeURIComponent)
+
+    def extras_get(req):
+        return ctx.guide_extras.get(unquote(req.params["key"]))
+    add("GET", "/api/guide-extras/<key>", guard(extras_get))
+
+    def extras_put(req):
+        key = unquote(req.params["key"])
+        out = ctx.guide_extras.put(key, req.body or {})
+        ctx.bus.publish("guide_extras", {"key": key}, origin=req.q("origin"))
+        return out
+    add("PUT", "/api/guide-extras/<key>", guard(extras_put))
+    add("GET", "/api/teams/<tid>/guides", guard(lambda req: {"guides": ctx.guide_extras.guides_using_team(req.params["tid"])}))
 
     def timers_update(req):
         b = {k: v for k, v in (req.body or {}).items() if k in ("name", "seconds", "repeat", "sound", "notify", "order", "pinned")}

@@ -451,7 +451,14 @@ def build_router(ctx: AppContext) -> Router:
             raise ApiError(404, "Unknown document kind")
         doc_id = req.params.get("doc") or uuid.uuid4().hex[:10]
         name = str(req.json("name", "Untitled"))[:60] or "Untitled"
-        doc = ctx.storage.put_document(kind, doc_id, name, req.json("data", {}))
+        data = req.json("data", {})
+        if kind == "team":
+            from .services.teams import normalize_team, TeamError
+            try:
+                data = normalize_team(data)
+            except TeamError as exc:
+                raise ApiError(400, str(exc))
+        doc = ctx.storage.put_document(kind, doc_id, name, data)
         ctx.bus.publish("documents", {"kind": kind, "id": doc_id}, origin=req.q("origin"))
         return doc
 

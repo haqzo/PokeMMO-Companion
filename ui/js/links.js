@@ -6,11 +6,11 @@ export const LINK_META = {
   species: { label: 'Pokémon', icon: 'dex', route: (r) => '#/pokedex/' + r },
   item: { label: 'Item', icon: 'bag', route: (r) => '#/tools/items/' + r },
   location: { label: 'Location', icon: 'map', route: (r) => '#/tools/locations/' + encodeURIComponent(r) },
-  custom_guide: { label: 'My guide', icon: 'list', route: (r) => '#/tools/cguides/' + r },
+  custom_guide: { label: 'My guide', icon: 'list', route: (r) => '#/guides/mine/' + r },
   owned: { label: 'Box entry', icon: 'box', route: (r) => '#/collection/pokemon/' + r },
   note: { label: 'Note', icon: 'note', route: (r) => '#/tools/notes/' + r },
   breeding_plan: { label: 'Breeding plan', icon: 'egg', route: (r) => `#/tools/breeding?tab=plan&plan=${r}` },
-  guide: { label: 'Storyline guide', icon: 'guides', route: () => '#/guides' },
+  guide: { label: 'Storyline guide', icon: 'guides', route: () => '#/guides/storyline' },
   guide_step: { label: 'Guide step', icon: 'guides', route: () => '#/guides?jump=1' },
 };
 

@@ -296,29 +296,45 @@ def _reports(app):
     return ing("g1", "Gyarados", "Kanto, Route 12", "alphapings"), ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarmpings")
 
 
-def test_home_and_live_use_library_art_selectively(app, browser, library):  # noqa: F811
+def test_home_animates_likely_active_reports_and_live_stays_still(app, browser, library):  # noqa: F811
+    """2026-11-24: Home animates Alpha/Swarm sprites while the estimated window is open (counted from the earliest
+    report); Live always shows still images; a report naming several Pokémon gets the neutral icon."""
     g, amb = _reports(app)
     t = app.ctx.live.create_test("alpha")
     ctx = browser.new_context(viewport={"width": 1600, "height": 1000})
     pg = ctx.new_page()
     pg.goto(app.url("#/home"))
-    pg.wait_for_selector(".home-live .cur-card .still-art img")
+    pg.wait_for_selector(".home-live .cur-card .rep-sprite img")
     g_card = pg.locator(".home-live .cur-card", has_text="Gyarados")
-    assert g_card.locator(".still-art img").get_attribute("src").startswith("/assets/library/static/130.png")
+    g_card.locator("img.rep-ani").wait_for()
+    assert g_card.locator("img.rep-ani").get_attribute("src").startswith("/assets/library/ani/130.gif")
     amb_card = pg.locator(".home-live .cur-card", has_text="Swarm")
     assert amb_card.locator(".rep-fallback").count() == 1 and amb_card.locator("img").count() == 0
-    assert pg.locator(".home-live img[src*='.gif']").count() == 0  # report cards on Home never animate
     assert "Kanto · Route 12" in g_card.inner_text()
+    # a refresh (countdown / new report) keeps the same animated element: the animation does not restart
+    pg.evaluate("document.querySelector('.home-live img.rep-ani').dataset.mark = 'kept'")
+    app.ctx.live.ingest({"id": "g2", "event": "message", "time": int(__import__('time').time()) - 60, "topic": "alphapings",
+                         "title": "Gyarados", "message": "Kanto, Route 12"})          # duplicate report: no restart
+    pg.wait_for_timeout(1200)
+    assert pg.locator(".home-live img.rep-ani[data-mark=kept]").count() == 1
     pg.goto(app.url("#/live/reports/" + g["id"]))
-    pg.wait_for_selector(".rep-detail-head img.rep-ani")
-    assert pg.locator(".rep-detail-head img.rep-ani").get_attribute("src").startswith("/assets/library/ani/130.gif")
-    assert pg.locator("img[src*='.gif']").count() == 1  # exactly one animation on the page
+    pg.wait_for_selector(".rep-detail-head .still-art img")
+    assert pg.locator("img[src*='.gif']").count() == 0          # Live never animates
     assert "TEST · NOT REAL" in pg.locator(".report-row", has_text="TEST — demo").inner_text().upper()
     ctx.close()
     rm = browser.new_context(viewport={"width": 1600, "height": 1000}, reduced_motion="reduce")
     pg = rm.new_page()
-    pg.goto(app.url("#/live/reports/" + g["id"]))
-    pg.wait_for_selector(".rep-detail-head .still-art img")
-    assert pg.locator("img[src*='.gif']").count() == 0
+    pg.goto(app.url("#/home"))
+    pg.wait_for_selector(".home-live .cur-card .still-art img")
+    assert pg.locator(".home-live img[src*='.gif']").count() == 0
     rm.close()
+    # an expired estimate is still (static immediately)
+    app.ctx.storage.execute("DELETE FROM reports")
+    app.ctx.live.ingest({"id": "old", "event": "message", "time": int(__import__('time').time()) - 80 * 60, "topic": "alphapings",
+                         "title": "Gyarados", "message": "Kanto, Route 12"})
+    pg = browser.new_context(viewport={"width": 1600, "height": 1000}).new_page()
+    pg.goto(app.url("#/home"))
+    pg.wait_for_selector(".home-live .cur-card .still-art img")
+    assert pg.locator(".home-live img[src*='.gif']").count() == 0
+    pg.context.close()
     app.ctx.storage.execute("DELETE FROM reports")

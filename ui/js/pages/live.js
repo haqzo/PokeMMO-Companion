@@ -1,6 +1,6 @@
 // Live workspace (docs/design/10–13): Reports, Legendaries, Altering Cave.
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, relTime, fmtDate, cap, tabs, seg, toast, confirmDialog, modal,
-  on, extLink, debounce, typeChips, spriteOrFallback, stillArt } from '../core.js';
+  on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite } from '../core.js';
 import { go, popoutButton } from '../shell.js';
 
 let unsub = [];
@@ -42,13 +42,13 @@ export function startTimers(root, skewMs, onExpire) {
 }
 const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 /** Card for one current Alpha/Swarm (several identical reports are one card, timed from the earliest). */
-export function currentCard(g, { compact = false } = {}) {
+export function currentCard(g, { compact = false, animate = false } = {}) {
   const st = g.status;
   const sure = g.species_name && g.species_match !== 'ambiguous';  // a report naming several Pokémon shows its own title
   const where = [g.region && cap(g.region), g.location].filter(Boolean).join(' · ');
   return h('button', { class: `cur-card kind-${g.kind}${compact ? ' compact' : ''}`, dataset: { report: g.id, state: st.state },
     onclick: () => go('#/live/reports/' + g.id), 'aria-label': `${g.kind} ${sure ? g.species_name : g.title}, ${where}, ${st.label}` },
-  reportSprite(g),
+  reportSprite(g, { animate: animate && likelyActive(g) }),
   h('div', { class: 'cur-text' },
     h('div', { class: 'row tight' }, h('span', { class: `kind-label kind-${g.kind}` }, g.kind),
       h('span', { class: `cur-state ${STATE_CLASS[st.state]}` }, st.state === 'recent' ? 'Likely active' : st.label)),
@@ -180,16 +180,36 @@ async function renderReports(el, selectedId, src) {
 
 /** Pokémon sprite for a report, or a neutral fallback when the report doesn't name one species clearly.
  *  Box icons are 36 px art and battle sprites 96 px; CSS shows them at whole-number scales so pixels stay sharp. */
-export function reportSprite(r, { battle = false } = {}) {
+/**
+ * Home only: a report is "likely active" while its estimated window is still open — counted from the EARLIEST report
+ * of the group (duplicates never restart it) and only when the report carries its own time (a report time is still
+ * not a confirmed spawn time). Reports without a usable time, expired ones and test entries are not.
+ */
+export function likelyActive(g, nowMs = Date.now()) {
+  const st = g.status || {};
+  return !g.is_test && st.state === 'recent' && st.start_basis === 'report time' && !!st.ends_at && Date.parse(st.ends_at) > nowMs;
+}
+export function reportSprite(r, { battle = false, animate = false } = {}) {
   const kind = r.is_test ? 'test' : r.kind;
   const wrap = (child, cls = '') => h('div', { class: 'rep-sprite' + (battle ? ' battle' : '') + cls }, child);
-  // Detail view: one animated Gen V sprite (your sprite library) unless motion is off; rows: still images only.
-  if (battle && r.species_ani && motionAllowed()) {
-    const img = h('img', { class: 'pixel rep-ani', src: r.species_ani, alt: r.species_name || '', decoding: 'async' });
-    img.addEventListener('load', () => { const k = Math.min(2, 180 / Math.max(img.naturalWidth, img.naturalHeight));
-      img.style.width = Math.round(img.naturalWidth * k) + 'px'; img.style.height = Math.round(img.naturalHeight * k) + 'px'; });
-    img.addEventListener('error', () => img.replaceWith(spriteFallback(r, kind)));
-    return wrap(img, ' library');
+  // A report naming several Pokémon gets the neutral icon, never a guessed sprite.
+  if (r.species_match === 'ambiguous') return wrap(spriteFallback(r, kind));
+  // Animated Gen V sprite (your sprite library) only where asked (Home, likely-active reports) and motion is allowed.
+  // Live itself always shows still images.
+  if (animate && r.species_ani && motionAllowed()) {
+    const holder = wrap(null, ' library animated');
+    const img = h('img', { class: 'pixel rep-ani', src: r.species_ani, alt: r.species_name || '', decoding: 'async', style: { visibility: 'hidden' } });
+    const box = h('div', { class: 'still-art' }, img);
+    holder.append(box);
+    img.addEventListener('load', () => {
+      const size = holder.clientWidth || 72;
+      const f = fitSprite(img.naturalWidth, img.naturalHeight, null, 'm', size, size);
+      Object.assign(box.style, { width: size + 'px', height: size + 'px' });
+      Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
+      box.classList.toggle('smooth', f.smooth);
+    });
+    img.addEventListener('error', () => holder.replaceWith(reportSprite(r, { battle })));
+    return holder;
   }
   if (r.species_still) {
     const holder = wrap(null, ' library');

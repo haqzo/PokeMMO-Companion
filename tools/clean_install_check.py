@@ -4,11 +4,12 @@
 Starts the Companion on a brand-new, empty data folder with NO PokeMMO dump, NO ROMs and NO network
 (outgoing connections other than to this computer are refused), then prints:
   * Pokédex / item / encounter counts that are available immediately,
-  * the five built-in region maps (files present, integrity),
-  * per region: eligible locations, locations linked to clickable map areas, click targets,
-    encounter rows reachable from the map / all rows,
-  * any broken links (map areas pointing to unknown locations),
-  * one real click result per region (route → its PokeMMO encounters), through the HTTP API.
+  * coverage against the bundled-data baseline (species, moves, items, locations, encounter rows),
+  * the shipped map assets (files present, integrity — kept in the repository although the player UI
+    no longer shows interactive maps since 2026-11-24),
+  * per region: locations reachable from the Location Explorer directory (place cards + ungrouped
+    locations) / all locations, encounter rows reachable / all rows, broken ids,
+  * one real directory result per region (first route card → its PokeMMO encounters), through the HTTP API.
 
     python tools/clean_install_check.py
 Exit status 0 only if every check passes.
@@ -44,7 +45,9 @@ os.environ.pop("POKEMMO_DUMPS_DIR", None)
 from companion.app import AppContext  # noqa: E402
 from companion.server import CompanionServer  # noqa: E402
 
-CLICKS = {"kanto": "r1", "johto": "r29", "hoenn": "r101", "sinnoh": "r201", "unova": "r1u"}
+FIRST = {"kanto": "r1", "johto": "r29", "hoenn": "r101", "sinnoh": "r201", "unova": "r1u"}
+# Bundled-data baseline (docs/build/16): a clean install must offer at least this much.
+BASELINE = {"species": 649, "moves": 559, "items": 2090, "locations": 629, "rows": 33405}
 
 
 def main() -> int:
@@ -69,14 +72,21 @@ def main() -> int:
             print(f"Pokédex: {len(ctx.dex.species)} species with stats/moves · source {st.get('source_kind')} · client data dated {(st.get('manifest') or {}).get('dump_date')}")
             if st.get("source_kind") != "bundled" or len(ctx.dex.species) < 649:
                 failures.append("bundled Pokédex data not active")
-            print(f"Items: {len(ctx.items.catalog.get('groups', [])) if ctx.items.catalog else 0} · moves: {len(ctx.dex.extras.get('skills', []))}")
+            n_items = len(ctx.items.catalog.get('groups', [])) if ctx.items.catalog else 0
+            n_moves = len(ctx.dex.extras.get('skills', []))
+            print(f"Items: {n_items} · moves: {n_moves}")
             locs = api("/api/locations")["locations"]
             all_ids = {l["id"] for l in locs}
             total_rows = sum(len(ctx.dex._locations[i]["rows"]) for i in all_ids)
             print(f"Encounter locations: {len(locs)} · encounter rows: {total_rows}")
+            have = {"species": len(ctx.dex.species), "moves": n_moves, "items": n_items, "locations": len(locs), "rows": total_rows}
+            for k, need in BASELINE.items():
+                if have[k] < need:
+                    failures.append(f"{k}: {have[k]} < baseline {need}")
+            print("Baseline: " + ", ".join(f"{k} {have[k]}/{v}" for k, v in BASELINE.items()))
             built = api("/api/maps/builtin")
             maps_dir = ROOT / "companion" / "data" / "maps"
-            print("\nMaps")
+            print("\nShipped map assets (kept; not shown as interactive maps)")
             for m in built["maps"]:
                 f = maps_dir / m["file"]
                 ok = f.is_file() and hashlib.sha256(f.read_bytes()).hexdigest() == m["sha256"]
@@ -85,42 +95,39 @@ def main() -> int:
                 print(f"  {m['id']:16} {m['label']:22} {m['w']}×{m['h']} file {'ok' if ok else 'MISSING/CHANGED'} · served {'ok' if served else 'NO'} · {len(m['features'])} features")
                 if not (ok and served):
                     failures.append(f"map {m['id']} not available")
-            print("\nCoverage per region")
-            print("  region   map style  linked/eligible  click targets  rows on map/all rows  broken ids")
-            for region, style in [(r, st) for r in ("kanto", "johto", "hoenn", "sinnoh", "unova") for st in ("in-game", "companion")]:
-                rmaps = [m for m in built["maps"] if m["region"] == region and (m.get("style") == "game") == (style == "in-game")]
-                if not rmaps and style == "in-game":
-                    print(f"  {region:7}  {style:9}  — no in-game artwork located; the Companion map is used")
-                    continue
-                if not rmaps:
-                    failures.append(f"no map for {region}")
-                    continue
+            print("\nLocation Explorer directory per region (no interactive map in the player UI)")
+            print("  region   place cards  reachable/all locations  rows reachable/all  broken ids")
+            companion = [m for m in built["maps"] if m.get("style") != "game"]
+            for region in ("kanto", "johto", "hoenn", "sinnoh", "unova"):
                 elig = {l["id"] for l in locs if l["region"] == region}
-                linked, broken, targets = set(), [], 0
-                for m in rmaps:
+                grouped, broken, cards = set(), [], 0
+                for m in (m for m in companion if m["region"] == region):
                     for f in m["features"]:
-                        targets += f["kind"] != "list"
-                        for i in f["location_ids"]:
-                            (linked.add(i) if i in all_ids else broken.append(i))
+                        ids = [i for i in f["location_ids"]]
+                        cards += 1
+                        for i in ids:
+                            (grouped.add(i) if i in all_ids else broken.append(i))
+                ungrouped = elig - grouped           # listed as their own card, so every location is reachable
+                cards += len(ungrouped)
+                reach = (elig & grouped) | ungrouped
                 rows_all = sum(len(ctx.dex._locations[i]["rows"]) for i in elig)
-                rows_map = sum(len(ctx.dex._locations[i]["rows"]) for i in elig & linked)
-                print(f"  {region:7}  {style:9}  {len(elig & linked):4}/{len(elig):<4}        {targets:4}          {rows_map:5}/{rows_all:<5}          {len(broken)}")
-                if broken or len(elig & linked) != len(elig):
-                    failures.append(f"{region}: {len(elig) - len(elig & linked)} unlinked, {len(broken)} broken ids")
-            print("\nOne click per region (map area → PokeMMO encounters)")
-            for (region, fid), style in [(x, st) for x in CLICKS.items() for st in ("game", "companion")]:
-                feat = next((f for m in built["maps"] if m["region"] == region and (m.get("style") == "game") == (style == "game")
-                             for f in m["features"] if f["id"] == fid), None)
+                rows_reach = sum(len(ctx.dex._locations[i]["rows"]) for i in reach)
+                print(f"  {region:7}  {cards:6}       {len(reach):4}/{len(elig):<4}               {rows_reach:5}/{rows_all:<5}       {len(broken)}")
+                if broken or reach != elig or not elig:
+                    failures.append(f"{region}: {len(elig - reach)} unreachable, {len(broken)} broken ids")
+            print("\nFirst route card per region → PokeMMO encounters")
+            for region, fid in FIRST.items():
+                feat = next((f for m in companion if m["region"] == region for f in m["features"] if f["id"] == fid), None)
                 if feat is None:
-                    print(f"  {region:7} {style:9} (no in-game artwork for this region)")
+                    failures.append(f"{region}: no '{fid}' place")
                     continue
                 d = api("/api/locations/" + urllib.request.quote(feat["location_ids"][0], safe=""))
                 methods = sorted({r["method"] for r in d["rows"]})
                 sample = ", ".join(sorted({f"{r['name']} Lv{r['min']}-{r['max']}" for r in d["rows"]})[:4])
-                print(f"  {region:7} {style:9} click '{feat['name']}' → {d['id']} {d['name']}: {len({r['species_id'] for r in d['rows']})} Pokémon, "
+                print(f"  {region:7} '{feat['name']}' → {d['id']} {d['name']}: {len({r['species_id'] for r in d['rows']})} Pokémon, "
                       f"{len(d['rows'])} rows, methods {methods}; e.g. {sample}")
                 if not d["rows"]:
-                    failures.append(f"{region}: click on {feat['name']} shows no encounters")
+                    failures.append(f"{region}: {feat['name']} shows no encounters")
             sens = [p for p in ctx.paths.root.rglob("*") if p.suffix.lower() in (".gba", ".nds", ".zip")]
             print(f"\nROM / dump files in the data folder: {len(sens)}")
             if sens:

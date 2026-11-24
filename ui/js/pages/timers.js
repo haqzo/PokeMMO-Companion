@@ -13,6 +13,8 @@ export function fmt(sec) {
   const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
   return (hh ? hh + ':' + String(mm).padStart(2, '0') : String(mm)) + ':' + String(ss).padStart(2, '0');
 }
+export const ownerRoute = (o) => o.guide.startsWith('cg:') ? '#/guides/mine/' + o.guide.slice(3)
+  : o.guide.startsWith('story:') ? '#/guides/storyline?region=' + o.guide.split(':')[2] : '#/tools/timers';
 const STATE_LABEL = { idle: 'Ready', running: 'Running', paused: 'Paused', done: 'Finished' };
 
 function ring(progress, size) {
@@ -65,7 +67,8 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
       } },
     rg ? h('div', { class: 'tm-ringwrap' }, rg, timeEl) : null,
     h('div', { class: 'tm-main' },
-      h('div', { class: 'row tight' }, name, t.repeat ? h('span', { class: 'chip tiny', title: 'Starts again automatically' }, '↻ repeat') : null,
+      h('div', { class: 'row tight' }, name, t.owner && t.owner.label ? h('button', { class: 'chip tiny btnlike tm-owner', title: 'Started from this guide — open it',
+        onclick: () => go(ownerRoute(t.owner)) }, icon('guides'), t.owner.label) : null, t.repeat ? h('span', { class: 'chip tiny', title: 'Starts again automatically' }, '↻ repeat') : null,
         t.pinned ? h('span', { class: 'chip tiny' }, 'Quick') : null),
       compact ? h('div', { class: 'row tight' }, timeEl, bar) : null,
       h('div', { class: 'tiny muted tm-state' }, STATE_LABEL[t.state], t.state === 'done' && t.late_by >= 5 ? ' · finished while the Companion was closed or asleep' : '',
@@ -127,7 +130,11 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
     h('div', { class: 'row tight' }, hh, h('span', null, 'h'), mm, h('span', null, 'm'), ss, h('span', null, 's'),
       h('label', { class: 'row tight small' }, repeat, 'Repeat'), h('label', { class: 'row tight small' }, sound, 'Sound')),
     h('div', { class: 'row tight' }, h('button', { class: 'btn primary small', type: 'submit' }, icon('plus'), 'Add & start'),
-      h('button', { class: 'btn small', type: 'button', onclick: () => add(false) }, 'Add')));
+      h('button', { class: 'btn small', type: 'button', onclick: () => add(false) }, 'Add'),
+      h('button', { class: 'btn small ghost', type: 'button', title: 'Keep these settings as a reusable preset (also offered in guides)', onclick: async () => {
+        const secs = (Number(hh.value) || 0) * 3600 + (Number(mm.value) || 0) * 60 + (Number(ss.value) || 0);
+        try { await post('/api/timers/presets', { label: nameIn.value || fmt(secs), seconds: secs, repeat: repeat.checked, sound: sound.checked }); toast('Preset saved'); drawPresets(); }
+        catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Save as preset')));
 
   const showForm = variant !== 'compact';
   mount(el, h('div', { class: 'tm-wrap ' + variant },
@@ -140,10 +147,19 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
         'These are your own timers — not in-game spawn timers, and separate from Live’s estimates.')) : null));
   data = await get('/api/timers');
   syncedAt = performance.now();
-  mount(presets, data.presets.map((p) => h('button', { class: 'btn small', type: 'button', onclick: async () => {
-    await post('/api/timers', { name: p.label, seconds: p.seconds, start: true }); refresh(); } }, p.label)));
+  function drawPresets(list) {
+    const up = list || data.user_presets || [];
+    mount(presets, data.presets.map((p) => h('button', { class: 'btn small', type: 'button', onclick: async () => {
+      await post('/api/timers', { name: p.label, seconds: p.seconds, start: true }); refresh(); } }, p.label)),
+    up.map((p) => h('span', { class: 'tm-upreset' }, h('button', { class: 'btn small', type: 'button', title: `Start “${p.label}” (${fmt(p.seconds)})`, onclick: async () => {
+      await post('/api/timers', { name: p.label, seconds: p.seconds, repeat: p.repeat, sound: p.sound, notify: p.notify, start: true }); refresh(); } }, icon('star'), p.label),
+    variant === 'compact' ? null : h('button', { class: 'icon-btn tiny', 'aria-label': 'Delete preset ' + p.label, title: 'Delete preset', onclick: async () => {
+      if (await confirmDialog('Delete preset?', `“${p.label}” will be removed from your presets. Running timers are not affected.`, 'Delete', true)) { await api('DELETE', `/api/timers/presets/${p.id}`); drawPresets(); } } }, icon('close')))));
+    if (!list) get('/api/timers/presets').then((r) => { data.user_presets = r.presets; drawPresets(r.presets); }).catch(() => {});
+  }
+  drawPresets(data.user_presets);
   draw();
-  unsub.push(on('timers', () => refresh()));
+  unsub.push(on('timers', (p) => { if (p && p.what === 'presets') drawPresets(); else refresh(); }));
   unsub.push(on('timers.done', (p) => { live.textContent = p.title; refresh(); }));
   frame = requestAnimationFrame(loop);
   return { refresh };

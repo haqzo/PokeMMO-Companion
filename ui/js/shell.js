@@ -5,7 +5,7 @@ import * as home from './pages/home.js';
 import * as pokedex from './pages/pokedex.js';
 import * as tools from './pages/tools.js';
 import * as live from './pages/live.js';
-import * as guides from './pages/guides.js';
+import * as guides from './pages/guides-hub.js';
 import * as collection from './pages/collection.js';
 import * as settingsPage from './pages/settings.js';
 import { t, LANGS, lang } from './i18n.js';
@@ -149,6 +149,8 @@ export function renderChrome() {
 }
 
 function renderRoute() {
+  // old links keep working: My guides moved from Tools to Guides
+  if (/^#\/tools\/cguides(\/|\?|$)/.test(location.hash)) { location.replace(location.hash.replace('#/tools/cguides', '#/guides/mine')); return; }
   const r = parseRoute();
   const mod = PAGES[r.page];
   if (!mod) { go('#/home'); return; }
@@ -225,7 +227,7 @@ export const QA_TOOLS = {
   notes: { label: 'Notes', i18n: 'notes.title', icon: 'note', route: '#/tools/notes', popout: 'notes' },
   box: { label: 'My Pokémon', i18n: 'collection.mine', icon: 'box', route: '#/collection', popout: 'box' },
   showcase: { label: 'Showcase', i18n: 'showcase.title', icon: 'sparkle', route: '#/collection/showcases', popout: 'showcase' },
-  cguides: { label: 'My guides', i18n: 'cguide.title', icon: 'list', route: '#/tools/cguides', popout: 'customguide' },
+  cguides: { label: 'My guides', i18n: 'cguide.title', icon: 'list', route: '#/guides/mine', popout: 'customguide' },
   locations: { label: 'Location explorer', i18n: 'loc.title', icon: 'map', route: '#/tools/locations', popout: 'locations' },
   links: { label: 'Websites & links', i18n: 'links.title', icon: 'external', route: '#/tools/links' },
 };
@@ -239,7 +241,7 @@ const QA_PAGES = {
 export function qaInfo(item) {
   if (item.kind === 'tool') { const x = QA_TOOLS[item.id]; return x ? { ...x, label: x.i18n ? t(x.i18n) : x.label } : null; }
   if (item.kind === 'page') return QA_PAGES[item.id] || null;
-  if (item.kind === 'guide') return { label: 'Current guide step', icon: 'guides', route: '#/guides?jump=1', popout: 'storyline' };
+  if (item.kind === 'guide') return { label: 'Current guide step', icon: 'guides', route: '#/guides/storyline?jump=1', popout: 'storyline' };
   if (item.kind === 'pokemon') {
     const sp = (state.dexCache || []).find((s) => s.id === Number(item.id));
     return { label: sp ? sp.name : '#' + pad3(item.id), icon: 'dex', route: '#/pokedex/' + item.id, popout: 'pokedex',

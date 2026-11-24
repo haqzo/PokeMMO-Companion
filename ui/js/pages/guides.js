@@ -3,6 +3,7 @@ import { guideContext, shortcutFor, displayCombo } from '../shortcuts.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, tabs, toast, confirmDialog, modal, on, debounce, fmtDate, relTime, extLink } from '../core.js';
 import { go, openPopout } from '../shell.js';
 import { downloadJson } from '../components.js';
+import { guideExtras } from '../guide-extras.js';
 
 const REGIONS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
 let unsub = [];
@@ -40,7 +41,7 @@ export async function render(el, route) {
   mount(el, page);
   const runs = await get('/api/guides/runs');
   if (!runs.runs.length) {
-    page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Guides'), h('div', { class: 'sub' }, 'Storyline walkthroughs with your own per-character progress.'))),
+    page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'), h('div', { class: 'sub' }, 'Storyline walkthroughs with your own per-character progress. My Guides work without a run.'))),
       h('div', { class: 'card content-narrow stack', style: { maxWidth: '620px' } }, h('h2', { style: { margin: 0 } }, 'Create your first character run'),
         h('p', { class: 'muted', style: { margin: 0 } }, 'Type your character’s name. Each run keeps its own checkmarks in all five regions; you can create as many as you like.'),
         h('div', null, h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) render(el, route); } }, icon('plus'), 'Create run')),
@@ -55,7 +56,7 @@ export async function render(el, route) {
   Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => { if (el.isConnected && location.hash.startsWith('#/guides')) render(el, route); } });
   unsub.push(() => Object.assign(guideContext, { run: null, region: null, step: null, refresh: null }));
 
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Guides'), h('div', { class: 'sub' }, 'Every checkmark is yours to set — nothing is read from the game.')),
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'), h('div', { class: 'sub' }, 'Every checkmark is yours to set — nothing is read from the game.')),
     h('div', { class: 'actions' }, runSelector(runs, run, el, route),
       h('button', { class: 'btn', title: 'Open the Storyline popout', onclick: () => openPopout('storyline') }, icon('popout'), 'Storyline popout'))));
   const sk = ['guide.prev', 'guide.next', 'guide.toggle'].map((a) => shortcutFor(a));
@@ -66,7 +67,7 @@ export async function render(el, route) {
   page.append(h('div', { class: 'row wrap', style: { marginBottom: '12px' } }, tabs(REGIONS.map((r) => {
     const c = overview[r].mandatory.total ? overview[r].mandatory : overview[r].unclassified;
     return { id: r, label: cap(r), count: c.total ? `${c.done}/${c.total}` : undefined };
-  }), region, async (r) => { await api('PATCH', `/api/guides/runs/${run.id}`, { region: r }); go(`#/guides?region=${r}`); }, 'Regions')));
+  }), region, async (r) => { await api('PATCH', `/api/guides/runs/${run.id}`, { region: r }); go(`#/guides/storyline?region=${r}`); }, 'Regions')));
 
   const steps = st.steps;
   const done = new Set(st.done);
@@ -91,6 +92,12 @@ export async function render(el, route) {
       : `Progress counts main-story milestones only. Optional steps: ${st.counts.optional.done}/${st.counts.optional.total}. ${src.note}`),
     !st.sources.some((s) => s.id === 'imported') ? h('div', { class: 'small' }, 'Have your own walkthrough files? ', h('a', { href: '#/settings/data' }, 'Import them privately'), ' — they are parsed on this computer and never uploaded.') : null);
   page.append(header);
+  const gx = guideExtras({ key: `story:${run.id}:${region}`, title: `${cap(region)} storyline · ${run.display}`, run: run.id,
+    steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) });
+  unsub.push(gx.dispose);
+  page.append(h('details', { class: 'gx-story', open: setting('guides.extras_open') === false ? null : '' , ontoggle: (e) => saveSettings({ 'guides.extras_open': e.target.open }).catch(() => {}) },
+    h('summary', { class: 'small' }, 'Timers & team for this region'), gx.panel()));
+  gx.load().catch((e) => console.warn(e));
 
   if (st.changed.length) {
     page.append(h('div', { style: { marginBottom: '12px' } }, notice('warn', h('strong', null, `${st.changed.length} checked step(s) changed wording since you ticked them. `),
@@ -141,7 +148,7 @@ export async function render(el, route) {
       h('div', null, h('div', { class: 's-text' }, s.text),
         h('div', { class: 's-meta' }, s.id === st.active_step_id ? h('span', { class: 'badge corroborated plain' }, 'Current') : null,
           s.mandatory === false ? h('span', { class: 'chip' }, 'Optional') : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? ' (auto-tag)' : '')) : null,
-          s.source_url ? extLink(s.source_url, 'Official changelog') : null, changed ? h('span', { class: 'badge dump' }, 'Changed since checked') : null)),
+          s.source_url ? extLink(s.source_url, 'Official changelog') : null, changed ? h('span', { class: 'badge dump' }, 'Changed since checked') : null), gx.stepTimers(s.id)),
       s.id !== st.active_step_id ? h('button', { class: 'btn ghost small', title: 'Make this your current step', onclick: async () => {
         await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); render(el, route); } }, 'Set current') : h('span'));
   };

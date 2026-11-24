@@ -3,7 +3,7 @@ import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, se
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { loadList } from './pokedex.js';
-import { currentCard, startTimers } from './live.js';
+import { currentCard, startTimers, likelyActive } from './live.js';
 
 let unsub = [];
 let newsCache = null;
@@ -124,14 +124,31 @@ function liveCard(cur, el) {
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, 'Alpha & Swarm'), h('span', { class: 'tiny muted' }, 'recently reported'),
       h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, 'History', icon('chev')))), head, box);
-  let stop = null;
+  let stop = null, expiry = null, sprites = new Map();
   const draw = (c) => {
     const src = c.source;
     mount(head, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), h('span', { class: 'muted' },
       !src.enabled ? (c.current.length ? 'Feed off — showing reports received while it was on' : 'Feed off — no claim about current Alphas or Swarms') : src.status === 'connected' ? `Feed connected${src.last_success_at ? ' · last data ' + relTime(src.last_success_at) : ''}`
         : `Feed ${src.status}${src.last_success_at ? ' · last data ' + relTime(src.last_success_at) : ''} — reports may be missing`));
     const list = c.current.slice(0, 4);
-    mount(box, list.length ? list.map((g) => currentCard(g, { compact: true })) :
+    const skew = Date.parse(c.now) - Date.now();
+    // Sprites are kept between refreshes (same report group, same animated/still state) so an animation never
+    // restarts because the list or a countdown was refreshed.
+    const keep = new Map();
+    const cards = list.map((g) => {
+      const anim = likelyActive(g, Date.now() + skew);
+      const k = `${g.id}:${anim ? 'a' : 's'}`;
+      const node = currentCard(g, { compact: true, animate: anim });
+      const old = sprites.get(k);
+      if (old) node.querySelector('.rep-sprite').replaceWith(old);
+      keep.set(k, old || node.querySelector('.rep-sprite'));
+      return node;
+    });
+    sprites = keep;
+    clearTimeout(expiry);
+    const ends = list.filter((g) => likelyActive(g, Date.now() + skew)).map((g) => Date.parse(g.status.ends_at) - (Date.now() + skew));
+    if (ends.length) expiry = setTimeout(() => refresh(), Math.max(1000, Math.min(...ends) + 1000));   // switch to the still image when the estimate ends
+    mount(box, list.length ? cards :
       h('div', { class: 'small muted', style: { gridColumn: '1/-1', padding: '6px 2px' } }, src.enabled ? 'Nothing reported recently. This does not mean none are active.' : 'Connect the read-only report feed in Live to see community reports here.'));
     if (stop) stop();
     stop = startTimers(box, Date.parse(c.now) - Date.now(), () => refresh());
@@ -140,7 +157,7 @@ function liveCard(cur, el) {
   draw(cur);
   const every = setInterval(refresh, 60000);
   document.addEventListener('visibilitychange', refresh);
-  unsub.push(() => { clearInterval(every); document.removeEventListener('visibilitychange', refresh); if (stop) stop(); });
+  unsub.push(() => { clearInterval(every); clearTimeout(expiry); document.removeEventListener('visibilitychange', refresh); if (stop) stop(); });
   unsub.push(on('live.report', refresh));
   void el;
   return card;
