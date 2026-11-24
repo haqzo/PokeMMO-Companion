@@ -817,7 +817,7 @@ function moves(d) {
     type: (a, b) => (a.type || '~').localeCompare(b.type || '~') || a.name.localeCompare(b.name),
   };
   const counts = Object.fromEntries(MOVE_FILTERS.map(([k, , codes]) => [k, codes ? rows.filter((r) => r.methods.some((m) => codes.includes(m.code))).length : rows.length]));
-  const dash = (title) => h('span', { class: 'muted', title }, '—');
+  const dash = (title, text = '—') => h('span', { class: 'muted', title }, text);
   const draw = () => {
     const f = MOVE_FILTERS.find((x) => x[0] === ui.moveFilter) || MOVE_FILTERS[0];
     const list = rows.filter((r) => !f[2] || r.methods.some((m) => f[2].includes(m.code))).sort(cmp[ui.moveSort]);
@@ -834,7 +834,7 @@ function moves(d) {
           h('td', { class: 'mv-name' }, r.name),
           h('td', null, r.type ? typeChip(r.type, true) : dash(miss)),
           h('td', { class: 'small' }, r.category || dash(miss)),
-          h('td', { class: 'num' }, r.power ? r.power : r.verified_meta ? dash('No base power (status or variable)') : dash(miss)),
+          h('td', { class: 'num' }, r.power === 1 ? dash('Variable power (depends on the target or the situation)', 'var.') : r.power ? r.power : r.verified_meta ? dash('No base power (status or variable)') : dash(miss)),
           h('td', { class: 'num' }, r.accuracy == null ? dash(miss) : r.accuracy > 100 ? dash('Never misses') : r.accuracy),
           h('td', { class: 'num' }, r.pp ?? dash(miss)));
       }))) : h('div', { class: 'empty' }, 'No moves for this method.'));

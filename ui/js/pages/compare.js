@@ -23,7 +23,7 @@ const multCls = (m) => ({ 4: 'm4', 2: 'm2', 1: 'm1', 0.5: 'm05', 0.25: 'm025', 0
 // kept while the app runs, so coming back to Type matchups shows the same comparison
 const memo = { sides: [null, null], filters: [{}, {}], sort: ['vs', 'vs'], picks: [[], []] };
 
-export async function comparePanel(tc) {
+export async function comparePanel(tc, { movesSlot = null } = {}) {
   const T = (tc.types || []).map((t) => String(t).toLowerCase());
   const norm = (t) => (t == null ? null : String(t).toLowerCase());
   /** Chart multiplier, or null when a type is missing or not one of the 17 PokeMMO types (e.g. a move whose
@@ -53,11 +53,15 @@ export async function comparePanel(tc) {
   const draw = () => mount(box,
     h('div', { class: 'card-head' }, h('h2', { id: 'cmp-h' }, 'Compare two Pokémon'),
       h('div', { class: 'right row tight' }, h('button', { class: 'btn ghost small', title: 'Swap sides', 'aria-label': 'Swap sides', disabled: !memo.sides[0] && !memo.sides[1] ? 'disabled' : null,
-        onclick: () => { memo.sides.reverse(); memo.filters.reverse(); memo.sort.reverse(); memo.picks.reverse(); draw(); } }, '⇄ Swap'))),
+        onclick: () => { memo.sides.reverse(); memo.filters.reverse(); memo.sort.reverse(); memo.picks.reverse(); drawAll(); } }, '⇄ Swap'))),
     h('p', { class: 'tiny muted', style: { margin: '0 0 8px' } }, 'Type effectiveness and learnable moves only — not a battle simulator: no damage, speed or winner.'),
     h('div', { class: 'cmp-sides' }, [0, 1].map((i) => sideHead(i))),
     memo.sides[0] && memo.sides[1] ? matchup() : h('div', { class: 'empty small' }, 'Pick a Pokémon on each side to compare them.'),
-    [0, 1].map((i) => memo.sides[i] && memo.sides[1 - i] ? movesBlock(i) : null));
+    movesSlot ? null : movesRow());
+  // The two move tables need width: on the main page they get their own full-width row under the chart and
+  // this panel (side by side when wide, stacked when narrow) instead of scrolling sideways inside the panel.
+  const movesRow = () => (memo.sides[0] && memo.sides[1] ? h('div', { class: 'cmp-moves-row' }, [0, 1].map((i) => movesBlock(i))) : null);
+  const drawAll = () => { draw(); if (movesSlot) mount(movesSlot, movesRow()); };
 
   // ---------------------------------------------------------------- picking
   const sideHead = (i) => {
@@ -65,13 +69,13 @@ export async function comparePanel(tc) {
     if (!s) return h('div', { class: 'cmp-side empty-side' }, picker(i));
     const notes = (s.abilities || []).filter((a) => ABILITY_NOTES[a]);
     return h('div', { class: 'cmp-side', dataset: { side: i } },
-      h('div', { class: 'row tight' }, sizedSprite(s, scaled('compare', 56), { url: s.art_still, tier: 's', ani: animatedIn('compare') ? s.art_ani : null }),
+      h('div', { class: 'row tight' }, sizedSprite(s, scaled('compare', 96), { url: s.art_still, tier: 's', ani: animatedIn('compare') ? s.art_ani : null }),
         h('div', { class: 'grow', style: { minWidth: 0 } }, h('div', { class: 'cmp-name' }, s.name), typeChips(s.types, true),
           h('div', { class: 'tiny muted' }, (s.abilities || []).join(' · ') || 'Abilities unknown'))),
       notes.length ? h('div', { class: 'tiny warn-text' }, notes.map((a) => `${a}: ${ABILITY_NOTES[a]}`).join(' · ')) : null,
       h('div', { class: 'row tight' },
         h('button', { class: 'btn ghost small', onclick: () => go('#/pokedex/' + s.id + (s.form ? '/' + s.form : '')) }, 'Summary'),
-        h('button', { class: 'btn ghost small', 'aria-label': `Clear ${s.name}`, onclick: () => { memo.sides[i] = null; memo.picks[i] = []; draw(); } }, 'Clear')));
+        h('button', { class: 'btn ghost small', 'aria-label': `Clear ${s.name}`, onclick: () => { memo.sides[i] = null; memo.picks[i] = []; drawAll(); } }, 'Clear')));
   };
   const picker = (i) => {
     const input = h('input', { class: 'input', type: 'search', placeholder: i === 0 ? 'First Pokémon…' : 'Second Pokémon…', 'aria-label': `Pokémon ${i + 1}`, autocomplete: 'off' });
@@ -96,7 +100,7 @@ export async function comparePanel(tc) {
       art_ani: (f ? f.art && f.art.ani : d.art && d.art.ani) || null,
       moves: d.moves || [], formMovesShared: !!f };
     memo.picks[i] = [];
-    draw();
+    drawAll();
   };
 
   // ---------------------------------------------------------------- types both ways
@@ -133,9 +137,9 @@ export async function comparePanel(tc) {
       type: (x, y) => (x.type || '~').localeCompare(y.type || '~') || x.name.localeCompare(y.name), acc: (x, y) => (y.accuracy || 0) - (x.accuracy || 0), pp: (x, y) => (y.pp || 0) - (x.pp || 0) }[key];
     shown.sort(cmp);
     const picks = memo.picks[i];
-    const setF = (k, v) => { memo.filters[i] = { ...f, [k]: v || undefined }; draw(); };
-    const th = (k, label) => h('th', { class: 'th-sort' + (key === k ? ' active' : ''), tabindex: '0', 'aria-sort': key === k ? 'descending' : 'none',
-      onclick: () => { memo.sort[i] = k; draw(); }, onkeydown: (e) => { if (e.key === 'Enter') { memo.sort[i] = k; draw(); } } }, label);
+    const setF = (k, v) => { memo.filters[i] = { ...f, [k]: v || undefined }; drawAll(); };
+    const th = (k, label, extra = '') => h('th', { class: 'sortable ' + extra + (key === k ? ' sorted' : ''), tabindex: '0', 'aria-sort': key === k ? 'descending' : 'none',
+      onclick: () => { memo.sort[i] = k; drawAll(); }, onkeydown: (e) => { if (e.key === 'Enter') { memo.sort[i] = k; drawAll(); } } }, label);
     const chosen = picks.map((id) => rows.find((m) => m.id === id)).filter(Boolean);
     return h('section', { class: 'cmp-moves', dataset: { side: i } },
       h('h3', null, `${me.name}’s moves against ${foe.name}`),
@@ -153,24 +157,27 @@ export async function comparePanel(tc) {
         h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'How it is learned', onchange: (e) => setF('method', e.target.value) },
           [['', 'Any method'], ['Lv', 'Level'], ['TM/HM', 'TM/HM'], ['Tutor', 'Tutor'], ['Egg', 'Egg'], ['Evolution', 'Evolution'], ['Special', 'Special']].map(([v, l]) => h('option', { value: v, selected: (f.method || '') === v ? 'selected' : null }, l))),
         h('label', { class: 'row tight small' }, h('input', { type: 'checkbox', class: 'check', checked: !!f.hitting, onchange: (e) => setF('hitting', e.target.checked) }), 'Super effective only')),
-      h('div', { class: 'tc-scroll cmp-table-wrap' }, h('table', { class: 'table cmp-table' },
-        h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr-only' }, 'Choose')), th('name', 'Move'), th('type', 'Type'), th('vs', 'vs ' + foe.name),
-          th('power', 'Pow'), th('acc', 'Acc'), th('pp', 'PP'), h('th', null, 'Cat.'), h('th', null, 'Learned'))),
+      h('div', { class: 'cmp-table-wrap' }, h('table', { class: 'table cmp-table' },
+        h('colgroup', null, ['c-pick', 'c-move', 'c-type', 'c-vs', 'c-num', 'c-num', 'c-num', 'c-cat', 'c-how'].map((c) => h('col', { class: c }))),
+        h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr-only' }, 'Choose')), th('name', 'Move'), th('type', 'Type'), th('vs', 'vs ' + foe.name, 'num'),
+          th('power', 'Power', 'num'), th('acc', 'Acc.', 'num'), th('pp', 'PP', 'num'), h('th', null, 'Category'), h('th', null, 'Learned'))),
         h('tbody', null, shown.map((m) => {
           const on = picks.includes(m.id);
           return h('tr', { class: on ? 'picked' : null },
             h('td', null, h('input', { type: 'checkbox', class: 'check', checked: on, disabled: !on && picks.length >= MAX_PICKS ? 'disabled' : null, 'aria-label': 'Choose ' + m.name,
-              onchange: (e) => { memo.picks[i] = e.target.checked ? [...picks, m.id].slice(0, MAX_PICKS) : picks.filter((x) => x !== m.id); draw(); } })),
-            h('td', null, m.name, m.unverified ? h('span', { class: 'tiny muted', title: 'Type, category and power are not in the PokeMMO data yet' }, ' · awaiting verification') : null, m.stab ? h('span', { class: 'tiny muted', title: 'Same-type attack bonus' }, ' STAB') : null),
+              onchange: (e) => { memo.picks[i] = e.target.checked ? [...picks, m.id].slice(0, MAX_PICKS) : picks.filter((x) => x !== m.id); drawAll(); } })),
+            h('td', { class: 'mv-name', title: m.name }, m.name, m.unverified ? h('span', { class: 'tiny muted', title: 'Type, category and power are not in the PokeMMO data yet' }, ' · awaiting verification') : null, m.stab ? h('span', { class: 'tiny muted', title: 'Same-type attack bonus' }, ' STAB') : null),
             h('td', null, chip(m.type)),
-            h('td', null, m.vs == null ? h('span', { class: 'tiny muted', title: m.unverified ? 'Details awaiting verification in the PokeMMO data — no effectiveness shown' : 'Status move' }, m.unverified ? '?' : '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
-            h('td', null, m.power || '—'), h('td', null, m.accuracy || '—'), h('td', null, m.pp ?? '—'),
-            h('td', { class: 'small', title: m.unverified ? 'Details awaiting verification in the PokeMMO data' : m.category }, m.unverified && !m.category ? '?' : ({ Physical: 'Phys.', Special: 'Spec.', Status: 'Status' })[m.category] || m.category),
-            h('td', { class: 'small muted' }, m.methods.join(', ')));
+            h('td', { class: 'num' }, m.vs == null ? h('span', { class: 'tiny muted', title: m.unverified ? 'Details awaiting verification in the PokeMMO data — no effectiveness shown' : 'Status move' }, m.unverified ? '?' : '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
+            h('td', { class: 'num' }, m.power === 1 ? h('span', { class: 'muted', title: 'Variable power (depends on the target or the situation)' }, 'var.') : m.power || '—'),
+            h('td', { class: 'num' }, m.accuracy > 100 ? h('span', { class: 'muted', title: 'Never misses' }, '—') : m.accuracy ? m.accuracy + '%' : '—'),
+            h('td', { class: 'num' }, m.pp ?? '—'),
+            h('td', { class: 'small', title: m.unverified ? 'Details awaiting verification in the PokeMMO data' : m.category }, m.unverified && !m.category ? '?' : m.category),
+            h('td', { class: 'small muted mv-how' }, m.methods.join(', ')));
         })))),
       h('div', { class: 'tiny muted' }, `${shown.length} of ${rows.length} moves`));
   };
 
-  draw();
+  drawAll();
   return box;
 }

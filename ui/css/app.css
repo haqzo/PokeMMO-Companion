@@ -1333,3 +1333,27 @@ body { font-weight: var(--weight); }
 @container (max-width: 420px) {
   .home-cur .cur-card.compact .rep-sprite, .home-cur[data-count="1"] .cur-card.compact .rep-sprite { --rs: 80px; }
 }
+/* Comparison polish (2026-11-24): move tables in their own full-width row under the chart and the panel —
+   side by side when wide, stacked when narrow; fixed, aligned columns; numbers right-aligned; header stays put. */
+.tc-moves-slot:empty { display: none; }
+.tc-moves-slot { margin-top: var(--grid-gap); }
+.cmp-moves-row { display: grid; gap: var(--grid-gap); grid-template-columns: repeat(auto-fit, minmax(min(560px, 100%), 1fr)); }
+.cmp-moves-row > .cmp-moves { background: var(--bg-window); border: var(--bw) solid var(--border-subtle); border-radius: var(--radius-lg); padding: 10px 12px; min-width: 0; }
+.cmp-side .sprite-box, .cmp-side .rep-sprite { flex: none; }
+.cmp-name { font-size: 1.05rem; }
+.cmp-table-wrap { max-height: 420px; overflow: auto; border-radius: var(--radius); }
+.cmp-table { table-layout: fixed; width: 100%; min-width: 520px; font-size: .88rem; border-collapse: separate; border-spacing: 0; }
+.cmp-table col.c-pick { width: 30px; } .cmp-table col.c-type { width: 84px; } .cmp-table col.c-vs { width: 64px; }
+.cmp-table col.c-num { width: 54px; } .cmp-table col.c-cat { width: 72px; } .cmp-table col.c-how { width: 96px; }
+.cmp-table thead th { position: sticky; top: 0; z-index: 1; background: var(--bg-header); text-align: left; padding: 5px 6px; white-space: nowrap; }
+.cmp-table th.num, .cmp-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cmp-table td { padding: 4px 6px; vertical-align: middle; }
+.cmp-table td.mv-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.cmp-table td.mv-how { white-space: normal; line-height: 1.2; }
+.cmp-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--bg-card) 70%, var(--bg-window)); }
+.cmp-table tbody tr.picked td { background: var(--bg-selected); }
+.cmp-table th.sortable { cursor: pointer; }
+.cmp-table th.sortable:hover, .cmp-table th.sorted { color: var(--text-primary); }
+.cmp-table th.sorted::after { content: " ▾"; font-size: .8em; }
+.cmp-table th.sortable:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cmp-table { min-width: 480px; }

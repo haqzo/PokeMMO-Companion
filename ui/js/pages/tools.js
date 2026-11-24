@@ -131,8 +131,9 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
   // Main page only: the comparison panel sits right of the chart (below it on narrow windows). Popouts never get it.
   if (compare) {
     const side = h('div', { class: 'tc-compare-slot' });
-    el.append(h('div', { class: 'tc-layout' }, out, side));
-    import('./compare.js').then((m) => m.comparePanel(tc)).then((p) => side.append(p)).catch((e) => side.append(h('div', { class: 'notice warn small' }, 'Comparison unavailable: ' + e.message)));
+    const movesSlot = h('div', { class: 'tc-moves-slot' });
+    el.append(h('div', { class: 'tc-layout' }, out, side), movesSlot);
+    import('./compare.js').then((m) => m.comparePanel(tc, { movesSlot })).then((p) => side.append(p)).catch((e) => side.append(h('div', { class: 'notice warn small' }, 'Comparison unavailable: ' + e.message)));
   } else el.append(out);
 
   const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, 'Hover or focus a cell — rows attack, columns defend. Click to lock.');

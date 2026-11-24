@@ -185,7 +185,7 @@ def test_compare_never_crashes_on_unknown_or_oddly_cased_types(app, browser):  #
     _clear_sides(pg)
     _pick(pg, 1, "mudkip", "Mudkip")
     _pick(pg, 2, "treecko", "Treecko")
-    txt = pg.locator(".compare-panel").inner_text()
+    txt = pg.locator(".compare-panel").inner_text() + pg.locator(".tc-moves-slot").inner_text()
     assert "unknown" in _eff(pg, 0)                                  # the "fairy" attacking type is not in the 17-type chart
     assert "GRASS\nunknown" in _eff(pg, 1)                         # against an unknown defending type: no number
     assert "Caps Move" in txt and "Odd Move" in txt and "Bare Move" in txt
@@ -194,4 +194,32 @@ def test_compare_never_crashes_on_unknown_or_oddly_cased_types(app, browser):  #
     caps = pg.locator('.cmp-moves[data-side="0"] tbody tr', has_text="Caps Move")
     assert "½×" in caps.inner_text()                                # GRASS → grass vs Treecko: ½×
     assert not errors, errors
+    ctx.close()
+
+
+@pytest.mark.parametrize("width", [1600, 1000])
+def test_compare_polish_large_sprites_aligned_columns_no_sideways_scroll(app, browser, width):  # noqa: F811
+    ctx = browser.new_context(viewport={"width": width, "height": 1000})
+    pg = ctx.new_page()
+    pg.goto(app.url("#/tools/typechart"))
+    pg.wait_for_selector(".compare-panel")
+    _clear_sides(pg)
+    _pick(pg, 1, "mudkip", "Mudkip")
+    _pick(pg, 2, "treecko", "Treecko")
+    assert pg.locator(".cmp-side img, .cmp-side canvas").first.evaluate("e => e.getBoundingClientRect().width") >= 90
+    # the move tables live in their own full-width row under the chart, not inside the narrow panel
+    assert pg.locator(".tc-moves-slot .cmp-moves").count() == 2 and pg.locator(".compare-panel .cmp-moves").count() == 0
+    for wrap in pg.locator(".cmp-table-wrap").all():
+        sw, cw = wrap.evaluate("e => [e.scrollWidth, e.clientWidth]")
+        assert sw <= cw + 1, (width, sw, cw)
+    # every header cell starts where its column starts
+    off = pg.locator(".cmp-table").first.evaluate("""t => { const hs = [...t.tHead.rows[0].cells], ds = [...t.tBodies[0].rows[0].cells];
+        return hs.map((h, i) => Math.abs(h.getBoundingClientRect().left - ds[i].getBoundingClientRect().left)); }""")
+    assert max(off) < 1, off
+    # data conventions: 101 % accuracy = never misses, power 1 = variable power
+    row = pg.locator('.cmp-moves[data-side="1"] tbody tr', has_text="Magical Leaf").inner_text()
+    assert "101" not in row
+    knot = pg.locator('.cmp-moves[data-side="1"] tbody tr', has_text="Grass Knot").inner_text()
+    assert "var." in knot
+    assert pg.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
     ctx.close()
