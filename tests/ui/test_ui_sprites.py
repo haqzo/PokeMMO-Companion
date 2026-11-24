@@ -74,7 +74,8 @@ def test_live_list_and_detail_sprites_and_test_labels(app, browser):  # noqa: F8
     pg.wait_for_selector(".rep-detail-head .rep-sprite.battle img")
     assert _width(pg, ".rep-detail-head .rep-sprite.battle img") == 192  # 2× the 96 px battle sprite
     detail = pg.locator(".card", has=pg.locator(".rep-detail-head")).inner_text()
-    assert "Community report" in detail and "ntfy / alpha" in detail
+    assert "ntfy / alpha" in detail
+    assert "Community report" in pg.locator(".card", has=pg.locator(".rep-detail-head")).locator(".src-info").first.get_attribute("title")
     pg.goto(app.url("#/live/reports/" + c["id"]))
     pg.wait_for_selector(".rep-detail-head")
     assert pg.locator(".rep-detail-head .rep-fallback").count() == 1

@@ -107,8 +107,10 @@ async function appearance(b) {
   const s = state.settings;
   const scaleLbl = h('span', { class: 'small', style: { width: '48px' } }, s['appearance.text_scale'] + '%');
   b.append(h('h2', { style: { marginTop: 0 } }, 'Appearance'),
-    row('Navigation', 'Vertical sidebar or horizontal top bar — same five sections; your current page is kept.',
+    row('Navigation', 'Vertical sidebar or horizontal top bar — same sections; your current page is kept.',
       seg([['vertical', 'Vertical'], ['horizontal', 'Horizontal']], s['appearance.nav'], (v) => saveSettings({ 'appearance.nav': v }).then(() => document.dispatchEvent(new CustomEvent('settings-changed'))), 'Navigation')),
+    row('Sidebar labels', 'Automatic shows icons only when the window is narrow. Names stay available as tooltips.',
+      seg([['auto', 'Automatic'], ['icons', 'Icons only'], ['full', 'Always labels']], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(() => document.dispatchEvent(new CustomEvent('settings-changed'))), 'Sidebar labels')),
     row('Text size', 'Scales all text and controls in the main window (80–160%).',
       h('div', { class: 'row' }, h('input', { type: 'range', min: 80, max: 160, step: 5, value: s['appearance.text_scale'], 'aria-label': 'Text size',
         oninput: (e) => { scaleLbl.textContent = e.target.value + '%'; state.settings['appearance.text_scale'] = Number(e.target.value); document.documentElement.style.setProperty('--scale', String(e.target.value / 100)); },
@@ -252,7 +254,7 @@ async function guidesSec(b) {
       runs.deleted.map((r) => h('tr', { style: { opacity: 0.7 } }, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, 'deleted'), h('td', { class: 'small' }, relTime(r.deleted_at)),
         h('td', null, h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${r.id}/restore`); render(document.getElementById('main'), { parts: ['guides'] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Restore')))))),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), 'New run'),
-      h('button', { class: 'btn ghost', onclick: () => go('#/settings/data') }, 'Backups & walkthrough import')));
+      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Backups & walkthrough import')));
 }
 
 // ----------------------------------------------------------------- data

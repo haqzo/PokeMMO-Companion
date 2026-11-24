@@ -197,7 +197,7 @@ def test_home_default_sections(app, page):
         assert page.locator(sel).count() == 0, sel
     txt = page.locator(".main").inner_text()
     assert "Altering Cave" not in txt and "Official news source" not in txt
-    assert "Community cycle" in page.locator(".home-roamers").inner_text()
+    assert "Community-documented cycle" in page.locator(".home-roamers .src-info").get_attribute("title")
     assert page.locator(".home-update .update-foot").get_by_role("button", name="Check now").count() == 1
 
 

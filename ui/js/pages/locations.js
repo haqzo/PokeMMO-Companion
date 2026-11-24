@@ -165,8 +165,8 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
   const pokeCard = h('div', { class: 'loc-poke' });
   const searchIn = h('input', { class: 'input', type: 'search', value: f.q, placeholder: 'Search a location or Pokémon', 'aria-label': 'Search locations', oninput: debounce((e) => { f.q = e.target.value; draw(); }, 120) });
   const hordeChip = h('button', { class: 'chip btnlike' + (f.horde ? ' active' : ''), 'aria-pressed': String(f.horde), onclick: (e) => { f.horde = !f.horde; e.currentTarget.classList.toggle('active', f.horde); e.currentTarget.setAttribute('aria-pressed', String(f.horde)); draw(); } }, 'Hordes only');
-  const filters = h('div', { class: 'loc-filters', role: 'search' },
-    h('div', { class: 'search' }, icon('search'), searchIn),
+  const searchBox = h('div', { class: 'search loc-search', role: 'search' }, icon('search'), searchIn);
+  const filters = h('div', { class: 'loc-filters' },
     h('div', { class: 'field' }, pokeIn, dl), pokeCard,
     h('div', { class: 'loc-filter-grid' },
       sel_('Type', 'type', [['', 'Any type'], ...TYPE_LIST.map((x) => [x, cap(x)])]),
@@ -174,7 +174,7 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
       sel_('Time of day', 'time', [['', 'Any time'], ...TIMES.map(([v, l]) => [v, l])]),
       sel_('Season', 'season', [['', 'Any season'], ...['Spring', 'Summer', 'Autumn', 'Winter'].map((s) => [s, s])]), hordeChip),
     h('button', { class: 'btn small ghost', onclick: () => { Object.assign(f, { q: '', species: null, type: '', method: '', horde: false, time: '', season: '' }); ui.cat = 'all'; explorer(host, { region, sel: null, variant, nav }); } }, icon('close'), 'Clear filters'));
-  const filterToggle = h('button', { class: 'btn small loc-filter-toggle', 'aria-expanded': 'false', onclick: (e) => { const open = wrap.classList.toggle('filters-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); } }, icon('filter'), 'Filters');
+  const filterToggle = h('button', { class: 'btn small loc-filter-toggle', 'aria-expanded': 'false', onclick: (e) => { const open = wrap.classList.toggle('filters-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); } }, icon('filter'), h('span', null, 'Filters'));
 
   // ---- list
   const catsEl = h('div', { class: 'loc-cats', role: 'tablist', 'aria-label': 'Kind of place' });
@@ -203,6 +203,8 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
     region === 'all' ? h('span', { class: 'chip tiny' }, cap(e.region)) : null);
   }
   function draw() {
+    const nActive = [f.species, f.type, f.method, f.horde, f.time, f.season].filter(Boolean).length;
+    filterToggle.lastChild.textContent = nActive ? `Filters (${nActive})` : 'Filters';
     drawTabs();
     drawPokeCard();
     const ok = passingLocations();
@@ -239,14 +241,23 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
   }
 
   // ---- detail
+  // Who scrolls the directory: its own pane on wide windows, the whole explorer when narrow.
+  const listScroller = () => (wrap.classList.contains('narrow') ? wrap : listPane);
+  let savedScroll = 0;
   function closeDetail() {
+    const key = selected && selected.key;
     selected = null;
     wrap.classList.remove('has-sel');
     mount(detail, null);
     for (const b of listEl.querySelectorAll('.loc-card.selected')) b.classList.remove('selected');
     if (variant === 'page' && location.hash.startsWith('#/tools/locations/')) history.replaceState(null, '', '#/tools/locations');
+    // back to exactly where you were in the directory, with the card you came from focused
+    listScroller().scrollTop = savedScroll;
+    const cardEl = key && listEl.querySelector(`.loc-card[data-key="${CSS.escape(key)}"]`);
+    if (cardEl) cardEl.focus({ preventScroll: true });
   }
   async function openEntry(e, focusLoc) {
+    if (!wrap.classList.contains('has-sel') || !wrap.classList.contains('narrow')) savedScroll = listScroller().scrollTop;
     selected = e;
     wrap.classList.add('has-sel');
     for (const b of listEl.querySelectorAll('.loc-card')) b.classList.toggle('selected', b.dataset.key === e.key);
@@ -269,12 +280,24 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
       subName(locById[id].name, e.name), ok && ok.has(id) ? h('span', { class: 'count' }, '●') : null))) : null,
       ids.length ? body : notice('info', `No wild Pokémon are listed for ${e.name} in the PokeMMO data. Nothing is guessed here.`)));
     if (ids.length) await renderLocation(body, first, { popout: variant !== 'page', nav, embedded: true });
-    if (wrap.classList.contains('narrow')) detail.scrollIntoView({ block: 'start' });
+    if (wrap.classList.contains('narrow')) wrap.scrollTop = 0; else detail.scrollTop = 0;
   }
 
   // ---- layout: list + detail side by side when wide, detail replaces the list when narrow
-  wrap.append(tabsEl, h('div', { class: 'loc-dir-grid' }, h('div', { class: 'loc-left' }, filterToggle, filters), listPane, detail));
-  const ro = new ResizeObserver(() => wrap.classList.toggle('narrow', wrap.clientWidth < (variant === 'page' ? 980 : 760)));
+  wrap.append(tabsEl, h('div', { class: 'loc-dir-grid' }, h('div', { class: 'loc-left' }, h('div', { class: 'loc-searchrow' }, searchBox, filterToggle), filters), listPane, detail));
+  // Layout from the explorer's real width: wide = filters | list | detail, medium = folded filters, list | detail,
+  // narrow = one column where the detail replaces the list. The card at the top of the list stays in view across changes.
+  const ro = new ResizeObserver(() => {
+    const w = wrap.clientWidth, popout = variant !== 'page';
+    const mode = w < (popout ? 760 : 900) ? 'narrow' : w < (popout ? 1100 : 1240) ? 'medium' : 'wide';
+    if (wrap.dataset.mode === mode) return;
+    const sc = wrap.dataset.mode ? listScroller() : null;
+    const anchor = sc && [...listEl.querySelectorAll('.loc-card')].find((c) => c.getBoundingClientRect().top >= sc.getBoundingClientRect().top);
+    wrap.dataset.mode = mode;
+    wrap.classList.toggle('narrow', mode === 'narrow');
+    wrap.classList.toggle('medium', mode === 'medium');
+    if (anchor && !(mode === 'narrow' && selected)) anchor.scrollIntoView({ block: 'nearest' });
+  });
   ro.observe(wrap);
   unsub.push(() => ro.disconnect());
   draw();

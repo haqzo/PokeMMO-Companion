@@ -22,6 +22,26 @@ async function boot() {
     document.dispatchEvent(new CustomEvent('settings-changed', { detail: data || {} }));
   });
   installShortcuts();
+  wrapTables(root);
   if (POPOUT) startPopout(root); else startApp(root);
+}
+/** Every data table scrolls sideways inside its own box instead of widening the page (narrow windows, large text). */
+function wrapTables(root) {
+  const fix = (t) => {
+    const p = t.parentElement;
+    if (!p || t.dataset.wrapped || p.classList.contains('table-scroll')) return;
+    const ox = getComputedStyle(p).overflowX;
+    t.dataset.wrapped = '1';
+    if (ox === 'auto' || ox === 'scroll') return;
+    const w = document.createElement('div');
+    w.className = 'table-scroll';
+    p.insertBefore(w, t); w.appendChild(t);
+  };
+  new MutationObserver((muts) => {
+    for (const m of muts) for (const n of m.addedNodes) {
+      if (n.nodeType !== 1) continue;
+      if (n.tagName === 'TABLE') fix(n); else n.querySelectorAll && n.querySelectorAll('table').forEach(fix);
+    }
+  }).observe(root, { childList: true, subtree: true });
 }
 boot();

@@ -306,7 +306,7 @@ export async function renderLegendaries(el, { compact = false } = {}) {
       sourceInfo('COMMUNITY-CYCLE')),
     h('div', { class: 'legend-pair' }, card('kanto', cur.kanto), card('johto', cur.johto)),
     h('div', { class: 'small muted' }, L.status_note)),
-    compact ? null : h('div', { class: 'card' }, h('div', { class: 'row' }, h('strong', null, `Next · ${monthName(nxt.month, nxt.year)}: `), h('span', { style: { marginLeft: '6px' } }, `${nxt.kanto.name} (Kanto) · ${nxt.johto.name} (Johto)`),
+    compact ? null : h('div', { class: 'card' }, h('div', { class: 'row wrap' }, h('strong', null, `Next · ${monthName(nxt.month, nxt.year)}: `), h('span', { style: { marginLeft: '6px' } }, `${nxt.kanto.name} (Kanto) · ${nxt.johto.name} (Johto)`),
       h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => { ui.calendar = !ui.calendar; renderLegendaries(el); } }, ui.calendar ? 'Hide calendar' : 'Show 12-month calendar')),
     ui.calendar ? h('div', { class: 'cal', style: { marginTop: '12px' } }, L.calendar.map((m, i) => h('div', { class: 'm' + (i === 0 ? ' now' : '') },
       h('div', { class: 'small muted' }, monthName(m.month, m.year)), h('div', null, m.kanto.name), h('div', null, m.johto.name)))) : null),

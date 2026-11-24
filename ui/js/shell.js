@@ -56,13 +56,28 @@ export function startApp(el) {
   let lastNav = setting('appearance.nav');
   document.addEventListener('settings-changed', () => {
     if (setting('appearance.nav') !== lastNav) { lastNav = setting('appearance.nav'); renderChrome(); }
+    applyNavCollapse();
   });
+  // Layout follows the real window: resize, maximise, monitor/DPI moves and text-size changes all fire resize
+  // (CSS px already include OS / Qt scaling, so nothing is scaled twice).
+  let raf = 0;
+  window.addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(applyNavCollapse); });
   on('toast', (p) => reportToast(p, (id, pl) => go(pl && pl.route ? pl.route : `#/live/reports/${id}`)));
   installTimerSound();
   on('navigate', (d) => d && d.route && go(d.route));
   on('settings', (d) => { if (d && Object.keys(d).includes('nav.quick_access')) setTimeout(renderQuick, 50); });
   document.addEventListener('keydown', globalKeys);
   // First-run setup now lives in a dismissible "Get started" panel on Home (no blocking modal).
+}
+
+/** Sidebar icon mode: preference "icons", or "auto" when the window is too narrow for labels + content. */
+export function applyNavCollapse() {
+  const app = document.querySelector('.app.nav-vertical');
+  if (!app) return;
+  const pref = setting('appearance.sidebar') || 'auto';
+  const scale = Math.max(1, (Number(setting('appearance.text_scale')) || 100) / 100);
+  const collapsed = pref === 'icons' || (pref === 'auto' && window.innerWidth < 900 * scale);
+  app.classList.toggle('nav-collapsed', collapsed);
 }
 
 function globalKeys(e) {
@@ -143,6 +158,7 @@ export function renderChrome() {
   }
   shell.dataset.nav = vertical ? 'vertical' : 'horizontal';
   mount(root, shell);
+  applyNavCollapse();
   current = { page: null, mod: null };
   renderQuick();
   renderRoute();

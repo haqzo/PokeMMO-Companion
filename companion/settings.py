@@ -18,6 +18,7 @@ ROUTES = ("off", "toast", "os", "both")
 DEFAULTS: dict[str, Any] = {
     # Appearance
     "appearance.nav": "vertical",            # vertical | horizontal
+    "appearance.sidebar": "auto",            # auto | icons | full — sidebar labels (auto: icons in narrow windows)
     "appearance.text_scale": 100,            # percent, 80..160
     "appearance.high_contrast": False,
     "appearance.reduced_motion": False,
@@ -104,6 +105,7 @@ _ENUMS = {
     "locations.style": ("game", "companion"),
     "locations.region": ("kanto", "johto", "hoenn", "sinnoh", "unova"),
     "appearance.nav": ("vertical", "horizontal"),
+    "appearance.sidebar": ("auto", "icons", "full"),
     "appearance.stat_bars": ("soft", "accent"),
     "appearance.density": ("comfortable", "compact"),
     "app.close_behavior": ("quit", "tray"),
