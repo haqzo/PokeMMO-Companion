@@ -24,8 +24,24 @@ const multCls = (m) => ({ 4: 'm4', 2: 'm2', 1: 'm1', 0.5: 'm05', 0.25: 'm025', 0
 const memo = { sides: [null, null], filters: [{}, {}], sort: ['vs', 'vs'], picks: [[], []] };
 
 export async function comparePanel(tc) {
-  const T = tc.types;
-  const eff = (atk, defTypes) => defTypes.reduce((acc, d) => acc * tc.matrix[T.indexOf(atk)][T.indexOf(d)], 1);
+  const T = (tc.types || []).map((t) => String(t).toLowerCase());
+  const norm = (t) => (t == null ? null : String(t).toLowerCase());
+  /** Chart multiplier, or null when a type is missing or not one of the 17 PokeMMO types (e.g. a move whose
+   *  details are still awaiting verification). Never guesses, never throws. */
+  const eff = (atk, defTypes) => {
+    const i = T.indexOf(norm(atk));
+    const row = i >= 0 && Array.isArray(tc.matrix) ? tc.matrix[i] : null;
+    if (!row || !Array.isArray(defTypes) || !defTypes.length) return null;
+    let acc = 1;
+    for (const d of defTypes) {
+      const v = row[T.indexOf(norm(d))];
+      if (typeof v !== 'number') return null;
+      acc *= v;
+    }
+    return acc;
+  };
+  const known = (t) => T.includes(norm(t));
+  const chip = (t) => (known(t) ? typeChip(norm(t), true) : h('span', { class: 'chip tiny', title: 'Type not confirmed in the PokeMMO data' }, '?'));
   const list = await loadList().catch(() => []);
   const options = [];
   for (const s of list) options.push({ key: String(s.id), id: s.id, name: s.name, types: s.types, still: s.still, abilities: s.abilities || [] });
@@ -87,8 +103,8 @@ export async function comparePanel(tc) {
   const matchup = () => {
     const [a, b] = memo.sides;
     const row = (att, def) => h('div', { class: 'cmp-dir' }, h('div', { class: 'small' }, h('strong', null, att.name), ' attacking ', h('strong', null, def.name), h('span', { class: 'tiny muted' }, ' — its own types (STAB)')),
-      h('div', { class: 'row wrap tight' }, att.types.map((t) => { const m = eff(t, def.types); return h('span', { class: 'row tight cmp-eff' }, typeChip(t, true), h('span', { class: 'mult ' + multCls(m) }, mult(m))); })));
-    const weak = (s) => T.map((t) => [t, eff(t, s.types)]).filter(([, m]) => m >= 2);
+      h('div', { class: 'row wrap tight' }, att.types.map((t) => { const m = eff(t, def.types); return h('span', { class: 'row tight cmp-eff' }, chip(t), m == null ? h('span', { class: 'tiny muted', title: 'Type not in the 17-type chart' }, 'unknown') : h('span', { class: 'mult ' + multCls(m) }, mult(m))); })));
+    const weak = (s) => T.map((t) => [t, eff(t, s.types)]).filter(([, m]) => m != null && m >= 2);
     return h('div', { class: 'stack tight cmp-matchup' }, row(a, b), row(b, a),
       h('div', { class: 'tiny muted' }, `${a.name} is weak to `, weak(a).map(([t, m]) => `${cap(t)} ${mult(m)}`).join(', ') || 'nothing', ` · ${b.name} is weak to `,
         weak(b).map(([t, m]) => `${cap(t)} ${mult(m)}`).join(', ') || 'nothing', '.'));
@@ -103,12 +119,18 @@ export async function comparePanel(tc) {
       if (!prev) seen.set(m.id, { ...m, methods: [methodLabel(m)] });
       else if (!prev.methods.includes(methodLabel(m))) prev.methods.push(methodLabel(m));
     }
-    const rows = [...seen.values()].map((m) => ({ ...m, vs: m.category === 'Status' ? null : eff(m.type, foe.types), stab: me.types.includes(m.type) && m.category !== 'Status' }));
+    // A move without confirmed details (e.g. Snowscape in the current data: no type, category or power) is listed
+    // as "awaiting verification" — no effectiveness or STAB is invented for it.
+    const myTypes = (me.types || []).map(norm);
+    const rows = [...seen.values()].map((m) => {
+      const type = norm(m.type), unverified = !known(type) || !m.category;
+      return { ...m, type, unverified, vs: unverified || m.category === 'Status' ? null : eff(type, foe.types), stab: !unverified && m.category !== 'Status' && myTypes.includes(type) };
+    });
     const shown = rows.filter((m) => (!f.type || m.type === f.type) && (!f.cat || m.category === f.cat) && (!f.method || m.methods.some((x) => x.startsWith(f.method)))
       && (!f.q || m.name.toLowerCase().includes(f.q)) && (!f.hitting || (m.vs != null && m.vs >= 2)));
     const key = memo.sort[i];
-    const cmp = { vs: (x, y) => (y.vs ?? -1) - (x.vs ?? -1) || (y.power || 0) - (x.power || 0), power: (x, y) => (y.power || 0) - (x.power || 0), name: (x, y) => x.name.localeCompare(y.name),
-      type: (x, y) => x.type.localeCompare(y.type) || x.name.localeCompare(y.name), acc: (x, y) => (y.accuracy || 0) - (x.accuracy || 0), pp: (x, y) => (y.pp || 0) - (x.pp || 0) }[key];
+    const cmp = { vs: (x, y) => (y.vs ?? -1) - (x.vs ?? -1) || (y.power || 0) - (x.power || 0), power: (x, y) => (y.power || 0) - (x.power || 0), name: (x, y) => String(x.name).localeCompare(String(y.name)),
+      type: (x, y) => (x.type || '~').localeCompare(y.type || '~') || x.name.localeCompare(y.name), acc: (x, y) => (y.accuracy || 0) - (x.accuracy || 0), pp: (x, y) => (y.pp || 0) - (x.pp || 0) }[key];
     shown.sort(cmp);
     const picks = memo.picks[i];
     const setF = (k, v) => { memo.filters[i] = { ...f, [k]: v || undefined }; draw(); };
@@ -119,8 +141,8 @@ export async function comparePanel(tc) {
       h('h3', null, `${me.name}’s moves against ${foe.name}`),
       me.formMovesShared ? h('div', { class: 'tiny muted' }, 'Forms share the species’ learnset here; form-only moves are not listed separately.') : null,
       chosen.length ? h('div', { class: 'cmp-chosen' }, h('div', { class: 'tiny muted' }, `Chosen (${chosen.length}/${MAX_PICKS})`),
-        h('div', { class: 'row wrap tight' }, chosen.map((m) => h('span', { class: 'chip' }, typeChip(m.type, true), ' ', m.name, ' ',
-          m.vs == null ? h('span', { class: 'tiny muted' }, 'status') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs)), m.stab ? h('span', { class: 'tiny', title: 'Same-type attack bonus' }, ' STAB') : null)))) : null,
+        h('div', { class: 'row wrap tight' }, chosen.map((m) => h('span', { class: 'chip' }, chip(m.type), ' ', m.name, ' ',
+          m.vs == null ? h('span', { class: 'tiny muted' }, m.unverified ? 'details awaiting verification' : 'status') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs)), m.stab ? h('span', { class: 'tiny', title: 'Same-type attack bonus' }, ' STAB') : null)))) : null,
       h('div', { class: 'row wrap tight cmp-filters' },
         h('input', { class: 'input', type: 'search', placeholder: 'Move…', value: f.q || '', style: { width: '120px' }, 'aria-label': 'Filter moves by name',
           onchange: (e) => setF('q', e.target.value.trim().toLowerCase()) }),
@@ -139,11 +161,11 @@ export async function comparePanel(tc) {
           return h('tr', { class: on ? 'picked' : null },
             h('td', null, h('input', { type: 'checkbox', class: 'check', checked: on, disabled: !on && picks.length >= MAX_PICKS ? 'disabled' : null, 'aria-label': 'Choose ' + m.name,
               onchange: (e) => { memo.picks[i] = e.target.checked ? [...picks, m.id].slice(0, MAX_PICKS) : picks.filter((x) => x !== m.id); draw(); } })),
-            h('td', null, m.name, m.stab ? h('span', { class: 'tiny muted', title: 'Same-type attack bonus' }, ' STAB') : null),
-            h('td', null, typeChip(m.type, true)),
-            h('td', null, m.vs == null ? h('span', { class: 'tiny muted', title: 'Status move' }, '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
+            h('td', null, m.name, m.unverified ? h('span', { class: 'tiny muted', title: 'Type, category and power are not in the PokeMMO data yet' }, ' · awaiting verification') : null, m.stab ? h('span', { class: 'tiny muted', title: 'Same-type attack bonus' }, ' STAB') : null),
+            h('td', null, chip(m.type)),
+            h('td', null, m.vs == null ? h('span', { class: 'tiny muted', title: m.unverified ? 'Details awaiting verification in the PokeMMO data — no effectiveness shown' : 'Status move' }, m.unverified ? '?' : '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
             h('td', null, m.power || '—'), h('td', null, m.accuracy || '—'), h('td', null, m.pp ?? '—'),
-            h('td', { class: 'small', title: m.category }, ({ Physical: 'Phys.', Special: 'Spec.', Status: 'Status' })[m.category] || m.category),
+            h('td', { class: 'small', title: m.unverified ? 'Details awaiting verification in the PokeMMO data' : m.category }, m.unverified && !m.category ? '?' : ({ Physical: 'Phys.', Special: 'Spec.', Status: 'Status' })[m.category] || m.category),
             h('td', { class: 'small muted' }, m.methods.join(', ')));
         })))),
       h('div', { class: 'tiny muted' }, `${shown.length} of ${rows.length} moves`));

@@ -117,7 +117,7 @@ let tc = null;
 const MULT_TEXT = { 2: 'super effective', 0.5: 'not very effective', 0: 'no effect', 1: 'normal damage' };
 const multLabel = (m) => (m === 0.5 ? '½×' : m === 0.25 ? '¼×' : `${m}×`);
 export function typeChartReadout(a, d) {
-  const m = tc.matrix[tc.types.indexOf(a)][tc.types.indexOf(d)];
+  const m = (tc.matrix[tc.types.indexOf(a)] || [])[tc.types.indexOf(d)];
   return { m, text: `${cap(a)} attack → ${cap(d)} defender: ${multLabel(m)} (${MULT_TEXT[m]})` };
 }
 export async function renderTypeChart(el, route, { compact = false, compare = false } = {}) {

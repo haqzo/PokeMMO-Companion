@@ -116,3 +116,82 @@ def test_all_guides_landing_aligned_and_browsable_without_a_run(app, page):  # n
     page.wait_for_selector(".guides-region")
     a, b = cards.nth(0).bounding_box(), cards.nth(1).bounding_box()
     assert b["y"] >= a["y"] + a["height"] - 1                               # stacked on narrow windows
+
+
+def _clear_sides(page):
+    for side in (0, 1):
+        clear = page.locator(f'.cmp-side[data-side="{side}"] button', has_text="Clear")
+        if clear.count():
+            clear.click()
+
+
+def test_compare_mudkip_vs_treecko_and_moves_without_details(app, page):  # noqa: F811
+    """Native failure 2026-11-24: Snowscape has no type/category/power in the PokeMMO data (164 learners, incl.
+    Mudkip and Treecko). The old code looked its type up in the chart → `undefined[4]` and nothing rendered.
+    The earlier tests only used Pokémon that do not learn it."""
+    go(page, app, "#/tools/typechart")
+    page.wait_for_selector(".compare-panel")
+    _clear_sides(page)
+    _pick(page, 1, "mudkip", "Mudkip")
+    _pick(page, 2, "treecko", "Treecko")
+    assert "WATER\n½×" in _eff(page, 0) and "GRASS\n2×" in _eff(page, 1)
+    for side in (0, 1):
+        assert page.locator(f'.cmp-moves[data-side="{side}"] tbody tr').count() > 10
+    snow = page.locator('.cmp-moves[data-side="0"] tbody tr', has_text="Snowscape")        # Mudkip learns it (TM)
+    assert snow.count() == 1 and "awaiting verification" in snow.inner_text()
+    assert "STAB" not in snow.inner_text() and "×" not in snow.inner_text()               # nothing invented
+    for key in ("Type", "Pow", "Move"):                                                  # every sort copes with it
+        page.locator('.cmp-moves[data-side="0"] th', has_text=key).first.click()
+    assert page.locator('.cmp-moves[data-side="0"] tbody tr').count() > 10
+    assert not page.errors, page.errors
+
+
+def test_compare_sweep_has_no_errors(app, page):  # noqa: F811
+    go(page, app, "#/tools/typechart")
+    page.wait_for_selector(".compare-panel")
+    pairs = [("bulbasaur", "Bulbasaur", "charmander", "Charmander"), ("pikachu", "Pikachu", "gengar", "Gengar"),
+             ("lapras", "Lapras", "snorlax", "Snorlax"), ("swampert", "Swampert", "sceptile", "Sceptile"),
+             ("piplup", "Piplup", "turtwig", "Turtwig"), ("frost", "Frost Rotom", "kyogre", "Kyogre"),
+             ("oshawott", "Oshawott", "snivy", "Snivy"), ("sandy", "Wormadam (Sandy Cloak)", "abomasnow", "Abomasnow")]
+    for q1, n1, q2, n2 in pairs:
+        _clear_sides(page)
+        _pick(page, 1, q1, n1)
+        _pick(page, 2, q2, n2)
+        assert page.locator('.cmp-moves[data-side="1"] tbody tr').count() > 0, (n1, n2)
+    assert not page.errors, page.errors
+
+
+def test_compare_never_crashes_on_unknown_or_oddly_cased_types(app, browser):  # noqa: F811
+    """Imported or future data may carry other casing, an unknown type or missing fields: shown as unknown,
+    never an invented multiplier, never an exception."""
+    import json as _json
+    ctx = browser.new_context(viewport={"width": 1600, "height": 1000})
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+
+    def tamper(route):
+        resp = route.fetch()
+        d = resp.json()
+        d["types"] = ["WATER", "fairy"]
+        d["moves"] = (d.get("moves") or [])[:5] + [
+            {"id": 9001, "name": "Odd Move", "type": "Fairy", "category": "Special", "power": 80, "accuracy": 100, "pp": 10, "method": "level", "level": 5},
+            {"id": 9002, "name": "Caps Move", "type": "GRASS", "category": "Physical", "power": 60, "accuracy": 100, "pp": 20, "method": "TUTOR"},
+            {"id": 9003, "name": "Bare Move", "method": "TM??"}]
+        route.fulfill(response=resp, body=_json.dumps(d), headers={**resp.headers, "content-type": "application/json"})
+    pg.route("**/api/dex/species/258?*", tamper)
+    pg.goto(app.url("#/tools/typechart"))
+    pg.wait_for_selector(".compare-panel")
+    _clear_sides(pg)
+    _pick(pg, 1, "mudkip", "Mudkip")
+    _pick(pg, 2, "treecko", "Treecko")
+    txt = pg.locator(".compare-panel").inner_text()
+    assert "unknown" in _eff(pg, 0)                                  # the "fairy" attacking type is not in the 17-type chart
+    assert "GRASS\nunknown" in _eff(pg, 1)                         # against an unknown defending type: no number
+    assert "Caps Move" in txt and "Odd Move" in txt and "Bare Move" in txt
+    odd = pg.locator('.cmp-moves[data-side="0"] tbody tr', has_text="Odd Move")
+    assert "×" not in odd.inner_text()
+    caps = pg.locator('.cmp-moves[data-side="0"] tbody tr', has_text="Caps Move")
+    assert "½×" in caps.inner_text()                                # GRASS → grass vs Treecko: ½×
+    assert not errors, errors
+    ctx.close()
