@@ -57,6 +57,28 @@ def load_bundled_items() -> dict | None:
     except (OSError, ValueError):
         return None
 
+
+def load_reference(paths) -> dict | None:
+    """The newest valid reference dataset: a downloaded, verified data package (see refdata.py) when it is newer
+    than the built-in one, otherwise the built-in dataset."""
+    from .refdata import ReferenceUpdater
+    try:
+        dl = ReferenceUpdater(paths.root / "reference").load_current()
+    except Exception as exc:  # never fatal: the built-in data is always there
+        log.warning("Downloaded reference data not used: %s", exc)
+        dl = None
+    if dl:
+        return {"manifest": {**dl["manifest"], "source_kind": "downloaded"}, "species": dl["species"], "extras": dl["extras"],
+                "items": dl.get("items")}
+    b = load_bundled_reference()
+    if b:
+        b["items"] = None
+    return b
+
+
+def _ref_date(m: dict | None) -> str:
+    return str((m or {}).get("dump_date") or "")
+
 class DexService:
     def __init__(self, paths: Paths):
         self.paths = paths
@@ -94,13 +116,19 @@ class DexService:
             except (OSError, ValueError) as exc:  # corrupt personal install → fall back to the bundled data below
                 log.warning("Personal PokeMMO data could not be read (%s); using the bundled reference data", exc)
                 self.manifest, self.species, self.extras, self.sprites = None, {}, {}, {}
-            if not self.species:
-                # Every installation ships the reference dataset (companion/data/reference), so core features
-                # never need a player import. A personal client import, when present, takes precedence.
-                b = load_bundled_reference()
-                if b:
-                    self.manifest, self.species, self.extras = b["manifest"], b["species"], b["extras"]
-                    self.sprites = {}
+            # Every installation ships the reference dataset (companion/data/reference), so core features never need
+            # a player import. A personal client import is used only when it is at least as new as the reference
+            # data; an OLDER import never overrides newer verified data (its sprites/icons are still used).
+            ref_ds = load_reference(self.paths)
+            self.private_superseded = None
+            if self.species and ref_ds and _ref_date(self.manifest) < _ref_date(ref_ds["manifest"]):
+                self.private_superseded = {"private_date": _ref_date(self.manifest), "reference_date": _ref_date(ref_ds["manifest"])}
+                log.info("Personal PokeMMO import (%s) is older than the reference data (%s); using the reference data",
+                         self.private_superseded["private_date"], self.private_superseded["reference_date"])
+                self.manifest, self.species, self.extras = ref_ds["manifest"], ref_ds["species"], ref_ds["extras"]
+            elif not self.species and ref_ds:
+                self.manifest, self.species, self.extras = ref_ds["manifest"], ref_ds["species"], ref_ds["extras"]
+                self.sprites = {}
             # Changes whenever data is (re)installed, so sprite URLs can be cached by the browser safely.
             self.asset_version = hashlib.sha1(str((self.manifest or {}).get("imported_at", "")).encode()).hexdigest()[:10]
             self._resolve_local_form_art()
@@ -129,6 +157,7 @@ class DexService:
         except (OSError, ValueError):
             pass
         return {"imported": self.imported, "manifest": self.manifest, "index": self.index_meta,
+                "private_superseded": getattr(self, "private_superseded", None),
                 "source_kind": (self.manifest or {}).get("source_kind", "private" if self.species else None),
                 "reference": ref_m and {"dump_date": ref_m.get("dump_date"), "counts": ref_m.get("counts"), "built_at": ref_m.get("built_at")},
                 "species_total": len(self.index)}

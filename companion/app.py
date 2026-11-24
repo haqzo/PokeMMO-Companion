@@ -60,6 +60,9 @@ class AppContext:
     def __init__(self, data_dir: str | None = None):
         self.paths: Paths = make_paths(data_dir)
         self.storage = Storage(self.paths.db, self.paths.backups)
+        from .services import backup as _backup
+        self.restore_marker = self.paths.root / "restore-in-progress.json"
+        self.restore_recovered = _backup.finish_interrupted(self.storage, self.paths.media, self.restore_marker)
         self.settings = Settings(self.storage)
         self.bus = EventBus()
         # Interrupted earlier swap? Put the last complete private install back before anything reads it.
@@ -76,6 +79,10 @@ class AppContext:
         self.sprite_library.reload()
         self.dex.library = self.sprite_library
         self.guides = GuideService(self.storage, self.paths)
+        from .services.refdata import ReferenceUpdater
+        from .services.appupdate import AppUpdateChecker
+        self.refdata = ReferenceUpdater(self.paths.root / "reference", self.settings, self.bus)
+        self.app_updates = AppUpdateChecker(self.storage, self.settings, self.bus)
         self.items = ItemService(self.paths, self.storage)
         self.dex.machines = self.items.machines
         self.notes = NotesService(self.storage)
@@ -160,9 +167,18 @@ class AppContext:
         self.live.apply_settings()
         self.news.start_auto(self.settings, self.bus)
         self.timers.start()
+        self.refdata.start_auto()
+        self.app_updates.start_auto()
+        from .services.backup import AutoBackup
+        self.auto_backup = AutoBackup(self.storage, self.paths.media, self.paths.backups, self.settings)
+        self.auto_backup.start()
 
     def shutdown(self) -> None:
         self.live.stop()
         self.timers.stop()
         self.news.stop_auto()
+        if getattr(self, "auto_backup", None):
+            self.auto_backup.stop()
+        self.refdata.stop()
+        self.app_updates.stop()
         self.storage.close()

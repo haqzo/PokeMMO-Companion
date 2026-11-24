@@ -12,7 +12,9 @@ import queue
 import re
 import threading
 import traceback
+import time
 import uuid
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
@@ -648,6 +650,111 @@ def build_router(ctx: AppContext) -> Router:
         return res
     r.add("POST", "/api/backup/import", backup_import)
     r.add("POST", "/api/backup/snapshot", lambda req: {"path": str(ctx.storage.backup("manual"))})
+
+    # complete backups (.zip with images), preview and restore
+    def _after_restore():
+        ctx.timers.load()                      # imported timers are live immediately (same TimerService)
+        for topic in ("guides", "cguides", "documents", "timers", "favourites"):
+            ctx.bus.publish(topic, {"imported": True})
+        ctx.bus.publish("settings", {})
+
+    def _archive_path(req: Request) -> Path:
+        name = str(req.json("name", "") or "")
+        b64 = req.json("data_b64", None)
+        if b64:
+            if len(b64) > 400_000_000:
+                raise ApiError(400, "Backup file is too large")
+            import base64 as _b64
+            try:
+                data = _b64.b64decode(b64, validate=True)
+            except ValueError:
+                raise ApiError(400, "Backup file could not be read")
+            p = ctx.paths.backups / f"uploaded-{time.strftime('%Y%m%d-%H%M%S')}.zip"
+            ctx.paths.backups.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(data)
+            return p
+        if not re.fullmatch(r"(companion|uploaded)-[A-Za-z0-9_.-]+\.zip", name):
+            raise ApiError(400, "Choose a backup archive")
+        p = ctx.paths.backups / name
+        if not p.is_file():
+            raise ApiError(404, "Backup not found")
+        return p
+
+    r.add("GET", "/api/backup/list", lambda req: {"folder": str(ctx.paths.backups), "backups": backup.list_backups(ctx.paths.backups),
+                                                "auto_hours": ctx.settings.get("backup.auto_hours"),
+                                                "recovered": ctx.restore_recovered})
+
+    def backup_archive(req: Request) -> dict:
+        p = backup.write_archive(ctx.storage, ctx.paths.media, ctx.paths.backups, "manual")
+        backup.prune(ctx.paths.backups)
+        return {"name": p.name, "path": str(p), "bytes": p.stat().st_size}
+    r.add("POST", "/api/backup/archive", backup_archive)
+
+    def backup_preview(req: Request) -> dict:
+        try:
+            if req.json("payload", None) is not None:
+                return backup.preview(ctx.storage, req.json("payload"))
+            p = _archive_path(req)
+            payload, _media = backup.read_archive(p)
+            return {**backup.preview(ctx.storage, payload), "name": p.name}
+        except (ValueError, zipfile.BadZipFile) as exc:
+            raise ApiError(400, str(exc))
+    r.add("POST", "/api/backup/preview", backup_preview)
+
+    def backup_restore(req: Request) -> dict:
+        mode = req.json("mode", "merge")
+        if mode == "replace" and req.json("confirm") is not True:
+            raise ApiError(400, "Replacing your data needs confirmation")
+        try:
+            res = backup.restore_archive(ctx.storage, ctx.paths.media, _archive_path(req), mode, ctx.restore_marker)
+        except (ValueError, zipfile.BadZipFile) as exc:
+            raise ApiError(400, str(exc))
+        _after_restore()
+        return res
+    r.add("POST", "/api/backup/restore", backup_restore)
+
+    # ------------------------------------------------------------ reference data + application updates
+    from .services.refdata import RefDataError
+
+    def _ref_reload():
+        ctx.dex.reload()
+        ctx.items.reload()
+        ctx.bus.publish("reference", {"reloaded": True})
+
+    def ref_call(fn):
+        def run(req):
+            try:
+                return fn(req)
+            except RefDataError as exc:
+                raise ApiError(400, str(exc))
+        return run
+    r.add("GET", "/api/reference/status", lambda req: {**ctx.refdata.status(), "in_use": (ctx.dex.manifest or {}).get("source_kind"),
+                                                     "dump_date": (ctx.dex.manifest or {}).get("dump_date"),
+                                                     "private_superseded": getattr(ctx.dex, "private_superseded", None)})
+    r.add("POST", "/api/reference/check", ref_call(lambda req: ctx.refdata.check()))
+
+    def ref_install(req):
+        res = ctx.refdata.check()
+        if not res.get("ok"):
+            raise ApiError(400, res.get("error") or "Check failed")
+        if not res.get("available"):
+            return {"installed": False, "reason": "Already up to date"}
+        out = ctx.refdata.install(res["available"])
+        _ref_reload()
+        return out
+    r.add("POST", "/api/reference/install", ref_call(ref_install))
+    r.add("POST", "/api/reference/rollback", ref_call(lambda req: (ctx.refdata.rollback(), _ref_reload())[0]))
+    r.add("POST", "/api/reference/reset", ref_call(lambda req: (ctx.refdata.remove_download(), _ref_reload(), {"reset": True})[2]))
+
+    r.add("GET", "/api/app-update/status", lambda req: ctx.app_updates.status())
+    r.add("POST", "/api/app-update/check", lambda req: ctx.app_updates.check())
+
+    def app_update_download(req):
+        try:
+            return ctx.app_updates.download(str(req.json("asset", "")), ctx.paths.root / "updates")
+        except ValueError as exc:
+            raise ApiError(400, str(exc))
+    r.add("POST", "/api/app-update/download", app_update_download)
 
     # ------------------------------------------------------------- shell
     def shell_cmd(req: Request) -> dict:

@@ -16,7 +16,8 @@ ROUTES = ["#/home", "#/pokedex", "#/pokedex/6", "#/tools", "#/tools/typechart", 
           "#/tools/items", "#/tools/notes", "#/tools/box", "#/tools/showcase", "#/tools/locations", "#/tools/links",
           "#/collection", "#/live", "#/live/legendaries", "#/live/cave", "#/guides", "#/guides/storyline", "#/guides/mine",
           "#/settings/appearance", "#/settings/language", "#/settings/windows", "#/settings/shortcuts",
-          "#/settings/notifications", "#/settings/sources", "#/settings/guides", "#/settings/data", "#/settings/about"]
+          "#/settings/notifications", "#/settings/sources", "#/settings/guides", "#/settings/backup", "#/settings/data",
+          "#/settings/about"]
 
 PROBE = r"""
 (limit) => {

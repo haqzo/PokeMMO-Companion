@@ -61,6 +61,10 @@ DEFAULTS: dict[str, Any] = {
     # Official news: automatic background check of the official Updates feed (titles/dates/links only)
     "updates.auto_check": True,
     "updates.check_hours": 3,
+    "backup.auto_hours": 24,
+    "reference.auto_update": True,           # install approved, signed reference-data packages automatically
+    "app_updates.auto_check": True,          # look for new Companion releases (never installs by itself)
+    "app_updates.channel": "stable",         # stable | prerelease                 # complete backup archive in the background every N hours (0 = off)
     # Sidebar Quick Access (ordered list of {kind, id}); horizontal nav shows the same items as a strip
     # (Type matchups, Notes and Collection are in the main navigation since 2026-11-23, so not repeated here.)
     "nav.quick_access": [{"kind": "tool", "id": "breeding"}, {"kind": "guide", "id": "current"}],
@@ -106,6 +110,7 @@ _ENUMS = {
     "locations.region": ("kanto", "johto", "hoenn", "sinnoh", "unova"),
     "appearance.nav": ("vertical", "horizontal"),
     "appearance.sidebar": ("auto", "icons", "full"),
+    "app_updates.channel": ("stable", "prerelease"),
     "appearance.stat_bars": ("soft", "accent"),
     "appearance.density": ("comfortable", "compact"),
     "app.close_behavior": ("quit", "tray"),
@@ -126,6 +131,7 @@ _RANGES = {
     "notify.toast_opacity": (60, 100),
     "notify.retention_days": (1, 365),
     "updates.check_hours": (1, 24),
+    "backup.auto_hours": (0, 168),
 }
 for _tool in TOOLS:
     _ENUMS[f"window.{_tool}.mode"] = MODES

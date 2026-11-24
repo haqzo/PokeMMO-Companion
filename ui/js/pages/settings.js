@@ -8,7 +8,7 @@ import { LANGS, coverage, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
 const SECTIONS = [['appearance', 'Appearance'], ['language', 'Language'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
-  ['sources', 'Live sources & news'], ['guides', 'Guides & characters'], ['data', 'Data & privacy'], ['about', 'About']];
+  ['sources', 'Live sources & news'], ['guides', 'Guides & characters'], ['updates', 'Updates'], ['backup', 'Backup & recovery'], ['data', 'Data & privacy'], ['about', 'About & diagnostics']];
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
@@ -24,7 +24,7 @@ export async function render(el, route) {
   const body = h('div', { class: 'card' });
   page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': 'Settings sections' },
     SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, l))), body));
-  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, data, about })[sec](body);
+  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, data, about })[sec](body);
 }
 
 // --------------------------------------------------------------- language
@@ -254,7 +254,7 @@ async function guidesSec(b) {
       runs.deleted.map((r) => h('tr', { style: { opacity: 0.7 } }, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, 'deleted'), h('td', { class: 'small' }, relTime(r.deleted_at)),
         h('td', null, h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${r.id}/restore`); render(document.getElementById('main'), { parts: ['guides'] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Restore')))))),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), 'New run'),
-      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Backups & walkthrough import')));
+      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/backup') }, 'Backup & recovery'), h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Walkthrough import')));
 }
 
 // ----------------------------------------------------------------- data
@@ -318,26 +318,11 @@ export async function data(b) {
     h('div', { class: 'tiny muted' }, 'Reads “KANTO COMPLETE WALKTHROUGH.odt” etc. Re-importing keeps your checkmarks (stable step IDs) and flags any step whose wording changed.'),
     jobBox,
     await spriteLibrarySection(browse),
-    h('h3', null, 'Backup'),
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn', onclick: async () => downloadJson(`pokemmo-companion-backup-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')) }, icon('download'), 'Export backup (JSON)'),
-      h('button', { class: 'btn', onclick: () => importBackup('merge') }, icon('upload'), 'Import backup — merge'),
-      h('button', { class: 'btn danger', onclick: () => importBackup('replace') }, 'Import backup — replace'),
-      h('button', { class: 'btn ghost', onclick: async () => { const r = await post('/api/backup/snapshot'); toast('Database snapshot saved: ' + r.path, { timeout: 7000 }); } }, 'Save database snapshot')),
-    h('div', { class: 'tiny muted' }, 'Backups contain your runs, checkmarks, favourites, notes, plans, teams, observations and settings — never PokeMMO client data. A safety snapshot is taken before every import.'),
     h('h3', null, 'Storage'),
     h('div', { class: 'small' }, 'Data folder: ', h('span', { class: 'mono' }, boot.data_dir)),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Clear report history', 'Delete all saved Alpha/Swarm reports and TEST entries?', 'Clear', true)) { await post('/api/live/clear', {}); toast('Report history cleared'); } } }, 'Clear report history')),
     h('p', { class: 'small muted' }, 'Privacy: no telemetry, no accounts, no game memory access, no automation. Network is used for the opt-in report feed and the official news check (automatic, can be turned off in Live sources & news).')));
 
-  async function importBackup(mode) {
-    try {
-      const payload = await pickJsonFile(); if (!payload) return;
-      if (mode === 'replace' && !(await confirmDialog('Replace all data?', 'This replaces your runs, progress, favourites, notes, plans and settings with the backup. A safety snapshot is saved first.', 'Replace', true))) return;
-      const r = await post('/api/backup/import', { payload, mode });
-      toast(`Backup imported (${r.runs_added} runs${r.runs_renamed ? `, ${r.runs_renamed} imported as copies to avoid overwriting` : ''})`, { timeout: 7000 });
-      setTimeout(() => location.reload(), 900);
-    } catch (e) { toast(e.message, { kind: 'warn', timeout: 6000 }); }
-  }
 }
 
 // Optional sprite library: animated Gen V battle sprites the user supplies (never bundled or downloaded by the app).
@@ -398,6 +383,113 @@ async function formArtReport() {
 }
 
 // ---------------------------------------------------------------- about
+// --------------------------------------------------------------- updates (news, reference data, Companion)
+async function updatesSec(b) {
+  const [ref, app, n] = await Promise.all([get('/api/reference/status'), get('/api/app-update/status'), get('/api/news')]);
+  const redraw = () => { b.innerHTML = ''; updatesSec(b); };
+  const s = state.settings;
+  const f = n.feed;
+  const refUsing = ref.using === 'downloaded' ? `Updated data from ${fmtDate(ref.downloaded.dump_date)} (revision ${ref.downloaded.revision})`
+    : `Built-in data from the PokeMMO client of ${fmtDate(ref.built_in.dump_date)}`;
+  const latest = app.latest;
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Updates'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Three separate things, each checked in the background. Nothing interrupts a game or a running timer.'),
+    h('h3', null, 'Official PokeMMO news'),
+    row('Check automatically', f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
+      switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }), 'Check official news automatically')),
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? 'Official news checked' : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), 'Check now')),
+    h('h3', null, 'PokeMMO reference data'),
+    h('div', { class: 'small' }, refUsing, '.'),
+    ref.private_superseded ? notice('info', `Your own client import (${fmtDate(ref.private_superseded.private_date)}) is older than this data, so the newer data is used. Your sprites and icons are still shown.`) : null,
+    ref.configured ? [
+      row('Install verified data updates automatically', ref.last_check_at ? `Last check ${relTime(ref.last_check_at)}.` : 'Not checked yet.', switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }), 'Reference data updates')),
+      ref.last_error ? notice('warn', ref.last_error) : null,
+      h('div', { class: 'row wrap' },
+        h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? `Reference data updated (${fmtDate(r.dump_date)})` : r.reason); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), 'Check and update'),
+        ref.previous_available ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/rollback'); toast('Previous data restored'); redraw(); } }, 'Go back to the previous data') : null,
+        ref.downloaded ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/reset'); toast('Using the built-in data'); redraw(); } }, 'Use built-in data') : null)]
+      : h('div', { class: 'small muted' }, 'Data updates are not set up in this build yet; the built-in data works fully offline. When they are, approved and signed data packages install here automatically, and the previous data is kept so you can go back.'),
+    h('h3', null, 'PokeMMO Companion'),
+    row('Check for new versions', `This is version ${app.current}.${app.checked_at ? ` Last check ${relTime(app.checked_at)}.` : ''} Companion never installs or restarts by itself.`,
+      switchEl(!!s['app_updates.auto_check'], (v) => saveSettings({ 'app_updates.auto_check': v }), 'Check for Companion updates')),
+    row('Release channel', 'Stable releases only, or also pre-releases. Development builds are never offered.',
+      seg([['stable', 'Stable'], ['prerelease', 'Pre-releases']], s['app_updates.channel'] || 'stable', (v) => saveSettings({ 'app_updates.channel': v }), 'Release channel')),
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), 'Check for updates')),
+    app.ok === false ? notice('warn', `Could not check: ${app.error}`) : null,
+    app.ok && !latest ? h('div', { class: 'small muted' }, 'No release has been published yet.') : null,
+    latest ? h('div', { class: 'card inset stack tight' },
+      h('div', null, h('strong', null, app.available ? `Version ${latest.version} is available` : `You have the latest ${latest.prerelease ? 'pre-release' : 'release'} (${latest.version})`),
+        h('span', { class: 'tiny muted' }, latest.published_at ? ` · ${fmtDate(latest.published_at)}` : '')),
+      app.available && latest.notes ? h('details', null, h('summary', { class: 'small' }, 'What’s new'), h('pre', { class: 'small', style: { whiteSpace: 'pre-wrap', margin: 0 } }, latest.notes)) : null,
+      app.available ? h('div', { class: 'row wrap' }, extLink(latest.url, 'Open release page'),
+        app.verified_downloads ? h('span', { class: 'tiny muted' }, 'Verified download: choose your file on the release page, or use the download button when it appears here.') : h('span', { class: 'tiny muted' }, 'Download it from the release page. Your personal data stays where it is.')) : null) : null));
+}
+
+// --------------------------------------------------------------- backup & recovery
+async function backupSec(b) {
+  const st = await get('/api/backup/list');
+  const auto = st.backups.find((x) => x.label === 'automatic');
+  const fmtSize = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+  const listEl = h('div', { class: 'list-rows' }, st.backups.length ? st.backups.map((x) => h('div', { class: 'list-row compact' },
+    h('div', { class: 'grow' }, h('div', null, fmtDate(x.created_at, true), h('span', { class: 'tiny muted' }, ` · ${x.label}`)),
+      h('div', { class: 'tiny muted mono ellipsis' }, `${x.name} · ${fmtSize(x.bytes)}`)),
+    x.kind === 'archive' ? h('button', { class: 'btn small', onclick: () => restoreFlow({ name: x.name }) }, 'Restore…')
+      : h('span', { class: 'tiny muted', title: 'A copy of the database file. Use a complete backup (.zip) to restore from inside the Companion.' }, 'database copy'))) :
+    h('div', { class: 'small muted' }, 'No backups yet.'));
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Backup & recovery'),
+    st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? 'A restore was interrupted last time; it has been finished.' : `A restore was interrupted and could not be finished (${st.recovered.reason}). Your safety copy is in the backup folder.`) : null,
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'A complete backup contains your notes, collection, showcases, pictures, guides with their cycles and history, character runs and storyline progress, teams, timers and presets, map marks, settings and window positions. Never ROMs or PokeMMO client files. Nothing is uploaded anywhere.'),
+    row('Automatic backups', auto ? `Last: ${fmtDate(auto.created_at, true)}. The newest 7 are kept.` : 'Made in the background; the newest 7 are kept.',
+      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Automatic backups', onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },
+        [[0, 'Off'], [6, 'Every 6 hours'], [12, 'Every 12 hours'], [24, 'Daily'], [72, 'Every 3 days'], [168, 'Weekly']].map(([v, l]) =>
+          h('option', { value: v, selected: Number(st.auto_hours) === v ? 'selected' : null }, l)))),
+    h('div', { class: 'row wrap', style: { margin: '10px 0' } },
+      h('button', { class: 'btn primary', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/backup/archive'); toast(`Backup saved: ${r.name}`, { timeout: 6000 }); b.innerHTML = ''; backupSec(b); } }, icon('download'), 'Back up now'),
+      h('button', { class: 'btn', onclick: () => pickBackupFile() }, icon('upload'), 'Restore from a file…'),
+      h('button', { class: 'btn ghost', onclick: async () => downloadJson(`pokemmo-companion-data-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')) }, 'Export data only (JSON, no pictures)')),
+    h('div', { class: 'small' }, 'Backup folder: ', h('span', { class: 'mono' }, st.folder)),
+    h('h3', null, 'Saved backups'), listEl));
+
+  function pickBackupFile() {
+    const inp = h('input', { type: 'file', accept: '.zip,.json,application/zip,application/json', style: { display: 'none' } });
+    inp.addEventListener('change', () => {
+      const f = inp.files[0]; inp.remove(); if (!f) return;
+      const r = new FileReader();
+      if (f.name.toLowerCase().endsWith('.json')) {
+        r.onload = () => { try { restoreFlow({ payload: JSON.parse(r.result) }); } catch (e) { toast('That file is not a valid backup', { kind: 'warn' }); } };
+        r.readAsText(f);
+      } else {
+        r.onload = () => restoreFlow({ data_b64: String(r.result).split(',')[1] });
+        r.readAsDataURL(f);
+      }
+    });
+    document.body.append(inp); inp.click();
+  }
+
+  async function restoreFlow(src) {
+    let pv;
+    try { pv = await post('/api/backup/preview', src); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); return; }
+    if (pv.name) { src = { name: pv.name }; }      // an uploaded archive was saved into the backup folder
+    const LABEL = { runs: 'character runs', step_status: 'storyline checkmarks', custom_guides: 'personal guides', guide_cycles: 'guide cycles',
+      lib_notes: 'notes', owned_pokemon: 'collection entries', showcases: 'showcases', media: 'pictures', documents: 'teams, timers and other items' };
+    const lines = Object.entries(pv.counts).filter(([k]) => LABEL[k]).map(([k, n]) => h('li', null, `${n} ${LABEL[k]}`));
+    const mode = await modal({ title: 'Restore backup', body: h('div', { class: 'stack' },
+      h('div', { class: 'small' }, `Made ${pv.exported_at ? fmtDate(pv.exported_at, true) : 'at an unknown time'} by Companion ${pv.app_version || '?'}.`),
+      pv.newer ? notice('warn', 'This backup was made by a newer version of Companion and cannot be restored here.') : null,
+      h('ul', { class: 'small', style: { margin: 0 } }, lines),
+      pv.runs_conflicting || pv.documents_conflicting ? h('div', { class: 'small muted' }, `${pv.runs_conflicting} run(s) and ${pv.documents_conflicting} item(s) already exist here. Merge keeps yours and adds the backup’s versions as copies, with their links intact.`) : null,
+      h('div', { class: 'small muted' }, 'A safety copy of your current data is saved first.')),
+    actions: [{ label: 'Cancel', value: null, kind: 'ghost' }, { label: 'Replace my data', value: 'replace', kind: 'danger' }, { label: 'Merge', value: 'merge', kind: 'primary' }] });
+    if (!mode || pv.newer) return;
+    if (mode === 'replace' && !(await confirmDialog('Replace all your data?', 'Everything you created in Companion is replaced by this backup. A safety copy is saved first, so this can be undone by restoring it.', 'Replace', true))) return;
+    try {
+      const r = src.payload ? await post('/api/backup/import', { payload: src.payload, mode }) : await post('/api/backup/restore', { ...src, mode, confirm: mode === 'replace' });
+      toast(`Backup restored${r.runs_renamed ? ` — ${r.runs_renamed} run(s) added as copies` : ''}.`, { timeout: 7000 });
+      setTimeout(() => location.reload(), 900);
+    } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); }
+  }
+}
+
 async function about(b) {
   const boot = state.boot;
   b.append(h('h2', { style: { marginTop: 0 } }, 'About'),
