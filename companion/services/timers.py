@@ -21,6 +21,7 @@ import time
 import uuid
 
 from ..storage import utcnow
+from ..storage import StorageClosedError
 
 KIND = "timer"
 PRESET_KIND = "timer_preset"
@@ -387,6 +388,10 @@ class TimerService:
             while not self._stop.wait(interval):
                 try:
                     self.tick()
+                except StorageClosedError:
+                    if self._stop.is_set():      # Companion is closing: stop here, nothing left to save
+                        return
+                    raise
                 except Exception:  # pragma: no cover - keep the loop alive
                     pass
         self._thread = threading.Thread(target=loop, name="timers", daemon=True)

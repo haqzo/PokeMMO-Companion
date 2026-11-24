@@ -42,6 +42,9 @@ def choose_qt_platform(pref: str, override: str | None) -> str | None:
     return None
 
 
+RELAUNCH_WAIT = 20.0      # seconds a new launch waits for a closing instance
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="companion", description=f"{APP_NAME} {__version__}")
     p.add_argument("--browser", action="store_true", help="Run in your web browser instead of native windows")
@@ -74,9 +77,14 @@ def main(argv: list[str] | None = None) -> int:
         # Companion is already running for this data folder: bring it forward instead of starting a second copy
         if args.launch_game:
             _launch_game_quietly(root)
-        shown = lock.signal_running({"action": "focus_main"})
-        print(f"{APP_NAME} is already running{' — brought its window forward' if shown else ''}.", file=sys.stderr)
-        return 0
+        if lock.signal_running({"action": "focus_main"}):
+            print(f"{APP_NAME} is already running — brought its window forward.", file=sys.stderr)
+            return 0
+        # Not answering: most likely it is just closing (it refuses requests while it finishes). Wait for it to
+        # release the lock and start normally, so a quick close → relaunch is never lost (2026-11-24).
+        if not lock.acquire_wait(RELAUNCH_WAIT):
+            print(f"{APP_NAME} is already running but did not respond; try again in a moment.", file=sys.stderr)
+            return 0
 
     from .app import AppContext
     from .server import CompanionServer

@@ -24,6 +24,7 @@ from email.utils import parsedate_to_datetime
 from .. import __version__
 from ..config import BUNDLED_DATA_DIR
 from ..storage import Storage, utcnow
+from ..storage import StorageClosedError
 
 FEED_URL = "https://forums.pokemmo.com/index.php?/forum/5-updates.xml/"
 MANUAL_MIN_INTERVAL = 60          # seconds between manual checks
@@ -314,6 +315,10 @@ class NewsService:
                             after = (self.records(res)[:1] or [{}])[0].get("id")
                             bus.publish("news", {"ok": res.get("ok"), "count": res.get("count"), "auto": True,
                                                  "changed": before != after or not res.get("unchanged")})
+                except StorageClosedError:
+                    if self._auto_stop.is_set():      # Companion is closing: stop here, nothing left to save
+                        return
+                    raise
                 except Exception:  # pragma: no cover
                     log.exception("automatic news check failed")
                 if self._auto_stop.wait(300):

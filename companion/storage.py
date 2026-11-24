@@ -136,11 +136,17 @@ def utcnow() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+class StorageClosedError(RuntimeError):
+    """The database was closed (Companion is shutting down). Raised instead of sqlite's generic
+    ProgrammingError so callers can tell a late request during shutdown from a real bug."""
+
+
 class Storage:
     def __init__(self, db_path: Path, backups_dir: Path):
         self.db_path = Path(db_path)
         self.backups_dir = Path(backups_dir)
         self._lock = threading.RLock()
+        self._closed = False
         existed = self.db_path.exists()
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
@@ -189,6 +195,7 @@ class Storage:
         stamp = time.strftime("%Y%m%d-%H%M%S")
         target = self.backups_dir / f"companion-{stamp}-{label}.sqlite3"
         with self._lock:
+            self._check_open()
             dest = sqlite3.connect(str(target))
             try:
                 self._conn.backup(dest)
@@ -196,9 +203,18 @@ class Storage:
                 dest.close()
         return target
 
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def _check_open(self) -> None:
+        if self._closed:
+            raise StorageClosedError("the database is closed (Companion is shutting down)")
+
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
         with self._lock:
+            self._check_open()
             self._conn.execute("BEGIN IMMEDIATE")
             try:
                 yield self._conn
@@ -209,6 +225,7 @@ class Storage:
 
     def query(self, sql: str, params: tuple | list = ()) -> list[dict]:
         with self._lock:
+            self._check_open()
             return [dict(r) for r in self._conn.execute(sql, params).fetchall()]
 
     def query_one(self, sql: str, params: tuple | list = ()) -> dict | None:
@@ -220,7 +237,11 @@ class Storage:
             return c.execute(sql, params).rowcount
 
     def close(self) -> None:
+        """Waits for the statement in progress (the lock), then closes. Idempotent."""
         with self._lock:
+            if self._closed:
+                return
+            self._closed = True
             self._conn.close()
 
     # --------------------------------------------------------------- settings

@@ -448,6 +448,8 @@ class LiveService:
                             replay = True
                         self.ingest(msg, "ntfy", replay=replay)
             except (urllib.error.URLError, OSError, ValueError) as exc:
+                if self._stop.is_set():          # closing: the connection was cut on purpose; nothing to record
+                    return
                 self._health("offline", f"{type(exc).__name__}: {str(exc)[:160]} — retrying in {backoff}s")
             if self._stop.wait(backoff):
                 return

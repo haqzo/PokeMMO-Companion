@@ -34,6 +34,7 @@ from typing import Callable
 
 from .. import __version__
 from ..config import BUNDLED_DATA_DIR
+from ..storage import StorageClosedError
 
 log = logging.getLogger("companion.refdata")
 
@@ -348,6 +349,10 @@ class ReferenceUpdater:
                             res = self.check()
                             if res.get("ok") and res.get("available"):
                                 self.install(res["available"])
+                except StorageClosedError:
+                    if self._stop.is_set():      # Companion is closing: stop here, nothing left to save
+                        return
+                    raise
                 except Exception:  # pragma: no cover
                     log.exception("automatic reference-data update failed")
                 if self._stop.wait(3600):

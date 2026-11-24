@@ -30,7 +30,7 @@ from .services import backup, breeding, calcs, importer
 from .services.guides import GuideError
 from .services.sprite_library import SpriteLibraryError
 from .settings import SettingsError
-from .storage import utcnow
+from .storage import StorageClosedError, utcnow
 
 log = logging.getLogger("companion.http")
 Handler = Callable[["Request"], Any]
@@ -863,7 +863,51 @@ def build_router(ctx: AppContext) -> Router:
 CLIENT_GONE = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
 
 
-def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler]:
+class RequestGate:
+    """Shutdown drain (native fix 2026-11-24): `server.stop()` used to stop only the accept loop, while handler
+    threads kept serving keep-alive connections from closing windows/popouts — a request could then reach the
+    database after `ctx.shutdown()` closed it (sqlite3.ProgrammingError). Now: once closing, new requests get a
+    503 without touching the app state, and stop() waits for the requests already running."""
+
+    def __init__(self) -> None:
+        self._cond = threading.Condition()
+        self._active = 0
+        self.closing = False
+
+    def enter(self) -> bool:
+        with self._cond:
+            if self.closing:
+                return False
+            self._active += 1
+            return True
+
+    def leave(self) -> None:
+        with self._cond:
+            self._active -= 1
+            self._cond.notify_all()
+
+    def close(self) -> None:
+        with self._cond:
+            self.closing = True
+            self._cond.notify_all()
+
+    def wait_idle(self, timeout: float) -> bool:
+        end = time.monotonic() + timeout
+        with self._cond:
+            while self._active:
+                left = end - time.monotonic()
+                if left <= 0:
+                    return False
+                self._cond.wait(left)
+            return True
+
+    @property
+    def active(self) -> int:
+        return self._active
+
+
+def make_handler(ctx: AppContext, router: Router, gate: RequestGate | None = None) -> type[BaseHTTPRequestHandler]:
+    gate = gate or RequestGate()
     ui_root = UI_DIR.resolve()
     assets_root = ctx.paths.assets_dir
 
@@ -936,6 +980,17 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
             self._dispatch("DELETE")
 
         def _dispatch(self, method: str) -> None:
+            if not gate.enter():
+                # Closing: answer without touching the app state (the database may already be closed).
+                self.close_connection = True
+                return self._send(503, b'{"error":"Companion is closing"}', "application/json; charset=utf-8",
+                                  {"Connection": "close", "Retry-After": "2"})
+            try:
+                return self._dispatch_open(method)
+            finally:
+                gate.leave()
+
+        def _dispatch_open(self, method: str) -> None:
             if not self._host_ok():
                 return self._send(403, b"Forbidden host", "text/plain")
             url = urlparse(self.path)
@@ -1000,6 +1055,11 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 self._json(200, result if result is not None else {"ok": True})
             except ApiError as exc:
                 self._json(exc.status, {"error": str(exc)})
+            except StorageClosedError:
+                # Only reachable if a request slipped past the gate during shutdown; never an unrelated error.
+                log.info("Request during shutdown: %s %s", method, path)
+                self.close_connection = True
+                self._json(503, {"error": "Companion is closing"})
             except (GuideError, SettingsError, importer.ImportError_) as exc:
                 self._json(400, {"error": str(exc)})
             except Exception as exc:
@@ -1045,13 +1105,19 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
                 self.end_headers()
                 self.wfile.write(b"retry: 2000\n\n")
                 self.wfile.flush()
-                while True:
+                quiet = 0.0
+                while not gate.closing:
                     try:
-                        ev = q.get(timeout=15)
+                        ev = q.get(timeout=1.0)
                         data = json.dumps(ev, ensure_ascii=False)
                         self.wfile.write(f"data: {data}\n\n".encode("utf-8"))
+                        quiet = 0.0
                     except queue.Empty:
+                        quiet += 1.0
+                        if quiet < 15:
+                            continue
                         self.wfile.write(b": keepalive\n\n")
+                        quiet = 0.0
                     self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
@@ -1076,7 +1142,8 @@ class CompanionServer:
     def __init__(self, ctx: AppContext, port: int = 0):
         self.ctx = ctx
         self.router = build_router(ctx)
-        self.httpd = _HTTPServer(("127.0.0.1", port), make_handler(ctx, self.router))
+        self.gate = RequestGate()
+        self.httpd = _HTTPServer(("127.0.0.1", port), make_handler(ctx, self.router, self.gate))
         self.httpd.daemon_threads = True
         self.thread: threading.Thread | None = None
 
@@ -1101,6 +1168,13 @@ class CompanionServer:
         self.thread.start()
         return self
 
-    def stop(self) -> None:
+    def stop(self, drain_timeout: float = 5.0) -> bool:
+        """Stop serving and drain: refuse new requests (503), stop accepting connections, wait up to
+        `drain_timeout` s for running requests. Call before ctx.shutdown(). Returns True when fully drained."""
+        self.gate.close()
         self.httpd.shutdown()
+        drained = self.gate.wait_idle(drain_timeout)
+        if not drained:
+            log.warning("Shutdown: %d request(s) still running after %.0f s", self.gate.active, drain_timeout)
         self.httpd.server_close()
+        return drained

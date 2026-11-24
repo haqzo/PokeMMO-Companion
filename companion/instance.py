@@ -38,6 +38,17 @@ class InstanceLock:
         self._fh = fh
         return True
 
+    def acquire_wait(self, timeout: float, interval: float = 0.25) -> bool:
+        """Try to take the lock until `timeout` s have passed (a closing instance releases it when it exits)."""
+        import time
+        end = time.monotonic() + timeout
+        while True:
+            if self.acquire():
+                return True
+            if time.monotonic() >= end:
+                return False
+            time.sleep(interval)
+
     def publish(self, base_url: str, token: str) -> None:
         tmp = self.info_path.with_suffix(".part")
         tmp.write_text(json.dumps({"url": base_url, "token": token, "pid": os.getpid()}), encoding="utf-8")

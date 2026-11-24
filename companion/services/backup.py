@@ -25,6 +25,7 @@ from pathlib import Path
 
 from .. import __version__
 from ..storage import SCHEMA_VERSION, Storage, utcnow
+from ..storage import StorageClosedError
 
 FORMAT = "pokemmo-companion-backup"
 FORMAT_VERSION = 2
@@ -378,6 +379,10 @@ class AutoBackup:
             while not self._stop.is_set():
                 try:
                     self.run_once()
+                except StorageClosedError:
+                    if self._stop.is_set():      # Companion is closing: stop here, nothing left to save
+                        return
+                    raise
                 except Exception:  # pragma: no cover
                     log.exception("automatic backup failed")
                 if self._stop.wait(3600):

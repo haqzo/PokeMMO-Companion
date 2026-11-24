@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Callable
 
 from .. import __version__
+from ..storage import StorageClosedError
 
 log = logging.getLogger("companion.appupdate")
 RELEASES_URL = "https://api.github.com/repos/haqzo/PokeMMO-Companion/releases?per_page=20"
@@ -181,6 +182,10 @@ class AppUpdateChecker:
                         if time.time() - st.get("_epoch", 0) >= CHECK_HOURS * 3600:
                             self.check()
                             self.db.set_settings({"app_updates.cache": {**(self.db.get_setting("app_updates.cache", None) or {}), "_epoch": time.time()}})
+                except StorageClosedError:
+                    if self._stop.is_set():      # Companion is closing: stop here, nothing left to save
+                        return
+                    raise
                 except Exception:  # pragma: no cover
                     log.exception("update check failed")
                 if self._stop.wait(3600):

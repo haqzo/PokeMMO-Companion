@@ -21,6 +21,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from ..storage import StorageClosedError
 
 log = logging.getLogger("companion.game")
 FLATPAK_ID = "com.pokemmo.PokeMMO"
@@ -207,6 +208,10 @@ class GamePresence:
                 try:
                     if self.settings.get("game.watch") or (self.settings.get("game.on_exit") or "keep") != "keep":
                         self.poll()
+                except StorageClosedError:
+                    if self._stop.is_set():      # Companion is closing: stop here, nothing left to save
+                        return
+                    raise
                 except Exception:  # pragma: no cover
                     log.exception("game presence check failed")
                 if self._stop.wait(self.interval):

@@ -5,6 +5,7 @@ import logging
 import queue
 import secrets
 import threading
+import time
 from typing import Any, Callable
 
 from . import __version__
@@ -162,8 +163,11 @@ class AppContext:
             log.warning("Could not measure sprite bounds", exc_info=True)
 
     def start_background(self) -> None:
-        threading.Thread(target=self._backfill_sprite_bounds, name="sprite-bounds", daemon=True).start()
-        threading.Thread(target=self.sync_local_data, name="data-sync", daemon=True).start()
+        # one-off start-up jobs are tracked too, so shutdown can wait for them before closing the database
+        self._oneoff = [threading.Thread(target=self._backfill_sprite_bounds, name="sprite-bounds", daemon=True),
+                        threading.Thread(target=self.sync_local_data, name="data-sync", daemon=True)]
+        for t in self._oneoff:
+            t.start()
         self.live.apply_settings()
         self.news.start_auto(self.settings, self.bus)
         self.timers.start()
@@ -176,14 +180,27 @@ class AppContext:
         self.auto_backup = AutoBackup(self.storage, self.paths.media, self.paths.backups, self.settings)
         self.auto_backup.start()
 
-    def shutdown(self) -> None:
-        self.live.stop()
-        self.timers.stop()
+    def shutdown(self, join_timeout: float = 4.0) -> None:
+        """Stop every background worker, wait for them (one shared deadline), then close the database.
+        Call after server.stop() has drained the HTTP requests. Safe to call twice.
+        Before 2026-11-24 the workers were only signalled, and the database could close under a worker or a
+        late HTTP request (sqlite3.ProgrammingError: Cannot operate on a closed database)."""
+        if getattr(self, "_shut", False):
+            return
+        self._shut = True
+        services = [self.live, self.timers, getattr(self, "auto_backup", None), self.refdata, getattr(self, "game", None), self.app_updates]
         self.news.stop_auto()
-        if getattr(self, "auto_backup", None):
-            self.auto_backup.stop()
-        self.refdata.stop()
-        if getattr(self, "game", None):
-            self.game.stop()
-        self.app_updates.stop()
+        for svc in services:
+            if svc is not None:
+                svc.stop()
+        threads = [getattr(svc, "_thread", None) for svc in services if svc is not None]
+        threads += [getattr(self.news, "_auto_thread", None)] + list(getattr(self, "_oneoff", []))
+        deadline = time.monotonic() + join_timeout
+        for t in threads:
+            if t is not None and t.is_alive() and t is not threading.current_thread():
+                t.join(max(0.0, deadline - time.monotonic()))
+        still = [t.name for t in threads if t is not None and t.is_alive()]
+        if still:
+            # e.g. the ntfy stream blocked in a network read: it checks its stop flag before touching the database
+            log.info("Shutdown: still finishing after %.0f s: %s", join_timeout, ", ".join(still))
         self.storage.close()
