@@ -28,6 +28,10 @@ the author's.
 * **Tokyo Night** — enkia/tokyo-night-vscode-theme (https://github.com/enkia/tokyo-night-vscode-theme), MIT licence.
 * Companion Default, Graphite, Arctic and Emerald are the project's own palettes.
 
+## Software
+PokeMMO Companion: Python standard library, Qt / PySide6 (QtWebEngine) for the native window, Pillow (sprite
+preparation only), `cryptography` (optional, signature checks).
+
 ## Community information
 * Alpha/Swarm reports: Alphapedia ntfy topics (opt-in).
 * Swarm duration estimate and roaming cycle: PokeMMO community wiki (pokemmo.shoutwiki.com).

@@ -32,11 +32,46 @@ Updating a development checkout: close every Companion window (including floatin
 tray, then `git pull --ff-only` and `./run.sh`. Windows development: `run.ps1` (untested).
 
 ## First start
-Everything works immediately and offline: the PokeMMO data (649 species, 559 moves, 2,090 items, 629 locations,
-33,405 encounter rows from the client of 16 Nov 2026) is built in. A short, skippable *Welcome* on Home lets you
-pick a language, find PokeMMO, turn on Alpha/Swarm alerts, test a notification and try a floating tool.
-No ROMs, dumps, sprite packs, character profile or developer tools are needed. Importing your own PokeMMO client
-files is optional (*Settings › Data & privacy*) and only adds your client's sprites and icons.
+Everything works immediately and offline. Built in, with nothing to import:
+* PokeMMO reference data — 649 species, 559 moves, 2,090 items, 629 locations, 33,405 encounter rows from the
+  client of 16 Nov 2026 (dataset counts, not a claim that everything is obtainable);
+* Pokémon artwork — Gen V sprites for all 649 species and 82 alternate forms, normal and shiny, static and
+  animated, plus 94 female variants (see *Assets and data*);
+* item icons — PokeMMO's own icons for 2,083 of the 2,090 item groups;
+* the complete Kanto, Johto, Hoenn, Sinnoh and Unova walkthroughs (by their original author, with permission).
+
+A short, skippable *Welcome* on Home lets you pick a language, find PokeMMO, turn on Alpha/Swarm alerts, test a
+notification and try a floating tool. No ROMs, dumps, sprite packs or developer tools are needed. Importing your
+own PokeMMO client files or sprite library is optional (*Settings › Advanced*).
+
+## Make it yours
+* **Themes** (*Settings › Appearance & themes*) — Catppuccin Mocha, Tokyo Night, Companion Default (the
+  default), Graphite, Arctic, Emerald, and Custom. Hover a theme to preview it, click to use it. Every colour
+  (backgrounds, sidebar, cards, dialogs, inputs, text, accent, links, buttons, hover/selected, borders, focus,
+  tables, progress bars, success/warning/error, notifications, popouts, scrollbars, optionally the 17 type
+  colours) has a colour picker, a hex field, opacity where it makes sense and a reset to the preset value.
+  Readability warnings appear when text gets hard to read; they never block a choice. Save as many personal
+  themes as you like (rename, duplicate, delete), export them as a small `.json` file to share, import theirs.
+  Theme files hold colours and numbers only — imports with anything else are cleaned or refused. Changes show
+  at once in every open window and floating tool.
+* **Layout & scaling** — text size (60–200 %, text only) and interface scale (75–150 %, everything in the main
+  window, applied once on top of your desktop scaling), font weight, density, card padding, gaps, table rows,
+  borders (on/off, thickness, opacity), corner radius 0–20, sidebar width and labels, scrollbars.
+* **Pokémon & sprites** — Static or Animated per place (Pokédex grid, summary, Roaming Legendaries, active and
+  expired Alpha/Swarm reports, report history, Location Explorer, teams, comparison) with sizes, and one
+  *Animations* switch (system / on / off) that overrides them all. Floating tools have their own sprite size
+  and animation choice in their text-size menu.
+* **Home** — show, hide and reorder sections; *Reset Home layout*.
+
+## Pokédex, summaries and Type Matchups
+* The Pokédex has **Normal / Shiny** and **Static / Animated** switches: one click shows every Pokémon shiny.
+  It is display only — nothing is marked as caught or owned, and your search, filters and scroll position stay.
+* Summaries have the same two switches (plus ♂/♀ where a female sprite exists).
+* **Type Matchups › Compare two Pokémon** (main window, beside the chart; below it in narrow windows): search by
+  name or number, including battle forms; both Pokémon's types against each other, weaknesses, and each one's
+  learnable moves against the other with type, category, power, accuracy, PP, how it is learned, effectiveness
+  and STAB — filter, sort, and pick up to four per side. Abilities that change a matchup (Levitate, Volt Absorb,
+  …) are named, never applied silently. It is not a battle simulator: no damage, speed or winner.
 
 ## Using it with PokeMMO
 *Settings › Startup & game* (all optional, all removable):
@@ -44,11 +79,20 @@ files is optional (*Settings › Data & privacy*) and only adds your client's sp
   installs, or use the launcher you choose. PokeMMO is never started twice and never closed by Companion.
 * **Start Companion at login**, optionally minimised to the tray; **reopen the floating tools** you had open.
 * **“PokeMMO + Companion” shortcut** that starts both.
-* **Start Companion when PokeMMO starts** — a tiny helper started at login. Companion cannot start by itself
-  if both it and this helper are closed.
+* **Open Companion automatically when you start PokeMMO** — the first option on the page. A tiny helper starts
+  with your login (and right away when you turn it on) and opens Companion when the PokeMMO process appears,
+  however you started the game. It only looks at the process list. Companion cannot open by itself if both it
+  and this helper are closed; turning the option off also stops the helper.
 * **When PokeMMO closes**: keep running (default), minimise or quit Companion.
 
-Only one Companion runs at a time; starting it again brings the open window forward.
+Only one Companion runs at a time; starting it again brings the open window forward. Pressing *Launch PokeMMO*
+several times, or using the shortcut while Companion also launches the game, still starts only one client.
+
+## Guides
+*Guides › All guides* shows the five regional walkthroughs — browse them without a character run — and your own
+guides with category shortcuts (gym and Elite Four reruns, money-making, farming, shiny hunting, daily routines,
+…). A character run is only needed to tick steps; each run keeps its own progress, separate from the bundled
+text, so guide updates never erase it.
 
 ## Floating tools, window sizes and displays
 Most tools can pop out into their own window (draggable, resizable, compact / standard / expanded). Every page
@@ -75,11 +119,11 @@ Offline, everything except these checks and the optional Alpha/Swarm feed keeps 
 ## Backups
 *Settings › Backup & recovery*: complete backups (.zip with your pictures) of notes, collection, showcases, guides
 with cycles and history, character runs and storyline progress, teams, timers, presets, map marks, settings and
-window positions. Automatic daily backups (7 kept), restore preview, merge or replace, safety copy first.
+window positions, themes and personal themes, sprite and layout preferences. Automatic daily backups (7 kept), restore preview, merge or replace, safety copy first.
 Personal data folder: `~/.local/share/pokemmo-companion` (Linux), `%APPDATA%\PokeMMO-Companion` (Windows).
 
 ## Troubleshooting
-* **Nothing opens / blank window** — try `./run.sh --browser`; *Settings › About & diagnostics › Save
+* **Nothing opens / blank window** — try `./run.sh --browser`; *Settings › About & credits › Save
   diagnostics* writes versions and a log with private details removed (nothing is sent anywhere).
 * **Pin / position doesn't work on KDE** — use the XWayland window backend (default on KDE).
 * **“already running”** — Companion is open (maybe in the tray); the existing window was brought forward.
@@ -91,13 +135,14 @@ automated input, no GTL scraping or account login, no telemetry.
 
 ## Documentation
 Build reports and decisions: [`docs/build/`](docs/build/README.md) — latest:
-[19 — release preparation](docs/build/19-RELEASE-PREPARATION.md). Design: [`docs/design/`](docs/design/README.md).
+[20 — beta preparation: themes, customization, built-in assets](docs/build/20-BETA-PREP-THEMES-ASSETS.md). Design: [`docs/design/`](docs/design/README.md).
 Research: [`docs/research/`](docs/research/README.md).
 
 ## Branches
 `main` — approved releases only. `develop` — ongoing work.
 
 ## Assets and data
-The repository contains reference data derived from the PokeMMO client and region map images, included by the
-owner's decision; distribution permissions are not established (see docs/build/17 and 19). It contains no ROMs,
-personal dumps, proprietary string tables or walkthrough documents.
+The repository contains reference data derived from the PokeMMO client, PokeMMO item icons, region map images,
+Gen V Pokémon sprites (PokeAPI/sprites) and the five regional walkthroughs, included by the owner's decision;
+redistribution permissions for the sprite images and client assets are not established (see
+[CREDITS](CREDITS.md) and docs/build/20). It contains no ROMs, personal dumps or proprietary string tables.

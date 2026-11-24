@@ -26,3 +26,4 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**17 — Player-ready: built-in PokeMMO data and region maps, no imports**](17-PLAYER-READY-BUILTIN-DATA-AND-MAPS.md)
 - [**18 — Location directory, unified Guides, guide timers, Team Builder v2, Alpha/Swarm animation**](18-GUIDES-TIMERS-TEAMS-LOCATION-DIRECTORY.md)
 - [**19 — Release preparation pass: visual cleanup, responsive layout, automatic systems, backups, startup integration**](19-RELEASE-PREPARATION.md)
+- [**20 — v0.9.0 beta preparation: themes, customization, built-in sprites/icons/walkthroughs, Pokémon comparison**](20-BETA-PREP-THEMES-ASSETS.md)
