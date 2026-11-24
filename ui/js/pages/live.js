@@ -5,7 +5,7 @@ import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, no
 import { go, popoutButton } from '../shell.js';
 
 let unsub = [];
-let ui = { kind: 'all', q: '', hideTests: false, calendar: false };
+let ui = { kind: 'all', q: '', hideTests: false, calendar: false, region: '' };
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
 // ---------------------------------------------------------------- current reports & estimated timers
@@ -67,6 +67,15 @@ export function currentCard(g, { compact = false, animate = false } = {}) {
     h('div', { class: 'tiny muted' }, `Reported ${timeOf(st.start)} · ${relTime(st.start)}`, g.duplicates ? ` · reported ${g.duplicates + 1}×` : '', g.caught_up ? ' · caught up on reconnect' : ''),
     h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
     compact ? null : h('div', { class: 'tiny muted' }, `${g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider} · community report`, st.notes.length ? ' · ⚠ ' + st.notes[0] : '')));
+}
+/** Phenomena: Alphapedia publishes them through its Discord bot and personal webhooks only — there is no supported
+ *  feed Companion can read (checked 2026-11-17 / 2026-11-24, docs/build/22). So nothing is shown as a live report;
+ *  the optional community server, where the Alphapedia bot posts them, is linked when an invite is configured. */
+export function phenomenaNote() {
+  const url = state.boot && state.boot.community && state.boot.community.discord;
+  return h('p', { class: 'tiny muted phenomena-note', style: { margin: 0 } },
+    'Phenomena are not available here: Alphapedia shares them through its Discord bot, not through a feed Companion can read.',
+    url ? [' The Alphapedia bot posts them in the optional ', extLink(url, 'community Discord'), '.'] : '');
 }
 export function estimatesNote(est) {
   return h('p', { class: 'tiny muted', style: { margin: 0 } }, `Timers are estimates counted from when a Pokémon was reported (not when it spawned): Alpha ${est.alpha_minutes} min (official changelog), `,
@@ -137,6 +146,7 @@ async function renderReports(el, selectedId, src) {
     const qs = new URLSearchParams();
     if (ui.kind !== 'all') qs.set('kind', ui.kind);
     if (ui.q) qs.set('q', ui.q);
+    if (ui.region) qs.set('region', ui.region);
     qs.set('tests', ui.hideTests ? '0' : '1');
     const r = await get('/api/live/reports?' + qs);
     mount(listBox, r.reports.length ? r.reports.map((x) => reportRow(x, x.id === selectedId)) : h('div', { class: 'empty' },
@@ -158,7 +168,7 @@ async function renderReports(el, selectedId, src) {
       : !c.complete ? notice('warn', `The feed is ${c.source.status}${c.source.last_success_at ? ` (last data ${relTime(c.source.last_success_at)})` : ''} — recent reports may be missing. This does not mean none are active.`) : null;
     mount(curBox, c.current.length ? c.current.map((g) => currentCard(g)) :
       h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? 'No Alpha or Swarm reported recently. This does not mean none are active.' : 'Turn on the report feed to see community reports here.'));
-    mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
+    mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates), phenomenaNote()));
     if (stopTimers) stopTimers();
     stopTimers = startTimers(curBox, skew, () => loadCurrent());
   };
@@ -172,6 +182,8 @@ async function renderReports(el, selectedId, src) {
     h('h2', { class: 'section-title history-title' }, 'Report history'),
     h('div', { class: 'row wrap' },
       seg([['all', 'All'], ['alpha', 'Alpha'], ['swarm', 'Swarm'], ['other', 'Other']], ui.kind, (v) => { ui.kind = v; load(); }, 'Report type'),
+      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Region', onchange: (e) => { ui.region = e.target.value; load(); } },
+        [['', 'All regions'], ['kanto', 'Kanto'], ['johto', 'Johto'], ['hoenn', 'Hoenn'], ['sinnoh', 'Sinnoh'], ['unova', 'Unova']].map(([v, l]) => h('option', { value: v, selected: ui.region === v ? 'selected' : null }, l))),
       h('div', { class: 'search', style: { flex: '1 1 200px', maxWidth: '300px' } }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search reports', value: ui.q,
         oninput: debounce((e) => { ui.q = e.target.value; load(); }, 200) })),
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: ui.hideTests, onchange: (e) => { ui.hideTests = e.target.checked; load(); } }), h('span', { class: 'small' }, 'Hide TEST entries')),

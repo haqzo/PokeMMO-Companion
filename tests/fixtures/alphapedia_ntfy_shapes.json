@@ -1,0 +1,8 @@
+{
+ "_provenance": "RECONSTRUCTED, not a raw capture. Field shapes of real Alphapedia ntfy messages observed and documented on 2026-11-17 (docs/design/13, project STATUS): alphapings title = species, message = 'Region, Location'; swarmpings title = species, message = 'Region\\nLocation'; actions 'Open in Alphapedia' (alpha.pokemmotools.org) and 'Call made by <player>'; 'expires' = ntfy cache retention (time + 1 h), not despawn. Message ids, times and player names here are synthetic.",
+ "alpha": {"id": "SYNTHa1", "event": "message", "topic": "alphapings", "title": "Ditto", "message": "Kanto, Cerulean Cave",
+           "expires": 0, "actions": [{"action": "view", "label": "Open in Alphapedia", "url": "https://alpha.pokemmotools.org/"},
+                                      {"action": "view", "label": "Call made by SyntheticPlayer", "url": "https://alpha.pokemmotools.org/"}]},
+ "swarm": {"id": "SYNTHs1", "event": "message", "topic": "swarmpings", "title": "Wailmer", "message": "Johto\nRoute 40", "expires": 0,
+           "actions": [{"action": "view", "label": "Open in Alphapedia", "url": "https://alpha.pokemmotools.org/"}]}
+}

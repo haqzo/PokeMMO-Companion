@@ -209,7 +209,14 @@ class LiveService:
                 return None
         report = self.get(rid)
         if not replay:
-            self.deliver(report)
+            earlier = self.earlier_report_of_same_event(report)
+            if earlier:
+                # Already notified for this event: keep the report in history, don't ping again.
+                self.db.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(
+                    {"suppressed": "Same Alpha/Swarm already reported — saved to history, not notified again",
+                     "same_as": earlier["id"], "at": utcnow()}), rid))
+            else:
+                self.deliver(report)
         self.bus.publish("live.report", {"id": rid, "replay": replay})
         return report
 
@@ -231,6 +238,33 @@ class LiveService:
         r["species_ani"] = (lib.urls(str(sid)).get("ani") if ok and lib is not None and lib.installed else None)
         r["status"] = report_status(r, datetime.now(timezone.utc), self.swarm_minutes())
         return r
+
+    @staticmethod
+    def event_key(r: dict) -> tuple:
+        """Same Pokémon (or same title), same kind, same region and place = the same game event."""
+        who = r.get("species_id") if r.get("species_match") in ("title", "single-mention") else None
+        return (r["kind"], who or (r.get("title") or "").strip().lower(), (r.get("region") or "").lower(),
+                (r.get("location") or "").lower())
+
+    def earlier_report_of_same_event(self, report: dict) -> dict | None:
+        """An earlier, still-running report of the same event (another player's call, a re-sent or corrected
+        notification under a new message id). Used to avoid notifying twice; it never changes the event's timer."""
+        if report.get("is_test") or report.get("kind") not in ("alpha", "swarm"):
+            return None
+        st = report.get("status") or {}
+        start = _parse_iso(st.get("start")) if st.get("start") else None
+        if start is None or not st.get("duration_min"):
+            return None
+        z = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")      # stored timestamps use this exact form  # noqa: E731
+        since, until = z(start - timedelta(minutes=st["duration_min"])), z(start)
+        key = self.event_key(report)
+        for r in self.db.query("SELECT * FROM reports WHERE is_test=0 AND kind=? AND id<>? AND COALESCE(source_time, received_at) >= ? "
+                               "AND COALESCE(source_time, received_at) <= ? ORDER BY COALESCE(source_time, received_at) ASC",
+                               (report["kind"], report["id"], since, until)):
+            r = self._row(r)
+            if self.event_key(r) == key:
+                return r
+        return None
 
     def swarm_minutes(self) -> int:
         try:
@@ -255,9 +289,7 @@ class LiveService:
             st = r["status"]
             if st["state"] not in ("recent", "uncertain") or (r["is_replay"] and not include_catchup):
                 continue
-            who = r.get("species_id") if r.get("species_match") in ("title", "single-mention") else None
-            key = (r["kind"], who or (r.get("title") or "").strip().lower(), (r.get("region") or "").lower(),
-                   (r.get("location") or "").lower())
+            key = self.event_key(r)
             start = _parse_iso(st["start"])
             g = next((g for g in groups if g["key"] == key and start - g["_start"] < timedelta(minutes=st["duration_min"])), None)
             if g:
@@ -302,9 +334,12 @@ class LiveService:
         return self._row(r)
 
     def list(self, kind: str | None = None, q: str | None = None, include_tests: bool = True,
-             limit: int = 300) -> list[dict]:
+             limit: int = 300, region: str | None = None) -> list[dict]:
         sql = "SELECT * FROM reports WHERE 1=1"
         args: list = []
+        if region in REGION_NAMES:
+            sql += " AND region=?"
+            args.append(region)
         if kind in ("alpha", "swarm", "other", "test"):
             sql += " AND kind=?"
             args.append(kind)
