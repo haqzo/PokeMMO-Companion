@@ -1,6 +1,6 @@
 // Settings (docs/design/16) + data import + first-run onboarding.
 import { CONTEXTS } from '../sprites.js';
-import { HOME_SECTIONS, homeSections } from './home.js';
+import { appearanceSec, layoutSec, homeSec } from './settings-theme.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
@@ -8,8 +8,10 @@ import { createRun } from './guides.js';
 import { LANGS, coverage, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
-const SECTIONS = [['appearance', 'Appearance'], ['sprites', 'Pokémon & sprites'], ['language', 'Language'], ['startup', 'Startup & game'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
-  ['sources', 'Live sources & news'], ['guides', 'Guides & characters'], ['updates', 'Updates'], ['backup', 'Backup & recovery'], ['data', 'Data & privacy'], ['about', 'About & diagnostics']];
+const SECTIONS = [['appearance', 'Appearance & themes'], ['layout', 'Layout & scaling'], ['sprites', 'Pokémon & sprites'], ['home', 'Home'], ['language', 'Language'],
+  ['startup', 'Startup & game'], ['windows', 'Windows & popouts'], ['shortcuts', 'Shortcuts'], ['notifications', 'Notifications'], ['sources', 'Live sources & news'],
+  ['guides', 'Guides & characters'], ['updates', 'Updates'], ['backup', 'Backup & recovery'], ['data', 'Advanced'], ['about', 'About & credits']];
+const ALIASES = { advanced: 'data', themes: 'appearance', scaling: 'layout' };
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
@@ -18,14 +20,15 @@ const set = (k) => (v) => saveSettings({ [k]: v }).then(() => toast('Saved', { t
 
 export async function render(el, route) {
   dispose();
-  const sec = SECTIONS.some(([k]) => k === route.parts[0]) ? route.parts[0] : 'appearance';
+  const want = ALIASES[route.parts[0]] || route.parts[0];
+  const sec = SECTIONS.some(([k]) => k === want) ? want : 'appearance';
   const page = h('div', { class: 'page' });
   mount(el, page);
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Settings'), h('div', { class: 'sub' }, 'Saved immediately on this computer.'))));
   const body = h('div', { class: 'card' });
   page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': 'Settings sections' },
     SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, l))), body));
-  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, sprites: spritesSec, data, about })[sec](body);
+  await ({ appearance: appearanceSec, layout: layoutSec, home: homeSec, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, sprites: spritesSec, data, about })[sec](body);
 }
 
 // --------------------------------------------------------------- language
@@ -104,37 +107,6 @@ async function shortcutsSec(b) {
 }
 
 // ------------------------------------------------------------ appearance
-async function appearance(b) {
-  const s = state.settings;
-  const scaleLbl = h('span', { class: 'small', style: { width: '48px' } }, s['appearance.text_scale'] + '%');
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Appearance'),
-    row('Navigation', 'Vertical sidebar or horizontal top bar — same sections; your current page is kept.',
-      seg([['vertical', 'Vertical'], ['horizontal', 'Horizontal']], s['appearance.nav'], (v) => saveSettings({ 'appearance.nav': v }).then(() => document.dispatchEvent(new CustomEvent('settings-changed'))), 'Navigation')),
-    row('Sidebar labels', 'Automatic shows icons only when the window is narrow. Names stay available as tooltips.',
-      seg([['auto', 'Automatic'], ['icons', 'Icons only'], ['full', 'Always labels']], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(() => document.dispatchEvent(new CustomEvent('settings-changed'))), 'Sidebar labels')),
-    row('Text size', 'Scales all text and controls in the main window (80–160%).',
-      h('div', { class: 'row' }, h('input', { type: 'range', min: 80, max: 160, step: 5, value: s['appearance.text_scale'], 'aria-label': 'Text size',
-        oninput: (e) => { scaleLbl.textContent = e.target.value + '%'; state.settings['appearance.text_scale'] = Number(e.target.value); document.documentElement.style.setProperty('--scale', String(e.target.value / 100)); },
-        onchange: (e) => set('appearance.text_scale')(Number(e.target.value)) }), scaleLbl)),
-    row('High contrast', 'Stronger borders and pure white text.', switchEl(s['appearance.high_contrast'], set('appearance.high_contrast'))),
-    row('Reduced motion', 'Turns off transitions and shimmer.', switchEl(s['appearance.reduced_motion'], set('appearance.reduced_motion'))),
-    row('Stat bars', 'Better Default “Soft colours” or a single accent colour.', seg([['soft', 'Soft colours'], ['accent', 'Accent']], s['appearance.stat_bars'], set('appearance.stat_bars'))),
-    row('Reopen last page', 'Start where you left off.', switchEl(s['app.restore_last_page'], set('app.restore_last_page'))),
-    row('Home sections', 'Choose what Home shows. Storyline run and Favourite Pokémon are off by default; your runs and favourites are kept either way.',
-      h('div', { class: 'row wrap' }, HOME_SECTIONS.map(([k, l]) =>
-        h('label', { class: 'chip btnlike' + (homeSections(s['home.sections']).includes(k) ? ' active' : '') }, h('input', { type: 'checkbox', class: 'check', checked: homeSections(s['home.sections']).includes(k), onchange: (e) => {
-          const cur = new Set(homeSections(state.settings['home.sections'])); e.target.checked ? cur.add(k) : cur.delete(k);
-          e.target.parentElement.classList.toggle('active', e.target.checked);
-          set('home.sections')(HOME_SECTIONS.map(([x]) => x).filter((x) => cur.has(x))); } }), l)))),
-    false && row('Home shortcuts', 'Up to a few “Continue” actions.', h('div', { class: 'row wrap' }, [['guide', 'Current guide step'], ['pokedex_last', 'Last Pokémon'], ['breeding', 'Breeding planner'], ['typechart', 'Type matchups']].map(([k, l]) =>
-      h('label', { class: 'chip btnlike' }, h('input', { type: 'checkbox', class: 'check', checked: s['home.shortcuts'].includes(k), onchange: (e) => {
-        const cur = new Set(state.settings['home.shortcuts']); e.target.checked ? cur.add(k) : cur.delete(k); set('home.shortcuts')([...cur]); } }), l)))),
-    h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
-      if (await confirmDialog('Reset appearance', 'Reset navigation, text size, contrast, motion and stat bars to defaults? Character runs and other data are not touched.')) {
-        await post('/api/settings/reset', { prefix: 'appearance.' }); location.reload(); } } }, 'Reset appearance')),
-    h('p', { class: 'tiny muted' }, 'Colours are sampled from Better Default v1.8.0 screenshots and await confirmation against the theme files.'));
-}
-
 // -------------------------------------------------------------- windows
 async function windows(b) {
   const caps = (await get('/api/shell/capabilities'));
@@ -313,7 +285,8 @@ export async function data(b) {
       (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not used — the built-in data is active.'),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, dumpPath), browse(dumpPath, 'dumps'), h('button', { class: 'btn primary', onclick: () => runImport('dumps', dumpPath.value) }, icon('download'), m ? 'Re-import' : 'Import')),
     h('div', { class: 'tiny muted' }, 'Folder with PokedexData.zip (and optionally PokemmoIconsDump.zip, PokemmoBattleSpritesDump.zip, ItemSpriteDump.zip), or a combined Pokemmo-Dumps archive.')),
-    h('h3', null, 'Your walkthrough files (private)'),
+    h('h3', null, 'Your own walkthrough files (optional)'),
+    h('div', { class: 'tiny muted' }, 'The five regional walkthroughs are already built in (Guides › Storyline). Import your own .odt copies only to use a different version; your checkmarks stay with each character run.'),
     importedGuides.length ? h('div', { class: 'small' }, importedGuides.map(([r, s]) => h('div', null, `${cap(r)}: ${s.label.replace('Your walkthrough ', '')} · ${s.steps} steps · imported ${fmtDate(s.checked_at, true)}`))) : h('div', { class: 'small muted' }, 'None imported. Guides use the bundled milestone outline.'),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, guidePath), browse(guidePath, 'guides'), h('button', { class: 'btn primary', onclick: () => runImport('guides', guidePath.value) }, icon('download'), 'Import walkthroughs')),
     h('div', { class: 'tiny muted' }, 'Reads “KANTO COMPLETE WALKTHROUGH.odt” etc. Re-importing keeps your checkmarks (stable step IDs) and flags any step whose wording changed.'),
@@ -349,22 +322,20 @@ async function spriteLibrarySection(browse) {
       poll();
     } catch (e) { mount(msg, notice('bad', e.message)); }
   };
-  box.append(h('h3', null, 'Animated sprite library (optional)'),
-    h('p', { class: 'small muted', style: { margin: 0 } }, 'The Companion ships no Pokémon artwork. Your PokeMMO client provides box icons and still battle sprites; ',
-      `it has correct art for ${lf.verified || 0} of ${c.forms_total} alternate forms`, lf['same-as-base'] ? ` (${lf['same-as-base']} more only reuse the base art)` : '', '. ',
-      'For animated Black/White-style sprites and the remaining forms you can point the Companion at your own copy of a sprite collection — for example a download of ',
-      extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), ' or ', extLink('https://github.com/smogon/sprites', 'Smogon sprites'),
-      '. Their artwork is © Nintendo / Game Freak / The Pokémon Company (Smogon also asks to be contacted before its community-made sprites are reused), so it is copied only into your private data folder, for your own use, and never shared.'),
+  box.append(h('h3', null, 'Your own sprite library (optional)'),
+    h('p', { class: 'small muted', style: { margin: 0 } }, 'Companion already includes Gen V sprites for every Pokémon and form it supports — normal and shiny, still and animated. ',
+      'Only if you prefer your own copy of a sprite collection (for example ', extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), ' or ',
+      extLink('https://github.com/smogon/sprites', 'Smogon sprites'), ') can you point Companion at it here; it is copied into your private data folder and used instead of the built-in set. Remove it to go back to the built-in sprites.'),
     st.installed ? h('div', { class: 'card inset small stack tight' },
       h('div', null, badge('LOCAL', 'Your files'), ` Installed ${fmtDate(st.imported_at, true)} from `, h('span', { class: 'mono' }, st.source)),
       h('div', null, `Forms: ${c.forms_ani} animated · ${c.forms_ani_shiny} animated shiny · ${c.forms_static} still — of ${c.forms_total}. `,
         `Species: ${c.species_ani} animated · ${c.species_ani_shiny} animated shiny — of ${c.species_total}.`),
       st.refused_count ? h('details', null, h('summary', null, `${st.refused_count} files refused`),
         h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', r.reason)))) : null) :
-      h('div', { class: 'small muted' }, 'No sprite library installed. Summaries use your PokeMMO client artwork.'),
+      h('div', { class: 'small muted' }, 'Using the built-in sprites.'),
     h('div', { class: 'row' }, h('div', { class: 'grow' }, path), browse(path, 'sprites'),
       h('button', { class: 'btn primary', onclick: run }, icon('download'), st.installed ? 'Re-install' : 'Install sprite library'),
-      st.installed ? h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Remove sprite library', 'Remove the copied sprite files? Your source folder is not touched.', 'Remove', true)) {
+      st.installed ? h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Remove sprite library', 'Remove your copied sprite files and go back to the built-in sprites? Your source folder is not touched.', 'Remove', true)) {
         await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, 'Remove') : null),
     h('div', { class: 'tiny muted' }, 'Accepted layouts: PokéAPI …/black-white/animated[/shiny]/479-wash.gif, Smogon src/sprites/gen5/srotom-owash.gif, Showdown gen5ani[-shiny]/rotom-wash.gif. A file is used only for the exact species or form its name states; copies of base-form art are refused. Grid tiles keep the small static icons.'),
     msg,
@@ -428,10 +399,16 @@ async function startupSec(b) {
   if (native) unsub.push(on('shell.file', (d) => { if (d && d.purpose === 'launcher' && d.path) savePath(d.path); }));
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Startup & game integration'),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Everything here is optional and can be switched off again. Companion never changes, closes or reads PokeMMO.'),
+    h('div', { class: 'card tight startup-hero', style: { margin: '4px 0 12px' } },
+      row('Open Companion automatically when you start PokeMMO', 'Start PokeMMO the way you always do (shortcut, menu, Steam-less launcher) and Companion opens with it. '
+        + 'This uses a tiny helper that starts with your login and only watches for the PokeMMO process — it never reads, changes or closes the game. '
+        + 'The helper has to be running: after turning this on, log out and in once (or restart). Turn it off here at any time.',
+        switchEl(g.integrations.watcher, integ('watcher')))),
+    row('Reopen last page', 'Start where you left off.', switchEl(s['app.restore_last_page'], set('app.restore_last_page'))),
     h('h3', null, 'PokeMMO'),
     row('PokeMMO launcher', g.chosen ? g.chosen.label : 'Not found automatically. Choose PokeMMO.exe or PokeMMO.sh — or the Flatpak is used when installed.',
       h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', disabled: g.chosen ? null : 'disabled', onclick: async () => {
-        try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? 'PokeMMO is running' : 'Launch PokeMMO'))),
+        try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : r.already_starting ? 'PokeMMO is already starting' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? 'PokeMMO is running' : 'Launch PokeMMO'))),
     h('div', { class: 'row wrap', style: { margin: '4px 0 10px' } },
       native ? h('button', { class: 'btn small', onclick: () => post('/api/shell/command', { action: 'pick_launcher', purpose: 'launcher' }) }, 'Choose launcher…')
         : [h('div', { class: 'grow', style: { minWidth: '220px' } }, pathIn), h('button', { class: 'btn small', onclick: () => savePath(pathIn.value.trim()) }, 'Save')],
@@ -446,8 +423,7 @@ async function startupSec(b) {
       await saveSettings({ 'app.start_minimized': v }); if (g.integrations.login) await post('/api/game/integration', { kind: 'login', enable: true, minimized: v }); })),
     row('Reopen floating tools', 'Popouts that were open when Companion closed open again.', switchEl(!!s['app.restore_popouts'], (v) => saveSettings({ 'app.restore_popouts': v }))),
     row('“PokeMMO + Companion” shortcut', 'A menu/desktop shortcut that starts both. PokeMMO is never started twice.', switchEl(g.integrations.shortcut, integ('shortcut'))),
-    row('Start Companion when PokeMMO starts', 'A tiny helper starts with your login and opens Companion when PokeMMO appears. It cannot work if both Companion and this helper are closed.',
-      switchEl(g.integrations.watcher, integ('watcher'))),
+    h('div', { class: 'tiny muted' }, 'Opening Companion together with PokeMMO is the first option on this page.'),
     h('div', { class: 'row', style: { marginTop: '10px' } }, h('button', { class: 'btn ghost small', onclick: async () => {
       if (!(await confirmDialog('Remove startup entries?', 'Removes the autostart entry, the shortcut and the helper that Companion created. Nothing else is touched.', 'Remove'))) return;
       const r = await post('/api/game/integration/remove-all'); toast(`${r.removed.length} item(s) removed`); redraw(); } }, 'Remove all startup entries'))));
@@ -483,7 +459,10 @@ async function updatesSec(b) {
     row('Check for new versions', `This is version ${app.current}.${app.checked_at ? ` Last check ${relTime(app.checked_at)}.` : ''} Companion never installs or restarts by itself.`,
       switchEl(!!s['app_updates.auto_check'], (v) => saveSettings({ 'app_updates.auto_check': v }))),
     row('Release channel', 'Stable releases only, or also pre-releases. Development builds are never offered.',
-      seg([['stable', 'Stable'], ['prerelease', 'Pre-releases']], s['app_updates.channel'] || 'stable', (v) => saveSettings({ 'app_updates.channel': v }), 'Release channel')),
+      seg([['stable', 'Stable'], ['prerelease', 'Beta & pre-releases']], s['app_updates.channel'] || 'stable', async (v) => {
+        if (v === 'prerelease' && !await confirmDialog('Beta releases', 'Beta and pre-release versions are for testing: they can contain bugs. Make a backup first (Settings › Backup & recovery). You can switch back to Stable at any time; Companion will then offer the next stable release.', 'Use beta releases')) { redraw(); return; }
+        saveSettings({ 'app_updates.channel': v });
+      }, 'Release channel')),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), 'Check for updates')),
     app.ok === false ? notice('warn', `Could not check: ${app.error}`) : null,
     app.ok && !latest ? h('div', { class: 'small muted' }, 'No release has been published yet.') : null,

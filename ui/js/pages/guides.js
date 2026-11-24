@@ -40,11 +40,14 @@ export async function render(el, route) {
   const page = h('div', { class: 'page' });
   mount(el, page);
   const runs = await get('/api/guides/runs');
+  // Browse the bundled walkthroughs without a character run (or with ?browse=1): read-only, nothing is ticked.
+  if (route.query.get('browse') || (!runs.runs.length && REGIONS.includes(route.query.get('region')))) return browse(page, route, runs, el);
   if (!runs.runs.length) {
     page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'), h('div', { class: 'sub' }, 'Storyline walkthroughs with your own per-character progress. My Guides work without a run.'))),
       h('div', { class: 'card content-narrow stack', style: { maxWidth: '620px' } }, h('h2', { style: { margin: 0 } }, 'Create your first character run'),
         h('p', { class: 'muted', style: { margin: 0 } }, 'Type your character’s name. Each run keeps its own checkmarks in all five regions; you can create as many as you like.'),
-        h('div', null, h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) render(el, route); } }, icon('plus'), 'Create run')),
+        h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) render(el, route); } }, icon('plus'), 'Create run'),
+          h('button', { class: 'btn ghost', onclick: () => go('#/guides/storyline?browse=1&region=kanto') }, 'Browse the walkthroughs first')),
         runs.deleted.length ? h('div', { class: 'small muted' }, `${runs.deleted.length} deleted run(s) can be restored from the run menu after creating a run, or in Settings › Guides.`) : null));
     return;
   }
@@ -209,4 +212,36 @@ async function restoreDialog(deleted, el, route) {
     h('span', { class: 'when' }, 'deleted ', relTime(d.deleted_at)),
     h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${d.id}/restore`); document.querySelector('.modal-back').remove(); render(el, route); toast('Run restored'); }
       catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Restore')))), actions: [{ label: 'Close', kind: 'ghost' }] });
+}
+
+// ------------------------------------------------------------ browse without a run
+export const WALKTHROUGH_CREDIT = 'Walkthrough text by the original guide author, bundled with permission (see Settings › About & credits).';
+async function browse(page, route, runs, el) {
+  const region = REGIONS.includes(route.query.get('region')) ? route.query.get('region') : 'kanto';
+  const cat = await get('/api/guides/catalog/' + region);
+  const q = (route.query.get('q') || '').toLowerCase();
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'),
+    h('div', { class: 'sub' }, 'Browsing the walkthrough — read only. Create a character run to tick steps and keep progress per character.')),
+  h('div', { class: 'actions' }, runs.runs.length ? h('button', { class: 'btn', onclick: () => go(`#/guides/storyline?region=${region}`) }, 'Back to my run')
+    : h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) go(`#/guides/storyline?region=${region}`); } }, icon('plus'), 'Create a run'))));
+  page.append(h('div', { class: 'row wrap', style: { marginBottom: '12px' } }, tabs(REGIONS.map((r) => ({ id: r, label: cap(r) })), region,
+    (r) => go(`#/guides/storyline?browse=1&region=${r}`), 'Regions')));
+  const chapters = [];
+  for (const st of cat.steps) { const last = chapters[chapters.length - 1]; if (!last || last.name !== st.chapter) chapters.push({ name: st.chapter, steps: [st] }); else last.steps.push(st); }
+  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search this region…', value: q, 'aria-label': 'Search steps', style: { maxWidth: '320px' } });
+  const list = h('div', { class: 'stack tight browse-steps' });
+  const draw = () => {
+    const term = search.value.trim().toLowerCase();
+    mount(list, chapters.map((c) => {
+      const hits = term ? c.steps.filter((x) => x.text.toLowerCase().includes(term) || (c.name || '').toLowerCase().includes(term)) : c.steps;
+      if (!hits.length) return null;
+      return h('details', { class: 'card tight browse-chapter', open: term ? '' : null },
+        h('summary', null, h('strong', null, c.name || 'Steps'), h('span', { class: 'tiny muted' }, ` · ${hits.length} step${hits.length === 1 ? '' : 's'}`)),
+        h('ol', { class: 'browse-list' }, hits.map((x) => h('li', null, x.text))));
+    }));
+  };
+  search.addEventListener('input', draw);
+  page.append(h('div', { class: 'row wrap', style: { marginBottom: '8px' } }, search, h('span', { class: 'small muted' }, `${cat.steps.length} steps in ${chapters.length} chapters`)), list,
+    h('p', { class: 'tiny muted' }, WALKTHROUGH_CREDIT));
+  draw();
 }

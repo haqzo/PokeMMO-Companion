@@ -88,12 +88,14 @@ def build_router(ctx: AppContext) -> Router:
             raise ApiError(400, f"{name} must be a number")
 
     # ---------------------------------------------------------------- core
+    from .services.themes import catalog as _theme_catalog
+
     def bootstrap(req: Request) -> dict:
         return {"version": ctx.version, "mode": ctx.shell.mode, "capabilities": ctx.shell.capabilities,
                 "settings": S.all(), "dex": ctx.dex.status(), "notifier": ctx.notifier.describe(),
                 "data_dir": str(ctx.paths.root), "now": utcnow(),
                 "storage": {"migrated_from": ctx.storage.migrated_from, "backup": ctx.storage.backup_created},
-                "window_presets": PRESETS}
+                "window_presets": PRESETS, "themes": _theme_catalog()}
     r.add("GET", "/api/bootstrap", bootstrap)
 
     def settings_get(req: Request) -> dict:
@@ -795,7 +797,8 @@ def build_router(ctx: AppContext) -> Router:
         if req.json("enable"):
             icon = str(UI_DIR / "img" / "pokeball.svg")
             files = gl.install_integration(kind, minimized=bool(req.json("minimized")), icon=icon)
-            return {"kind": kind, "enabled": True, "files": files}
+            started = gl.start_watcher_now() if kind == "watcher" else False
+            return {"kind": kind, "enabled": True, "files": files, "watcher_started": started}
         return {"kind": kind, "enabled": False, "removed": gl.remove_integration(kind)}
     r.add("POST", "/api/game/integration", game_integration)
 
@@ -805,6 +808,27 @@ def build_router(ctx: AppContext) -> Router:
 
     from .services import diagnostics as diag
     r.add("GET", "/api/diagnostics", lambda req: {"report": diag.report(ctx), "log": diag.sanitized_log(ctx.paths.logs)})
+
+    # ------------------------------------------------------------ themes
+    from .services import themes as th
+    theme_store = th.ThemeStore(ctx.storage)
+
+    def theme_call(fn):
+        def run(req):
+            try:
+                return fn(req)
+            except th.ThemeError as exc:
+                raise ApiError(400, str(exc))
+        return run
+    r.add("GET", "/api/themes", lambda req: {"catalog": th.catalog(), "personal": theme_store.list()})
+    r.add("POST", "/api/themes", theme_call(lambda req: theme_store.save(req.body or {})))
+    r.add("PUT", "/api/themes/<tid>", theme_call(lambda req: theme_store.save(req.body or {}, req.params["tid"])))
+    r.add("DELETE", "/api/themes/<tid>", lambda req: {"deleted": theme_store.delete(req.params["tid"])})
+
+    def theme_check(req):
+        clean, dropped = th.validate(req.body or {})
+        return {"theme": clean, "dropped": dropped}
+    r.add("POST", "/api/themes/validate", theme_call(theme_check))
 
     r.add("GET", "/api/app-update/status", lambda req: ctx.app_updates.status())
     r.add("POST", "/api/app-update/check", lambda req: ctx.app_updates.check())

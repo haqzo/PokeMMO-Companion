@@ -240,12 +240,13 @@ def test_shiny_pause_and_reduced_motion_keep_the_same_tier(app, browser, library
     pg = ctx.new_page()
     pg.goto(app.url("#/pokedex/4"))
     normal = _art(pg)
-    pg.locator(".dex-summary .art").get_by_role("button", name="Shiny colours").click()
+    ctl = pg.locator(".dex-summary .art-controls")          # 2026-11-24: Normal/Shiny + Static/Animated switches
+    ctl.get_by_role("button", name="Shiny", exact=True).click()
     pg.wait_for_selector(".dex-summary .art img[src*='ani-shiny/4.gif']")
     shiny = _art(pg)
     assert shiny["w"] == normal["w"] and shiny["k"] == normal["k"]  # same tier, same size
-    pg.locator(".dex-summary .art").get_by_role("button", name="Shiny colours").click()
-    pg.locator(".dex-summary .art").get_by_role("button", name="Animate sprite").click()
+    ctl.get_by_role("button", name="Normal", exact=True).click()
+    ctl.get_by_role("button", name="Static", exact=True).click()
     pg.wait_for_selector(".dex-summary .art img[src*='/static/4.png']")
     still = _art(pg)
     # the still's VISIBLE outline (bbox 38×42 inside a 96 px canvas) is sized like the animation's

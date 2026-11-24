@@ -40,6 +40,7 @@ export function startPopout(el) {
   document.addEventListener('settings-changed', (ev) => {
     const keys = Object.keys((ev && ev.detail) || {});
     if (POPOUT === 'pokedex' && keys.some((k) => k.startsWith('pokedex.'))) { state.dexCache = null; renderBody(); }
+    else if (keys.some((k) => k.startsWith('sprites.') || k === `window.${POPOUT}.sprite_scale` || k === `window.${POPOUT}.sprite_motion`)) renderBody();
     const m = setting(`window.${POPOUT}.mode`);
     applyAppearance();
     if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); } else drawBar();
@@ -132,7 +133,16 @@ function openTextPopover(btn) {
     h('div', { class: 'row', style: { gap: '6px' } }, h('span', { class: 'tiny', 'aria-hidden': 'true' }, 'A'), slider, h('span', { 'aria-hidden': 'true', style: { fontSize: '1.2rem' } }, 'A')),
     h('div', { class: 'row', style: { gap: '4px' } }, [90, 100, 120, 150].map((p) => h('button', { class: 'btn ghost small', onclick: () => apply(p, true) }, p + '%')),
       h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => apply(100, true) }, t('common.reset'))),
-    h('label', { class: 'row small', title: 'Adds a soft dark outline behind text so it stays readable over the game when the background is very transparent' }, outline, 'Outline text (for see-through backgrounds)'));
+    h('label', { class: 'row small', title: 'Adds a soft dark outline behind text so it stays readable over the game when the background is very transparent' }, outline, 'Outline text (for see-through backgrounds)'),
+    // this window's Pokémon sprites (2026-11-24): size and animation just for this popout
+    h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, 'Sprite size'),
+      h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': 'Sprite size in this window',
+        onchange: (e) => saveSettings({ [`window.${POPOUT}.sprite_scale`]: Number(e.target.value) }).then(() => document.dispatchEvent(new CustomEvent('settings-changed', { detail: { [`window.${POPOUT}.sprite_scale`]: 1 } }))) },
+        [70, 85, 100, 125, 150].map((p) => h('option', { value: p, selected: (setting(`window.${POPOUT}.sprite_scale`) || 100) === p ? 'selected' : null }, p + '%')))),
+    h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, 'Sprite animation'),
+      h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': 'Sprite animation in this window',
+        onchange: (e) => saveSettings({ [`window.${POPOUT}.sprite_motion`]: e.target.value }).then(() => document.dispatchEvent(new CustomEvent('settings-changed', { detail: { [`window.${POPOUT}.sprite_motion`]: 1 } }))) },
+        [['inherit', 'As in Settings'], ['static', 'Static'], ['animated', 'Animated']].map(([v, l]) => h('option', { value: v, selected: (setting(`window.${POPOUT}.sprite_motion`) || 'inherit') === v ? 'selected' : null }, l)))));
   document.body.append(pop);
   place();
   btn.setAttribute('aria-expanded', 'true');

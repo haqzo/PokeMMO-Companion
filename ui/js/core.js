@@ -1,4 +1,5 @@
 // Core helpers: API client, DOM builder, icons, live sync, toasts, dialogs, formatting.
+import { applyTheme } from './themes.js';
 const params = new URLSearchParams(location.search);
 const tokenFromUrl = params.get('token');
 if (tokenFromUrl) { try { sessionStorage.setItem('companion-token', tokenFromUrl); } catch (_) {} }
@@ -156,6 +157,10 @@ export function applyAppearance() {
   if (POPOUT) scale *= (s[`window.${POPOUT}.text_scale`] || 100) / 100;
   root.style.setProperty('--scale', String(scale));
   root.classList.toggle('high-contrast', !!s['appearance.high_contrast']);
+  applyTheme(s['appearance.theme'], root, { highContrast: !!s['appearance.high_contrast'] });
+  // Interface scale: the native shell zooms the whole page (Qt zoom factor, applied once on top of the desktop's
+  // scaling). Browser mode uses CSS zoom on the main window. Popouts keep their own per-window scale.
+  if (!POPOUT && SHELL !== 'qt') document.body && (document.body.style.zoom = String((s['appearance.ui_scale'] || 100) / 100));
   root.classList.toggle('reduced-motion', !!s['appearance.reduced_motion']);
   root.classList.toggle('stat-accent', s['appearance.stat_bars'] === 'accent');
   root.lang = ({ en: 'en', es: 'es', zh: 'zh-Hans' })[s['app.language'] || 'en'] || 'en';

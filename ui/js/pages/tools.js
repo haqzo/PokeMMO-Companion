@@ -13,7 +13,7 @@ let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose(); calcPage.dispose();  if (typeof ownMod !== 'undefined' && ownMod && ownMod.dispose) ownMod.dispose(); }
 
 const TOOLS = {
-  typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy) + defensive checker', render: renderTypeChart },
+  typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy), defensive checker and a two-Pokémon comparison', render: (el, route) => renderTypeChart(el, route, { compare: true }) },
   natures: { title: 'Natures', icon: 'leaf', group: 'battle', status: 'CORROBORATED', desc: 'All 25 natures and their stat effects', render: renderNatures },
   stats: { title: 'Stat calculator', icon: 'calc', group: 'battle', status: 'ESTIMATE', desc: 'Standard formula with PokeMMO base stats', render: renderStats },
   breeding: { title: 'Breeding planner', icon: 'egg', group: 'breeding', status: 'PARTIAL', desc: 'Preview · Plan · Egg moves', render: (el, r) => breeding.render(el, r) },
@@ -120,7 +120,7 @@ export function typeChartReadout(a, d) {
   const m = tc.matrix[tc.types.indexOf(a)][tc.types.indexOf(d)];
   return { m, text: `${cap(a)} attack → ${cap(d)} defender: ${multLabel(m)} (${MULT_TEXT[m]})` };
 }
-export async function renderTypeChart(el, route, { compact = false } = {}) {
+export async function renderTypeChart(el, route, { compact = false, compare = false } = {}) {
   tc = tc || await get('/api/tools/typechart');
   const T = tc.types;
   let lock = null;          // {r, c} locked cell
@@ -128,7 +128,12 @@ export async function renderTypeChart(el, route, { compact = false } = {}) {
   let focusAxis = 'attacker', focusType = 'flying';
   let defTypes = [], offType = null;
   const out = h('div', { class: 'stack' });
-  el.append(out);
+  // Main page only: the comparison panel sits right of the chart (below it on narrow windows). Popouts never get it.
+  if (compare) {
+    const side = h('div', { class: 'tc-compare-slot' });
+    el.append(h('div', { class: 'tc-layout' }, out, side));
+    import('./compare.js').then((m) => m.comparePanel(tc)).then((p) => side.append(p)).catch((e) => side.append(h('div', { class: 'notice warn small' }, 'Comparison unavailable: ' + e.message)));
+  } else el.append(out);
 
   const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, 'Hover or focus a cell — rows attack, columns defend. Click to lock.');
   const setReadout = (r, c, locked) => {

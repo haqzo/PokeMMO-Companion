@@ -506,6 +506,15 @@ def _rel(iso: str | None) -> str:
 
 
 # ---------------------------------------------------------------- main window
+def _ui_zoom(settings) -> float:
+    """Interface scale for the main window (Settings › Layout & scaling). Qt's zoom factor works in CSS pixels on top
+    of the desktop's own scaling, so the two multiply once — the page never sees a second device-pixel ratio."""
+    try:
+        return max(0.75, min(1.5, int(settings.get("appearance.ui_scale") or 100) / 100))
+    except (TypeError, ValueError):
+        return 1.0
+
+
 class MainWindow(QMainWindow):
     def __init__(self, shell: "QtShell"):
         super().__init__()
@@ -517,6 +526,8 @@ class MainWindow(QMainWindow):
         route = shell.ctx.settings.get("app.last_route") if shell.ctx.settings.get("app.restore_last_page") else "#/home"
         self.view = _make_view(shell, shell.server.url(route or "#/home"), transparent=False)
         self.setCentralWidget(self.view)
+        self.apply_ui_scale()
+        self.view.loadFinished.connect(lambda _ok: self.apply_ui_scale())   # Qt can drop the factor on reload
         self.setMinimumSize(800, 560)
         g = shell.ctx.settings.get("window.main.geometry") or {}
         w, h = int(g.get("w", 1180)), int(g.get("h", 780))
@@ -532,6 +543,11 @@ class MainWindow(QMainWindow):
             x, y, w, h = fit_window((int(g["x"]), int(g["y"]), int(g.get("w", w)), int(g.get("h", h))), screens)
             self.setGeometry(x, y, w, h)
         self._hint_shown = False
+
+    def apply_ui_scale(self) -> None:
+        z = _ui_zoom(self.shell.ctx.settings)
+        if abs(self.view.zoomFactor() - z) > 0.001:
+            self.view.setZoomFactor(z)
 
     def save_geometry(self) -> None:
         g = {"w": self.width(), "h": self.height()}
@@ -616,6 +632,8 @@ class QtShell:
             if ev.get("topic") == "settings":
                 for p in list(self.popouts.values()):
                     p.apply_prefs()
+                if "appearance.ui_scale" in (ev.get("data") or {}):
+                    self.main.apply_ui_scale()
 
     # ----------------------------------------------------------- commands
     def handle(self, cmd: dict) -> None:

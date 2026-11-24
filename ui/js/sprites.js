@@ -1,7 +1,7 @@
 // Pokémon sprite display preferences (2026-11-24): where animations are used and how large sprites are,
 // per context. One global switch ("Animations: system / on / off") overrides every context; "system" follows the
 // operating system's reduced-motion setting.
-import { setting } from './core.js';
+import { setting, POPOUT } from './core.js';
 
 export const CONTEXTS = [
   // id, label, default, has size control
@@ -29,6 +29,9 @@ export function motionGlobal() {
 /** Should sprites in this context animate? Global off / reduced motion always wins. */
 export function animatedIn(ctx) {
   if (!motionGlobal()) return false;
+  // a popout can override for itself (its text-size popover); the global switch above still wins
+  const own = POPOUT && setting(`window.${POPOUT}.sprite_motion`);
+  if (own === 'static' || own === 'animated') return own === 'animated';
   const pref = (setting('sprites.animation') || {})[ctx] || DEFAULTS[ctx] || 'static';
   if (ctx === 'summary' && setting('pokedex.animate') === false && !(setting('sprites.animation') || {}).summary) return false;
   return pref === 'animated';
@@ -37,6 +40,7 @@ export function animatedIn(ctx) {
 /** Size multiplier (percent → factor) for a context. */
 export function spriteScale(ctx) {
   const v = Number((setting('sprites.size') || {})[ctx]);
-  return v >= 50 && v <= 200 ? v / 100 : 1;
+  const own = POPOUT ? Number(setting(`window.${POPOUT}.sprite_scale`)) || 100 : 100;
+  return (v >= 50 && v <= 200 ? v / 100 : 1) * own / 100;
 }
 export const scaled = (ctx, px) => Math.round(px * spriteScale(ctx));

@@ -45,7 +45,7 @@ export async function render(el, route) {
       h('button', { class: 'btn primary', onclick: () => createDialog() }, t('cguide.new'))));
   if (archived.length) page.append(h('details', null, h('summary', { class: 'small' }, `${t('notes.archived')} (${archived.length})`), h('div', { class: 'cg-grid' }, archived.map(card))));
   unsub.push(on('cguides', (d, ev) => { if (ev.origin !== WINDOW_ID) render(el, route); }));
-  if (route.query.get('new')) { history.replaceState(null, '', '#/guides/mine'); createDialog(); }
+  if (route.query.get('new')) { const sc = route.query.get('scope'); history.replaceState(null, '', '#/guides/mine'); createDialog(SCOPES.some(([k]) => k === sc) ? { scope: sc, recurring: sc === 'gym_rerun' } : {}); }
 }
 
 async function createDialog(prefill = {}) {

@@ -22,6 +22,13 @@
   --border-subtle: #2b2d3b;     /* [sampled] */
   --border-strong: #4f525d;     /* [sampled] selected pill edge */
   --overlay: rgba(6, 7, 12, .66);
+  /* themeable surfaces added 2026-11-24 (Settings › Appearance & themes); defaults = the approved look */
+  --bg-sidebar: #161924; --bg-dialog: #161924; --bg-toast: #161924; --bg-elevated: #272a3c;
+  --bg-popout-rgb: 22, 25, 36; --bg-popout-bar-rgb: 30, 36, 55; --popout-border-rgb: 79, 82, 93;
+  --btn-text: #ebecf1; --btn-hover: #42455a; --card-hover: #1a1d2a; --focus: #8fb1e6; --focus-ring: rgba(143, 177, 230, .35);
+  --table-head: transparent; --table-row: #252833; --table-row-alt: #252833; --table-hover: #30344a;
+  --progress-track: #0b0c13; --progress-fill: #4aab4d; --scroll-track: #0f1119; --scroll-thumb: #4f525d; --scroll-w: 10px;
+  --bw: 1px; --card-pad: 16px; --grid-gap: 12px; --section-gap: 16px; --weight: 400;
 
   /* text */
   --text-primary: #ebecf1;      /* [sampled] cell text */

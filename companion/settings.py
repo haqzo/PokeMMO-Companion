@@ -5,6 +5,8 @@ appearance never touches character runs (docs/design/16).
 """
 from __future__ import annotations
 
+import re
+
 from typing import Any
 
 from .storage import Storage
@@ -19,7 +21,10 @@ DEFAULTS: dict[str, Any] = {
     # Appearance
     "appearance.nav": "vertical",            # vertical | horizontal
     "appearance.sidebar": "auto",            # auto | icons | full — sidebar labels (auto: icons in narrow windows)
-    "appearance.text_scale": 100,            # percent, 80..160
+    "appearance.text_scale": 100,            # percent, 60..200 (text only)
+    "appearance.ui_scale": 100,              # percent, 75..150 (whole interface: zoom; separate from text size and OS scaling)
+    "appearance.theme": None,                # active theme (validated, see services/themes.py); None = Companion Default
+    "appearance.theme_id": "companion",      # preset id or personal theme id the active theme came from
     "appearance.high_contrast": False,
     "appearance.reduced_motion": False,
     "appearance.stat_bars": "soft",          # soft | accent (Better Default "Stat bars" setting)
@@ -114,6 +119,8 @@ for _tool in TOOLS:
     DEFAULTS[f"window.{_tool}.sizes"] = {}               # your custom size per mode: {"compact": {"w","h"}, ...}
     DEFAULTS[f"window.{_tool}.keep_size"] = False        # True = switching mode never resizes the window
     DEFAULTS[f"window.{_tool}.text_outline"] = False     # dark outline behind text for low-opacity backgrounds
+    DEFAULTS[f"window.{_tool}.sprite_scale"] = 100       # this popout's Pokémon sprite size, percent
+    DEFAULTS[f"window.{_tool}.sprite_motion"] = "inherit"  # inherit (Pokémon & sprites settings) / static / animated
 
 _ENUMS = {
     "locations.style": ("game", "companion"),
@@ -138,7 +145,8 @@ _ENUMS = {
 }
 _RANGES = {
     "live.swarm_estimate_minutes": (5, 120),
-    "appearance.text_scale": (80, 160),
+    "appearance.text_scale": (60, 200),
+    "appearance.ui_scale": (75, 150),
     "notify.toast_duration": (3, 60),
     "notify.toast_opacity": (60, 100),
     "notify.retention_days": (1, 365),
@@ -147,9 +155,11 @@ _RANGES = {
 }
 for _tool in TOOLS:
     _ENUMS[f"window.{_tool}.mode"] = MODES
+    _ENUMS[f"window.{_tool}.sprite_motion"] = ("inherit", "static", "animated")
     _RANGES[f"window.{_tool}.bg_opacity"] = (20, 100)      # below ~45 % the text outline is suggested
     _RANGES[f"window.{_tool}.window_opacity"] = (40, 100)
     _RANGES[f"window.{_tool}.text_scale"] = (60, 200)     # text-size popover: 60–200 %
+    _RANGES[f"window.{_tool}.sprite_scale"] = (50, 200)
 
 
 class SettingsError(ValueError):
@@ -231,6 +241,18 @@ def validate(key: str, value: Any) -> Any:
         raise SettingsError("pokedex.animate must be true, false or null (follow the system)")
     if key == "pokedex.progress_run" and value is not None and not isinstance(value, str):
         raise SettingsError("progress run must be a run id or null")
+    if key == "appearance.theme":
+        if value is None:
+            return None
+        from .services.themes import ThemeError, validate
+        try:
+            return validate(value)[0]
+        except ThemeError as exc:
+            raise SettingsError(str(exc))
+    if key == "appearance.theme_id":
+        if not (isinstance(value, str) and re.fullmatch(r"[a-z0-9-]{1,40}", value)):
+            raise SettingsError("invalid theme id")
+        return value
     if key == "sprites.animation":
         ok = ("dex_grid", "summary", "roamers", "report_active", "report_expired", "live_history", "locations", "team", "compare")
         if not isinstance(value, dict) or any(k not in ok or v not in ("static", "animated") for k, v in value.items()):

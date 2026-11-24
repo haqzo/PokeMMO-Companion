@@ -629,7 +629,7 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
   if (fm) pane.append(h('div', { class: 'detail-body', style: { paddingBottom: 0 } }, notice('info', h('strong', null, fm.form_name + '. '),
     fm.note ? fm.note + ' ' : '', `Types: ${fm.types_source}. Stats: ${fm.stats_source}. Abilities: ${fm.abilities_source}.`,
     fm.in_client === false ? ' The PokeMMO game data has no record for this form.' : '',
-    !fm.own_sprite ? ` Artwork: ${fm.art.local_reason} Add a sprite library in Settings › Data to show it.` : '', fm.mismatch.length ? ` ⚠ Your client differs from the manifest (${fm.mismatch.join(', ')}); the client value is shown.` : '',
+    !fm.own_sprite && !(fm.art && (fm.art.static || fm.art.ani)) ? ' No verified artwork exists for this form, so none is shown.' : '', fm.mismatch.length ? ` ⚠ PokeMMO’s data differs from the mainline values (${fm.mismatch.join(', ')}); PokeMMO’s value is shown.` : '',
     ' Moves and locations below are the base species’ — form-specific moves are not listed.')));
   const body = h('div', { class: 'detail-body' });
   pane.append(body);

@@ -96,10 +96,10 @@ def test_every_route_renders_without_errors(app, page):
 
 
 def test_nav_orientation_switch_keeps_current_page(app, page):
-    go(page, app, "#/settings/appearance")
+    go(page, app, "#/settings/layout")
     page.get_by_role("radio", name="Horizontal").click()
     page.wait_for_selector(".app.nav-horizontal")
-    assert page.url.endswith("#/settings/appearance")
+    assert page.url.endswith("#/settings/layout")
     page.get_by_role("radio", name="Vertical").click()
     page.wait_for_selector(".app.nav-vertical")
 
@@ -362,7 +362,10 @@ def test_manual_registration_tracking_shows_silhouettes_and_counts(app, page):
     run = app.ctx.guides.create_run("Tracker")
     go(page, app, "#/pokedex")
     page.select_option("select[aria-label='Registration tracking']", run["id"])
-    page.wait_for_timeout(700)
+    for _ in range(60):                     # the grid redraws with 649 artwork tiles (built-in sprites since 2026-11-24)
+        if page.locator(".dex-grid .dex-card.reg-unregistered").count() > 600:
+            break
+        page.wait_for_timeout(100)
     assert page.locator(".dex-grid .dex-card.reg-unregistered").count() > 600
     assert page.locator(".dex-grid .sprite.unseen").count() > 600
     page.locator('.dex-grid .dex-card[data-id="25"]').click()

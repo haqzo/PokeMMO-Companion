@@ -7,6 +7,7 @@ import { h, mount, icon, get, cap, relTime } from '../core.js';
 import { go } from '../shell.js';
 import * as storyline from './guides.js';
 import * as mine from './cguides.js';
+import { SCOPES } from './cguides.js';
 
 let sub = null;
 export function dispose() { if (sub && sub.dispose) sub.dispose(); sub = null; }
@@ -41,21 +42,36 @@ async function renderAll(el) {
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Guides'),
     h('div', { class: 'sub' }, 'Storyline walkthroughs with your per-character progress, and your own guides — with checklists, timers and teams.')),
   h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => go('#/guides/mine?new=1') }, icon('plus'), 'New guide'))));
-  const story = h('section', { class: 'card stack tight' }, h('div', { class: 'card-head' }, h('h2', null, 'Storyline'),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline') }, 'Open', icon('chev')))),
-  active ? [h('div', { class: 'small muted' }, `Character run: ${active.display || active.character_name}`),
-    overview ? h('div', { class: 'guides-regions' }, ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => {
-      const c = overview[r].mandatory.total ? overview[r].mandatory : overview[r].unclassified;
-      const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
-      return h('button', { class: 'guides-region', onclick: () => go(`#/guides/storyline?region=${r}`) }, h('span', null, cap(r)),
-        h('div', { class: 'progress' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'tiny muted' }, `${c.done}/${c.total}`));
-    })) : null] :
-    h('div', { class: 'small muted' }, 'No character run yet — storyline progress is kept per character. ', h('button', { class: 'btn small', onclick: () => go('#/guides/storyline') }, 'Create a run')));
-  const list = cg.guides;
-  const minePane = h('section', { class: 'card stack tight' }, h('div', { class: 'card-head' }, h('h2', null, 'My Guides'),
+  const REG = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
+  // Region cards always show: with a run they open it at that region; without one they open the read-only walkthrough.
+  const totals = active && overview ? null : Object.fromEntries(await Promise.all(REG.map((r) => get('/api/guides/catalog/' + r).then((c) => [r, c.steps.length]).catch(() => [r, 0]))));
+  const story = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, 'Storyline'),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline') }, active ? 'Open' : 'Start', icon('chev')))),
+    h('div', { class: 'small muted' }, active ? `Character run: ${active.display || active.character_name}` : 'Walkthroughs for all five regions. Browse now; create a character run to tick steps.'),
+    h('div', { class: 'guides-regions' }, REG.map((r) => {
+      if (overview) {
+        const c = overview[r].mandatory.total ? overview[r].mandatory : overview[r].unclassified;
+        const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
+        return h('button', { class: 'guides-region', dataset: { region: r }, onclick: () => go(`#/guides/storyline?region=${r}`) }, h('span', null, cap(r)),
+          h('div', { class: 'progress' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'tiny muted' }, `${c.done}/${c.total}`));
+      }
+      return h('button', { class: 'guides-region', dataset: { region: r }, onclick: () => go(`#/guides/storyline?browse=1&region=${r}`) }, h('span', null, cap(r)),
+        h('span', { class: 'tiny muted' }, `${totals[r]} steps`));
+    })),
+    h('div', { class: 'row wrap tight guides-foot' }, active ? h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline?browse=1&region=kanto') }, 'Browse without ticking')
+      : h('button', { class: 'btn small', onclick: () => go('#/guides/storyline') }, icon('plus'), 'Create a character run'),
+      h('span', { class: 'tiny muted' }, 'Walkthroughs by their original author, bundled with permission.')));
+  const list = cg.guides.filter((g) => !g.archived_at);
+  const count = (k) => list.filter((g) => g.scope === k).length;
+  const shortcuts = SCOPES.filter(([k]) => k !== 'custom');
+  const minePane = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, 'My Guides'),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/mine') }, 'All', icon('chev')))),
-  list.length ? h('div', { class: 'stack tight' }, list.slice(0, 8).map((g) => h('button', { class: 'tool-link', onclick: () => go('#/guides/mine/' + g.id) }, icon('list'),
+  list.length ? h('div', { class: 'stack tight' }, list.slice(0, 5).map((g) => h('button', { class: 'tool-link', onclick: () => go('#/guides/mine/' + g.id) }, icon('list'),
     h('div', null, h('div', { class: 'tl-title' }, g.title), h('div', { class: 'small muted' }, `${g.scope_label} · ${g.done}/${g.checks} done · edited ${relTime(g.updated_at)}`))))) :
-    h('div', { class: 'small muted' }, 'Write your own: gym and Elite Four reruns, money-making or farming routes, shiny hunts, daily routines. No character run needed.'));
+    h('div', { class: 'small muted' }, 'Your own checklists, reruns and routines. No character run needed.'),
+  h('div', { class: 'tiny muted' }, 'Categories — open yours, or start a new one:'),
+  h('div', { class: 'guides-cats' }, shortcuts.map(([k, l]) => h('button', { class: 'chip btnlike', dataset: { scope: k },
+    title: count(k) ? `Open your ${l} guides` : `Start a ${l} guide`, onclick: () => go(count(k) ? '#/guides/mine?cat=' + k : `#/guides/mine?new=1&scope=${k}`) },
+    l, count(k) ? h('span', { class: 'count' }, count(k)) : h('span', { class: 'count' }, '+')))));
   page.append(h('div', { class: 'guides-all' }, story, minePane));
 }

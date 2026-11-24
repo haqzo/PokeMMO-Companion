@@ -207,9 +207,9 @@ def test_home_sections_can_be_turned_on_and_legacy_lists_are_kept(app, page):
     page.wait_for_selector(".home-update")
     for sel in (".home-update", ".home-news", ".home-events", ".home-live", ".home-roamers", ".home-quick", ".home-run"):
         assert page.locator(sel).count() == 1, sel
-    go(page, app, "#/settings/appearance")
-    page.wait_for_selector("text=Home sections")
-    fav = page.locator("label.chip", has_text="Favourite Pokémon")
+    go(page, app, "#/settings/home")                 # Settings › Home (2026-11-24: own section, with ordering)
+    page.wait_for_selector(".home-order")
+    fav = page.locator(".home-order-row", has_text="Favourite Pokémon")
     assert not fav.locator("input").is_checked()
     fav.locator("input").check()
     page.wait_for_timeout(500)

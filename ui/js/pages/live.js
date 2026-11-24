@@ -38,6 +38,8 @@ export function startTimers(root, skewMs, onExpire) {
   };
   const id = setInterval(tick, 15000);
   tick();
+  // built before it is placed in the page (Home assembles its sections first): fill the countdowns as soon as it is
+  if (!seen) { const t0 = Date.now(); const early = setInterval(() => { if (root.isConnected) { tick(); clearInterval(early); } else if (Date.now() - t0 > 5000) clearInterval(early); }, 50); }
   requestAnimationFrame(tick);
   return () => clearInterval(id);
 }
@@ -57,7 +59,7 @@ export function currentCard(g, { compact = false, animate = false } = {}) {
     sure || !g.species_name ? null : h('div', { class: 'tiny muted ellipsis' }, 'Names several Pokémon'),
     where ? h('div', { class: 'small ellipsis cur-where' }, where) : h('div', { class: 'small muted' }, 'Location not identified'),
     h('div', { class: 'tiny muted' }, `Reported ${timeOf(st.start)} · ${relTime(st.start)}`, g.duplicates ? ` · reported ${g.duplicates + 1}×` : '', g.caught_up ? ' · caught up on reconnect' : ''),
-    h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, ''),
+    h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
     compact ? null : h('div', { class: 'tiny muted' }, `${g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider} · community report`, st.notes.length ? ' · ⚠ ' + st.notes[0] : '')));
 }
 export function estimatesNote(est) {

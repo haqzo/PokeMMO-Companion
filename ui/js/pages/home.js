@@ -61,22 +61,44 @@ async function renderHome(el) {
     `Roaming this month: ${leg.current.kanto.name} & ${leg.current.johto.name}`,
     n.latest ? `Latest update ${fmtDate(n.latest.published)}` : null].filter(Boolean).join(' · ');
   page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()), h('div', { class: 'sub' }, status)),
-    h('div', { class: 'actions' }, h('button', { class: 'btn ghost small', onclick: () => go('#/settings/appearance') }, icon('gear'), 'Customize Home'))));
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), 'Customize Home'))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, () => renderHome(el)));
   else if (data.update_available) page.append(installBanner(data, () => renderHome(el), true));
   const grid = h('div', { class: 'home-v3' });
   page.append(grid);
 
-  if (on_('roamers')) grid.append(roamersCard(leg));
-  if (on_('live')) grid.append(liveCard(cur, el));
-  if (on_('update') && n.latest) grid.append(await updateCard(n, () => { newsCache = null; renderHome(el); }));
-  if (on_('events') || on_('quick')) grid.append(h('div', { class: 'home-side stack' }, on_('events') ? eventsCard(n) : null, on_('quick') ? quickCard() : null));
-  if (on_('news')) grid.append(newsCard(n));
-  if (on_('run')) grid.append(await continueCard(runs, () => renderHome(el)));
-  if (on_('favourites')) grid.append(favouritesCard(species));
-  grid.querySelectorAll(':scope > *').forEach((c, i, all) => { if (i === all.length - 1 && all.length % 2 === 1 && c.classList.contains('half')) c.classList.add('wide'); });
+  // Sections render in the order chosen in Settings › Home. Events and Quick access share one column where the
+  // first of them sits. Wide windows pack sections into 12-column rows; the last card of a row takes up whatever
+  // is left, so no row ends in an empty gap. Cards in one row are the same height.
+  const build = {
+    roamers: () => roamersCard(leg), live: () => liveCard(cur, el),
+    update: async () => n.latest ? updateCard(n, () => { newsCache = null; renderHome(el); }) : null,
+    side: () => h('div', { class: 'home-side stack' }, on_('events') ? eventsCard(n) : null, on_('quick') ? quickCard() : null),
+    news: () => newsCard(n), run: () => continueCard(runs, () => renderHome(el)), favourites: () => favouritesCard(species),
+  };
+  const order = [...new Set(sections.map((k) => (k === 'events' || k === 'quick') ? 'side' : k))];
+  const cards = [];
+  for (const k of order) { const c = await build[k]?.(); if (c) { c.dataset.section = k; cards.push([k, c]); } }
+  packRows(cards).forEach(([c, span]) => { c.style.setProperty('--span', span); grid.append(c); });
 
   unsub.push(on('news', () => { if (location.hash.startsWith('#/home')) { newsCache = null; renderHome(el); } }));
+}
+
+const HOME_SPAN = { roamers: 5, live: 7, update: 8, side: 4, news: 8, run: 6, favourites: 6 };
+/** [[key, card]] → [[card, columns]]: rows of 12 columns in the chosen order. When the next card does not fit,
+ *  a later card that does (e.g. the narrow Events/Quick column) moves up to fill the row; the last card of each
+ *  row stretches to fill it, so a row never ends in an empty gap. */
+export function packRows(cards, spans = HOME_SPAN) {
+  const out = [], rest = cards.map(([k, c]) => [c, spans[k] || 12]);
+  while (rest.length) {
+    const row = [rest.shift()]; let used = row[0][1];
+    for (let i = 0; i < rest.length && used < 12;) {
+      if (used + rest[i][1] <= 12) { used += rest[i][1]; row.push(rest.splice(i, 1)[0]); } else i++;
+    }
+    row[row.length - 1] = [row[row.length - 1][0], row[row.length - 1][1] + 12 - used];
+    out.push(...row);
+  }
+  return out;
 }
 
 function greeting() {
@@ -267,7 +289,7 @@ function getStarted(data, runs, rerender) {
       h('select', { class: 'input', style: { width: 'auto', minHeight: '28px' }, 'aria-label': 'Language', onchange: async (e) => { await saveSettings({ 'app.language': e.target.value }); location.reload(); } },
         LANGS.map((l) => h('option', { value: l.id, selected: setting('app.language') === l.id ? 'selected' : null }, l.native)))),
     step(!!(game && game.chosen), 'PokeMMO', game && game.chosen ? `Found: ${game.chosen.label}. You can start it from Companion.` : 'Not found automatically — you can choose it later. Companion works without it.',
-      game && game.chosen ? h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('play'), 'Launch PokeMMO') : null,
+      game && game.chosen ? h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : r.already_starting ? 'PokeMMO is already starting' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('play'), 'Launch PokeMMO') : null,
       h('button', { class: 'btn small ghost', onclick: () => go('#/settings/startup') }, 'Startup & game settings')),
     step(!!live.enabled, 'Alpha & Swarm alerts', 'Optional community reports. Off until you turn them on.',
       h('button', { class: 'btn small', onclick: () => go('#/live') }, live.enabled ? 'Open Live' : 'Turn on in Live'),

@@ -53,7 +53,9 @@ def test_home_live_card_shows_large_sharp_sprites_with_fallbacks(app, browser): 
     assert set(names) == {"Gyarados", "Feebas", "Swarm"}
     g = pg.locator(".home-live .cur-card", has_text="Gyarados")
     assert g.locator(".rep-sprite img").count() == 1 and "Kanto · Route 12" in g.inner_text()
-    assert pg.locator(".home-live .cur-card", has_text="Gyarados").locator(".rep-sprite img").evaluate("e => getComputedStyle(e).imageRendering") == "pixelated"
+    # 2026-11-24: the built-in Gen V library is used everywhere (same style as the Pokédex); still → fitted, crisp
+    # when it can be scaled by a whole factor, smoothed otherwise (fitSprite decides, as in the Pokédex)
+    assert g.locator(".rep-sprite.library img").count() == 1
     amb = pg.locator(".home-live .cur-card", has_text="Swarm").filter(has_not_text="Feebas")
     assert amb.locator(".rep-fallback").count() == 1 and amb.locator("img").count() == 0  # two species named → no sprite
     assert "caught up on reconnect" in g.inner_text() and "left (estimate)" in g.inner_text()
@@ -69,10 +71,10 @@ def test_live_list_and_detail_sprites_and_test_labels(app, browser):  # noqa: F8
     pg.wait_for_selector(".report-row")
     test_row = pg.locator(".report-row", has_text="TEST — demo")
     assert "TEST · NOT REAL" in test_row.inner_text().upper() and test_row.locator(".rep-fallback").count() == 1
-    assert _width(pg, ".report-row .rep-sprite img") == 72
+    assert _width(pg, ".report-row .rep-sprite") == 72                        # the sprite box; the library still is fitted inside
     assert "received on reconnect" in pg.locator(".report-row", has_text="Gyarados").inner_text()
     pg.wait_for_selector(".rep-detail-head .rep-sprite.battle img")
-    assert _width(pg, ".rep-detail-head .rep-sprite.battle img") == 192  # 2× the 96 px battle sprite
+    assert _width(pg, ".rep-detail-head .rep-sprite.battle") == 192  # 2× the 96 px battle sprite box
     detail = pg.locator(".card", has=pg.locator(".rep-detail-head")).inner_text()
     assert "ntfy / alpha" in detail
     assert "Community report" in pg.locator(".card", has=pg.locator(".rep-detail-head")).locator(".src-info").first.get_attribute("title")
@@ -92,7 +94,7 @@ def test_report_sprites_shrink_in_narrow_windows_and_popout(app, browser):  # no
     pg = browser.new_context(viewport={"width": 460, "height": 800}).new_page()
     pg.goto(app.url("#/live/reports"))
     pg.wait_for_selector(".report-row .rep-sprite img")
-    assert _width(pg, ".report-row .rep-sprite img") == 36
+    assert _width(pg, ".report-row .rep-sprite") == 36
     pop = browser.new_context(viewport={"width": 360, "height": 520}).new_page()
     pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=reports&mode=compact&shell=browser")
     pop.wait_for_selector(".report-row .rep-sprite")
@@ -195,14 +197,14 @@ def test_summary_plays_animated_form_sprite_with_shiny_and_still(app, page, libr
     tier = app.ctx.dex.size_tier(479)["tier"]  # forms use the parent's tier
     fill = {"xs": 0.4, "s": 0.55, "m": 0.74, "l": 0.94}[tier]
     assert abs(w - 40 * min(max(fill * 210 / 40, 1), 4)) < 1.5  # shared size rule, 40 px synthetic art
-    assert "Animated · your sprite library (PokéAPI files)" in page.locator(".dex-summary .art-src").inner_text()
-    _art(page).get_by_role("button", name="Shiny colours").click()
+    ctl = page.locator(".dex-summary .art-controls")       # labelled switches replace the floating buttons (2026-11-24)
+    assert ctl.get_by_role("button", name="Animated", exact=True).get_attribute("aria-pressed") == "true"
+    assert page.locator(".dex-summary .art-src").count() == 0 and "your sprite library" not in page.locator(".dex-summary").inner_text()
+    ctl.get_by_role("button", name="Shiny", exact=True).click()
     page.wait_for_selector(".dex-summary .art img[src*='ani-shiny/479-wash.gif']")
-    _art(page).get_by_role("button", name="Shiny colours").click()
-    _art(page).get_by_role("button", name="Animate sprite").click()
+    ctl.get_by_role("button", name="Normal", exact=True).click()
+    ctl.get_by_role("button", name="Static", exact=True).click()
     page.wait_for_selector(".dex-summary .art img[src*='/static/479-wash.png']")
-    assert "Still" in page.locator(".dex-summary .art-src").inner_text()
-    assert app.ctx.settings.get("pokedex.animate") is False
     app.ctx.settings.update({"pokedex.animate": None})
 
 
@@ -213,12 +215,11 @@ def test_summary_reduced_motion_shows_still_and_forms_switch_art(app, browser, l
     pg.wait_for_selector(".dex-summary .art canvas.art-img, .dex-summary .art img.art-img")
     pg.wait_for_timeout(400)
     assert pg.locator(".dex-summary .art canvas.art-img").count() == 1  # first frame only, no animation
-    assert "Still frame" in pg.locator(".dex-summary .art-src").inner_text()
     pg.locator(".dex-summary .form-strip button", has_text="White Kyurem").click()
     pg.wait_for_timeout(500)
     assert pg.locator(".dex-summary .detail-head h2").inner_text() == "White Kyurem"
     assert pg.locator(".dex-summary .art .art-missing").count() == 1
-    assert "No verified artwork for this form" in pg.locator(".dex-summary .art-src").inner_text()
+    assert pg.locator(".dex-summary .art .art-missing").get_attribute("aria-label") == "No verified artwork for this form"
     ctx.close()
 
 
@@ -232,15 +233,14 @@ def test_genesect_drive_never_shows_base_art(app, page, library):
 
 
 @needs_dumps
-def test_form_uses_verified_client_icon_without_library(app, page):
+def test_form_prefers_builtin_gen5_art_over_client_icons(app, page):
+    """2026-11-24: removing your own library falls back to the built-in Gen V library (same style everywhere),
+    not to the client's box icon; it never substitutes another form."""
     app.ctx.sprite_library.remove()
+    assert app.ctx.sprite_library.source_kind == "built-in"
     go(page, app, "#/pokedex/479/wash")
     page.wait_for_selector(".dex-summary .art img.art-img")
-    assert "/assets/private/icons/693-0.png" in page.locator(".dex-summary .art img.art-img").get_attribute("src")
-    assert "Your PokeMMO client · box icon" in page.locator(".dex-summary .art-src").inner_text()
-    go(page, app, "#/pokedex/201/b")
-    page.wait_for_selector(".dex-summary .art img.art-img")
-    assert "/battle/652-front-n.png" in page.locator(".dex-summary .art img.art-img").get_attribute("src")
+    assert "479-wash" in page.locator(".dex-summary .art img.art-img").get_attribute("src")
 
 
 # ---------------------------------------------------------------- Listed / Not listed

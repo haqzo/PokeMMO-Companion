@@ -196,8 +196,11 @@ def test_no_rom_or_dump_files_in_repository():
     import subprocess
     files = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True).stdout.split()
     banned = [f for f in files if f.lower().endswith((".gba", ".nds", ".png", ".gif", ".zip", ".webm", ".mp4", ".jpg", ".sav"))
-              and not f.startswith(("ui/", "docs/", "companion/data/maps/game/"))]   # in-game maps: owner decision 2026-11-23
+              and not f.startswith(("ui/", "docs/", "companion/data/maps/game/",     # in-game maps: owner decision 2026-11-23
+                                    "companion/data/sprites/", "companion/data/item-icons/"))]   # built-in artwork: owner decision 2026-11-24
     assert banned == []
+    # never ROMs, dumps or archives anywhere
+    assert not [f for f in files if f.lower().endswith((".gba", ".nds", ".zip", ".sav", ".nsp", ".xci"))]
     maps = json.loads((root / "companion" / "data" / "maps" / "geometry.json").read_text())
     assert all(m["file"].endswith(".svg") or m.get("style") == "game" for m in maps["maps"])
     # no ROM, dump archive, Synergy/Serebii material or reference recordings anywhere in the repository
