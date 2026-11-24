@@ -4,8 +4,8 @@ The current build identifies itself as **0.1.0**. Check the commit or checksum t
 
 ## Install and start
 
-- **Linux x86-64:** Save the owner-provided AppImage somewhere writable, make it executable in the file properties or with `chmod +x PokeMMO-Companion-0.1.0-x86_64.AppImage`, then open it. If your system lacks FUSE, run it from a terminal with `--appimage-extract-and-run`.
-- **Windows x86-64:** If the owner supplies a verified Windows ZIP, extract the entire directory and open `pokemmo-companion.exe` from that directory. The files beside the executable support the native app.
+- **Linux x86-64.** Save the owner-provided AppImage somewhere writable, make it executable in the file properties or with `chmod +x PokeMMO-Companion-0.1.0-x86_64.AppImage`, then open it. If your system lacks FUSE, run it from a terminal with `--appimage-extract-and-run`.
+- **Windows x86-64.** If the owner supplies a verified Windows ZIP, extract the entire directory and open `pokemmo-companion.exe` from that directory. The files beside the executable support the native app.
 - On first launch, open Home and the Pokédex. Reference data, sprites, maps and the five regional walkthroughs are available from the installed app. Start a storyline run only if you want to track your walkthrough progress. Changes are stored in your per-user data directory.
 
 ## What to try
@@ -27,7 +27,7 @@ Use **Settings → Backup & recovery** to make a complete ZIP before replacing a
 |---|---|
 | Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. Approve the alpha version and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. A shared Phenomenon feed depends on the owner’s private live check, effective Discord permissions and authorization to share reports and screenshots. Leave the endpoint empty for an alpha without the shared feed. |
 | Public beta | Close all applicable alpha gates for a public audience. Approve public hosting and data use. Verify the target Linux compatibility baseline and Windows distribution. Configure and verify Ed25519 application signing and the release checksums. Verify reference signing and index hosting if enabling automatic reference updates, and confirm the existing Discord announcement workflow with the owner before publication. |
-| During alpha | Collect user feedback on unfamiliar embed layouts, image fallback, compact-window readability, and perceived freshness. Record improvements to source labels and missing metadata as real reports provide evidence. |
+| During alpha | Collect user feedback on unfamiliar embed layouts, image fallback, compact-window readability, and perceived freshness. The Build 22 theme editor misses an expected “Readability” label after a particular colour edit. Record improvements to source labels and missing metadata as real reports provide evidence. |
 
 ## Update and signing status
 
