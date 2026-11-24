@@ -17,7 +17,7 @@ Use a clean x86-64 Linux build host with Python and `venv`. Use the oldest distr
 
 ## Windows x86-64
 
-Use a clean x86-64 Windows 10 or 11 VM and the latest python.org x86-64 Python 3.13 maintenance build available as a Windows installer. Include the `py` launcher and record the precise interpreter version with the artifact. Run from PowerShell at the checkout root.
+Use a clean x86-64 Windows 10 or 11 VM. Use the python.org x86-64 Python 3.13.14 Windows installer for a repeatable baseline, include the `py` launcher and record the interpreter version with the artifact. Run from PowerShell at the checkout root. [Python 3.13.14 installers](https://www.python.org/downloads/release/python-31314/)
 
 ```powershell
 py -3.13 --version
