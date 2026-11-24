@@ -540,7 +540,7 @@ def test_failed_check_keeps_old_items_and_is_honest(ctx, monkeypatch):
     r = ctx.news.check_feed(manual=False)
     assert r["ok"] is False and "blocked" in r["error"] and r["items"]
     listing = ctx.news.listing()
-    assert listing["new_posts"][0]["summary_status"].startswith("Summary pending verification")
+    assert listing["new_posts"][0]["summary_status"].startswith("Only the official title, date and link are known")
 
 
 def test_manual_check_is_rate_limited(ctx, monkeypatch):
