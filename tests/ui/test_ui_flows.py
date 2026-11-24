@@ -352,7 +352,7 @@ def test_home_has_no_blocking_modal_and_keeps_news_details(app, page):
         assert part.lower() in txt.lower(), part
     # the news-source status now lives in the latest-update card's footer (check now, provenance, feed state)
     foot = page.locator(".home-update .update-foot")
-    assert foot.get_by_role("button", name="Check now").count() == 1 and "summaries written" in foot.inner_text()
+    assert foot.get_by_role("button", name="Check now").count() == 1 and "Summaries written" in foot.get_attribute("title")
     page.get_by_role("button", name="Read details").click()
     page.wait_for_selector("article")
 

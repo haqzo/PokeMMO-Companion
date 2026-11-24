@@ -54,9 +54,29 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--import-guides", metavar="FOLDER", help="Import your walkthrough .odt files from FOLDER")
     p.add_argument("--xwayland", action="store_true", help="Force XWayland (enables pin/positioning on KDE Wayland)")
     p.add_argument("--wayland", action="store_true", help="Force native Wayland")
+    p.add_argument("--minimized", action="store_true", help="Start hidden in the tray (or minimised)")
+    p.add_argument("--launch-game", action="store_true", help="Also start PokeMMO (never a second copy)")
+    p.add_argument("--watch-game", action="store_true",
+                   help="Small helper: start Companion when PokeMMO starts (used by the optional login entry)")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     args = p.parse_args(argv)
+
+    from .config import make_paths
+    from .instance import InstanceLock
+    from .services import gamelaunch
+
+    root = make_paths(args.data_dir).root
+    if args.watch_game:
+        return _watch_game(root, args)
+    lock = InstanceLock(root)
+    if not args.check and not lock.acquire():
+        # Companion is already running for this data folder: bring it forward instead of starting a second copy
+        if args.launch_game:
+            _launch_game_quietly(root)
+        shown = lock.signal_running({"action": "focus_main"})
+        print(f"{APP_NAME} is already running{' — brought its window forward' if shown else ''}.", file=sys.stderr)
+        return 0
 
     from .app import AppContext
     from .server import CompanionServer
@@ -80,6 +100,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         return _self_check(ctx, server)
+    lock.publish(server.base_url, ctx.token)
+    if args.launch_game:
+        _launch_game_quietly(root, ctx)
 
     if not args.browser:
         override = "xwayland" if args.xwayland else "wayland" if args.wayland else None
@@ -92,7 +115,10 @@ def main(argv: list[str] | None = None) -> int:
                   "  python -m venv .venv && .venv/bin/pip install -r requirements-native.txt\n"
                   "Falling back to browser mode.\n", file=sys.stderr)
         else:
-            return run_qt(ctx, server, spike=args.spike, qpa=platform)
+            try:
+                return run_qt(ctx, server, spike=args.spike, qpa=platform, minimized=args.minimized)
+            finally:
+                lock.release()
 
     if args.spike:
         print("The feasibility spike needs the native shell (PySide6 + QtWebEngine).", file=sys.stderr)
@@ -111,6 +137,45 @@ def main(argv: list[str] | None = None) -> int:
         time.sleep(0.3)
     server.stop()
     ctx.shutdown()
+    lock.release()
+    return 0
+
+
+def _launch_game_quietly(root, ctx=None) -> None:
+    from .services import gamelaunch
+    manual = ""
+    if ctx is not None:
+        manual = ctx.settings.get("game.launcher_path") or ""
+    found = gamelaunch.detect([manual] if manual else None)
+    try:
+        res = gamelaunch.launch(found[0]["argv"] if found else [], found[0]["cwd"] if found else None)
+        logging.getLogger("companion").info("PokeMMO launch: %s", res)
+    except gamelaunch.GameError as exc:
+        logging.getLogger("companion").warning("%s", exc)
+        print(str(exc), file=sys.stderr)
+
+
+def _watch_game(root, args) -> int:
+    """The optional login helper: polls every 10 s; when PokeMMO appears and Companion is not running, starts it."""
+    import subprocess
+    import threading
+    from .instance import InstanceLock
+    from .services import gamelaunch
+    me = InstanceLock(root / "watcher")
+    if not me.acquire():
+        return 0                                   # a watcher is already running
+    main_lock = InstanceLock(root)
+
+    def start():
+        cmd = gamelaunch.companion_command() + (["--data-dir", args.data_dir] if args.data_dir else [])
+        subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         **({"start_new_session": True} if not sys.platform.startswith("win") else {}))
+    stop = threading.Event()
+    signal.signal(signal.SIGINT, lambda *_: stop.set())
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    gamelaunch.watch_and_start(main_lock.is_held_elsewhere, start, stop=stop)
+    me.release()
     return 0
 
 

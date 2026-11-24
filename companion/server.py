@@ -12,6 +12,7 @@ import queue
 import re
 import threading
 import traceback
+import sys
 import time
 import uuid
 import zipfile
@@ -746,6 +747,54 @@ def build_router(ctx: AppContext) -> Router:
     r.add("POST", "/api/reference/rollback", ref_call(lambda req: (ctx.refdata.rollback(), _ref_reload())[0]))
     r.add("POST", "/api/reference/reset", ref_call(lambda req: (ctx.refdata.remove_download(), _ref_reload(), {"reset": True})[2]))
 
+    # ------------------------------------------------------------ startup & game integration
+    from .services import gamelaunch as gl
+
+    def game_status(req):
+        manual = ctx.settings.get("game.launcher_path") or ""
+        found = gl.detect([manual] if manual else None)
+        return {"launchers": found, "chosen": found[0] if found else None, "manual": manual, "running": gl.game_running(),
+                "integrations": gl.integration_status(), "platform": sys.platform,
+                "note": "Companion can only start itself when PokeMMO starts if Companion or its small start-up helper is running."}
+    r.add("GET", "/api/game/status", game_status)
+
+    def game_launch(req):
+        manual = ctx.settings.get("game.launcher_path") or ""
+        found = gl.detect([manual] if manual else None)
+        try:
+            return gl.launch(found[0]["argv"] if found else [], found[0]["cwd"] if found else None)
+        except gl.GameError as exc:
+            raise ApiError(400, str(exc))
+    r.add("POST", "/api/game/launch", game_launch)
+
+    def game_launcher(req):
+        path = str(req.json("path", "") or "")
+        try:
+            clean = gl.validate_launcher(path) if path else ""
+        except gl.GameError as exc:
+            raise ApiError(400, str(exc))
+        ctx.settings.update({"game.launcher_path": clean})
+        return game_status(req)
+    r.add("PUT", "/api/game/launcher", game_launcher)
+
+    def game_integration(req):
+        kind = req.json("kind")
+        if kind not in gl.INTEGRATIONS:
+            raise ApiError(400, "Unknown integration")
+        if req.json("enable"):
+            icon = str(UI_DIR / "img" / "pokeball.svg")
+            files = gl.install_integration(kind, minimized=bool(req.json("minimized")), icon=icon)
+            return {"kind": kind, "enabled": True, "files": files}
+        return {"kind": kind, "enabled": False, "removed": gl.remove_integration(kind)}
+    r.add("POST", "/api/game/integration", game_integration)
+
+    def game_remove_all(req):
+        return {"removed": [f for k in gl.INTEGRATIONS for f in gl.remove_integration(k)]}
+    r.add("POST", "/api/game/integration/remove-all", game_remove_all)
+
+    from .services import diagnostics as diag
+    r.add("GET", "/api/diagnostics", lambda req: {"report": diag.report(ctx), "log": diag.sanitized_log(ctx.paths.logs)})
+
     r.add("GET", "/api/app-update/status", lambda req: ctx.app_updates.status())
     r.add("POST", "/api/app-update/check", lambda req: ctx.app_updates.check())
 
@@ -760,7 +809,8 @@ def build_router(ctx: AppContext) -> Router:
     def shell_cmd(req: Request) -> dict:
         cmd = req.body or {}
         allowed = {"open_popout", "close_popout", "pin", "window_opacity", "mode", "lock", "focus_main",
-                   "navigate_main", "minimize", "quit", "pick_folder", "pick_file", "toast_preview", "raise_popout", "toggle_popout"}
+                   "navigate_main", "minimize", "quit", "pick_folder", "pick_file", "toast_preview", "raise_popout", "toggle_popout",
+                   "minimize_main", "pick_launcher"}
         if cmd.get("action") not in allowed:
             raise ApiError(400, "Unknown shell action")
         return ctx.shell.submit(cmd)

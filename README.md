@@ -1,44 +1,103 @@
 # PokeMMO Companion
 
-A research-first, PokeMMO-specific companion planned for **Windows and Linux**.
+An unofficial desktop companion for PokeMMO on **Linux and Windows**: Pokédex, encounter locations, guides with
+timers and teams, calculators, Alpha/Swarm reports and floating tools you can keep next to the game.
 
-**Status:** v0.1.0 development preview on `develop` (not a release). Latest: the accuracy + foundations pass — see the [implementation report](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/10-V0.1.0-ACCURACY-AND-FOUNDATIONS-REPORT.md) (update steps, what changed, tests, what is still unverified). Earlier: [correction pass](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/05-V0.1.0-CORRECTION-PASS-REPORT.md) · [first build](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/build/03-V0.1.0-IMPLEMENTATION-REPORT.md).
+**Status:** v0.1.0 development preview on `develop`. No public release yet — the owner decides when.
+Unofficial community project, not affiliated with PokeMMO.
 
-## Vision
-A compact, collapsible launcher and clean, independently movable/resizable floating tools alongside PokeMMO. The Pokédex should use a responsive, searchable **sprite-card grid** instead of long rows, with verified species details, obtainable status, encounters, moves, evolution and forms.
+## Install
 
-Planned research areas: Alpha/Swarm notifications, Legendary rotations, Altering Cave, PokeMMO-specific calculators, team/breeding tools and optional region walkthroughs. We will not add an encounter counter because PokeMMO already has one.
+**When a release exists** (players): download one file from the GitHub *Releases* page — no Git, terminal or
+Python needed.
 
-## Quick start (Linux, Bash)
+* **Linux** (CachyOS, KDE Plasma and others): download `PokeMMO-Companion-<version>-x86_64.AppImage`, make it
+  executable (right-click › Properties › *Is executable*, or `chmod +x`), double-click.
+* **Windows**: download `PokeMMO-Companion-<version>-windows-x86_64.zip`, extract it anywhere, run
+  `pokemmo-companion.exe`.
+
+Uninstall: delete the AppImage / the extracted folder. Your personal data is kept separately (below) and is only
+removed if you delete that folder yourself. Optional startup entries are removed in
+*Settings › Startup & game › Remove all startup entries* first.
+
+> Packaging scripts exist (`packaging/`) but no package has been built or tested yet.
+
+**Development preview (today, Linux):**
 ```bash
 git clone -b develop https://github.com/haqzo/PokeMMO-Companion.git && cd PokeMMO-Companion
-./scripts/setup-venv.sh      # optional: PySide6 in ./.venv for native pinned popouts
-./run.sh                     # native windows, or browser mode if PySide6 is missing
-./run.sh --spike             # native window feasibility test → spike-report.json
+./scripts/setup-venv.sh   # optional: PySide6 for native floating windows (else it runs in your browser)
+./run.sh
 ```
-If your PokeMMO dumps are in a known folder (e.g. `~/Documents/PokeMMO-Companion/Pokemmo-Dumps`), Home offers a one-click **Install**; otherwise import them in **Settings › Data & privacy**. They stay on your computer and are never modified. Close the Companion before `git pull` and relaunch. Requires Python 3.10+. Windows: `run.ps1` (untested).
+Updating a development checkout: close every Companion window (including floating tools) and quit it from the
+tray, then `git pull --ff-only` and `./run.sh`. Windows development: `run.ps1` (untested).
 
-## Current Claude recovery / complete decision handoff
-Read [all post-limit owner decisions and approved scope](docs/build/09-V0.1.0-COMPLETE-DECISION-CHECKPOINT.md), then the [full coding/recovery assignment](docs/build/08-V0.1.0-RECOVERY-AND-APPROVED-UPGRADES.md). This supersedes older, conflicting first-prototype instructions. The v0.1.0 continuation has NOT been declared complete by documentation alone.
+## First start
+Everything works immediately and offline: the PokeMMO data (649 species, 559 moves, 2,090 items, 629 locations,
+33,405 encounter rows from the client of 16 Nov 2026) is built in. A short, skippable *Welcome* on Home lets you
+pick a language, find PokeMMO, turn on Alpha/Swarm alerts, test a notification and try a floating tool.
+No ROMs, dumps, sprite packs, character profile or developer tools are needed. Importing your own PokeMMO client
+files is optional (*Settings › Data & privacy*) and only adds your client's sprites and icons.
 
-## v0.1.0 development plan
-[Full first-pass scope and acceptance criteria](docs/build/00-V0.1.0-FIRST-PASS-PLAN.md) | [Claude coding handoff](docs/build/01-CLAUDE-V0.1.0-KICKOFF.md) | [User video review](docs/build/02-V0.1.0-VIDEO-REVIEW-CHECKLIST.md)
+## Using it with PokeMMO
+*Settings › Startup & game* (all optional, all removable):
+* **Launch PokeMMO** — detects the Flatpak (`com.pokemmo.PokeMMO`), standalone Linux launchers and Windows
+  installs, or use the launcher you choose. PokeMMO is never started twice and never closed by Companion.
+* **Start Companion at login**, optionally minimised to the tray; **reopen the floating tools** you had open.
+* **“PokeMMO + Companion” shortcut** that starts both.
+* **Start Companion when PokeMMO starts** — a tiny helper started at login. Companion cannot start by itself
+  if both it and this helper are closed.
+* **When PokeMMO closes**: keep running (default), minimise or quit Companion.
 
-One coherent **locally runnable full-app preview** now exists on `develop`; the first user video review drives subsequent polish and versions. It is not a released executable.
+Only one Companion runs at a time; starting it again brings the open window forward.
 
-## Design and research
-[Design specification](docs/design/README.md) — current approved product direction and proposed detailed UX for Home, windows, notifications and Pokédex.
+## Floating tools, window sizes and displays
+Most tools can pop out into their own window (draggable, resizable, compact / standard / expanded). Every page
+adapts to the window: the sidebar turns into icons in narrow windows (or by preference), lists and tables
+scroll inside their own areas, dialogs keep their buttons visible. Layout follows the real window size, your OS
+display scaling and Companion's text size — no restart needed. Windows that end up off-screen after a monitor is
+unplugged or a resolution change are moved back automatically.
 
-## Research
-**[Read the research library](docs/research/README.md)** for PokeMMO changelog cross-checks, archive audit findings, data provenance rules, QA cases and Claude's pre-build handoff.
+**KDE Wayland:** native Wayland does not let applications pin windows on top or place them. Companion therefore
+starts through XWayland on KDE by default (*Settings › Windows & popouts › Window backend*). On native Wayland,
+pin and saved positions are unavailable.
 
-Information is **not yet production-validated**. PokeMMO updates frequently; data from extracts and third-party tools must be compared against current official changelogs and live gameplay before release.
+## Automatic updates (three separate things)
+* **Official PokeMMO news** — the official Updates forum is checked at start-up when stale and then every 3 h
+  (adjustable). New posts appear with their official title, date and link; summaries are never invented.
+* **PokeMMO reference data** — signed data packages can update the built-in data without a new app version,
+  with checks before activation and the previous data kept for rollback. *Not set up yet: no approved data
+  location exists; the built-in data is used.*
+* **Companion itself** — published GitHub releases are checked (stable or pre-release channel). Companion
+  never installs or restarts by itself and never offers development builds.
+
+Offline, everything except these checks and the optional Alpha/Swarm feed keeps working.
+
+## Backups
+*Settings › Backup & recovery*: complete backups (.zip with your pictures) of notes, collection, showcases, guides
+with cycles and history, character runs and storyline progress, teams, timers, presets, map marks, settings and
+window positions. Automatic daily backups (7 kept), restore preview, merge or replace, safety copy first.
+Personal data folder: `~/.local/share/pokemmo-companion` (Linux), `%APPDATA%\PokeMMO-Companion` (Windows).
+
+## Troubleshooting
+* **Nothing opens / blank window** — try `./run.sh --browser`; *Settings › About & diagnostics › Save
+  diagnostics* writes versions and a log with private details removed (nothing is sent anywhere).
+* **Pin / position doesn't work on KDE** — use the XWayland window backend (default on KDE).
+* **“already running”** — Companion is open (maybe in the tray); the existing window was brought forward.
+* **Restore a backup** — *Settings › Backup & recovery*; your current data is saved before any restore.
+
+## What it never does
+No encounter counter (PokeMMO has one), no game memory reading, injection, packet interception, macros or
+automated input, no GTL scraping or account login, no telemetry.
+
+## Documentation
+Build reports and decisions: [`docs/build/`](docs/build/README.md) — latest:
+[19 — release preparation](docs/build/19-RELEASE-PREPARATION.md). Design: [`docs/design/`](docs/design/README.md).
+Research: [`docs/research/`](docs/research/README.md).
 
 ## Branches
-- `main` — stable, approved releases only.
-- `develop` — research, design, implementation and testing; Claude will work on this branch.
+`main` — approved releases only. `develop` — ongoing work.
 
-## Asset policy
-Extracted PokeMMO client assets, ROMs, proprietary strings, original personal dumps and source walkthrough documents are not included. Research describes them without redistributing their contents. Public assets require separate permission/licensing review.
-
-*Unofficial community project, not affiliated with PokeMMO.*
+## Assets and data
+The repository contains reference data derived from the PokeMMO client and region map images, included by the
+owner's decision; distribution permissions are not established (see docs/build/17 and 19). It contains no ROMs,
+personal dumps, proprietary string tables or walkthrough documents.

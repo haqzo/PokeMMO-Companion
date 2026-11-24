@@ -7,7 +7,7 @@ import { createRun } from './guides.js';
 import { LANGS, coverage, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
-const SECTIONS = [['appearance', 'Appearance'], ['language', 'Language'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
+const SECTIONS = [['appearance', 'Appearance'], ['language', 'Language'], ['startup', 'Startup & game'], ['windows', 'Windows & popouts'], ['shortcuts', 'Keyboard shortcuts'], ['notifications', 'Notifications'],
   ['sources', 'Live sources & news'], ['guides', 'Guides & characters'], ['updates', 'Updates'], ['backup', 'Backup & recovery'], ['data', 'Data & privacy'], ['about', 'About & diagnostics']];
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
@@ -24,7 +24,7 @@ export async function render(el, route) {
   const body = h('div', { class: 'card' });
   page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': 'Settings sections' },
     SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, l))), body));
-  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, data, about })[sec](body);
+  await ({ appearance, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, data, about })[sec](body);
 }
 
 // --------------------------------------------------------------- language
@@ -253,7 +253,7 @@ async function guidesSec(b) {
           await api('DELETE', '/api/guides/runs/' + r.id); render(document.getElementById('main'), { parts: ['guides'] }); } } }, 'Delete')))),
       runs.deleted.map((r) => h('tr', { style: { opacity: 0.7 } }, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, 'deleted'), h('td', { class: 'small' }, relTime(r.deleted_at)),
         h('td', null, h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${r.id}/restore`); render(document.getElementById('main'), { parts: ['guides'] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Restore')))))),
-    h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), 'New run'),
+    h('div', { class: 'row wrap', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), 'New run'),
       h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/backup') }, 'Backup & recovery'), h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Walkthrough import')));
 }
 
@@ -383,6 +383,46 @@ async function formArtReport() {
 }
 
 // ---------------------------------------------------------------- about
+// --------------------------------------------------------------- startup & game integration
+async function startupSec(b) {
+  const g = await get('/api/game/status');
+  const s = state.settings;
+  const redraw = () => { b.innerHTML = ''; startupSec(b); };
+  const native = SHELL === 'qt';
+  const integ = (kind, extra = {}) => async (on_) => {
+    try { await post('/api/game/integration', { kind, enable: on_, ...extra }); toast(on_ ? 'Added' : 'Removed'); } catch (e) { toast(e.message, { kind: 'warn' }); }
+    redraw();
+  };
+  const pathIn = h('input', { class: 'input', value: g.manual || '', placeholder: g.platform.startsWith('win') ? 'C:\\…\\PokeMMO.exe' : '/home/you/PokeMMO/PokeMMO.sh', 'aria-label': 'PokeMMO launcher' });
+  const savePath = async (v) => { try { await api('PUT', '/api/game/launcher', { path: v }); toast(v ? 'Launcher saved' : 'Using the detected launcher'); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); };
+  if (native) unsub.push(on('shell.file', (d) => { if (d && d.purpose === 'launcher' && d.path) savePath(d.path); }));
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Startup & game integration'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Everything here is optional and can be switched off again. Companion never changes, closes or reads PokeMMO.'),
+    h('h3', null, 'PokeMMO'),
+    row('PokeMMO launcher', g.chosen ? g.chosen.label : 'Not found automatically. Choose PokeMMO.exe or PokeMMO.sh — or the Flatpak is used when installed.',
+      h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', disabled: g.chosen ? null : 'disabled', onclick: async () => {
+        try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? 'PokeMMO is running' : 'Launch PokeMMO'))),
+    h('div', { class: 'row wrap', style: { margin: '4px 0 10px' } },
+      native ? h('button', { class: 'btn small', onclick: () => post('/api/shell/command', { action: 'pick_launcher', purpose: 'launcher' }) }, 'Choose launcher…')
+        : [h('div', { class: 'grow', style: { minWidth: '220px' } }, pathIn), h('button', { class: 'btn small', onclick: () => savePath(pathIn.value.trim()) }, 'Save')],
+      g.manual ? h('button', { class: 'btn small ghost', onclick: () => savePath('') }, 'Use detected launcher') : null),
+    g.launchers.length > 1 ? h('div', { class: 'tiny muted' }, 'Also found: ', g.launchers.slice(1).map((l) => l.label).join(' · ')) : null,
+    row('When PokeMMO closes', 'Companion keeps running by default. It never closes PokeMMO.',
+      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'When PokeMMO closes', onchange: (e) => saveSettings({ 'game.on_exit': e.target.value }) },
+        [['keep', 'Keep Companion running'], ['minimize', 'Minimise Companion'], ['quit', 'Quit Companion']].map(([v, l]) => h('option', { value: v, selected: s['game.on_exit'] === v ? 'selected' : null }, l)))),
+    h('h3', null, 'Starting Companion'),
+    row('Start Companion when you log in', 'Adds a normal autostart entry you can see in your system settings.', switchEl(g.integrations.login, integ('login', { minimized: !!s['app.start_minimized'] }))),
+    row('Start minimised to the tray', 'Companion starts in the background; open it from the tray icon.', switchEl(!!s['app.start_minimized'], async (v) => {
+      await saveSettings({ 'app.start_minimized': v }); if (g.integrations.login) await post('/api/game/integration', { kind: 'login', enable: true, minimized: v }); })),
+    row('Reopen floating tools', 'Popouts that were open when Companion closed open again.', switchEl(!!s['app.restore_popouts'], (v) => saveSettings({ 'app.restore_popouts': v }))),
+    row('“PokeMMO + Companion” shortcut', 'A menu/desktop shortcut that starts both. PokeMMO is never started twice.', switchEl(g.integrations.shortcut, integ('shortcut'))),
+    row('Start Companion when PokeMMO starts', 'A tiny helper starts with your login and opens Companion when PokeMMO appears. It cannot work if both Companion and this helper are closed.',
+      switchEl(g.integrations.watcher, integ('watcher'))),
+    h('div', { class: 'row', style: { marginTop: '10px' } }, h('button', { class: 'btn ghost small', onclick: async () => {
+      if (!(await confirmDialog('Remove startup entries?', 'Removes the autostart entry, the shortcut and the helper that Companion created. Nothing else is touched.', 'Remove'))) return;
+      const r = await post('/api/game/integration/remove-all'); toast(`${r.removed.length} item(s) removed`); redraw(); } }, 'Remove all startup entries'))));
+}
+
 // --------------------------------------------------------------- updates (news, reference data, Companion)
 async function updatesSec(b) {
   const [ref, app, n] = await Promise.all([get('/api/reference/status'), get('/api/app-update/status'), get('/api/news')]);
@@ -396,13 +436,13 @@ async function updatesSec(b) {
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Three separate things, each checked in the background. Nothing interrupts a game or a running timer.'),
     h('h3', null, 'Official PokeMMO news'),
     row('Check automatically', f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
-      switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }), 'Check official news automatically')),
+      switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }))),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? 'Official news checked' : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), 'Check now')),
     h('h3', null, 'PokeMMO reference data'),
     h('div', { class: 'small' }, refUsing, '.'),
     ref.private_superseded ? notice('info', `Your own client import (${fmtDate(ref.private_superseded.private_date)}) is older than this data, so the newer data is used. Your sprites and icons are still shown.`) : null,
     ref.configured ? [
-      row('Install verified data updates automatically', ref.last_check_at ? `Last check ${relTime(ref.last_check_at)}.` : 'Not checked yet.', switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }), 'Reference data updates')),
+      row('Install verified data updates automatically', ref.last_check_at ? `Last check ${relTime(ref.last_check_at)}.` : 'Not checked yet.', switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }))),
       ref.last_error ? notice('warn', ref.last_error) : null,
       h('div', { class: 'row wrap' },
         h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? `Reference data updated (${fmtDate(r.dump_date)})` : r.reason); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), 'Check and update'),
@@ -411,7 +451,7 @@ async function updatesSec(b) {
       : h('div', { class: 'small muted' }, 'Data updates are not set up in this build yet; the built-in data works fully offline. When they are, approved and signed data packages install here automatically, and the previous data is kept so you can go back.'),
     h('h3', null, 'PokeMMO Companion'),
     row('Check for new versions', `This is version ${app.current}.${app.checked_at ? ` Last check ${relTime(app.checked_at)}.` : ''} Companion never installs or restarts by itself.`,
-      switchEl(!!s['app_updates.auto_check'], (v) => saveSettings({ 'app_updates.auto_check': v }), 'Check for Companion updates')),
+      switchEl(!!s['app_updates.auto_check'], (v) => saveSettings({ 'app_updates.auto_check': v }))),
     row('Release channel', 'Stable releases only, or also pre-releases. Development builds are never offered.',
       seg([['stable', 'Stable'], ['prerelease', 'Pre-releases']], s['app_updates.channel'] || 'stable', (v) => saveSettings({ 'app_updates.channel': v }), 'Release channel')),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), 'Check for updates')),
@@ -495,6 +535,13 @@ async function about(b) {
   b.append(h('h2', { style: { marginTop: 0 } }, 'About'),
     h('dl', { class: 'kv' }, h('dt', null, 'Version'), h('dd', null, `${boot.version} (development preview)`), h('dt', null, 'Window mode'), h('dd', null, boot.mode === 'qt' ? 'Native shell (PySide6)' : 'Browser'),
       h('dt', null, 'Data folder'), h('dd', { class: 'mono' }, boot.data_dir)),
+    h('h3', null, 'Diagnostics'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'For troubleshooting: versions, window system and a log with private details removed (session tokens, your home folder and user name). Nothing is sent anywhere — you decide whether to share the file.'),
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => {
+      const d = await get('/api/diagnostics');
+      const blob = new Blob([JSON.stringify(d.report, null, 1) + '\n\n----- log (sanitized) -----\n' + d.log], { type: 'text/plain' });
+      const a = h('a', { href: URL.createObjectURL(blob), download: `pokemmo-companion-diagnostics-${new Date().toISOString().slice(0, 10)}.txt` });
+      document.body.append(a); a.click(); a.remove(); } }, icon('download'), 'Save diagnostics')),
     h('h3', null, 'Keyboard'),
     h('div', { class: 'small stack tight' }, h('div', null, h('span', { class: 'kbd' }, 'Alt+1…5'), ' switch sections · ', h('span', { class: 'kbd' }, 'Ctrl+,'), ' settings · ', h('span', { class: 'kbd' }, 'Ctrl+F'), ' search Pokédex · ',
       h('span', { class: 'kbd' }, 'Esc'), ' close details/dialogs · arrows + Enter in the Pokédex grid')),

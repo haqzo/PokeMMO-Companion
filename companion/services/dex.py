@@ -76,6 +76,17 @@ def load_reference(paths) -> dict | None:
     return b
 
 
+def reference_manifest(paths) -> dict:
+    """Cheap: only the manifest of the dataset load_reference() would use (no decompression)."""
+    from .refdata import ReferenceUpdater, dataset_key
+    b = json.loads((BUNDLED_DATA_DIR / "reference" / "manifest.json").read_text(encoding="utf-8"))
+    try:
+        inst = ReferenceUpdater(paths.root / "reference").installed_manifest()
+    except Exception:
+        inst = None
+    return inst if inst and dataset_key(inst) > dataset_key(b) else b
+
+
 def _ref_date(m: dict | None) -> str:
     return str((m or {}).get("dump_date") or "")
 
@@ -119,9 +130,10 @@ class DexService:
             # Every installation ships the reference dataset (companion/data/reference), so core features never need
             # a player import. A personal client import is used only when it is at least as new as the reference
             # data; an OLDER import never overrides newer verified data (its sprites/icons are still used).
-            ref_ds = load_reference(self.paths)
             self.private_superseded = None
-            if self.species and ref_ds and _ref_date(self.manifest) < _ref_date(ref_ds["manifest"]):
+            newer_ref = bool(self.species) and _ref_date(self.manifest) < _ref_date(reference_manifest(self.paths))
+            ref_ds = load_reference(self.paths) if (newer_ref or not self.species) else None
+            if newer_ref and ref_ds:
                 self.private_superseded = {"private_date": _ref_date(self.manifest), "reference_date": _ref_date(ref_ds["manifest"])}
                 log.info("Personal PokeMMO import (%s) is older than the reference data (%s); using the reference data",
                          self.private_superseded["private_date"], self.private_superseded["reference_date"])

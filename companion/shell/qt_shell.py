@@ -330,11 +330,14 @@ class Popout(QWidget):
         w, h = target_size(self.tool, self.mode, self.pref("sizes"))
         screen = QGuiApplication.primaryScreen()
         if self.shell.caps["position"] and "x" in g and "y" in g:
-            pt = QPoint(int(g["x"]), int(g["y"]))
-            found = QGuiApplication.screenAt(pt + QPoint(40, 20))  # never restore off-screen
+            from .geometry import fit_window
+            screens = [(s.availableGeometry().x(), s.availableGeometry().y(), s.availableGeometry().width(), s.availableGeometry().height())
+                       for s in QGuiApplication.screens()]
+            x, y, _w, _h = fit_window((int(g["x"]), int(g["y"]), w, h), screens)   # title bar always reachable
+            found = QGuiApplication.screenAt(QPoint(x + 40, y + 10))
             if found is not None:
                 screen = found
-                self.move(pt)
+            self.move(QPoint(x, y))
         if screen is not None:
             avail = screen.availableGeometry()
             w, h = clamp(w, h, avail.width(), avail.height())
@@ -516,11 +519,18 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.view)
         self.setMinimumSize(800, 560)
         g = shell.ctx.settings.get("window.main.geometry") or {}
-        self.resize(int(g.get("w", 1180)), int(g.get("h", 780)))
+        w, h = int(g.get("w", 1180)), int(g.get("h", 780))
+        primary = QGuiApplication.primaryScreen()
+        if primary is not None:                      # never bigger than the screen it opens on
+            av = primary.availableGeometry()
+            w, h = min(w, av.width()), min(h, av.height())
+        self.resize(w, h)
         if shell.caps["position"] and "x" in g and "y" in g:
-            pt = QPoint(int(g["x"]), int(g["y"]))
-            if QGuiApplication.screenAt(pt + QPoint(60, 30)) is not None:
-                self.move(pt)
+            from .geometry import fit_window
+            screens = [(s.availableGeometry().x(), s.availableGeometry().y(), s.availableGeometry().width(), s.availableGeometry().height())
+                       for s in QGuiApplication.screens()]
+            x, y, w, h = fit_window((int(g["x"]), int(g["y"]), int(g.get("w", w)), int(g.get("h", h))), screens)
+            self.setGeometry(x, y, w, h)
         self._hint_shown = False
 
     def save_geometry(self) -> None:
@@ -645,6 +655,15 @@ class QtShell:
             path, _ = QFileDialog.getOpenFileName(self.main, "Choose your ROM file (opened read-only)", str(Path.home()),
                                                   "Game Boy Advance / Nintendo DS ROMs (*.gba *.nds);;All files (*)")
             self.ctx.bus.publish("shell.file", {"purpose": cmd.get("purpose"), "path": path or None})
+        elif a == "minimize_main":
+            if self.tray is not None and self.ctx.settings.get("app.close_behavior") == "tray":
+                self.main.hide()
+            else:
+                self.main.showMinimized()
+        elif a == "pick_launcher":
+            filt = "PokeMMO (PokeMMO.exe *.exe *.lnk *.bat *.cmd)" if sys.platform.startswith("win") else "PokeMMO launcher (*.sh PokeMMO*);;All files (*)"
+            path, _ = QFileDialog.getOpenFileName(self.main, "Choose the PokeMMO launcher", str(Path.home()), filt)
+            self.ctx.bus.publish("shell.file", {"purpose": cmd.get("purpose") or "launcher", "path": path or None})
         elif a == "quit":
             self.quit()
         elif a == "_toast":
@@ -750,12 +769,30 @@ class QtShell:
         req.accept()
 
     # ----------------------------------------------------------------- quit
+    def recover_windows(self) -> None:
+        """After a monitor was removed or a resolution changed: move any window whose title bar is no longer on a
+        screen back onto the nearest one, and shrink it to fit. Uses the pure helper in shell/geometry.py."""
+        from .geometry import fit_window
+        screens = [(s.availableGeometry().x(), s.availableGeometry().y(), s.availableGeometry().width(), s.availableGeometry().height())
+                   for s in QGuiApplication.screens()]
+        if not screens or not self.caps["position"]:
+            return
+        for w in [self.main, *self.popouts.values()]:
+            if w is None or not w.isVisible():
+                continue
+            g = w.geometry()
+            x, y, ww, hh = fit_window((g.x(), g.y(), g.width(), g.height()), screens)
+            if (x, y, ww, hh) != (g.x(), g.y(), g.width(), g.height()):
+                w.setGeometry(x, y, ww, hh)
+
     def quit(self) -> None:
         if self.quitting:
             return
         self.quitting = True
         try:
             self.main.save_geometry()
+            # remember which floating tools were open (reopened at the next start when the player wants that)
+            _settings_set(self.ctx, {"window.open_popouts": [t for t, p in self.popouts.items() if p.isVisible()]})
         except Exception:  # pragma: no cover
             pass
         for p in list(self.popouts.values()):
@@ -768,7 +805,7 @@ class QtShell:
         self.app.quit()
 
 
-def run_qt(ctx, server, spike: bool = False, qpa: str | None = None) -> int:
+def run_qt(ctx, server, spike: bool = False, qpa: str | None = None, minimized: bool = False) -> int:
     QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication.instance() or QApplication(sys.argv[:1])
@@ -779,7 +816,22 @@ def run_qt(ctx, server, spike: bool = False, qpa: str | None = None) -> int:
     app.setStyleSheet(QSS)
     shell = QtShell(ctx, server, app)
     log.info("Native shell: Qt platform=%s caps=%s", shell.caps["platform"], shell.caps)
-    shell.main.show()
+    start_hidden = (minimized or ctx.settings.get("app.start_minimized")) and shell.tray is not None
+    if start_hidden:
+        log.info("Started minimised to the tray")
+    elif minimized or ctx.settings.get("app.start_minimized"):
+        shell.main.showMinimized()          # no tray on this desktop: minimise instead of hiding
+    else:
+        shell.main.show()
+    if ctx.settings.get("app.restore_popouts"):
+        for tool in ctx.settings.get("window.open_popouts") or []:
+            if tool in TOOL_TITLES:
+                QTimer.singleShot(400, lambda t=tool: shell.open_popout(t, ctx.settings.get(f"window.{t}.mode"), ""))
+    # monitors added/removed or resolution changes: bring every window back onto a screen
+    app.screenRemoved.connect(lambda _s: QTimer.singleShot(300, shell.recover_windows))
+    app.screenAdded.connect(lambda _s: QTimer.singleShot(300, shell.recover_windows))
+    for s in app.screens():
+        s.availableGeometryChanged.connect(lambda _g: QTimer.singleShot(300, shell.recover_windows))
     ctx.start_background()
     if spike:
         QTimer.singleShot(1500, lambda: _spike(shell))

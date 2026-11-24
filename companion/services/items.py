@@ -145,15 +145,16 @@ class ItemService:
             self.catalog: dict | None = None
             self.by_id: dict[int, dict] = {}
             f = self.paths.dex_dir / "items.json"
-            from .dex import load_bundled_items, load_reference, _ref_date
+            from .dex import load_bundled_items, load_reference, reference_manifest, _ref_date
             try:
                 if f.exists():
                     self.catalog = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 self.catalog = None
-            ref_ds = load_reference(self.paths)
-            ref_items = (ref_ds or {}).get("items")
-            if self.catalog and ref_items and _ref_date(self.catalog) and _ref_date(self.catalog) < _ref_date(ref_ds["manifest"]):
+            rm = reference_manifest(self.paths)
+            downloaded = not rm.get("bundled", False)
+            ref_items = (load_reference(self.paths) or {}).get("items") if downloaded else None   # only when a newer package exists
+            if self.catalog and ref_items and _ref_date(self.catalog) and _ref_date(self.catalog) < _ref_date(rm):
                 self.catalog = ref_items                      # an older personal import never overrides newer data
             if not self.catalog:
                 self.catalog = ref_items or load_bundled_items()

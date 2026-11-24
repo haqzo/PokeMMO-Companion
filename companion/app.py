@@ -169,6 +169,9 @@ class AppContext:
         self.timers.start()
         self.refdata.start_auto()
         self.app_updates.start_auto()
+        from .services.gamelaunch import GamePresence
+        self.game = GamePresence(self.settings, self.bus, shell_queue=self.shell.submit)
+        self.game.start()
         from .services.backup import AutoBackup
         self.auto_backup = AutoBackup(self.storage, self.paths.media, self.paths.backups, self.settings)
         self.auto_backup.start()
@@ -180,5 +183,7 @@ class AppContext:
         if getattr(self, "auto_backup", None):
             self.auto_backup.stop()
         self.refdata.stop()
+        if getattr(self, "game", None):
+            self.game.stop()
         self.app_updates.stop()
         self.storage.close()

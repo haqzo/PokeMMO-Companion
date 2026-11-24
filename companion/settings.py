@@ -29,6 +29,12 @@ DEFAULTS: dict[str, Any] = {
     "app.last_route": "#/home",
     "app.close_behavior": "quit",            # quit | tray  (tray must be explicitly chosen)
     "app.onboarded": False,
+    "app.start_minimized": False,            # start hidden in the tray (needs a tray)
+    "app.restore_popouts": False,            # reopen the floating tools that were open when Companion quit
+    "window.open_popouts": [],               # remembered for app.restore_popouts
+    "game.launcher_path": "",                # a PokeMMO launcher you chose (empty = use the detected one)
+    "game.on_exit": "keep",                  # keep | minimize | quit — what Companion does when PokeMMO closes
+    "game.watch": False,                     # notice PokeMMO starting/closing while Companion runs
     "app.window_backend": "auto",            # auto | wayland | xwayland (applies at next launch)
     # Home (2026-11-23): storyline run and favourites are opt-in; lists saved by older builds are translated in the UI.
     "home.sections": ["roamers", "live", "update", "news", "events", "quick"],
@@ -114,6 +120,7 @@ _ENUMS = {
     "appearance.stat_bars": ("soft", "accent"),
     "appearance.density": ("comfortable", "compact"),
     "app.close_behavior": ("quit", "tray"),
+    "game.on_exit": ("keep", "minimize", "quit"),
     "app.window_backend": ("auto", "wayland", "xwayland"),
     "notify.alpha": ROUTES, "notify.swarm": ROUTES, "notify.other": ROUTES, "notify.timer": ROUTES, "notify.test": ROUTES,
     "notify.toast_corner": ("top-left", "top-right", "bottom-left", "bottom-right"),
@@ -219,6 +226,14 @@ def validate(key: str, value: Any) -> Any:
         raise SettingsError("pokedex.animate must be true, false or null (follow the system)")
     if key == "pokedex.progress_run" and value is not None and not isinstance(value, str):
         raise SettingsError("progress run must be a run id or null")
+    if key == "game.launcher_path":
+        if not isinstance(value, str) or len(value) > 1000:
+            raise SettingsError("launcher path must be a file path")
+        return value
+    if key == "window.open_popouts":
+        if not isinstance(value, list) or len(value) > 30 or any(not isinstance(v, str) or len(v) > 40 for v in value):
+            raise SettingsError("open popouts must be a list of tool ids")
+        return value
     if key == "app.last_route" and not (isinstance(value, str) and value.startswith("#/") and len(value) < 300):
         raise SettingsError("invalid route")
     return value

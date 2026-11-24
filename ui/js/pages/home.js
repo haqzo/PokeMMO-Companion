@@ -2,6 +2,7 @@
 import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
+import { LANGS } from '../i18n.js';
 import { loadList } from './pokedex.js';
 import { currentCard, startTimers, likelyActive } from './live.js';
 
@@ -257,16 +258,30 @@ function favouritesCard(species) {
 }
 
 function getStarted(data, runs, rerender) {
-  const step = (done, title, body, action) => h('div', { class: 'gs-step' + (done ? ' done' : '') }, h('span', { class: 'gs-dot' }, done ? icon('check') : null),
-    h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, title), h('div', { class: 'small muted' }, body)), action);
-  return h('section', { class: 'card get-started' }, h('div', { class: 'card-head' }, h('h2', null, 'Get started'), h('div', { class: 'right' },
-    h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ 'app.onboarded': true }); rerender(); } }, 'Done — hide this'))),
-  h('div', { class: 'gs-steps' },
-    step(true, 'PokeMMO data is built in', 'Pokédex, moves, items and encounters for all five regions work right away, offline. Nothing to install.', null),
-    step(runs.runs.length > 0, 'Create a named character run', 'Tracks storyline progress per character in all five regions.',
-      runs.runs.length ? null : h('button', { class: 'btn small', onclick: async () => { if (await createRun()) rerender(); } }, 'Create run')),
-    step(false, 'Pick your navigation', 'Vertical sidebar (with Quick access) or a horizontal top bar.',
-      seg([['vertical', 'Vertical'], ['horizontal', 'Horizontal']], setting('appearance.nav'), async (v) => { await saveSettings({ 'appearance.nav': v }); document.dispatchEvent(new CustomEvent('settings-changed', { detail: { 'appearance.nav': v } })); }, 'Navigation'))));
+  // A short, skippable welcome: everything here is optional and already works without it.
+  const step = (done, title, body, ...action) => h('div', { class: 'gs-step' + (done ? ' done' : '') }, h('span', { class: 'gs-dot' }, done ? icon('check') : null),
+    h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, title), h('div', { class: 'small muted' }, body), action.length ? h('div', { class: 'row wrap tight', style: { marginTop: '6px' } }, action) : null));
+  const steps = h('div', { class: 'gs-steps' });
+  const live = { enabled: !!setting('live.ntfy.enabled') };
+  const draw = (game) => mount(steps,
+    step(true, 'Ready to use', 'Pokédex, moves, items and encounters for all five regions are built in and work offline. Nothing to install or import.'),
+    step(false, 'Language', 'Menus and texts; Pokémon names stay English.',
+      h('select', { class: 'input', style: { width: 'auto', minHeight: '28px' }, 'aria-label': 'Language', onchange: async (e) => { await saveSettings({ 'app.language': e.target.value }); location.reload(); } },
+        LANGS.map((l) => h('option', { value: l.id, selected: setting('app.language') === l.id ? 'selected' : null }, l.native)))),
+    step(!!(game && game.chosen), 'PokeMMO', game && game.chosen ? `Found: ${game.chosen.label}. You can start it from Companion.` : 'Not found automatically — you can choose it later. Companion works without it.',
+      game && game.chosen ? h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('play'), 'Launch PokeMMO') : null,
+      h('button', { class: 'btn small ghost', onclick: () => go('#/settings/startup') }, 'Startup & game settings')),
+    step(!!live.enabled, 'Alpha & Swarm alerts', 'Optional community reports. Off until you turn them on.',
+      h('button', { class: 'btn small', onclick: () => go('#/live') }, live.enabled ? 'Open Live' : 'Turn on in Live'),
+      h('button', { class: 'btn small ghost', onclick: async () => { try { await post('/api/live/test', { kind: 'alpha' }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Test a notification')),
+    step(false, 'Floating tools', 'Timers, guides, the Pokédex and more can float over the game — draggable, resizable, compact or expanded.',
+      h('button', { class: 'btn small', onclick: () => openPopout('timers') }, icon('popout'), 'Try the Timers popout')),
+    step(true, 'Stays up to date', 'Official news, PokeMMO data and Companion releases are checked in the background. Nothing installs or restarts without you.',
+      h('button', { class: 'btn small ghost', onclick: () => go('#/settings/updates') }, 'Update settings')));
+  draw(null);
+  get('/api/game/status').then(draw).catch(() => {});
+  return h('section', { class: 'card get-started' }, h('div', { class: 'card-head' }, h('h2', null, 'Welcome'), h('div', { class: 'right' },
+    h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ 'app.onboarded': true }); rerender(); } }, 'Skip — hide this'))), steps);
 }
 
 function installBanner(data, rerender, update) {
