@@ -94,13 +94,12 @@ def test_unsafe_urls_rejected(bad):
 
 
 def test_open_uses_stored_url_and_reports_failure(client, ctx, monkeypatch):
-    import webbrowser
     opened = []
-    monkeypatch.setattr(webbrowser, "open", lambda url, new=0: opened.append(url) or True)
+    monkeypatch.setattr("companion.routes_library.open_external_url", lambda url, **kwargs: opened.append(url) or True)
     b = client.call("GET", "/api/bookmarks")[1]["bookmarks"][0]
     code, r = client.call("POST", f"/api/bookmarks/{b['id']}/open", {"url": "javascript:evil()"})
     assert code == 200 and r["ok"] and opened == [b["url"]]
-    monkeypatch.setattr(webbrowser, "open", lambda url, new=0: False)
+    monkeypatch.setattr("companion.routes_library.open_external_url", lambda url, **kwargs: False)
     _, r = client.call("POST", f"/api/bookmarks/{b['id']}/open")
     assert r["ok"] is False and "browser" in r["message"]
     # a record tampered into an unsafe scheme is refused at open time

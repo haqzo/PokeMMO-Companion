@@ -16,7 +16,7 @@ def test_platform_choice(monkeypatch):
     monkeypatch.setenv("DISPLAY", ":0")
     monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
     assert choose_qt_platform("auto", None) == "xcb;wayland"
-    monkeypatch.delenv("QT_QPA_PLATFORM")
+    assert "QT_QPA_PLATFORM" not in os.environ
     assert choose_qt_platform("auto", "wayland") == "wayland"
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     assert choose_qt_platform("auto", "xwayland") == "offscreen"  # user's explicit env wins

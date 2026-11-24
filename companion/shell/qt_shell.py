@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, Q
 from .. import APP_NAME, __version__
 from ..config import UI_DIR
 from ..data.window_presets import clamp, target_size
+from ..services.external_links import open_external_url
 
 log = logging.getLogger("companion.qt")
 
@@ -79,36 +80,40 @@ def _settings_set(ctx, values: dict) -> None:
 class CompanionPage(QWebEnginePage):
     """Keeps navigation inside the local UI; external links open in the system browser."""
 
-    def __init__(self, profile, parent, base: str):
+    def __init__(self, profile, parent, base: str, open_external):
         super().__init__(profile, parent)
         self._base = base
+        self._open_external = open_external
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):  # noqa: N802 (Qt API)
         if url.toString().startswith(self._base) or url.scheme() in ("data", "blob", "about"):
             return True
-        if url.scheme() in ("http", "https"):
-            QDesktopServices.openUrl(url)
+        if is_main_frame and url.scheme() in ("http", "https"):
+            self._open_external(url)
         return False
 
     def createWindow(self, _type):  # noqa: N802 - target=_blank → external browser
-        page = _ExternalOpener(self.profile(), self)
-        return page
+        return _ExternalOpener(self.profile(), self, self._open_external)
 
 
 class _ExternalOpener(QWebEnginePage):
-    def __init__(self, profile, parent):
+    def __init__(self, profile, parent, open_external):
         super().__init__(profile, parent)
-        self.urlChanged.connect(self._open)
+        self._open_external = open_external
 
-    def _open(self, url):
-        if url.scheme() in ("http", "https"):
-            QDesktopServices.openUrl(url)
-        self.deleteLater()
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):  # noqa: N802 (Qt API)
+        if url.toString() == "about:blank":
+            return True
+        if is_main_frame:
+            if url.scheme() in ("http", "https"):
+                self._open_external(url)
+            self.deleteLater()
+        return False
 
 
 def _make_view(shell, url: str, transparent: bool) -> QWebEngineView:
     view = QWebEngineView()
-    page = CompanionPage(shell.profile, view, shell.server.base_url)
+    page = CompanionPage(shell.profile, view, shell.server.base_url, shell.open_external)
     if transparent:
         page.setBackgroundColor(Qt.transparent)
     view.setPage(page)
@@ -635,6 +640,15 @@ class QtShell:
                 if "appearance.ui_scale" in (ev.get("data") or {}):
                     self.main.apply_ui_scale()
 
+    def open_external(self, url: QUrl) -> None:
+        def failed():
+            self.ctx.bus.publish("external.open_failed")
+
+        if not open_external_url(url.toString(QUrl.FullyEncoded),
+                                 desktop_open=lambda address: QDesktopServices.openUrl(QUrl(address)),
+                                 on_failure=failed):
+            failed()
+
     # ----------------------------------------------------------- commands
     def handle(self, cmd: dict) -> None:
         a = cmd.get("action")
@@ -659,9 +673,7 @@ class QtShell:
                 url = normalize_url(cmd.get("url", ""))
             except BookmarkError:
                 return
-            ok = QDesktopServices.openUrl(QUrl(url))
-            if not ok:
-                self.ctx.bus.publish("toast", {"title": "Could not open your browser", "body": url})
+            self.open_external(QUrl(url))
         elif a == "minimize" and tool in self.popouts:
             self.popouts[tool].showMinimized()
         elif a in ("focus_main", "navigate_main"):
@@ -826,7 +838,8 @@ class QtShell:
 def run_qt(ctx, server, spike: bool = False, qpa: str | None = None, minimized: bool = False) -> int:
     QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication.instance() or QApplication(sys.argv[:1])
+    qt_args = [sys.argv[0], "-platform", qpa] if qpa else sys.argv[:1]
+    app = QApplication.instance() or QApplication(qt_args)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(__version__)
     app.setDesktopFileName("pokemmo-companion")

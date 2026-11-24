@@ -14,6 +14,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from .services import importer
+from .services.external_links import open_external_url
 from .services.library import LibraryError, parse_guide_text, validate_observation
 from .storage import utcnow
 
@@ -362,11 +363,7 @@ def register(r, ctx, ApiError, Request) -> None:
         if ctx.shell.mode == "qt":
             ctx.shell.submit({"action": "open_url", "url": url})
             return {"ok": True, "via": "native", "url": url}
-        import webbrowser
-        try:
-            ok = bool(webbrowser.open(url, new=2))
-        except Exception as exc:  # noqa: BLE001 — report, never pretend success
-            return {"ok": False, "url": url, "message": f"Could not start your browser: {exc}"}
+        ok = open_external_url(url, new=2, on_failure=lambda: ctx.bus.publish("external.open_failed"))
         return {"ok": ok, "via": "system", "url": url,
                 "message": None if ok else "No default browser could be started. Copy the address instead."}
     add("POST", "/api/bookmarks/<bid>/open", bm(bm_open))

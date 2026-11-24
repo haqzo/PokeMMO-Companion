@@ -182,6 +182,8 @@ export function toast(message, { kind = 'info', timeout = 3800, action } = {}) {
   stack.append(el);
   if (timeout) setTimeout(() => el.remove(), timeout);
 }
+on('external.open_failed', () => toast('Could not open your default browser.', { kind: 'warn' }));
+
 export function reportToast(p, openFn) {
   // In-window custom toast (browser mode). Native shell shows its own frameless toast window.
   const stack = document.getElementById('toasts');

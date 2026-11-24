@@ -9,9 +9,9 @@ import signal
 import sys
 import time
 import urllib.request
-import webbrowser
 
 from . import APP_NAME, __version__
+from .services.external_links import open_external_url
 
 
 def _setup_logging(ctx_paths, verbose: bool) -> None:
@@ -25,7 +25,7 @@ def _setup_logging(ctx_paths, verbose: bool) -> None:
 
 
 def choose_qt_platform(pref: str, override: str | None) -> str | None:
-    """Decide QT_QPA_PLATFORM before Qt starts. Returns the value set, or None (Qt default)."""
+    """Select Companion’s Qt platform without exporting it to external programs."""
     choice = override or pref
     if os.environ.get("QT_QPA_PLATFORM"):
         return os.environ["QT_QPA_PLATFORM"]  # user's explicit environment wins
@@ -34,10 +34,8 @@ def choose_qt_platform(pref: str, override: str | None) -> str | None:
     on_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
     if choice == "xwayland" or (choice == "auto" and on_wayland and os.environ.get("DISPLAY")
                                 and "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()):
-        os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"  # fall back to Wayland if the xcb plugin can't load
-        return "xcb;wayland"
+        return "xcb;wayland"  # Fall back to Wayland if the xcb plugin cannot load.
     if choice == "wayland" and on_wayland:
-        os.environ["QT_QPA_PLATFORM"] = "wayland"
         return "wayland"
     return None
 
@@ -134,8 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     url = server.url(ctx.settings.get("app.last_route") or "#/home")
     print(f"\n{APP_NAME} {__version__} is running in browser mode.\nOpen: {url}\n"
           "Keep this terminal open; press Ctrl+C to quit (this also stops live alerts).\n")
-    if not args.no_open:
-        webbrowser.open(url)
+    if not args.no_open and not open_external_url(url):
+        log.warning("Could not open the default browser. Use the local address above.")
     stop = {"flag": False}
     signal.signal(signal.SIGINT, lambda *_: stop.update(flag=True))
     if hasattr(signal, "SIGTERM"):
