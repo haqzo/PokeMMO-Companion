@@ -14,7 +14,7 @@ SIZES = [(1600, 900), (1280, 720), (1024, 768), (800, 600), (600, 900), (420, 64
 ROUTES = ["#/home", "#/pokedex", "#/pokedex/6", "#/tools", "#/tools/typechart", "#/tools/natures", "#/tools/stats",
           "#/tools/breeding", "#/tools/team", "#/tools/ev", "#/tools/catch", "#/tools/calculator", "#/tools/timers",
           "#/tools/items", "#/tools/notes", "#/tools/box", "#/tools/showcase", "#/tools/locations", "#/tools/links",
-          "#/collection", "#/live", "#/live/legendaries", "#/live/cave", "#/guides", "#/guides/storyline", "#/guides/mine",
+          "#/collection", "#/live", "#/live/phenomena", "#/live/legendaries", "#/live/cave", "#/guides", "#/guides/storyline", "#/guides/mine",
           "#/settings/appearance", "#/settings/language", "#/settings/windows", "#/settings/shortcuts",
           "#/settings/notifications", "#/settings/sources", "#/settings/guides", "#/settings/backup", "#/settings/data",
           "#/settings/about"]
@@ -34,12 +34,23 @@ PROBE = r"""
   const bad = [];
   for (const e of pick) {
     e.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    const r = e.getBoundingClientRect();
-    const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1), y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
-    const inView = r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
-    const top = document.elementFromPoint(x, y);
-    const ok = inView && top && (top === e || e.contains(top) || top.contains(e) || (top.closest('label') && top.closest('label').contains(e)));
-    if (!ok) bad.push((e.getAttribute('aria-label') || e.textContent || e.name || e.tagName).trim().slice(0, 40) + ' <' + e.tagName.toLowerCase() + '.' + [...e.classList].slice(0, 2).join('.') + '>' + (top ? ' under ' + top.tagName.toLowerCase() + '.' + [...top.classList].slice(0, 2).join('.') : ''));
+    const rects = [...e.getClientRects()];
+    let obstructedBy = null;
+    // A wrapped inline link has multiple fragments; its bounding-box center can fall outside the link.
+    const ok = rects.some((r) => {
+      const left = Math.max(r.left, 0), right = Math.min(r.right, innerWidth);
+      const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, innerHeight);
+      if (right <= left || bottom <= top) return false;
+      const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+      obstructedBy = hit;
+      return hit && (hit === e || e.contains(hit) || hit.contains(e) || hit.closest('label')?.contains(e));
+    });
+    if (!ok) {
+      const hit = obstructedBy;
+      bad.push((e.getAttribute('aria-label') || e.textContent || e.name || e.tagName).trim().slice(0, 40)
+        + ' <' + e.tagName.toLowerCase() + '.' + [...e.classList].slice(0, 2).join('.') + '>'
+        + (hit ? ' under ' + hit.tagName.toLowerCase() + '.' + [...hit.classList].slice(0, 2).join('.') : ''));
+    }
   }
   const se = document.scrollingElement;
   const pageEl = document.querySelector('.page, .popout-body') || se;

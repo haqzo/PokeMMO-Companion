@@ -27,7 +27,7 @@ def test_every_page_reachable_without_sideways_scroll(clean, pg, w, h):  # noqa:
         pg.goto(clean.url(r))
         pg.wait_for_timeout(500)
         res = pg.evaluate(PROBE, 140)
-        bad = [b for b in res["bad"] if "Altering Cave tracker" not in b]   # multi-line inline link: probe point lands on the wrap
+        bad = res["bad"]
         if bad or res["hOverflow"] or res["pageHOverflow"]:
             problems.append((r, res["hOverflow"], res["pageHOverflow"], bad[:3]))
     assert not problems, problems
