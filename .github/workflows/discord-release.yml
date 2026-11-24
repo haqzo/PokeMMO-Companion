@@ -1,0 +1,51 @@
+# Announce published PokeMMO Companion releases in the community Discord.
+# Needs the repository secret DISCORD_WEBHOOK_URL (already configured by the owner). The secret is passed only as
+# an environment variable to a standard-library Python script that never prints it.
+# GitHub runs release and workflow_dispatch workflows from the DEFAULT branch: this file takes effect once it is
+# merged into main (owner decision). Nothing here creates a release.
+name: Discord release announcement
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "test = post a connection-test message; dry-run = show the test payload without posting"
+        type: choice
+        options: [test, dry-run]
+        default: test
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-release-${{ github.event.release.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the announcement script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Announce the release
+        if: github.event_name == 'release'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python3 .github/scripts/discord_release.py release
+
+      - name: Connection test
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'test'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python3 .github/scripts/discord_release.py test
+
+      - name: Dry run (no message, no secret)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'
+        run: python3 .github/scripts/discord_release.py test --dry-run

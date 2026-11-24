@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .app import AppContext
 from .services.dex import FILTER_TAGS
-from .config import BUNDLED_DATA_DIR, UI_DIR
+from .config import BUNDLED_DATA_DIR, UI_DIR, community_links
 from .data import reference as ref
 from .data.window_presets import PRESETS
 from .services import backup, breeding, calcs, importer
@@ -95,7 +95,7 @@ def build_router(ctx: AppContext) -> Router:
                 "settings": S.all(), "dex": ctx.dex.status(), "notifier": ctx.notifier.describe(),
                 "data_dir": str(ctx.paths.root), "now": utcnow(),
                 "storage": {"migrated_from": ctx.storage.migrated_from, "backup": ctx.storage.backup_created},
-                "window_presets": PRESETS, "themes": _theme_catalog()}
+                "window_presets": PRESETS, "themes": _theme_catalog(), "community": community_links()}
     r.add("GET", "/api/bootstrap", bootstrap)
 
     def settings_get(req: Request) -> dict:

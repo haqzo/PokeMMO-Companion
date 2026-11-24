@@ -23,6 +23,7 @@ DEFAULTS: dict[str, Any] = {
     "appearance.sidebar": "auto",            # auto | icons | full — sidebar labels (auto: icons in narrow windows)
     "appearance.text_scale": 100,            # percent, 60..200 (text only)
     "appearance.ui_scale": 100,              # percent, 75..150 (whole interface: zoom; separate from text size and OS scaling)
+    "home.community_link": True,             # show the optional community Discord link on Home
     "appearance.theme": None,                # active theme (validated, see services/themes.py); None = Companion Default
     "appearance.theme_id": "companion",      # preset id or personal theme id the active theme came from
     "appearance.high_contrast": False,

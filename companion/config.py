@@ -75,3 +75,14 @@ class Paths:
 
 def make_paths(root: str | os.PathLike | None = None) -> Paths:
     return Paths(Path(root).expanduser() if root else default_data_dir()).ensure()
+
+# Community (2026-11-24) — the one place the public invite lives. Discord is optional: nothing in Companion needs
+# a Discord account or membership. An empty or malformed value turns every community link off.
+COMMUNITY_DISCORD_INVITE = "https://discord.gg/5Wbh28M3gu"
+
+
+def community_links() -> dict:
+    import re
+    url = (COMMUNITY_DISCORD_INVITE or "").strip()
+    ok = re.fullmatch(r"https://discord\.gg/[A-Za-z0-9-]{2,32}", url)
+    return {"discord": url if ok else None}

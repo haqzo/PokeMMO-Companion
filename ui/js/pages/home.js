@@ -61,7 +61,7 @@ async function renderHome(el) {
     `Roaming this month: ${leg.current.kanto.name} & ${leg.current.johto.name}`,
     n.latest ? `Latest update ${fmtDate(n.latest.published)}` : null].filter(Boolean).join(' · ');
   page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()), h('div', { class: 'sub' }, status)),
-    h('div', { class: 'actions' }, h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), 'Customize Home'))));
+    h('div', { class: 'actions' }, communityLink(), h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), 'Customize Home'))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, () => renderHome(el)));
   else if (data.update_available) page.append(installBanner(data, () => renderHome(el), true));
   const grid = h('div', { class: 'home-v3' });
@@ -99,6 +99,16 @@ export function packRows(cards, spans = HOME_SPAN) {
     out.push(...row);
   }
   return out;
+}
+
+/** Optional community link (Settings › Home can hide it). Nothing when no valid invite is configured. */
+function communityLink() {
+  const url = state.boot && state.boot.community && state.boot.community.discord;
+  if (!url || setting('home.community_link') === false) return null;
+  const a = extLink(url, 'Community Discord');
+  a.classList.add('btn', 'ghost', 'small', 'home-community');
+  a.title = 'Optional: questions, beta testing and release news. Companion never needs a Discord account.';
+  return a;
 }
 
 function greeting() {

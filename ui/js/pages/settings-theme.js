@@ -240,5 +240,8 @@ export function homeSec(b) {
         h('button', { class: 'icon-btn', 'aria-label': `Move ${label[k]} down`, disabled: !on_ || i === enabled.length - 1 ? 'disabled' : null,
           onclick: () => { const l = [...enabled]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; save(l); } }, '▼'));
     })),
-    h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: () => save([...HOME_DEFAULT]) }, 'Reset Home layout')));
+    h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: () => save([...HOME_DEFAULT]) }, 'Reset Home layout')),
+    state.boot && state.boot.community && state.boot.community.discord
+      ? row('Community Discord link', 'A small optional link in the Home header. Companion works fully without Discord.',
+        switchEl(s['home.community_link'] !== false, (v) => saveSettings({ 'home.community_link': v }), 'Show the community Discord link')) : null);
 }

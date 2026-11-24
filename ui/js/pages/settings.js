@@ -550,9 +550,20 @@ async function backupSec(b) {
 
 async function about(b) {
   const boot = state.boot;
-  b.append(h('h2', { style: { marginTop: 0 } }, 'About'),
+  const discord = boot.community && boot.community.discord;
+  b.append(h('h2', { style: { marginTop: 0 } }, 'About & credits'),
     h('dl', { class: 'kv' }, h('dt', null, 'Version'), h('dd', null, `${boot.version} (development preview)`), h('dt', null, 'Window mode'), h('dd', null, boot.mode === 'qt' ? 'Native shell (PySide6)' : 'Browser'),
       h('dt', null, 'Data folder'), h('dd', { class: 'mono' }, boot.data_dir)),
+    discord ? h('div', null, h('h3', null, 'Community'),
+      h('p', { class: 'small', style: { marginTop: 0 } }, 'Questions, beta testing, ideas and release news are on the PokeMMO Companion Discord. Joining is optional — Companion never needs a Discord account. ',
+        extLink(discord, 'Join the community Discord'))) : null,
+    h('h3', null, 'Credits'),
+    h('ul', { class: 'small', style: { color: 'var(--text-secondary)', marginTop: 0 } },
+      h('li', null, 'Pokémon sprites: Gen V Black/White sprites from the PokeAPI/sprites repository (CC0 repository; images © Nintendo / Creatures Inc. / GAME FREAK / The Pokémon Company).'),
+      h('li', null, 'Item icons and reference data: from the PokeMMO client.'),
+      h('li', null, 'Regional walkthroughs: by their original author, included with permission.'),
+      h('li', null, 'Theme palettes: Catppuccin (MIT) and enkia’s Tokyo Night (MIT).'),
+      h('li', null, 'Alpha/Swarm reports: Alphapedia (read-only, opt-in).')),
     h('h3', null, 'Diagnostics'),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'For troubleshooting: versions, window system and a log with private details removed (session tokens, your home folder and user name). Nothing is sent anywhere — you decide whether to share the file.'),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => {

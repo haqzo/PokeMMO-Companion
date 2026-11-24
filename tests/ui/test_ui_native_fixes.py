@@ -107,3 +107,38 @@ def test_bundled_walkthrough_progress_counts_its_steps(app, page):  # noqa: F811
     txt = page.locator(".main").inner_text()
     assert "0/454 steps" in txt and "0/0" not in txt                # was "0/0 main-story milestones"
     assert "Import them privately" not in txt and "original author" in txt
+
+
+def test_community_link_is_optional_and_off_without_a_valid_invite(app, page, monkeypatch):  # noqa: F811
+    app.ctx.settings.update({"app.onboarded": True, "home.community_link": True})
+    go(page, app, "#/home")
+    page.wait_for_selector(".home-head")
+    link = page.locator("a.home-community")
+    assert link.count() == 1 and link.get_attribute("href") == "https://discord.gg/5Wbh28M3gu"
+    assert link.get_attribute("target") == "_blank" and "noopener" in link.get_attribute("rel")
+    go(page, app, "#/settings/about")
+    page.wait_for_selector("text=Credits")
+    assert page.get_by_role("link", name="Join the community Discord").count() == 1
+    # the player can hide it
+    app.ctx.settings.update({"home.community_link": False})
+    page.reload(); go(page, app, "#/home"); page.wait_for_selector(".home-head")
+    assert page.locator("a.home-community").count() == 0
+    # no (or a malformed) invite configured: no link anywhere, nothing breaks
+    import companion.server as srv_mod
+    monkeypatch.setattr(srv_mod, "community_links", lambda: {"discord": None})
+    app.ctx.settings.update({"home.community_link": True})
+    page.reload(); go(page, app, "#/home"); page.wait_for_selector(".home-head")
+    assert page.locator("a.home-community").count() == 0
+    go(page, app, "#/settings/about")
+    page.wait_for_selector("text=Credits")
+    assert page.get_by_role("link", name="Join the community Discord").count() == 0
+    assert not page.errors
+
+
+def test_invite_validation(monkeypatch):
+    from companion import config
+    for bad in ("", "http://discord.gg/x1", "https://discord.com/invite/abc", "https://discord.gg/<script>", None):
+        monkeypatch.setattr(config, "COMMUNITY_DISCORD_INVITE", bad)
+        assert config.community_links() == {"discord": None}
+    monkeypatch.setattr(config, "COMMUNITY_DISCORD_INVITE", "https://discord.gg/5Wbh28M3gu")
+    assert config.community_links()["discord"] == "https://discord.gg/5Wbh28M3gu"

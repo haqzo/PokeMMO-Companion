@@ -133,6 +133,11 @@ Personal data folder: `~/.local/share/pokemmo-companion` (Linux), `%APPDATA%\Pok
 No encounter counter (PokeMMO has one), no game memory reading, injection, packet interception, macros or
 automated input, no GTL scraping or account login, no telemetry.
 
+## Community
+Questions, beta testing, ideas and release news: the **PokeMMO Companion Discord** —
+https://discord.gg/5Wbh28M3gu. Joining is optional: Companion never needs a Discord account, and the small link on
+Home can be hidden in *Settings › Home*. New releases are announced there automatically.
+
 ## Documentation
 Build reports and decisions: [`docs/build/`](docs/build/README.md) — latest:
 [21 — native beta fixes](docs/build/21-NATIVE-BETA-FIXES.md) (after [20 — beta preparation](docs/build/20-BETA-PREP-THEMES-ASSETS.md)). Design: [`docs/design/`](docs/design/README.md).
