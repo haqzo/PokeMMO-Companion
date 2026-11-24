@@ -135,7 +135,7 @@ automated input, no GTL scraping or account login, no telemetry.
 
 ## Documentation
 Build reports and decisions: [`docs/build/`](docs/build/README.md) — latest:
-[20 — beta preparation: themes, customization, built-in assets](docs/build/20-BETA-PREP-THEMES-ASSETS.md). Design: [`docs/design/`](docs/design/README.md).
+[21 — native beta fixes](docs/build/21-NATIVE-BETA-FIXES.md) (after [20 — beta preparation](docs/build/20-BETA-PREP-THEMES-ASSETS.md)). Design: [`docs/design/`](docs/design/README.md).
 Research: [`docs/research/`](docs/research/README.md).
 
 ## Branches
