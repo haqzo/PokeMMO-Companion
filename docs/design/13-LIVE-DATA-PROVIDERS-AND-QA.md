@@ -5,6 +5,7 @@
 | Provider | Proposed usage | Last verified this planning round | Blocking unknown |
 | --- | --- | --- | --- |
 | Alphapedia published ntfy topic | Read-only Alpha/Swarm reports | Public topic documented, ntfy API spec reviewed on 2026-11-22 | Actual current message payload, edits, uptime, permission, retention |
+| Alphapedia Phenomena | — (not integrated) | 2026-11-17: Alphapedia help documents Phenomena via its Discord bot and personal webhooks only; no ntfy topic. 2026-11-24: owner confirms the bot posts Alpha, Swarm and Phenomenon calls in the community Discord | No supported feed a desktop app may read; scraping Discord, user tokens or a hosted relay are excluded without owner approval |
 | Official PokeMMO update forum | Stable game mechanics affecting Live | Official/community indexed summaries reviewed Nov 2026 | Source rate limits/allowed feed, post edits and reliable structured retrieval |
 | Roaming Legendaries FAQ | Monthly cycle and regional requirements | Forum FAQ indexed results rechecked 2026-11-22 | Current month rollover time/patch changes and exact method/odds |
 | Community Altering Cave tracker | Candidate current rotation observations | Community tracker referenced in recent forum posts | Official integration permission, real feed and freshness/accuracy |
@@ -49,3 +50,10 @@ For ntfy, `expires` refers to **message cache retention**, not game event expiry
 - https://forums.pokemmo.com/index.php?/topic/199670-altering-cave-data/
 - https://alpha.pokemmotools.org/altering-cave
 - https://forums.pokemmo.com/index.php?/topic/201356-changelog-30102026/
+
+## Update 2026-11-24 (build 22)
+See `docs/build/22-SHUTDOWN-COMPARISON-DISCORD-LIVE.md` § Provider research. Summary: ntfy `alphapings` and
+`swarmpings` remain the only documented feeds; Phenomena stay disabled (link to the optional community Discord
+instead). This session could not fetch alpha.pokemmotools.org or the ntfy topic (network approval unavailable), so
+no new live sample was recorded; tests use field shapes reconstructed from the 2026-11-17 observations plus
+synthetic messages, labelled as such.
