@@ -11,7 +11,7 @@ The current build identifies itself as **0.1.0**. Check the commit or checksum t
 ## What to try
 
 - Open a map and a walkthrough. Compare two Pokémon, switch between normal and shiny sprites, and change your theme. The Pokédex, maps, guides and personal tools work offline.
-- In Live, choose Alpha and Swarm if you want optional community reports. For Phenomena, use the relay URL the owner provides in **Settings → Live sources & news**. Open a location screenshot, check its original size, then try both Recent reports and Report history. A recent report only indicates when it was posted.
+- In Live, choose Alpha and Swarm if you want optional community reports. For Phenomena, turn on **Phenomenon reports** in **Settings → Live sources & news**. Companion uses the default service when the owner configures it. Open a location screenshot, check its original size, then try both Recent reports and Report history. A recent report only indicates when it was posted.
 - Open a few floating tools, including Phenomena. Try Compact and Expanded, change text size, resize, then quit and reopen. Pinning and exact positioning depend on the window manager. KDE Wayland users who need those controls can try the XWayland option in Settings.
 - Turn notifications on separately for each report category. First-sync and reconnect history are silent. Cached Phenomenon text remains available after a relay outage. Screenshots may be unavailable offline.
 
@@ -25,9 +25,9 @@ Use **Settings → Backup & recovery** to make a complete ZIP before replacing a
 
 | Stage | Open items |
 |---|---|
-| Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. Approve the alpha version and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. A shared Phenomenon feed depends on the owner’s private live check, effective Discord permissions and authorization to share reports and screenshots. Leave the endpoint empty for an alpha without the shared feed. |
+| Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. Approve the alpha version and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. The owner verified the Python relay with genuine reports and screenshots. A shared feed still needs effective Discord permissions, authorization to share reports and screenshots, and an approved HTTPS endpoint configured before packaging. |
 | Public beta | Close all applicable alpha gates for a public audience. Approve public hosting and data use. Verify the target Linux compatibility baseline and Windows distribution. Configure and verify Ed25519 application signing and the release checksums. Verify reference signing and index hosting if enabling automatic reference updates, and confirm the existing Discord announcement workflow with the owner before publication. |
-| During alpha | Collect user feedback on unfamiliar embed layouts, image fallback, compact-window readability, and perceived freshness. The Build 22 theme editor misses an expected “Readability” label after a particular colour edit. Record improvements to source labels and missing metadata as real reports provide evidence. |
+| During alpha | Collect user feedback on unfamiliar embed layouts, image fallback, compact-window readability, and perceived freshness. Record improvements to source labels and missing metadata as real reports provide evidence. |
 
 ## Update and signing status
 

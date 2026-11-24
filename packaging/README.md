@@ -24,6 +24,8 @@ py -3.13 --version
 powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\windows\build.ps1
 ```
 
+The [manual Windows development workflow](../.github/workflows/windows-development.yml) runs the same script and a fresh-profile self-check with Windows x64 Python 3.13.14. GitHub only registers manual workflows from its default branch. For a hosted test without changing the public repository’s `main`, use an owner-approved private staging repository with `develop` as its default branch and containing this workflow. In **Actions → Windows x64 development build → Run workflow**, select `develop`. The default run builds and verifies the ZIP on the runner. Once redistribution is explicitly approved, set the private repository variable `ASSET_REDISTRIBUTION_APPROVED=true` and select **Upload the ZIP to this private repository after asset approval**. Approved artifacts expire after three days and are accessible to users who can read the private repository. [Manual dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) · [Artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+
 The same pinned PyInstaller and Qt dependencies are listed in `packaging/requirements-build.txt`. The script fails on tool errors and outputs a portable ZIP and checksum. Unpack the ZIP on a fresh VM without Python, launch the executable, and run the desktop checklist below. Windows execution still needs a Windows host.
 
 ## Desktop checklist

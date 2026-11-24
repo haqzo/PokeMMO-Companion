@@ -30,3 +30,4 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**21 — Native beta fixes: comparison crash, Alpha & Swarm cards, news order, disconnects, built-in asset wording**](21-NATIVE-BETA-FIXES.md)
 - [**22 — Safe shutdown, comparison polish, community Discord, live-report checks**](22-SHUTDOWN-COMPARISON-DISCORD-LIVE.md)
 - [**23 — Phenomena and closed-alpha preparation**](23-PHENOMENA-CLOSED-ALPHA.md)
+- [**24 — Final closed-alpha preparation**](24-FINAL-CLOSED-ALPHA-PREPARATION.md)
