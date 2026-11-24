@@ -858,6 +858,11 @@ def build_router(ctx: AppContext) -> Router:
     return r
 
 
+# A client that goes away mid-response (a scrolled-away sprite, a page change, a closed popout, a cancelled fetch)
+# is normal for a local UI. Only these are treated as "client gone"; every other error is still logged as before.
+CLIENT_GONE = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+
+
 def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler]:
     ui_root = UI_DIR.resolve()
     assets_root = ctx.paths.assets_dir
@@ -872,8 +877,24 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
         def log_message(self, fmt: str, *args: Any) -> None:  # quiet
             log.debug("%s - %s", self.address_string(), fmt % args)
 
+        def handle(self) -> None:
+            # Reading a request or writing a response on a connection the client already dropped.
+            try:
+                super().handle()
+            except CLIENT_GONE as exc:
+                self.close_connection = True
+                log.debug("client disconnected: %s %s (%s)", getattr(self, "command", "?"), getattr(self, "path", "?"), type(exc).__name__)
+
         # ---------------------------------------------------------- utils
         def _send(self, status: int, body: bytes, ctype: str, extra: dict | None = None) -> None:
+            try:
+                self._send_unchecked(status, body, ctype, extra)
+            except CLIENT_GONE as exc:
+                # The client went away; nothing can be sent any more (not even an error) — close quietly.
+                self.close_connection = True
+                log.debug("client disconnected during %s %s (%s)", self.command, self.path, type(exc).__name__)
+
+        def _send_unchecked(self, status: int, body: bytes, ctype: str, extra: dict | None = None) -> None:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
@@ -1041,11 +1062,21 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
     return H
 
 
+class _HTTPServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address) -> None:
+        # socketserver prints a traceback to stderr for every exception; a client that disconnected is not an error.
+        exc = sys.exc_info()[1]
+        if isinstance(exc, CLIENT_GONE):
+            log.debug("client %s disconnected (%s)", client_address, type(exc).__name__)
+            return
+        log.error("Unhandled server error for %s\n%s", client_address, traceback.format_exc())
+
+
 class CompanionServer:
     def __init__(self, ctx: AppContext, port: int = 0):
         self.ctx = ctx
         self.router = build_router(ctx)
-        self.httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(ctx, self.router))
+        self.httpd = _HTTPServer(("127.0.0.1", port), make_handler(ctx, self.router))
         self.httpd.daemon_threads = True
         self.thread: threading.Thread | None = None
 
