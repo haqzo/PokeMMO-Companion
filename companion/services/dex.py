@@ -178,6 +178,10 @@ class DexService:
     def sprite_url(self, sid: int, kind: str = "icon") -> str | None:
         f = self.sprites.get(sid, {}).get(kind)
         if not f:
+            # Clean install (no PokeMMO client data): the built-in Gen V still of the same Pokémon, never another one.
+            lib = self.library
+            if lib is not None and lib.installed and kind in ("icon", "icon_shiny", "front", "front_shiny"):
+                return (lib.urls(str(sid)) or {}).get("static_shiny" if kind.endswith("shiny") else "static")
             return None
         folder = "icons" if kind.startswith("icon") else "battle"
         return f"/assets/private/{folder}/{f}?v={self.asset_version}"

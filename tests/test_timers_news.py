@@ -300,3 +300,23 @@ def test_stale_flag(ctx):
     assert svc.listing(now=datetime(2026, 11, 24, tzinfo=timezone.utc))["feed"]["stale"] is True
     ctx.storage.set_settings({"news.feed_cache": {"ok": True, "items": [], "last_ok_at": "2026-11-24T00:00:00Z"}})
     assert svc.listing(now=datetime(2026, 11, 24, 1, tzinfo=timezone.utc))["feed"]["stale"] is False
+
+
+def test_news_order_is_by_publication_not_edit_or_discovery(ctx):
+    """2026-11-24 audit: a post found late, or edited later, never outranks more recently published posts;
+    published, edited and discovered dates stay separate fields."""
+    svc = NewsService(ctx.storage)
+    svc.snapshot["articles"] = [
+        {"id": "old", "kind": "news", "channel": "live", "title": "Old but edited", "published": "2026-09-01", "updated": "2026-11-22", "source_url": ""},
+        {"id": "new", "kind": "news", "channel": "live", "title": "Newer", "published": "2026-11-10", "source_url": ""}]
+    ctx.storage.set_settings({"news.feed_cache": {"ok": True, "items": [
+        {"title": "Found late, published early", "link": "https://forums.pokemmo.com/index.php?/topic/990300-x/", "published": "2026-08-01T00:00:00Z",
+         "first_seen_at": "2026-11-23T00:00:00Z"},
+        {"title": "Recent", "link": "https://forums.pokemmo.com/index.php?/topic/990301-y/", "published": "2026-11-20T00:00:00Z", "first_seen_at": "2026-11-20T01:00:00Z"}]}})
+    n = svc.listing(now=NOW)
+    assert [a["id"] for a in n["articles"]] == ["new", "old"]
+    assert n["articles"][1]["updated"] == "2026-11-22" and n["articles"][1]["published"] == "2026-09-01"
+    titles = [r["title"] for r in n["records"]]
+    assert titles.index("Recent") < titles.index("Newer") < titles.index("Old but edited") < titles.index("Found late, published early")
+    late = next(r for r in n["records"] if r["title"] == "Found late, published early")
+    assert late["published"].startswith("2026-08-01") and late["first_seen_at"].startswith("2026-11-23")

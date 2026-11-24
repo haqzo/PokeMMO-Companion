@@ -52,7 +52,7 @@ def test_launch_never_starts_a_second_copy_and_reports_failures(monkeypatch, tmp
     monkeypatch.setattr(subprocess, "Popen", lambda argv, **kw: calls.append((argv, kw)))
     assert gl.launch(["/x/PokeMMO.sh"], check_running=lambda: True) == {"started": False, "already_running": True}
     assert calls == []
-    assert gl.launch(["/x/PokeMMO.sh", "--a b"], cwd="/x", check_running=lambda: False)["started"]
+    assert gl.launch(["/x/PokeMMO.sh", "--a b"], cwd="/x", check_running=lambda: False, marker=tmp_path / "m1")["started"]
     argv, kw = calls[0]
     assert argv == ["/x/PokeMMO.sh", "--a b"] and "shell" not in kw
     with pytest.raises(gl.GameError, match="No PokeMMO launcher"):
@@ -62,7 +62,41 @@ def test_launch_never_starts_a_second_copy_and_reports_failures(monkeypatch, tmp
         raise FileNotFoundError(2, "No such file or directory")
     monkeypatch.setattr(subprocess, "Popen", boom)
     with pytest.raises(gl.GameError, match="could not be started"):
-        gl.launch(["/missing"], check_running=lambda: False)
+        gl.launch(["/missing"], check_running=lambda: False, marker=tmp_path / "m2")
+
+
+def test_simultaneous_launch_requests_start_the_game_once(monkeypatch, tmp_path):
+    """A process check alone is not race-safe: 12 requests at once (threads) and a second process must still
+    start exactly one client, because the game is not visible as a process yet while it starts."""
+    calls = []
+    gate = threading.Event()
+
+    def slow_popen(argv, **kw):
+        gate.wait(0.05)
+        calls.append(argv)
+    monkeypatch.setattr(subprocess, "Popen", slow_popen)
+    marker = tmp_path / "launch.lock"
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(gl.launch(["/x/PokeMMO.sh"], check_running=lambda: False, marker=marker))) for _ in range(12)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(calls) == 1 and sum(r["started"] for r in results) == 1
+    assert sum(bool(r.get("already_starting")) for r in results) == 11
+    # another process (shortcut started twice): the marker is shared across processes
+    code = ("import subprocess,sys; from pathlib import Path; from companion.services import gamelaunch as gl;"
+            "subprocess.Popen=lambda *a,**k: None;"
+            f"print(gl.launch(['/x'], check_running=lambda: False, marker=Path({str(marker)!r}))['started'])")
+    monkeypatch.undo()
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=os.getcwd())
+    assert out.stdout.strip() == "False", out.stderr
+    # after the grace period a new start is allowed again (e.g. the player closed the game and starts it later)
+    old = marker.stat().st_mtime - gl.LAUNCH_GRACE - 5
+    os.utime(marker, (old, old))
+    monkeypatch.setattr(subprocess, "Popen", slow_popen)
+    assert gl.launch(["/x/PokeMMO.sh"], check_running=lambda: False, marker=marker)["started"]
+    assert len(calls) == 2
 
 
 def test_presence_events_and_on_exit_policy():

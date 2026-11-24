@@ -8,6 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+os.environ.setdefault("COMPANION_NO_SPAWN", "1")      # tests never start the real PokeMMO watcher
 
 from companion.app import AppContext  # noqa: E402
 from companion.server import CompanionServer  # noqa: E402

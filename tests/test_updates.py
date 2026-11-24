@@ -78,6 +78,31 @@ def test_signed_package_installs_atomically_and_rolls_back(tmp_path):
     assert u.load_current() is None and u.status()["using"] == "built-in"
 
 
+def test_interrupted_activation_is_recovered_on_next_start(tmp_path):
+    """Power loss between the two activation renames leaves no active dataset: the next start restores the
+    previous known-good one; unfinished staging is discarded, never activated."""
+    key, pub = _keys()
+    pkg, entry = build_package(_bundled_dir(tmp_path), revision=2)
+    entry["url"] = "https://data.example.invalid/reference/r2.zip"
+    u = _updater(tmp_path, {INDEX_URL: _index(key, [entry]), entry["url"]: pkg}, pub)
+    u.install(u.check()["available"])
+    # simulate: active → previous done, staging written, crash before staging → active
+    u.active.replace(u.previous)
+    u.staging.mkdir()
+    (u.staging / "manifest.json").write_text("{}")
+    u2 = _updater(tmp_path, {}, pub)
+    assert not u2.staging.exists() and u2.installed_manifest()["dataset_revision"] == 2
+    assert u2.load_current()["manifest"]["dataset_revision"] == 2
+    # interrupted rollback (active moved aside, previous not yet moved): restored from the aside copy
+    u2.active.replace(u2.root / "rolled-back")
+    u3 = _updater(tmp_path, {}, pub)
+    assert u3.installed_manifest()["dataset_revision"] == 2 and not (u3.root / "rolled-back").exists()
+    # nothing valid anywhere: the built-in dataset is used, nothing crashes
+    import shutil
+    shutil.rmtree(u3.active)
+    assert _updater(tmp_path, {}, pub).load_current() is None
+
+
 def test_bad_signature_wrong_checksum_and_bad_contents_are_refused(tmp_path):
     key, pub = _keys()
     other, _ = _keys()

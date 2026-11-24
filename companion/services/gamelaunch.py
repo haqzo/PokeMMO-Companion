@@ -114,12 +114,55 @@ def game_running() -> bool:
     return False
 
 
-def launch(argv: list[str], cwd: str | None = None, check_running=game_running) -> dict:
-    """Start PokeMMO detached from Companion (closing Companion never closes the game)."""
+LAUNCH_GRACE = 60.0          # seconds: PokeMMO (especially the Flatpak) needs a while before its process is visible
+_launch_lock = threading.Lock()
+
+
+def _marker_path() -> Path:
+    base = os.environ.get("XDG_RUNTIME_DIR") or os.environ.get("TEMP") or "/tmp"
+    return Path(base) / f"pokemmo-companion-launch-{os.getuid() if hasattr(os, 'getuid') else 'user'}.lock"
+
+
+def _claim_launch(marker: Path, grace: float = LAUNCH_GRACE) -> bool:
+    """Atomically claim the right to start the game (O_EXCL create — one winner across threads AND processes).
+    A claim younger than `grace` blocks further starts; an older one is stale and replaced."""
+    for _ in range(2):
+        try:
+            fd = os.open(str(marker), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            os.write(fd, f"{os.getpid()} {time.time():.0f}".encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            try:
+                if time.time() - marker.stat().st_mtime < grace:
+                    return False
+                marker.unlink()          # stale: replace it (if another process wins the re-create, we lose)
+            except FileNotFoundError:
+                continue
+        except OSError:
+            log.debug("launch marker unavailable; falling back to the in-process lock", exc_info=True)
+            return True
+    return False
+
+
+def launch(argv: list[str], cwd: str | None = None, check_running=game_running, marker: Path | None = None) -> dict:
+    """Start PokeMMO detached from Companion (closing Companion never closes the game).
+
+    Race-safe (2026-11-24): a process check alone is not enough — two requests arriving together (double click,
+    the combined shortcut plus the Launch button, two shortcut starts) would both see "not running". Starts are
+    serialised in-process by a lock and across processes by an atomic marker file; a second request within the
+    grace period reports `already_starting` instead of starting another client."""
     if not argv:
         raise GameError("No PokeMMO launcher found — choose it in Settings › Startup & game integration")
-    if check_running():
-        return {"started": False, "already_running": True}
+    with _launch_lock:
+        if check_running():
+            return {"started": False, "already_running": True}
+        if not _claim_launch(marker or _marker_path()):
+            return {"started": False, "already_running": False, "already_starting": True}
+        return _spawn(argv, cwd)
+
+
+def _spawn(argv: list[str], cwd: str | None) -> dict:
     kw: dict = {"cwd": cwd or None, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
     if sys.platform.startswith("win"):
         kw["creationflags"] = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -256,6 +299,21 @@ def remove_integration(kind: str) -> list[str]:
 
 def integration_status() -> dict:
     return {k: any(p.is_file() for p in integration_paths(k)) for k in INTEGRATIONS}
+
+
+def start_watcher_now() -> bool:
+    """Start the helper right away (instead of only at next login). It holds its own single-instance lock, so a
+    second copy exits at once; it stops by itself when its autostart entry is removed."""
+    if os.environ.get("COMPANION_NO_SPAWN"):          # tests
+        return False
+    try:
+        subprocess.Popen(companion_command() + ["--watch-game"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         **({"start_new_session": True} if not sys.platform.startswith("win") else
+                            {"creationflags": getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)}))
+        return True
+    except OSError:
+        log.warning("could not start the PokeMMO watcher", exc_info=True)
+        return False
 
 
 def watch_and_start(is_companion_running, start_companion, check=game_running, interval: float = 10.0, stop=None) -> None:

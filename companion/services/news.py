@@ -109,7 +109,9 @@ class NewsService:
 
     def listing(self, now: datetime | None = None) -> dict:
         now = now or datetime.now(timezone.utc)
-        articles = sorted(self.snapshot["articles"], key=lambda a: a.get("updated") or a["published"], reverse=True)
+        # Order by publication date only. An edit (updated) or a late discovery (first_seen_at) is shown as such
+        # but never lifts an older post above more recently published ones (2026-11-24 audit).
+        articles = sorted(self.snapshot["articles"], key=lambda a: a["published"], reverse=True)
         events = []
         for e in self.snapshot["events"]:
             events.append({**e, "status": self.event_status(e, now)})

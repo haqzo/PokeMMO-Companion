@@ -776,7 +776,7 @@
    "abilities": [
     "Regenerator"
    ],
-   "note": "Mainline forme via the Reveal Glass. Your PokeMMO client dump has no separate record for it."
+   "note": "Mainline forme via the Reveal Glass. PokeMMO's game data has no separate record for it, so it is not treated as playable."
   },
   {
    "species_id": 642,
@@ -798,7 +798,7 @@
    "abilities": [
     "Volt Absorb"
    ],
-   "note": "Mainline forme via the Reveal Glass. Your PokeMMO client dump has no separate record for it."
+   "note": "Mainline forme via the Reveal Glass. PokeMMO's game data has no separate record for it, so it is not treated as playable."
   },
   {
    "species_id": 645,
@@ -820,7 +820,7 @@
    "abilities": [
     "Intimidate"
    ],
-   "note": "Mainline forme via the Reveal Glass. Your PokeMMO client dump has no separate record for it."
+   "note": "Mainline forme via the Reveal Glass. PokeMMO's game data has no separate record for it, so it is not treated as playable."
   },
   {
    "species_id": 646,
@@ -842,7 +842,7 @@
    "abilities": [
     "Teravolt"
    ],
-   "note": "Mainline fusion with Zekrom (DNA Splicers). No separate record in your PokeMMO client dump."
+   "note": "Mainline fusion with Zekrom (DNA Splicers). PokeMMO's game data has no separate record for it, so it is not treated as playable."
   },
   {
    "species_id": 646,
@@ -864,14 +864,14 @@
    "abilities": [
     "Turboblaze"
    ],
-   "note": "Mainline fusion with Reshiram (DNA Splicers). No separate record in your PokeMMO client dump."
+   "note": "Mainline fusion with Reshiram (DNA Splicers). PokeMMO's game data has no separate record for it, so it is not treated as playable."
   },
   {
    "species_id": 647,
    "form_key": "resolute",
    "form_name": "Resolute Form",
    "kind": "battle",
-   "note": "Mainline form when it knows Secret Sword. No separate record in your PokeMMO client dump."
+   "note": "Mainline form when it knows Secret Sword. PokeMMO's game data has no separate record for it, so it is not treated as playable."
   },
   {
    "species_id": 648,

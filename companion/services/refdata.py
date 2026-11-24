@@ -124,6 +124,33 @@ class ReferenceUpdater:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
+        self.recover()
+
+    def recover(self) -> list[str]:
+        """Finish or undo an activation/rollback that was interrupted (power loss, crash, killed process).
+        Activation is two renames (active → previous, staging → active); between them there is no active dataset.
+        Leftover staging is never activated — it was not validated to completion. Returns what was repaired."""
+        done: list[str] = []
+        if self.staging.exists():
+            shutil.rmtree(self.staging, ignore_errors=True)
+            done.append("removed unfinished staging")
+        broken = self.root / "rolled-back"
+        if not (self.active / "manifest.json").is_file():
+            for cand, why in ((self.previous, "restored previous dataset"), (broken, "restored dataset from an interrupted rollback")):
+                try:
+                    if (cand / "manifest.json").is_file():
+                        read_dataset(cand)
+                        shutil.rmtree(self.active, ignore_errors=True)
+                        cand.replace(self.active)
+                        done.append(why)
+                        break
+                except (RefDataError, OSError):
+                    continue
+        if broken.exists():
+            shutil.rmtree(broken, ignore_errors=True)
+        if done:
+            log.warning("Reference data recovered: %s", "; ".join(done))
+        return done
 
     # ---------------------------------------------------------------- paths/state
     @property

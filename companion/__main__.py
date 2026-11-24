@@ -174,6 +174,11 @@ def _watch_game(root, args) -> int:
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    def removed_watch():                          # turned off in Settings → the helper ends itself
+        while not stop.wait(30):
+            if not gamelaunch.integration_status().get("watcher"):
+                stop.set()
+    threading.Thread(target=removed_watch, daemon=True).start()
     gamelaunch.watch_and_start(main_lock.is_held_elsewhere, start, stop=stop)
     me.release()
     return 0
