@@ -258,6 +258,21 @@ const BADGE_LABEL = { DUMP_ONLY: 'Dump only', ESTIMATE: 'Estimate', 'official-vi
 export function badge(status, label, title) {
   return h('span', { class: 'badge ' + (BADGE[status] || 'unknown'), title: title || null }, label || BADGE_LABEL[status] || cap(String(status).toLowerCase()));
 }
+// Player-facing source information (2026-11-24 cleanup): the record keeps its provenance, but instead of a coloured
+// technical badge the UI shows one discreet ⓘ button whose tooltip / click explains it in plain words.
+const SOURCE_TEXT = { VERIFIED: 'Checked against an official PokeMMO source.', OFFICIAL: 'From an official PokeMMO source.',
+  CORROBORATED: 'Confirmed by more than one independent source.', DUMP_ONLY: 'From the PokeMMO game data (client snapshot of 16 Nov 2026); not checked in game.',
+  REPORTED: 'Reported by players; not confirmed.', ESTIMATE: 'An estimate, not an exact value.', LOCAL: 'From your own files.',
+  'official-direct': 'Read directly from the official post.', 'official-via-research': 'Summarised from the official post.',
+  'secondary-crosscheck': 'From the official post, cross-checked with a second source.', 'COMMUNITY-CYCLE': 'Community-documented cycle; not confirmed in game.',
+  'outline-unverified': 'A milestone outline; not yet checked step by step.', 'imported-unverified': 'Your own import; not checked.' };
+export function sourceText(status) { return SOURCE_TEXT[status] || ''; }
+export function sourceInfo(status, extra) {
+  const text = [SOURCE_TEXT[status] || '', extra || ''].filter(Boolean).join(' ');
+  if (!text) return null;
+  return h('button', { class: 'src-info', type: 'button', title: text, 'aria-label': 'Source: ' + text, dataset: { source: status || '' },
+    onclick: (e) => { e.stopPropagation(); toast(text, { timeout: 6000 }); } }, icon('info'));
+}
 export function notice(kind, ...content) {
   return h('div', { class: 'notice ' + kind }, icon(kind === 'warn' || kind === 'bad' ? 'warn' : 'info'), h('div', null, ...content));
 }
@@ -323,7 +338,7 @@ export function stillArt(still, sp, size = 72, { cap = 1.5, eager = false } = {}
 export function silhouette(sp, size = 60) {
   const t = (sp.types && sp.types[0]) || 'normal';
   return h('div', { class: `silhouette t-${t}`, style: { '--tc': `var(--type-${t})`, width: size * 0.83 + 'px', height: size * 0.83 + 'px' },
-    title: 'No local sprite — import your PokeMMO data to show sprites' }, '#' + pad3(sp.id));
+    title: 'No sprite available for this Pokémon' }, '#' + pad3(sp.id));
 }
 export function extLink(url, label) {
   return h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, label || url, ' ', icon('external', 'inline-ic'));

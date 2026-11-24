@@ -3,7 +3,7 @@
 // alternate forms remain selectable INSIDE their species details, not as duplicate cards.
 // Reference catalog, in-game membership, acquisition and manual registration stay independent.
 import { h, mount, clear, icon, get, api, post, state, setting, saveSettings, on, badge, notice, typeChip, typeChips, pad3, cap,
-  spriteOrFallback, silhouette, sizedSprite, fitSprite, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID } from '../core.js';
+  spriteOrFallback, silhouette, sizedSprite, fitSprite, debounce, tabs, seg, toast, extLink, modal, relTime, fmtDate, WINDOW_ID, sourceInfo } from '../core.js';
 import { go, popoutButton, openPopout, pinButton, makePinDraggable } from '../shell.js';
 import { downloadJson } from '../components.js';
 import { linkedNotes, openRoute } from '../links.js';
@@ -242,13 +242,12 @@ async function infoBar(all) {
   return h('div', { class: 'dex-info' },
     h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } },
       countEl,
-      h('span', { class: 'small muted', title: 'PokeMMO’s own Seen / Owned / Caught counters use different, patch-dependent totals. Record yours in the Availability report.' },
-        `Gen I–V reference: ${all.length} species${forms ? ` · ${forms} alternate forms inside each Pokémon’s summary` : ''} · not the in-game Pokédex total, and being listed does not mean obtainable`),
+      h('button', { class: 'src-info', type: 'button', 'aria-label': 'About this list',
+        title: `Gen I–V reference: ${all.length} species${forms ? `, ${forms} alternate forms inside each Pokémon’s summary` : ''}. This is not the in-game Pokédex total, and being listed does not mean a Pokémon can be obtained. PokeMMO’s Seen / Owned / Caught counters use their own totals — record yours in the Availability report.${reg ? ` Availability registry ${reg.registry_version}.` : ''}`,
+        onclick: (e) => toast(e.currentTarget.title, { timeout: 8000 }) }, icon('info')),
       scope === 'pokemmo' && hidden ? h('span', { class: 'small muted' }, `${hidden} you marked “Not listed” hidden`) : null,
-      h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, icon('info'), 'Availability report'),
-      reg ? h('span', { class: 'tiny muted' }, `Registry ${reg.registry_version}`) : null,
-      state.boot.dex.imported ? null : h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, icon('download'), 'Install your PokeMMO data')),
-    h('div', { class: 'row wrap', style: { gap: '6px 12px' } }, runs.runs.length ? runSel : h('span', { class: 'tiny muted' }, 'Create a run in Guides to track registration per character'), counters));
+      h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, 'Availability report')),
+    h('div', { class: 'row wrap', style: { gap: '6px 12px' } }, runs.runs.length ? runSel : null, counters));
 }
 
 function filterDrawer(all) {
@@ -276,7 +275,7 @@ function filterDrawer(all) {
     h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Hunting'), h('div', { class: 'chips' },
       chip('Any', !F.horde, () => { F.horde = ''; redraw(); }, !imported), chip('In any horde', F.horde === 'any', () => { F.horde = F.horde === 'any' ? '' : 'any'; redraw(); }, !imported),
       chip('Horde ×5', F.horde === '5', () => { F.horde = F.horde === '5' ? '' : '5'; redraw(); }, !imported))),
-    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Season (dump rows)'), h('div', { class: 'chips' },
+    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Season'), h('div', { class: 'chips' },
       chip('Any', !F.season, () => { F.season = ''; redraw(); }, !imported),
       ['Spring', 'Summer', 'Autumn', 'Winter'].map((s) => chip(s, F.season === s, () => { F.season = F.season === s ? '' : s; redraw(); }, !imported)))),
     h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Egg group'),
@@ -295,7 +294,7 @@ function filterDrawer(all) {
       chip('★ Favourites only', F.fav, () => { F.fav = !F.fav; redraw(); }))),
     h('div', { class: 'fgroup', style: { justifyContent: 'flex-end' } }, h('button', { class: 'btn ghost small', onclick: () => { F = { ...DEFAULT_F, q: F.q, sort: F.sort }; redraw(); } }, 'Clear filters')),
     h('p', { class: 'tiny muted', style: { flexBasis: '100%', margin: 0 } },
-      'Generation = generation of introduction, not where it is found. Regional Pokédex numbers and PvP tiers are not available in the installed data (the dump lists every species as “Untiered”), so they are not offered as filters.'));
+      'Generation = generation of introduction, not where it is found. Regional Pokédex numbers and PvP tiers are not available in the installed data (the game data lists every species as “Untiered”), so they are not offered as filters.'));
 }
 function activeChips() {
   if (!activeFilterCount() && F.gen === 'all') return null;
@@ -439,7 +438,7 @@ export async function rosterDialog() {
       h('span', { class: 'counter' }, 'Only special/temporary: ', h('strong', null, r.not_permanent)),
       h('span', { class: 'counter' }, 'Unverified: ', h('strong', null, r.unverified)),
       h('span', { class: 'counter' }, 'Your checks: ', h('strong', null, `${r.membership.your_listed} listed · ${r.membership.your_not_listed} not listed`))),
-    h('div', { class: 'tiny muted' }, `Registry ${r.registry_version} (checked ${fmtDate(r.checked_at)})` + (r.dump_date ? ` · dump files dated ${r.dump_date}` : '') +
+    h('div', { class: 'tiny muted' }, `Registry ${r.registry_version} (checked ${fmtDate(r.checked_at)})` + (r.dump_date ? ` · game data dated ${r.dump_date}` : '') +
       ' · ' + Object.entries(r.method_counts).map(([k, v]) => `${r.method_labels[k] || k} ${v}`).join(' · ')),
     r.conflicts.length ? [h('h3', { style: { margin: '6px 0 0' } }, 'Conflicts between your checks and the registry'), h('div', { class: 'list-rows' }, r.conflicts.map(row))] : null,
     r.needs_review.length ? [h('h3', { style: { margin: '6px 0 0' } }, 'Needs review after a later patch'), h('div', { class: 'list-rows' }, r.needs_review.map(row))] : null,
@@ -492,7 +491,7 @@ export function pickArt(a, { shiny = false, isForm = false } = {}) {
   if (pickS('front')) return { ...base, kind: 'front', key: key('front'), url: pickS('front'), label: 'Your PokeMMO client · battle sprite' };
   if (hasAni) return { ...base, kind: 'ani-still', key: key('ani'), url: pickS('ani'), label: 'Still frame · your sprite library' };
   if (pickS('icon')) return { ...base, kind: 'icon', key: key('icon'), url: pickS('icon'), label: isForm ? `Your PokeMMO client · box icon${a.local_status === 'unverified' ? ' (not re-verified)' : ''}` : 'Your PokeMMO client · box icon' };
-  return { ...base, kind: 'none', url: null, label: isForm ? 'No verified artwork for this form' : 'No artwork installed', detail: a.local_reason };
+  return { ...base, kind: 'none', url: null, label: isForm ? 'No verified artwork for this form' : 'No artwork available', detail: a.local_reason };
 }
 /** Summary/popout artwork, sized by the shared rule in core.js (fitSprite): the species' size tier decides how much
  *  of the frame its visible outline takes, so Charmander < Charmeleon < Charizard in every view and every
@@ -573,7 +572,7 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
   }
   if (fm) pane.append(h('div', { class: 'detail-body', style: { paddingBottom: 0 } }, notice('info', h('strong', null, fm.form_name + '. '),
     fm.note ? fm.note + ' ' : '', `Types: ${fm.types_source}. Stats: ${fm.stats_source}. Abilities: ${fm.abilities_source}.`,
-    fm.in_client === false ? ' Your installed client dump has no record for this form.' : '',
+    fm.in_client === false ? ' The PokeMMO game data has no record for this form.' : '',
     !fm.own_sprite ? ` Artwork: ${fm.art.local_reason} Add a sprite library in Settings › Data to show it.` : '', fm.mismatch.length ? ` ⚠ Your client differs from the manifest (${fm.mismatch.join(', ')}); the client value is shown.` : '',
     ' Moves and locations below are the base species’ — form-specific moves are not listed.')));
   const body = h('div', { class: 'detail-body' });
@@ -616,14 +615,14 @@ function availabilityBlock(d, compact) {
   const mem = av.membership;
   const method = (m) => h('div', { class: 'avail-method' },
     h('div', { class: 'row wrap' }, h('strong', null, m.label), m.location ? h('span', null, '· ' + m.location) : null, m.region ? h('span', { class: 'chip' }, cap(m.region)) : null,
-      h('span', { class: 'badge ' + ({ OFFICIAL: 'good', CORROBORATED: 'good', REPORTED: 'warn', DUMP_ONLY: 'dump' }[m.confidence] || 'unknown') }, m.confidence)),
+      sourceInfo(m.confidence, [m.sources.filter((x) => !(x.url && x.url.startsWith('http'))).map((x) => x.title).join('; '), m.verified_at ? `Checked ${m.verified_at}.` : ''].filter(Boolean).join(' · '))),
     m.detail ? h('div', { class: 'small' }, m.detail) : null,
     m.prerequisites ? h('div', { class: 'small muted' }, 'Requires: ' + m.prerequisites) : null,
     m.active_window ? h('div', { class: 'small muted' }, 'When: ' + m.active_window) : null,
     m.since ? h('div', { class: 'small muted' }, 'Since: ' + m.since) : null,
     m.review ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, `Needs review: “${m.review.patch}” (${m.review.date}) came after this was verified.`) : null,
-    !compact && m.sources.length ? h('div', { class: 'tiny muted' }, 'Sources: ', m.sources.map((src, i) => [i ? ' · ' : '', src.url && src.url.startsWith('http') ? extLink(src.url, src.title) : src.title]),
-      m.verified_at ? ` · verified ${m.verified_at}` : '') : null);
+    !compact && m.sources.some((x) => x.url && x.url.startsWith('http')) ? h('div', { class: 'tiny muted' }, 'Source: ',
+      m.sources.filter((x) => x.url && x.url.startsWith('http')).map((src, i) => [i ? ' · ' : '', extLink(src.url, src.title)])) : null);
   const lines = [
     h('div', { class: 'label' }, 'How to get it in PokeMMO'),
     av.methods.map(method),
@@ -642,7 +641,7 @@ function availabilityBlock(d, compact) {
 
 function summary(d) {
   const abil = h('div', { class: 'stack tight' }, d.abilities.map((a) => h('div', { class: 'row' }, h('span', { style: { fontWeight: 600 } }, a.name),
-    h('span', { class: 'chip' }, a.slot === 'hidden' ? 'Hidden Ability' : d.abilities.filter((x) => x.slot !== 'hidden').length === 1 ? 'Ability' : 'Ability ' + a.slot.slice(-1)))));
+    a.slot === 'hidden' ? h('span', { class: 'chip' }, 'Hidden Ability') : null)));
   const overlay = d.overlays && d.overlays[0];
   return h('div', { class: 'stack' },
     h('div', { class: 'grid-2', style: { gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' } },
@@ -654,7 +653,7 @@ function summary(d) {
         overlay ? [h('dt', null, 'Patch note'), h('dd', null, overlay.note)] : null)),
     availabilityBlock(d),
     h('div', { class: 'tiny muted' }, 'Stats, moves and locations come from the PokeMMO client data (built in, or your own copy). Its raw “obtainable” flag ',
-      `(${d.obtainable_flag}) is not used for availability.`, d.types_raw_duplicated ? ' The dump lists this single type twice; it is shown once.' : ''));
+      `(${d.obtainable_flag}) is not used for availability.`, d.types_raw_duplicated ? ' The game data lists this single type twice; it is shown once.' : ''));
 }
 
 // Bars are drawn against 255 (the highest possible base stat) and 720 for the total, so proportions are exact.
@@ -713,7 +712,7 @@ function locations(d) {
   const firstRegion = d.locations[0] && d.locations[0].region;
   wrap.append(h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Season'), seg(SEASONS.map((s) => [s, s === 'all' ? 'All' : s]), ui.locSeason, (v) => { ui.locSeason = v; redraw(); }, 'Season'),
     h('span', { class: 'grow' }), h('a', { class: 'btn small ghost', href: `#/tools/locations?region=${firstRegion || 'kanto'}&species=${d.id}`, title: 'Highlight every location of this Pokémon in the Location explorer' }, icon('map'), 'Show in Location explorer')),
-    h('p', { class: 'tiny muted', style: { margin: 0 } }, '“Lure only”, “Special” and “Unknown rate” are shown exactly as the dump states them — never as 0% or 100%. Percentages are from your dump and may predate later patches (e.g. 29 Jul 2026 encounter rebuild, Altering Cave rotation).'),
+    h('p', { class: 'tiny muted', style: { margin: 0 } }, '“Lure only”, “Special” and “Unknown rate” are shown exactly as the game data states them — never as 0% or 100%. Percentages come from the game data and may predate later patches (e.g. 29 Jul 2026 encounter rebuild, Altering Cave rotation).'),
     holder);
   redraw();
   return wrap;
@@ -756,7 +755,7 @@ function moves(d) {
     mount(holder, list.length ? h('table', { class: 'table compact moves-table' },
       h('thead', null, h('tr', null, th('Method', 'method'), th('Level', 'level'), th('Move', 'name'), th('Type', 'type'), th('Category'), th('Power'), th('Accuracy'), th('PP'))),
       h('tbody', null, list.map((r) => {
-        const miss = 'Not in your client dump';
+        const miss = 'Not in the PokeMMO game data';
         const levels = r.methods.filter((m) => m.level != null).map((m) => m.level);
         return h('tr', { dataset: { move: r.name } },
           h('td', { class: 'mv-methods' }, r.methods.map(methodBadge)),

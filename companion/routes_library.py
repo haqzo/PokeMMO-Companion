@@ -93,7 +93,7 @@ def register(r, ctx, ApiError, Request) -> None:
         if not res["available"]:
             sync = ctx.data_sync or {}
             if not ctx.dex.imported:
-                res["reason"] = "Install your PokeMMO data once (Settings › Data) to build the Item Library."
+                res["reason"] = "The built-in PokeMMO item data could not be loaded. Restart Companion; if this stays, see Settings › About & diagnostics."
             elif sync.get("state") in ("pending", "running"):
                 res["reason"] = "Updating your installed PokeMMO data for the Item Library… this takes a few seconds and needs no action."
                 res["syncing"] = True

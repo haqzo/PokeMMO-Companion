@@ -1,5 +1,5 @@
 // Home + in-app official news / changelog / event reader (docs/design/03).
-import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3 } from '../core.js';
+import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { loadList } from './pokedex.js';
@@ -23,7 +23,7 @@ export async function render(el, route) {
 async function news() { newsCache = await get('/api/news'); return newsCache; }
 
 function provenanceLine(item) {
-  return h('div', { class: 'row wrap small muted' }, badge(item.provenance),
+  return h('div', { class: 'row wrap small muted' }, sourceInfo(item.provenance),
     item.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS — test server, not live') : null,
     h('span', null, 'Published ', fmtDate(item.published)), item.updated ? h('span', null, '· updated ', fmtDate(item.updated)) : null);
 }
@@ -113,8 +113,8 @@ function roamersCard(leg) {
       h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/legendaries') }, 'Calendar', icon('chev')))),
     h('div', { class: 'roamer-row' }, tile('kanto', cur.kanto), tile('johto', cur.johto)),
     h('div', { class: 'tiny muted roamer-foot', title: leg.status_note },
-      h('span', { class: 'chip' }, 'Community cycle'), ' Not checked in-game this month · rollover time unknown',
-      nxt ? ` · ${month(nxt.month, nxt.year)}: ${nxt.kanto.name} & ${nxt.johto.name}` : '', ' · ', extLink(leg.source_url, 'Source')));
+      nxt ? `Next: ${month(nxt.month, nxt.year)} · ${nxt.kanto.name} & ${nxt.johto.name}` : '',
+      sourceInfo('COMMUNITY-CYCLE', 'Not checked in game this month; the rollover time is unknown.'), extLink(leg.source_url, 'Source')));
 }
 
 // ------------------------------------------------------------ Alpha & Swarm
@@ -259,7 +259,7 @@ function getStarted(data, runs, rerender) {
   return h('section', { class: 'card get-started' }, h('div', { class: 'card-head' }, h('h2', null, 'Get started'), h('div', { class: 'right' },
     h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ 'app.onboarded': true }); rerender(); } }, 'Done — hide this'))),
   h('div', { class: 'gs-steps' },
-    step(true, 'PokeMMO data and region maps are built in', 'Pokédex, moves, items, encounters and all five interactive region maps work right away, offline. Nothing to install.', null),
+    step(true, 'PokeMMO data is built in', 'Pokédex, moves, items and encounters for all five regions work right away, offline. Nothing to install.', null),
     step(runs.runs.length > 0, 'Create a named character run', 'Tracks storyline progress per character in all five regions.',
       runs.runs.length ? null : h('button', { class: 'btn small', onclick: async () => { if (await createRun()) rerender(); } }, 'Create run')),
     step(false, 'Pick your navigation', 'Vertical sidebar (with Quick access) or a horizontal top bar.',
@@ -269,8 +269,8 @@ function getStarted(data, runs, rerender) {
 function installBanner(data, rerender, update) {
   const c = update ? data.update_available : data.candidates[0];
   return h('div', { class: 'notice info', style: { marginBottom: '14px' } }, icon('download'),
-    h('div', { class: 'grow' }, h('strong', null, update ? 'Your PokeMMO dump changed since it was installed. ' : 'Your PokeMMO data was found. '),
-      `${c.folder} — install it once for stats, locations, moves and sprites (stays on this computer).`),
+    h('div', { class: 'grow' }, h('strong', null, update ? 'Your optional PokeMMO client import changed. ' : 'Optional: PokeMMO client files found. '),
+      `${c.folder} — importing them adds your client’s sprites and icons (stays on this computer). Everything else already works without it.`),
     h('button', { class: 'btn primary small', onclick: () => installNow(c.folder, rerender) }, update ? 'Re-install' : 'Install'));
 }
 
@@ -344,7 +344,7 @@ async function renderArticle(el, id) {
       h('hr'),
       h('div', { class: 'small muted stack tight' },
         h('div', null, 'Source: ', extLink(a.source_url, 'Original post on the official PokeMMO forum')),
-        h('div', null, 'This is an independently written summary, not the full post. Provenance: ', badge(a.provenance), '.')))));
+        h('div', null, 'This is an independently written summary, not the full post. ', sourceText(a.provenance))))));
 }
 
 async function renderEvent(el, id) {
@@ -359,7 +359,7 @@ async function renderEvent(el, id) {
     h('article', { class: 'card article' },
       h('div', { class: 'band' }, h('div', { class: 'eyebrow card-head', style: { margin: 0 } }, kindLabel),
         h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, e.title),
-        h('div', { class: 'row wrap' }, statusBadge(e.status), badge(e.provenance))),
+        h('div', { class: 'row wrap' }, statusBadge(e.status), sourceInfo(e.provenance))),
       h('dl', { class: 'kv' }, h('dt', null, 'Starts'), h('dd', null, local(e.starts)), h('dt', null, 'Ends'), h('dd', null, local(e.ends)),
         h('dt', null, 'Time zone'), h('dd', null, e.timezone_note || '—'),
         (e.details || []).map((d) => [h('dt', null, d.label), h('dd', null, d.value)])),

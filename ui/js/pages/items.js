@@ -54,7 +54,7 @@ export async function render(el, route) {
   const head = h('div', { class: 'page-head', style: { padding: '14px 18px 4px' } },
     h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), t('tools.title')),
     h('div', null, h('h1', null, t('items.title')), h('div', { class: 'sub' }, t('items.desc'))),
-    h('div', { class: 'actions' }, badge('DUMP_ONLY', 'PokeMMO data'), pinButton({ kind: 'tool', id: 'items' }), popoutButton('items')));
+    h('div', { class: 'actions' }, pinButton({ kind: 'tool', id: 'items' }), popoutButton('items')));
   page.append(head);
   if (!data.available) {
     page.append(h('div', { style: { padding: '0 18px' } }, notice(data.syncing ? 'info' : 'warn', data.reason || t('items.not_installed'), ' ',
@@ -98,7 +98,7 @@ export async function render(el, route) {
   h('div', { class: 'dex-info' }, h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } }, count,
     h('span', { class: 'small muted' }, `${data.stats.records} item records in the PokeMMO data → ${data.items.length} distinct items · ${data.stats.missing_icon} records without an icon`),
     lang() !== 'en' ? h('span', { class: 'small muted' }, data.langs.includes(lang()) ? 'Names in your language come from your client’s string table where translated; others stay English.' :
-      'Your dump has no string table for this language — names stay English. Install XML-Strings.zip to add them.') : null,
+      'No item names for this language in the game data — names stay English. An optional import of the client’s XML-Strings.zip adds them.') : null,
     h('span', { class: 'tiny muted' }, 'Categories are inferred from names/descriptions.'))), scroll);
   draw();
   if (sel) {

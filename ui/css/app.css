@@ -910,7 +910,7 @@ a.mv-badge:hover { background: color-mix(in srgb, var(--mv) 34%, transparent); }
 .roamer-art { margin-bottom: 2px; }
 .roamer-name { font-weight: 700; font-size: 1.02rem; color: var(--text-primary); }
 .roamer-region { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
-.roamer-foot { margin-top: 8px; line-height: 1.5; }
+.roamer-foot { margin-top: 8px; line-height: 1.5; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .roamer-foot .chip { font-size: .7rem; padding: 0 6px; }
 .home-feed { margin-bottom: 8px; }
 .home-cur { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
@@ -1137,3 +1137,10 @@ polyline.mk-draft { fill: none; }
 .gx-team .team-strip { flex-wrap: nowrap; }
 .gx-team .team-strip-slot { width: 40px; height: 40px; flex: 1 1 0; min-width: 0; max-width: 46px; }
 .gx-step { position: relative; }
+
+/* ---------------------------------------------------------------- source info (2026-11-24 badge cleanup) */
+.src-info { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text-muted); cursor: help; vertical-align: middle; flex: none; }
+.src-info svg { width: 14px; height: 14px; }
+.src-info:hover, .src-info:focus-visible { color: var(--text); background: var(--bg-inset); }
+.chip.warn { color: #e3b45e; border-color: rgba(227, 180, 94, .35); }

@@ -1,6 +1,6 @@
 // Live workspace (docs/design/10–13): Reports, Legendaries, Altering Cave.
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, relTime, fmtDate, cap, tabs, seg, toast, confirmDialog, modal,
-  on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite } from '../core.js';
+  on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite, sourceInfo } from '../core.js';
 import { go, popoutButton } from '../shell.js';
 
 let unsub = [];
@@ -145,10 +145,10 @@ async function renderReports(el, selectedId, src) {
     const c = await get('/api/live/current');
     const skew = Date.parse(c.now) - Date.now();
     const warn = !c.source.enabled ? notice('info', c.current.length ? 'The report feed is off — new reports are not being received. These cards were received while it was on.'
-      : 'The report feed is off, so nothing is claimed about current Alphas or Swarms.')
+      : null)
       : !c.complete ? notice('warn', `The feed is ${c.source.status}${c.source.last_success_at ? ` (last data ${relTime(c.source.last_success_at)})` : ''} — recent reports may be missing. This does not mean none are active.`) : null;
     mount(curBox, c.current.length ? c.current.map((g) => currentCard(g)) :
-      h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, 'No Alpha or Swarm reported recently. This does not mean none are active.'));
+      h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? 'No Alpha or Swarm reported recently. This does not mean none are active.' : 'Turn on the report feed to see community reports here.'));
     mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
     if (stopTimers) stopTimers();
     stopTimers = startTimers(curBox, skew, () => loadCurrent());
@@ -159,7 +159,7 @@ async function renderReports(el, selectedId, src) {
   unsub.push(() => { clearInterval(every); document.removeEventListener('visibilitychange', refreshCurrent); if (stopTimers) stopTimers(); });
   el.append(h('div', { class: 'stack' }, sourceBar(src),
     h('section', { class: 'stack tight', 'aria-labelledby': 'cur-h' }, h('div', { class: 'row' }, h('h2', { class: 'section-title', id: 'cur-h' }, 'Current / recently reported'),
-      h('span', { class: 'grow' }), h('span', { class: 'tiny muted' }, 'TEST entries and old history never appear here')), curBox, curNote),
+      sourceInfo('REPORTED', 'Only recent community reports appear here; TEST entries and older history are in Report history.')), curBox, curNote),
     h('h2', { class: 'section-title history-title' }, 'Report history'),
     h('div', { class: 'row wrap' },
       seg([['all', 'All'], ['alpha', 'Alpha'], ['swarm', 'Swarm'], ['other', 'Other']], ui.kind, (v) => { ui.kind = v; load(); }, 'Report type'),
@@ -168,8 +168,9 @@ async function renderReports(el, selectedId, src) {
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: ui.hideTests, onchange: (e) => { ui.hideTests = e.target.checked; load(); } }), h('span', { class: 'small' }, 'Hide TEST entries')),
       h('span', { class: 'grow' }),
       h('button', { class: 'btn', onclick: testDialog }, icon('bell'), 'Send TEST notification'),
-      h('button', { class: 'btn ghost', title: 'Delivery settings', onclick: () => go('#/settings/notifications') }, icon('gear'), 'Delivery')),
-    h('div', { class: 'small muted' }, `Delivery — Alpha: ${ROUTE_LABEL[setting('notify.alpha')]} · Swarm: ${ROUTE_LABEL[setting('notify.swarm')]} · OS backend: ${notifier.backend}${notifier.available ? '' : ' (unavailable)'}${setting('notify.quiet') ? ' · Do-not-disturb ON' : ''}`),
+      h('button', { class: 'btn ghost', title: `Delivery settings — Alpha: ${ROUTE_LABEL[setting('notify.alpha')]} · Swarm: ${ROUTE_LABEL[setting('notify.swarm')]}${notifier.available ? '' : ' · system notifications unavailable'}`,
+        onclick: () => go('#/settings/notifications') }, icon('gear'), 'Delivery')),
+    setting('notify.quiet') ? h('div', { class: 'small muted' }, 'Do not disturb is on — notifications are silent.') : null,
     h('div', { class: 'grid-2', style: { gridTemplateColumns: 'minmax(0,1.3fr) minmax(300px,1fr)', alignItems: 'start' } }, listBox, inspector),
     h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmDialog('Clear TEST entries', 'Remove all TEST notifications from history?')) { await post('/api/live/clear', { tests_only: true }); load(); } } }, 'Clear TEST entries'),
       h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmDialog('Clear report history', 'Remove all saved reports? Settings are kept.', 'Clear', true)) { await post('/api/live/clear', {}); load(); } } }, 'Clear history'))));
@@ -255,7 +256,7 @@ function renderReportDetail(el, r) {
   const d = r.delivery || {};
   mount(el, h('div', { class: 'card stack' },
     h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? 'TEST notification' : kind + ' report'), h('span', { class: 'grow' }),
-      r.is_test ? badge('TEST', 'Local test — not a real report') : badge('DUMP_ONLY', 'Community report · unverified')),
+      r.is_test ? badge('TEST', 'Local test — not a real report') : sourceInfo('REPORTED', 'Community report.')),
     h('div', { class: 'rep-detail-head' }, reportSprite(r, { battle: true }),
       h('div', { style: { minWidth: 0 } }, h('h3', { style: { margin: 0 } }, r.title || '(no title)'),
         r.species_name && (r.species_name !== r.title || r.species_match === 'ambiguous') ? h('div', { class: 'small muted' }, r.species_name,
@@ -302,7 +303,7 @@ export async function renderLegendaries(el, { compact = false } = {}) {
   const cur = L.current, nxt = L.next;
   mount(el, h('div', { class: 'stack', style: { maxWidth: '980px' } },
     h('div', { class: 'card stack' }, h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0, fontSize: '1.15rem' } }, `This month · ${monthName(cur.month, cur.year)}`), h('span', { class: 'grow' }),
-      badge('COMMUNITY-CYCLE', 'Documented community cycle — not verified in game')),
+      sourceInfo('COMMUNITY-CYCLE')),
     h('div', { class: 'legend-pair' }, card('kanto', cur.kanto), card('johto', cur.johto)),
     h('div', { class: 'small muted' }, L.status_note)),
     compact ? null : h('div', { class: 'card' }, h('div', { class: 'row' }, h('strong', null, `Next · ${monthName(nxt.month, nxt.year)}: `), h('span', { style: { marginLeft: '6px' } }, `${nxt.kanto.name} (Kanto) · ${nxt.johto.name} (Johto)`),
@@ -339,7 +340,7 @@ export async function renderCave(el, { compact = false } = {}) {
     h('div', { class: 'card stack tight' }, h('div', { class: 'row' }, icon('crystal'), h('h2', { style: { margin: 0, fontSize: '1.15rem' } }, 'Current rotation'), h('span', { class: 'grow' }), badge('UNKNOWN', 'Unknown')),
       h('div', { style: { fontWeight: 600 } }, C.current.label), h('div', { class: 'small muted' }, C.current.reason),
       latest ? h('div', { class: 'small' }, `Your latest observation: ${latest.crystal || '—'} · ${latest.species || '—'} · ${relTime(latest.observed_at)} `,
-        badge(latest.freshness === 'recent' ? 'DUMP_ONLY' : 'UNKNOWN', latest.freshness === 'recent' ? 'Your report · under 6 h old' : 'Historical')) : null),
+        h('span', { class: 'small muted' }, latest.freshness === 'recent' ? 'Your report · under 6 h old' : 'Older report')) : null),
     compact ? null : h('div', { class: 'card stack tight' }, h('h3', { style: { margin: 0 } }, 'Known mechanics'), C.mechanics.map((m) => h('div', { class: 'small' }, '• ', m.text, ' ', h('span', { class: 'muted' }, '— '), extLink(m.url, m.source)))),
     compact ? null : h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Log what you see')), form),
     compact ? null : h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Your observation history')),

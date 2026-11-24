@@ -178,19 +178,19 @@ class DexService:
         have = {m["method"] for m in methods}
         if sp and "wild" not in have and sp.get("locations"):
             methods.append({"method": "wild", "label": labels.get("wild", "Wild"), "basis": "dump", "confidence": "DUMP_ONLY",
-                            "detail": f"{len({l['area'] for l in sp['locations']})} locations in your installed dump",
+                            "detail": (lambda n: f"{n} location{'' if n == 1 else 's'} in the PokeMMO game data")(len({l['area'] for l in sp['locations']})),
                             "regions": sorted({l["region"] for l in sp["locations"]}), "verified_at": dump_date,
-                            "sources": [{"id": "dump", "title": "Your installed PokeMMO dump" + (f" (files dated {dump_date})" if dump_date else " (date unknown)"),
+                            "sources": [{"id": "dump", "title": "PokeMMO game data" + (f" (client snapshot {dump_date})" if dump_date else " (date unknown)"),
                                          "url": None, "kind": "dump"}],
                             "review": self._review("wild", dump_date) if dump_date else None})
         elif sp and not have and sid in self._wild_family:
             methods.append({"method": "evolution", "label": labels.get("evolution", "Evolution"), "basis": "dump", "confidence": "DUMP_ONLY",
-                            "detail": "Its evolution family has wild rows in your dump (evolve or breed)", "verified_at": dump_date,
-                            "sources": [{"id": "dump", "title": "Your installed PokeMMO dump", "url": None, "kind": "dump"}], "review": None})
+                            "detail": "Its evolution family appears in the wild (evolve or breed)", "verified_at": dump_date,
+                            "sources": [{"id": "dump", "title": "PokeMMO game data", "url": None, "kind": "dump"}], "review": None})
         if not methods:
             methods.append({"method": "unknown", "label": labels.get("unknown", "Unverified"), "basis": "none", "confidence": "UNVERIFIED",
-                            "detail": ("No wild rows in your dump for this family; acquisition needs a source" if sp else
-                                       "Install your PokeMMO data to see dump-derived encounters"), "sources": [], "review": None})
+                            "detail": ("No wild encounters for this family in the game data; how to obtain it is not confirmed yet" if sp else
+                                       "Encounter data is not available"), "sources": [], "review": None})
         methods.sort(key=lambda m: METHOD_ORDER.index(m["method"]) if m["method"] in METHOD_ORDER else 99)
         perm_set = set(self.registry.get("permanent_methods", []))
         known = [m for m in methods if m["method"] != "unknown"]
@@ -273,7 +273,7 @@ class DexService:
                   ((self.extras or {}).get("form_records") or {}).get(f["client_record"])
         def pick(field, base_val):
             if rec and rec.get(field):
-                return rec[field], "your client dump"
+                return rec[field], "PokeMMO game data"
             if f.get(field):
                 return f[field], "Companion forms manifest"
             return base_val, "same as base species"

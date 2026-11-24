@@ -46,7 +46,7 @@ export async function render(el, route) {
   if (tool === 'box' || tool === 'showcase') {  // My Box and Showcase now live in Collection
     location.replace(legacyRoute(tool, route.parts.slice(1), route.query)); return;
   }
-  if (tool === 'damage') { toast('The Damage calculator was removed in v0.1.0. Use Type matchups and the Stat calculator.', { kind: 'warn', timeout: 5000 }); go('#/tools'); return; }
+  if (tool === 'damage') { toast('The Damage calculator was removed. Use Type matchups and the Stat calculator.', { kind: 'warn', timeout: 5000 }); go('#/tools'); return; }
   if (tool && TOOLS[tool] && TOOLS[tool].own) {
     ownMod = await TOOLS[tool].own();
     await ownMod.render(el, route);
@@ -105,8 +105,8 @@ async function renderHub(el) {
           icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, (d.k === 'breeding' ? 'Breeding plan' : 'Team') + ' · saved ' + relTimeShort(d.updated_at)))))) :
           h('div', { class: 'small muted' }, 'Saved breeding plans and teams appear here.')),
       h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, 'About the numbers'),
-        h('div', { class: 'small' }, 'Formulas are checked by automated tests against worked cases. Values from the PokeMMO data are labelled ', badge('DUMP_ONLY', 'Dump data'), ' where they appear; anything uncertain says so next to the value.'),
-        h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one) and no damage calculator in v0.1.0. Nothing here reads the game, automates input or fetches GTL prices.')))));
+        h('div', { class: 'small' }, 'Formulas are checked against worked examples. Values come from the built-in PokeMMO data; where something is uncertain, an ⓘ next to it explains why.'),
+        h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one) and no damage calculator. Nothing here reads the game, automates input or fetches GTL prices.')))));
 }
 function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'today' : `${Math.floor(d)} d ago`; }
 
@@ -334,13 +334,13 @@ async function renderEv(el) {
   const draw = () => {
     const cands = idx.filter((s) => s.ev && s.ev[stat] && (horde === 1 || (horde === 5 ? s.horde5 : s.horde)) && (!region || (s.regions || []).includes(region)))
       .sort((a, b) => (b.ev[stat] - a.ev[stat]) || a.id - b.id).slice(0, 40);
-    mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${cands.length ? 'Top' : 'No'} species yielding ${STATS.find((x) => x[0] === stat)[1]} EVs${horde === 5 ? ' that appear in ×5 hordes (dump)' : ''}${region ? ' in ' + cap(region) : ''}.`),
+    mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${cands.length ? 'Top' : 'No'} species yielding ${STATS.find((x) => x[0] === stat)[1]} EVs${horde === 5 ? ' that appear in ×5 hordes' : ''}${region ? ' in ' + cap(region) : ''}.`),
       h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Pokémon', 'Yield', `EVs per ${horde > 1 ? 'horde' : 'battle'}`, `Battles ${current}→${target}`, ''].map((c) => h('th', null, c)))),
         h('tbody', null, cands.map((s) => { const per = s.ev[stat] * (macho ? 2 : 1) * horde; const rem = Math.max(0, target - current);
           return h('tr', null, h('td', null, s.name, ' ', typeChips(s.types, true)), h('td', null, `+${s.ev[stat]}`),
           h('td', null, per), h('td', { style: { fontWeight: 700 } }, rem ? Math.ceil(rem / per) : 0),
           h('td', null, h('button', { class: 'btn small ghost', onclick: () => go(`#/pokedex/${s.id}?tab=locations`) }, 'Locations'))); }))),
-      h('div', { class: 'tiny muted' }, 'Yield × Pokémon per encounter' + (macho ? ' × 2 (Macho Brace)' : '') + '. Power items and Pokérus are not applied (no PokeMMO-specific evidence collected). Horde rows come from your installed dump; check the dump date after encounter patches (29 Jul 2026 overhaul).')));
+      h('div', { class: 'tiny muted' }, 'Yield × Pokémon per encounter' + (macho ? ' × 2 (Macho Brace)' : '') + '. Power items and Pokérus are not applied (no PokeMMO-specific evidence collected). Horde rows come from the built-in game data (client snapshot 16 Nov 2026).')));
   };
   el.append(h('div', { class: 'stack' }, h('div', { class: 'card row wrap' },
     h('div', { class: 'field' }, h('label', null, 'Stat'), seg(STATS.map(([k, l]) => [k, l]), stat, (v) => { stat = v; draw(); })),
@@ -368,6 +368,6 @@ async function renderTeam(el, route) {
 }
 
 function needsImport() {
-  return h('div', { class: 'content-narrow stack' }, notice('info', h('strong', null, 'Needs your local PokeMMO data. '), 'This tool uses base stats, catch rates or EV yields from your own dump. Import it once in Settings › Data.'),
-    h('div', null, h('button', { class: 'btn primary', onclick: () => go('#/settings/data') }, 'Open data import')));
+  return h('div', { class: 'content-narrow stack' }, notice('warn', h('strong', null, 'The PokeMMO data could not be loaded. '), 'This tool needs the built-in base stats, catch rates and EV yields. Restart Companion; if this stays, open Settings › About & diagnostics.'),
+    h('div', null, h('button', { class: 'btn', onclick: () => go('#/settings/about') }, 'About & diagnostics')));
 }

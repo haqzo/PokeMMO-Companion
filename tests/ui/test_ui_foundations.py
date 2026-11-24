@@ -12,7 +12,8 @@ def test_pokedex_shows_one_card_per_species_with_forms_inside_details(app, page)
     page.wait_for_selector(".dex-card")
     info = page.locator(".dex-info").inner_text()
     assert "649 of 649 Pokémon shown" in info
-    assert "82 alternate forms inside each Pokémon’s summary" in info and "not the in-game Pokédex total" in info
+    about = page.locator(".dex-info .src-info").get_attribute("title")      # explanation moved into the ⓘ (badge cleanup)
+    assert "82 alternate forms inside each Pokémon’s summary" in about and "not the in-game Pokédex total" in about
     assert page.locator(".dex-grid .gen-head").count() == 5
     assert page.locator(".dex-grid .dex-card").count() == 649
     assert page.locator('.dex-card[data-entry="479"]').count() == 1

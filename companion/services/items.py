@@ -64,7 +64,7 @@ def categorize(item: dict, evolution_ids: set[int]) -> tuple[str, str]:
     if name in BREEDING_NAMES:
         return "breeding", "known breeding item"
     if item.get("id") in evolution_ids:
-        return "evolution", "used by an evolution in your dump"
+        return "evolution", "used by an evolution in the game data"
     if name.endswith(" Stone") and "evolve" in desc.lower():
         return "evolution", "evolution stone description"
     if TRAINING.search(desc) or TRAINING.search(name):
@@ -124,14 +124,14 @@ def build_catalog(items: list[dict], species: dict, icon_files: set[str], string
         g["held_by"] = sorted({s for i in ids for s in held_by.get(i, [])})
         g["evolution_uses"] = [u for i in sorted(ids) for u in used_for.get(i, [])]
         if g["evolution_uses"] and g["category"] in ("other", "hold", "key"):
-            g["category"], g["category_basis"] = "evolution", "used by an evolution in your dump"
+            g["category"], g["category_basis"] = "evolution", "used by an evolution in the game data"
     out = sorted(groups.values(), key=lambda g: (g["name"].lower(), g["id"]))
     tm = re.compile(r"^(TM|HM)\s*[-–]?\s*(.+)$")
     for g in out:
         m = tm.match(g["name"])
         g["move_name"] = m.group(2).strip() if m and g["category"] == "tms" else None
     return {"version": CATALOG_VERSION, "built_at": utcnow(), "groups": out, "stats": stats,
-            "langs": sorted(strings), "note": "Categories are inferred from names/descriptions; links come only from item IDs in your dump."}
+            "langs": sorted(strings), "note": "Categories are inferred from names/descriptions; links come only from item IDs in the game data."}
 
 
 class ItemService:
@@ -215,7 +215,7 @@ class ItemService:
                 "category_label": CATEGORY_LABELS.get(g["category"], g["category"]), "fav": bool(u.get("favourite")),
                 "qty": u.get("owned_qty"), "user_updated_at": u.get("updated_at"), "held_by": held, "evolution_uses": evo,
                 "move": move, "breeding": g["name"] in BREEDING_NAMES,
-                "provenance": "Your installed PokeMMO dump (DUMP_ONLY). Region codes are the dump's raw values."}
+                "provenance": "PokeMMO game data. Region codes are the game data's raw values."}
 
     def set_user(self, item_id: int, favourite: bool | None = None, qty: int | None | str = "keep") -> dict:
         g = self.by_id.get(item_id)

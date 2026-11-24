@@ -39,7 +39,7 @@ async function language(b) {
       l.status === 'beta' ? h('span', { class: 'badge unknown' }, 'beta') : null)))),
     row('Translation coverage', 'Keys in the Companion’s interface dictionary. Missing keys fall back to English.',
       h('div', { class: 'stack tight' }, cov.map((c) => h('div', { class: 'small' }, `${c.native}: ${c.keys} / ${c.total}`)))),
-    row('Game names', 'Pokémon names stay in English (your client dump has no translated species names). Item names and descriptions use your own client’s Spanish/Chinese text when your installed data includes XML-Strings.', h('span', { class: 'tiny muted' }, '—')),
+    row('Game names', 'Pokémon names stay in English (the game data has no translated species names). Item names and descriptions use your own client’s Spanish/Chinese text when your installed data includes XML-Strings.', h('span', { class: 'tiny muted' }, '—')),
     row('Language button in the toolbar', 'Shows the globe button in the sidebar / top bar for quick switching.',
       switchEl((setting('app.toolbar') || []).includes('language'), (v) => saveSettings({ 'app.toolbar': v ? [...new Set([...(setting('app.toolbar') || []), 'language'])] : (setting('app.toolbar') || []).filter((x) => x !== 'language') }).then(async () => (await import('../shell.js')).renderChrome()))),
     row('“New note” button in the toolbar', 'Adds a quick button that opens a new floating note.',
@@ -293,7 +293,7 @@ export async function data(b) {
     h('h3', null, 'PokeMMO data'),
     (() => { const rb = boot.dex.reference || {}; const rc = rb.counts || {};
       return h('div', { class: 'card inset small stack tight bundled-data' }, h('div', null, badge('DUMP_ONLY', 'Built in'),
-        ` PokeMMO reference data, client data dated ${rb.dump_date ? fmtDate(rb.dump_date) : 'unknown'} · ${rc.species || 0} species · ${rc.location_rows || 0} encounter rows · all five region maps`),
+        ` PokeMMO reference data, client data dated ${rb.dump_date ? fmtDate(rb.dump_date) : 'unknown'} · ${rc.species || 0} species · ${rc.location_rows || 0} encounter rows`),
         h('div', { class: 'muted' }, 'Ships with the Companion and works offline. Nothing to install. ',
           m && m.source_kind !== 'bundled' && !m.error ? 'Your own client data (below) is currently used instead.' : '')); })(),
     h('details', { class: 'adv-data' }, h('summary', null, 'Optional, advanced: use your own PokeMMO client files (adds your client’s icons and sprites)'),
@@ -303,8 +303,8 @@ export async function data(b) {
         h('div', { class: 'tiny muted' }, `contains: ${c.parts.join(', ') || 'combined archive'}${c.guides.length ? ' · walkthroughs: ' + c.guides.join(', ') : ''}`)),
       h('button', { class: 'btn small' + (ds.installed ? '' : ' primary'), onclick: () => { dumpPath.value = c.folder; runImport('dumps', c.folder); } }, ds.installed ? 'Re-install from here' : 'Install'),
       c.guides.length ? h('button', { class: 'btn small', onclick: () => runImport('guides', c.folder) }, 'Import walkthroughs') : null))) :
-      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, 'No PokeMMO dump found in the usual folders (Documents/PokeMMO-Companion, the PokeMMO Flatpak data folder, Downloads). Enter its folder below.'),
-    ds.update_available ? notice('warn', 'Your dump has changed since it was installed — re-install to refresh. Runs, checkmarks and settings are kept.') : null,
+      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, 'No PokeMMO client files found in the usual folders (Documents/PokeMMO-Companion, the PokeMMO Flatpak data folder, Downloads). Enter its folder below.'),
+    ds.update_available ? notice('warn', 'Your client files changed since they were imported — re-import to refresh. Runs, checkmarks and settings are kept.') : null,
     m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, badge('DUMP_ONLY', 'Imported'), ` ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
       h('div', { class: 'muted' }, Object.entries(m.sources).map(([k, v]) => `${k}: ${v.file}${v.sha256 ? ' (sha256 ' + v.sha256.slice(0, 12) + '…)' : ''}`).join(' · ')),
       (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not used — the built-in data is active.'),
@@ -407,7 +407,7 @@ async function about(b) {
     h('h3', null, 'What this app never does'),
     h('ul', { class: 'small', style: { color: 'var(--text-secondary)' } }, h('li', null, 'No encounter counter (PokeMMO has one).'), h('li', null, 'No reading game memory, injecting code, automating input or OCR.'),
       h('li', null, 'No GTL scraping or account login.'), h('li', null, 'No claims of live Alpha/Swarm/cave activity without a dated source.')),
-    h('p', { class: 'small muted' }, 'Unofficial community project, not affiliated with PokeMMO. Pokémon names are trademarks of their owners. PokeMMO client sprites and data are only shown from your own local import and are never bundled or redistributed.'));
+    h('p', { class: 'small muted' }, 'Unofficial community project, not affiliated with PokeMMO. Pokémon names are trademarks of their owners. The built-in reference data was produced from the PokeMMO client (snapshot 16 Nov 2026); client sprites and icons are only shown from your own optional import.'));
 }
 
 // ----------------------------------------------------------- onboarding

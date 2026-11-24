@@ -302,6 +302,6 @@ def test_manifest_agrees_with_users_client_form_records(dex):
         e = dex.form_entry(key)
         assert e["mismatch"] == [], key
         if e["client_record"]:
-            assert e["in_client"] and e["stats_source"] == "your client dump", key
+            assert e["in_client"] and e["stats_source"] == "PokeMMO game data", key
             checked += 1
     assert checked == 18

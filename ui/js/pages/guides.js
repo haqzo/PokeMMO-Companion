@@ -1,6 +1,6 @@
 // Guides (docs/design/14–17): named character runs, five regions, manual progress.
 import { guideContext, shortcutFor, displayCombo } from '../shortcuts.js';
-import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, tabs, toast, confirmDialog, modal, on, debounce, fmtDate, relTime, extLink } from '../core.js';
+import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, tabs, toast, confirmDialog, modal, on, debounce, fmtDate, relTime, extLink, sourceInfo } from '../core.js';
 import { go, openPopout } from '../shell.js';
 import { downloadJson } from '../components.js';
 import { guideExtras } from '../guide-extras.js';
@@ -81,7 +81,7 @@ export async function render(el, route) {
   st.sources.map((s) => h('option', { value: s.id, selected: s.id === st.source ? 'selected' : null }, `${s.label} · ${s.steps} steps`)));
 
   const header = h('div', { class: 'card stack tight', style: { marginBottom: '14px' } },
-    h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0, fontSize: '1.2rem' } }, cap(region)), sourceSel, badge(src.status), h('span', { class: 'grow' }),
+    h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0, fontSize: '1.2rem' } }, cap(region)), sourceSel, sourceInfo(src.status), h('span', { class: 'grow' }),
       h('button', { class: 'btn ghost small', onclick: () => jumpToCurrent() }, icon('target'), 'Jump to current'),
       h('button', { class: 'btn ghost small', title: 'Undo the last checkbox change', onclick: async () => { const r = await post(`/api/guides/runs/${run.id}/undo`); toast(r.undone ? `Undid ${r.undone} change(s)` : 'Nothing to undo'); render(el, route); } }, icon('undo'), 'Undo'),
       h('button', { class: 'btn ghost small', onclick: () => bulkMark() }, 'Mark up to current…')),
@@ -148,7 +148,7 @@ export async function render(el, route) {
       h('div', null, h('div', { class: 's-text' }, s.text),
         h('div', { class: 's-meta' }, s.id === st.active_step_id ? h('span', { class: 'badge corroborated plain' }, 'Current') : null,
           s.mandatory === false ? h('span', { class: 'chip' }, 'Optional') : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? ' (auto-tag)' : '')) : null,
-          s.source_url ? extLink(s.source_url, 'Official changelog') : null, changed ? h('span', { class: 'badge dump' }, 'Changed since checked') : null), gx.stepTimers(s.id)),
+          s.source_url ? extLink(s.source_url, 'Official changelog') : null, changed ? h('span', { class: 'chip tiny warn', title: 'This step changed in the guide after you ticked it' }, 'Changed') : null), gx.stepTimers(s.id)),
       s.id !== st.active_step_id ? h('button', { class: 'btn ghost small', title: 'Make this your current step', onclick: async () => {
         await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); render(el, route); } }, 'Set current') : h('span'));
   };

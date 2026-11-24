@@ -120,7 +120,7 @@ export function renderChrome() {
   const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: 'Settings (Ctrl+,)', 'aria-label': 'Settings',
     onclick: () => go('#/settings') }, icon('gear'));
   const brand = h('div', { class: 'brand' }, logo(28), h('div', { class: 'text' },
-    h('div', { class: 'name' }, 'PokeMMO Companion'), h('div', { class: 'ver' }, `v${state.boot.version} · dev preview`)),
+    h('div', { class: 'name' }, 'PokeMMO Companion')),
   vertical ? h('div', { class: 'brand-tools' }, toolbarExtras(true)) : null);
   mainEl = h('main', { class: 'main', id: 'main' });
   let shell;
