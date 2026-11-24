@@ -54,9 +54,8 @@ async function renderHome(el) {
   mount(el, page);
   const sections = homeSections();
   const on_ = (k) => sections.includes(k);
-  const [n, cur, leg, runs, data, species, phenomena] = await Promise.all([news(), get('/api/live/current'), get('/api/live/legendaries'),
-    get('/api/guides/runs'), get('/api/data/status'), on_('favourites') ? loadList().catch(() => []) : Promise.resolve([]),
-    on_('live') ? get('/api/live/phenomena?view=home') : null]);
+  const [n, cur, leg, runs, data, species] = await Promise.all([news(), get('/api/live/current'), get('/api/live/legendaries'),
+    get('/api/guides/runs'), get('/api/data/status'), on_('favourites') ? loadList().catch(() => []) : Promise.resolve([])]);
   const active = cur.current.filter((g) => g.status.state === 'recent').length;
   const status = [
     !cur.source.enabled ? 'Alpha/Swarm feed off' : `${active} Alpha/Swarm report${active === 1 ? '' : 's'} likely active`,
@@ -73,7 +72,7 @@ async function renderHome(el) {
   // first of them sits. Wide windows pack sections into 12-column rows; the last card of a row takes up whatever
   // is left, so no row ends in an empty gap. Cards in one row are the same height.
   const build = {
-    roamers: () => roamersCard(leg), live: () => liveCard(cur, phenomena),
+    roamers: () => roamersCard(leg), live: () => liveCard(cur),
     update: async () => n.latest ? updateCard(n, () => { newsCache = null; renderHome(el); }) : null,
     side: () => h('div', { class: 'home-side stack' }, on_('events') ? eventsCard(n) : null, on_('quick') ? quickCard() : null),
     news: () => newsCard(n), run: () => continueCard(runs, () => renderHome(el)), favourites: () => favouritesCard(species),
@@ -150,13 +149,12 @@ function roamersCard(leg) {
 }
 
 // ------------------------------------------------------------ Alpha & Swarm
-function liveCard(cur, phenomena) {
-  const phenomenaBox = h('div', { class: 'stack tight home-phenomena' });
+function liveCard(cur) {
   const box = h('div', { class: 'cur-grid home-cur' });
   const head = h('div', { class: 'row small home-feed' });
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, 'Alpha & Swarm'), h('span', { class: 'tiny muted' }, 'recently reported'),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, 'History', icon('chev')))), head, box, phenomenaBox);
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, 'History', icon('chev')))), head, box, homePhenomena());
   let stop = null, expiry = null, sprites = new Map();
   const draw = (c) => {
     const src = c.source;
@@ -194,15 +192,6 @@ function liveCard(cur, phenomena) {
   document.addEventListener('visibilitychange', refresh);
   unsub.push(() => { clearInterval(every); clearTimeout(expiry); document.removeEventListener('visibilitychange', refresh); if (stop) stop(); });
   unsub.push(on('live.report', refresh));
-  homePhenomena(phenomenaBox, phenomena);
-  const refreshPhenomena = async () => {
-    if (card.isConnected) {
-      const data = await get('/api/live/phenomena?view=home').catch(() => null);
-      if (data && card.isConnected) homePhenomena(phenomenaBox, data);
-    }
-  };
-  const everyPhenomenon = setInterval(refreshPhenomena, 60000);
-  unsub.push(on('live.phenomena', refreshPhenomena), () => clearInterval(everyPhenomenon));
   return card;
 }
 

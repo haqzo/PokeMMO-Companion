@@ -5,7 +5,6 @@ rebinding) and requires a per-launch random token on every /api request.
 """
 from __future__ import annotations
 
-import http.client
 import json
 import logging
 import mimetypes
@@ -24,12 +23,11 @@ from urllib.parse import parse_qs, urlparse
 
 from .app import AppContext
 from .services.dex import FILTER_TAGS
-from .config import BUNDLED_DATA_DIR, UI_DIR, community_links
+from .config import BUNDLED_DATA_DIR, UI_DIR, alphapedia_links, community_links
 from .data import reference as ref
 from .data.window_presets import PRESETS
 from .services import backup, breeding, calcs, importer
 from .services.guides import GuideError
-from .services.phenomena import fetch_image
 from .services.sprite_library import SpriteLibraryError
 from .settings import SettingsError
 from .storage import StorageClosedError, utcnow
@@ -97,7 +95,8 @@ def build_router(ctx: AppContext) -> Router:
                 "settings": S.all(), "dex": ctx.dex.status(), "notifier": ctx.notifier.describe(),
                 "data_dir": str(ctx.paths.root), "now": utcnow(),
                 "storage": {"migrated_from": ctx.storage.migrated_from, "backup": ctx.storage.backup_created},
-                "window_presets": PRESETS, "themes": _theme_catalog(), "community": community_links()}
+                "window_presets": PRESETS, "themes": _theme_catalog(), "community": community_links(),
+                "alphapedia": alphapedia_links()}
     r.add("GET", "/api/bootstrap", bootstrap)
 
     def settings_get(req: Request) -> dict:
@@ -108,7 +107,7 @@ def build_router(ctx: AppContext) -> Router:
             raise ApiError(400, "Expected an object of settings")
         clean = S.update(req.body)
         ctx.bus.publish("settings", clean, origin=req.q("origin"))
-        if any(k.startswith(("live.ntfy.", "live.phenomena.")) for k in clean):
+        if any(k.startswith("live.ntfy.") for k in clean):
             ctx.live.apply_settings()
         return {"ok": True, "applied": clean}
     r.add("GET", "/api/settings", settings_get)
@@ -663,7 +662,6 @@ def build_router(ctx: AppContext) -> Router:
         except ValueError as exc:
             raise ApiError(400, str(exc))
         ctx.bus.publish("guides", {"imported": True})
-        ctx.live.phenomena.apply_settings()
         ctx.bus.publish("settings", {})
         ctx.bus.publish("favourites", {})
         return res
@@ -673,7 +671,6 @@ def build_router(ctx: AppContext) -> Router:
     # complete backups (.zip with images), preview and restore
     def _after_restore():
         ctx.timers.load()                      # imported timers are live immediately (same TimerService)
-        ctx.live.phenomena.apply_settings()
         for topic in ("guides", "cguides", "documents", "timers", "favourites"):
             ctx.bus.publish(topic, {"imported": True})
         ctx.bus.publish("settings", {})
@@ -1007,15 +1004,6 @@ def make_handler(ctx: AppContext, router: Router, gate: RequestGate | None = Non
                     return self._json(401, {"error": "Missing or invalid session token"})
                 if path == "/api/events/stream" and method == "GET":
                     return self._sse()
-                if method == "GET" and (image := re.fullmatch(r"/api/live/phenomena/([0-9]{17,20})/image", path)):
-                    report = ctx.live.phenomena.report(image[1])
-                    if report and report["image_url"]:
-                        try:
-                            mime, data = fetch_image(report["image_url"])
-                        except (OSError, ValueError, http.client.HTTPException):
-                            return self._send(502, b"Location screenshot unavailable", "text/plain")
-                        return self._send(200, data, mime, {"Cache-Control": "private, max-age=300"})
-                    return self._send(404, b"No location screenshot", "text/plain")
                 return self._api(method, path, query)
             if method != "GET":
                 return self._send(405, b"Method not allowed", "text/plain")

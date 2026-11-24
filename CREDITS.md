@@ -33,8 +33,8 @@ PokeMMO Companion: Python standard library, Qt / PySide6 (QtWebEngine) for the n
 preparation only), `cryptography` (optional, signature checks).
 
 ## Community information
-* Alpha/Swarm reports: Alphapedia ntfy topics (opt-in).
-* Phenomenon reports and screenshot links: Alphapedia, through the optional owner-operated Companion Live relay.
+* Alpha and Swarm reports use the opt-in ntfy topics from [Alphapedia](https://alpha.pokemmotools.org/). [Alphapedia Discord](https://discord.gg/Qeuc9k4yMw)
+* Unova Phenomenon reference examples draw on the [Alphapedia Pheno List](https://alpha.pokemmotools.org/pheno-list), [MightyBoxer’s Phenomenon Locations Guide](https://forums.pokemmo.com/index.php?/topic/77087-phenomenon-locations-guide/) and the owner’s verified callouts. Current callouts and location pictures are in [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) under `#phenomenon-callouts`.
 * Swarm duration estimate and roaming cycle: PokeMMO community wiki (pokemmo.shoutwiki.com).
 
 ## Distribution note

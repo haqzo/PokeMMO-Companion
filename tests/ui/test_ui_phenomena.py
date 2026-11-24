@@ -1,5 +1,4 @@
-"""Phenomenon UI backed by reconstructed fixtures and synthetic screenshot pixels."""
-import base64
+"""The offline reference replaces live Phenomenon UI without deleting saved reports."""
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -8,72 +7,65 @@ from tests.ui.test_ui_flows import app, browser, data_dir, go, page  # noqa: F40
 from test_phenomena import LOCAL, fixture_at, read, snapshot
 
 pytestmark = pytest.mark.ui
-PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jKlEAAAAASUVORK5CYII=")
+WEBSITE = "https://alpha.pokemmotools.org/"
+COMPANION_DISCORD = "https://discord.gg/5Wbh28M3gu"
+ALPHAPEDIA_DISCORD = "https://discord.gg/Qeuc9k4yMw"
 
 
-def test_phenomena_on_home_live_and_popouts(app, page, monkeypatch):
+def test_phenomena_reference_on_home_live_and_popouts(app, page):
     now = datetime.now(timezone.utc)
-    grass = fixture_at(0, now - timedelta(minutes=5))
-    shadow = {**fixture_at(1, now - timedelta(hours=2)), "image_url": None}
-    app.ctx.live.phenomena.poll(LOCAL, 0, fetch=read(snapshot(now, grass, shadow)))
-    monkeypatch.setattr("companion.server.fetch_image", lambda url: ("image/png", PNG))
-
+    old = {**fixture_at(0, now - timedelta(hours=2)), "location": "Obsolete cached report"}
+    app.ctx.live.phenomena.poll(LOCAL, 0, fetch=read(snapshot(now, old)))
+    relay_requests = []
+    page.on("request", lambda req: relay_requests.append(req.url) if "/api/live/phenomena" in req.url else None)
     go(page, app, "#/home")
     home = page.locator(".home-phenomena")
-    home.get_by_text("Grass at Village Bridge").wait_for()
-    assert "Bottom Left" in home.inner_text() and "None required" in home.inner_text()
-    assert "Activity unverified" in home.inner_text()
-    assert home.get_by_text("Shadow at Route 1").count() == 0
-    home.get_by_role("button", name="Enlarge location screenshot").click()
-    dialog = page.get_by_role("dialog", name="Grass at Village Bridge")
-    dialog.get_by_role("checkbox", name="Original size").check()
-    img = dialog.locator("img")
-    img.wait_for()
-    page.wait_for_function("document.querySelector('[role=dialog] img')?.naturalWidth === 1")
-    dialog.get_by_role("button", name="Close").click()
-    home.get_by_role("button", name="Reports", exact=True).click()
-
-    page.get_by_text("Grass at Village Bridge").wait_for()
-    page.get_by_role("combobox", name="Report period").select_option("history")
-    page.get_by_text("Shadow at Route 1").wait_for()
-    page.get_by_role("combobox", name="Phenomenon region").select_option("unknown")
-    assert page.locator(".phenomenon-card").count() == 1
-    assert "Surf" in page.locator(".phenomenon-card").inner_text()
-    page.get_by_role("searchbox", name="Search Phenomena").fill("no match")
-    page.get_by_text("No saved reports match.").wait_for()
-    page.get_by_role("searchbox", name="Search Phenomena").fill("")
+    assert home.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
+    assert home.get_by_role("link", name="PokeMMO Companion Discord").get_attribute("href") == COMPANION_DISCORD
+    assert "#phenomenon-callouts" in home.inner_text()
+    home.get_by_role("button", name="Encounter reference").click()
+    page.get_by_role("heading", name="Unova Phenomena").wait_for()
+    assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
+    assert page.get_by_role("link", name="PokeMMO Companion Discord").get_attribute("href") == COMPANION_DISCORD
+    assert page.locator(".phenomenon-card").count() == 4
+    text = page.locator(".main").inner_text()
+    for value in ("Emolga", "Village Bridge", "Alomomola", "Excadrill", "Surf", "#phenomenon-callouts"):
+        assert value in text
+    assert "Obsolete cached report" not in text
+    assert page.locator(".main img").count() == 0
+    assert page.get_by_role("button", name="Enlarge location screenshot").count() == 0
+    assert not relay_requests
 
     with page.expect_popup() as pending:
         page.get_by_role("button", name="Pop out", exact=True).click()
     popout = pending.value
     try:
-        popout.get_by_text("Grass at Village Bridge").wait_for()
+        popout.get_by_role("heading", name="Unova Phenomena").wait_for()
         popout.locator('button[title="Compact view"]').click()
-        popout.get_by_text("Grass at Village Bridge").wait_for()
-        assert popout.locator(".phenomenon-card").count() == 1
+        popout.get_by_text("Excadrill in Victory Road.").wait_for()
+        assert popout.locator(".phenomenon-card img").count() == 0
         popout.locator('button[title="Expanded view"]').click()
-        popout.get_by_role("combobox", name="Report period").select_option("history")
-        popout.get_by_text("Shadow at Route 1").wait_for()
+        popout.get_by_role("link", name="Alphapedia Pheno List").wait_for()
     finally:
         popout.close()
+    assert not page.errors
 
 
-def test_phenomena_settings_keep_endpoint_in_advanced(app, page):
+def test_verified_provider_links_and_no_relay_setup(app, page):
+    go(page, app, "#/live/reports")
+    assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
+    assert page.get_by_role("link", name="Alphapedia Discord").get_attribute("href") == ALPHAPEDIA_DISCORD
+    go(page, app, "#/tools/links")
+    assert WEBSITE in page.get_by_role("group", name="Alphapedia", exact=True).get_by_role("button").first.get_attribute("title")
+    assert ALPHAPEDIA_DISCORD in page.get_by_role("group", name="Alphapedia Discord").get_by_role("button").first.get_attribute("title")
     go(page, app, "#/settings/sources")
-    toggle = page.get_by_role("checkbox", name="Enable Phenomenon reports")
-    assert not toggle.is_checked()
-    assert page.get_by_label("Phenomenon relay override").count() == 0
-    toggle.check()
-    page.get_by_text("The Phenomenon service has not been configured yet.").wait_for()
+    page.get_by_text("Alpha/Swarm report feed", exact=True).wait_for()
+    assert page.get_by_role("checkbox", name="Enable Phenomenon reports").count() == 0
     page.get_by_role("button", name="Advanced", exact=True).click()
-    override = page.get_by_label("Phenomenon relay override")
-    override.wait_for()
-    assert override.input_value() == ""
-    assert app.ctx.settings.get("live.phenomena.enabled") is True
+    page.get_by_role("heading", name="Advanced", exact=True).wait_for()
+    assert page.get_by_label("Phenomenon relay override").count() == 0
     page.get_by_role("button", name="About & credits", exact=True).click()
     page.get_by_role("heading", name="About the Developer").wait_for()
     assert page.get_by_role("link", name="GitHub", exact=True).get_attribute("href") == "https://github.com/haqzo"
-    assert page.get_by_text("co-developed with MaToRiuKo", exact=False).is_visible()
-    assert page.get_by_role("heading", name="Credits", exact=True).is_visible()
-    app.ctx.settings.update({"live.phenomena.enabled": None})
-    app.ctx.live.phenomena.apply_settings()
+    assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
+    assert page.get_by_role("link", name="Alphapedia Discord").get_attribute("href") == ALPHAPEDIA_DISCORD

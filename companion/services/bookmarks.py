@@ -11,6 +11,7 @@ import re
 import uuid
 from urllib.parse import urlsplit, urlunsplit
 
+from ..config import ALPHAPEDIA_DISCORD_URL, ALPHAPEDIA_URL
 from ..storage import Storage, utcnow
 
 ORIGINAL_DEFAULTS = [
@@ -33,8 +34,15 @@ PROJECT_DEFAULTS = [
     {"seed_key": "haqzo-better-items", "title": "Better Items", "url": "https://forums.pokemmo.com/index.php?/topic/201627/",
      "category": "Projects by Haqzo", "description": "A PokeMMO mod that updates the look of item icons."},
 ]
-DEFAULTS = ORIGINAL_DEFAULTS + PROJECT_DEFAULTS
-SEED_BATCHES = (("bookmarks_seeded", ORIGINAL_DEFAULTS), ("bookmarks_projects_seeded", PROJECT_DEFAULTS))
+ALPHAPEDIA_DEFAULTS = [
+    {"seed_key": "alphapedia", "title": "Alphapedia", "url": ALPHAPEDIA_URL, "category": "Community",
+     "description": "Alpha and Swarm reports and a Unova Phenomenon reference."},
+    {"seed_key": "alphapedia-discord", "title": "Alphapedia Discord", "url": ALPHAPEDIA_DISCORD_URL, "category": "Community",
+     "description": "The official Discord for the Alphapedia community tool."},
+]
+DEFAULTS = ORIGINAL_DEFAULTS + PROJECT_DEFAULTS + ALPHAPEDIA_DEFAULTS
+SEED_BATCHES = (("bookmarks_seeded", ORIGINAL_DEFAULTS), ("bookmarks_projects_seeded", PROJECT_DEFAULTS),
+                ("bookmarks_alphapedia_seeded", ALPHAPEDIA_DEFAULTS))
 MAX_URL = 2048
 
 

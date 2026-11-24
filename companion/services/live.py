@@ -25,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from .. import __version__
-from ..config import BUNDLED_DATA_DIR
+from ..config import ALPHAPEDIA_URL, BUNDLED_DATA_DIR
 from ..events import EventBus
 from ..settings import Settings
 from ..storage import Storage, utcnow
@@ -194,7 +194,7 @@ class LiveService:
         source_url = None
         for a in (msg.get("actions") or []):
             url = a.get("url") if isinstance(a, dict) else None
-            if isinstance(url, str) and url.startswith("https://alpha.pokemmotools.org/"):
+            if isinstance(url, str) and url.startswith(ALPHAPEDIA_URL):
                 source_url = url[:300]
                 break
         raw_hash = hashlib.sha256(json.dumps(msg, sort_keys=True, default=str).encode()).hexdigest()[:16]
@@ -367,7 +367,7 @@ class LiveService:
     def prune(self) -> int:
         days = int(self.settings.get("notify.retention_days") or 30)
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-        return self.db.execute("DELETE FROM reports WHERE received_at < ?", (cutoff,))
+        return self.db.execute("DELETE FROM reports WHERE kind<>'phenomena' AND received_at < ?", (cutoff,))
 
     # ------------------------------------------------------------ delivery
     def deliver(self, report: dict) -> dict:
@@ -429,7 +429,6 @@ class LiveService:
 
     # ------------------------------------------------------------ ntfy loop
     def apply_settings(self) -> None:
-        self.phenomena.apply_settings()
         enabled = bool(self.settings.get("live.ntfy.enabled")) and bool(self.settings.get("live.ntfy.consented"))
         running = self._thread is not None and self._thread.is_alive()
         if enabled and not running:
@@ -560,7 +559,7 @@ class LiveService:
                  "url": "https://forums.pokemmo.com/index.php?/topic/201356-changelog-30102026/"},
             ],
             "community": [{"label": "Community Altering Cave tracker (not integrated — feed/permission unverified)",
-                           "url": "https://alpha.pokemmotools.org/altering-cave"},
+                           "url": ALPHAPEDIA_URL + "altering-cave"},
                           {"label": "Altering Cave data thread (official forum, community posts)",
                            "url": "https://forums.pokemmo.com/index.php?/topic/199670-altering-cave-data/"}],
             "observations": obs,

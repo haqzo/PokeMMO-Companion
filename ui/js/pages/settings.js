@@ -1,7 +1,6 @@
 // Settings (docs/design/16) + data import + first-run onboarding.
 import { CONTEXTS } from '../sprites.js';
 import { appearanceSec, layoutSec, homeSec } from './settings-theme.js';
-import { phenomenonSourceLine } from './phenomena.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
@@ -169,7 +168,6 @@ async function notifications(b) {
     notice('info', 'Every received report is saved to Live › history whatever you choose here. Toasts are the Companion’s own small window; OS notifications go through your desktop’s notification centre (its Do-Not-Disturb rules apply).'),
     row('Alpha reports', null, seg(routes, s['notify.alpha'], set('notify.alpha'))),
     row('Swarm reports', null, seg(routes, s['notify.swarm'], set('notify.swarm'))),
-    row('Phenomenon reports', 'New reports after the initial connection.', seg(routes, s['notify.phenomena'], set('notify.phenomena'))),
     row('Other reports', 'Messages without an Alpha/Swarm keyword.', seg(routes, s['notify.other'], set('notify.other'))),
     row('TEST notifications', 'For the “Send TEST notification” button in Live.', seg(routes, s['notify.test'], set('notify.test'))),
     row('Timers', 'When one of your Tools › Timers finishes. Do not disturb silences these too (the timer still completes).', seg(routes, s['notify.timer'], set('notify.timer'))),
@@ -186,20 +184,7 @@ async function notifications(b) {
 
 // -------------------------------------------------------------- sources
 async function sources(b) {
-  const [src, n, phenomena] = await Promise.all([get('/api/live/source'), get('/api/news'), get('/api/live/phenomena/source')]);
-  const feed = h('div', { class: 'stack tight' });
-  const drawPhenomena = (source) => mount(feed,
-    switchEl(source.enabled, async (enabled) => {
-      await set('live.phenomena.enabled')(enabled);
-      refreshPhenomena();
-    }, 'Enable Phenomenon reports'), phenomenonSourceLine(source));
-  const refreshPhenomena = async () => {
-    if (!b.isConnected) return;
-    const source = await get('/api/live/phenomena/source').catch(() => null);
-    if (source && b.isConnected) drawPhenomena(source);
-  };
-  drawPhenomena(phenomena);
-  if (b.isConnected) unsub.push(on('live.phenomena', refreshPhenomena));
+  const [src, n] = await Promise.all([get('/api/live/source'), get('/api/news')]);
   b.append(h('h2', { style: { marginTop: 0 } }, 'Live sources & news'),
     row('Alpha/Swarm report feed', 'Read-only subscription to the public Alphapedia ntfy topics (alphapings, swarmpings). Off until you connect it in Live.',
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? cap(src.status) : 'Off',
@@ -210,7 +195,6 @@ async function sources(b) {
     row('Feed server and topic', 'Advanced. HTTPS only.', h('div', { class: 'row wrap' },
       h('input', { class: 'input', style: { width: '260px' }, value: state.settings['live.ntfy.server'], onchange: (e) => set('live.ntfy.server')(e.target.value.trim()) }),
       h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: 'Comma-separated topics', onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
-    row('Phenomenon reports', 'Get recent community reports and location screenshots from Alphapedia.', feed),
     row('Swarm duration estimate', 'Used only for the “≈ time left” estimate on swarm reports. Community reports disagree (≈15, 20 or 30 min); this is not an official despawn time. Alphas use 75 min from the official changelog.',
       h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 5, max: 120, value: state.settings['live.swarm_estimate_minutes'], style: { width: '80px' },
         'aria-label': 'Swarm duration estimate in minutes', onchange: (e) => set('live.swarm_estimate_minutes')(Math.max(5, Math.min(120, Number(e.target.value) || 20))) }), h('span', { class: 'small' }, 'minutes'))),
@@ -308,18 +292,6 @@ export async function data(b) {
     h('div', { class: 'tiny muted' }, 'Reads “KANTO COMPLETE WALKTHROUGH.odt” etc. Re-importing keeps your checkmarks (stable step IDs) and flags any step whose wording changed.'),
     jobBox,
     await spriteLibrarySection(browse),
-    h('h3', null, 'Phenomenon relay'),
-    row('Phenomenon relay override', 'For local testing or a custom relay. Leave blank to use the service configured with Companion.',
-      h('input', { class: 'input', type: 'url', 'aria-label': 'Phenomenon relay override', maxlength: 500,
-        placeholder: 'http://127.0.0.1:8767/v1/phenomena', value: setting('live.phenomena.endpoint'),
-        onchange: async (e) => {
-          const input = e.target;
-          try {
-            await saveSettings({ 'live.phenomena.endpoint': input.value.trim(),
-              'live.phenomena.enabled': setting('live.phenomena.enabled') ?? Boolean(setting('live.phenomena.endpoint')) });
-            toast('Saved', { timeout: 1200 });
-          } catch (err) { toast(err.message, { kind: 'warn' }); }
-        } })),
     h('h3', null, 'Storage'),
     h('div', { class: 'small' }, 'Data folder: ', h('span', { class: 'mono' }, boot.data_dir)),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Clear report history', 'Delete all saved Alpha/Swarm reports and TEST entries?', 'Clear', true)) { await post('/api/live/clear', {}); toast('Report history cleared'); } } }, 'Clear report history')),
@@ -597,7 +569,8 @@ async function about(b) {
       h('li', null, 'Item icons and reference data: from the PokeMMO client.'),
       h('li', null, 'Regional walkthroughs: by their original author, included with permission.'),
       h('li', null, 'Theme palettes: Catppuccin (MIT) and enkia’s Tokyo Night (MIT).'),
-      h('li', null, 'Alpha/Swarm reports: Alphapedia (read-only, opt-in).')),
+      h('li', null, 'Alpha and Swarm reports and Phenomenon reference examples · ', extLink(boot.alphapedia.website, 'Alphapedia'),
+        ' · ', extLink(boot.alphapedia.discord, 'Alphapedia Discord'))),
     h('h3', null, 'Diagnostics'),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'For troubleshooting: versions, window system and a log with private details removed (session tokens, your home folder and user name). Nothing is sent anywhere — you decide whether to share the file.'),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => {

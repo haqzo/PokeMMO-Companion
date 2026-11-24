@@ -13,8 +13,15 @@ REPO_DIR = PACKAGE_DIR.parent
 UI_DIR = REPO_DIR / "ui"
 BUNDLED_DATA_DIR = PACKAGE_DIR / "data"
 
-# Set to the owner-approved public HTTPS feed at release preparation.
-PHENOMENA_RELAY_URL = ""
+PHENOMENA_RELAY_URL = ""  # Reserved for internal relay testing.
+
+ALPHAPEDIA_URL = "https://alpha.pokemmotools.org/"
+ALPHAPEDIA_DISCORD_URL = "https://discord.gg/Qeuc9k4yMw"
+ALPHAPEDIA_PHENOMENA_URL = ALPHAPEDIA_URL + "pheno-list"
+
+
+def alphapedia_links() -> dict:
+    return {"website": ALPHAPEDIA_URL, "discord": ALPHAPEDIA_DISCORD_URL, "phenomena": ALPHAPEDIA_PHENOMENA_URL}
 
 
 def default_data_dir() -> Path:

@@ -253,7 +253,7 @@ def test_endpoint_validation_and_blocked_poll_shutdown(ctx, monkeypatch):
     assert not service._thread.is_alive() and not failures
 
 
-def test_central_endpoint_opt_in_and_legacy_override(ctx, client, monkeypatch):
+def test_internal_endpoint_opt_in_and_legacy_override(ctx, client, monkeypatch):
     source_path = "/api/live/phenomena/source"
     default = "https://relay.example/v1/phenomena"
     service = ctx.live.phenomena
@@ -266,6 +266,7 @@ def test_central_endpoint_opt_in_and_legacy_override(ctx, client, monkeypatch):
     monkeypatch.setattr(service, "poll", poll)
     assert client.call("GET", source_path)[1]["status"] == "disabled"
     assert client.call("PATCH", "/api/settings", {"live.phenomena.enabled": True})[0] == 200
+    service.apply_settings()
     assert client.call("GET", source_path)[1]["status"] == "unconfigured"
     assert service._thread is None
 
@@ -277,17 +278,37 @@ def test_central_endpoint_opt_in_and_legacy_override(ctx, client, monkeypatch):
 
     monkeypatch.setattr(phenomena.config, "PHENOMENA_RELAY_URL", default)
     client.call("PATCH", "/api/settings", {"live.phenomena.enabled": False})
+    service.apply_settings()
     assert service._thread is None
     assert client.call("GET", source_path)[1] == {
         "enabled": False, "configured": True, "status": "disabled", "last_success_at": None,
     }
     client.call("PATCH", "/api/settings", {"live.phenomena.enabled": True})
+    service.apply_settings()
     assert polled.wait(2) and service.poll_result == default
 
     polled.clear()
     client.call("PATCH", "/api/settings", {"live.phenomena.endpoint": LOCAL, "live.phenomena.enabled": None})
+    service.apply_settings()
     assert polled.wait(2) and service.poll_result == LOCAL
     client.call("PATCH", "/api/settings", {"live.phenomena.enabled": False})
+    service.apply_settings()
     assert client.call("GET", source_path)[1]["status"] == "disabled"
     assert ctx.settings.get("live.phenomena.endpoint") == LOCAL
     assert client.call("PATCH", "/api/settings", {"live.phenomena.enabled": "true"})[0] == 400
+
+
+def test_stored_phenomenon_settings_do_not_start_relay_or_remove_history(ctx, client):
+    now = datetime.now(timezone.utc) - timedelta(days=60)
+    service = ctx.live.phenomena
+    report = fixture_at(0, now)
+    service.poll(LOCAL, 0, fetch=read(snapshot(now, report)))
+    ctx.storage.execute("UPDATE reports SET received_at=? WHERE provider='discord-relay'", (now.isoformat(),))
+    saved = {"live.phenomena.enabled": True, "live.phenomena.endpoint": LOCAL, "notify.phenomena": "both"}
+    assert client.call("PATCH", "/api/settings", saved)[0] == 200
+    ctx.live.apply_settings()
+    ctx.live.prune()
+    assert service._thread is None
+    assert all(ctx.settings.get(key) == value for key, value in saved.items())
+    assert service.report(report["message_id"])["reported_at"] == phenomena.timestamp(report["reported_at"])
+    assert client.call("GET", f'/api/live/phenomena/{report["message_id"]}/image')[0] == 404

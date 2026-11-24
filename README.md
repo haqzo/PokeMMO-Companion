@@ -116,9 +116,11 @@ pin and saved positions are unavailable.
 
 Offline, everything except these checks and the optional Alpha/Swarm feed keeps working.
 
-## Closed alpha and Phenomenon relay
+## Closed alpha
 
-[Tester guide](docs/closed-alpha.md) · [Private relay setup](relay/README.md) · [Standalone build instructions](packaging/README.md)
+**Live → Phenomena** is an offline Unova encounter reference. Find current callouts and location pictures in `#phenomenon-callouts`. [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
+
+[Tester guide](docs/closed-alpha.md) · [Standalone build instructions](packaging/README.md)
 
 ## Backups
 *Settings › Backup & recovery*: complete backups (.zip with your pictures) of notes, collection, showcases, guides

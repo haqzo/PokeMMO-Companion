@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from companion.data import shortcuts as sc
-from companion.services.bookmarks import DEFAULTS, PROJECT_DEFAULTS, BookmarkError, BookmarkService, normalize_url
+from companion.services.bookmarks import ALPHAPEDIA_DEFAULTS, DEFAULTS, PROJECT_DEFAULTS, BookmarkError, BookmarkService, normalize_url
 from companion.storage import MIGRATIONS, SCHEMA_VERSION, Storage
 
 
@@ -13,7 +13,7 @@ def test_defaults_seeded_exactly_once_and_never_reinserted(client, ctx):
     _, r = client.call("GET", "/api/bookmarks")
     urls = {b["url"] for b in r["bookmarks"]}
     assert urls == {"https://forums.pokemmo.com/", "https://pokemmo.com/", "https://support.pokemmo.com/",
-                    "https://synergymmo.com/", "https://pokemmohub.com/"} | {d["url"] for d in PROJECT_DEFAULTS}
+                    "https://synergymmo.com/", "https://pokemmohub.com/"} | {d["url"] for d in PROJECT_DEFAULTS + ALPHAPEDIA_DEFAULTS}
     hub = [b for b in r["bookmarks"] if b["seed_key"] == "hub"][0]
     forums = [b for b in r["bookmarks"] if b["seed_key"] == "forums"][0]
     client.call("DELETE", f"/api/bookmarks/{hub['id']}")
@@ -50,6 +50,21 @@ def test_project_defaults_upgrade_respects_custom_bookmarks_and_deletions(ctx):
     assert BookmarkService(db).list(category="Projects by Haqzo")["bookmarks"] == []
     assert project["title"] not in service.restore_defaults()["restored"]
     assert service.get(custom["id"]) == custom
+
+
+def test_alphapedia_bookmarks_upgrade_respects_existing_links(ctx):
+    db = ctx.storage
+    db.execute("DELETE FROM bookmarks WHERE seed_key IN ('alphapedia','alphapedia-discord')")
+    db.execute("DELETE FROM meta WHERE key='bookmarks_alphapedia_seeded'")
+    custom = ctx.bookmarks.create({"title": "My Alpha site", "url": "https://alpha.pokemmotools.org/"})
+    service = BookmarkService(db)
+    links = service.list()["bookmarks"]
+    assert [link for link in links if link["url"] == custom["url"]] == [custom]
+    discord = next(link for link in links if link["seed_key"] == "alphapedia-discord")
+    assert discord["url"] == "https://discord.gg/Qeuc9k4yMw"
+    service.delete(discord["id"])
+    assert BookmarkService(db).seed() == 0
+    assert not any(link["id"] == discord["id"] for link in service.list()["bookmarks"])
 
 
 def test_custom_bookmark_crud_search_favourite_order(client):

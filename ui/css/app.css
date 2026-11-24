@@ -1358,12 +1358,7 @@ body { font-weight: var(--weight); }
 .cmp-table th.sortable:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .cmp-table { min-width: 480px; }
 
-/* Phenomenon screenshots keep their original proportions in every window. */
-.home-phenomena { border-top: 1px solid var(--border); padding-top: 10px; }
-.phenomenon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; align-items: start; }
+/* Phenomena reference uses the same cards on Home, in Live and in the popout. */
+.home-phenomena { border-top: 1px solid var(--border-subtle); padding-top: 10px; }
+.phenomenon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
 .phenomenon-card { min-width: 0; overflow-wrap: anywhere; }
-.phenomenon-image-button { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; text-align: left; }
-.phenomenon-preview img, .phenomenon-enlarged img { display: block; max-width: 100%; height: auto; }
-.phenomenon-preview img { max-height: 230px; width: auto; object-fit: contain; }
-.phenomenon-image-scroll { overflow: auto; max-height: 68vh; }
-.phenomenon-enlarged.original-size img { max-width: none; width: auto; }

@@ -88,11 +88,7 @@ export async function render(el, route) {
   page.append(body);
   if (sub === 'legendaries') return renderLegendaries(body);
   if (sub === 'cave') return renderCave(body);
-  if (sub === 'phenomena') {
-    const cleanup = await renderPhenomena(body, { selected: route.parts[1], subscribe: true });
-    if (page.isConnected) unsub.push(cleanup); else cleanup();
-    return;
-  }
+  if (sub === 'phenomena') return renderPhenomena(body);
   return renderReports(body, route.parts[1], await get('/api/live/source'));
 }
 
@@ -102,7 +98,9 @@ export function sourceBar(src, { compact = false } = {}) {
   return h('div', { class: 'source-bar' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }),
     h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, label),
       compact ? null : h('div', { class: 'small muted' }, src.enabled ? `${src.server}/${src.topic} · ${src.detail || ''}` : 'Opt-in. When on, the Companion only reads the public Alphapedia ntfy topic.',
-        src.last_success_at ? ` · last data ${relTime(src.last_success_at)}` : '')),
+        src.last_success_at ? ` · last data ${relTime(src.last_success_at)}` : ''),
+      compact ? null : h('div', { class: 'row wrap small' }, extLink(state.boot.alphapedia.website, 'Alphapedia'),
+        extLink(state.boot.alphapedia.discord, 'Alphapedia Discord'))),
     compact ? null : (src.enabled ? h('button', { class: 'btn', onclick: async () => { await saveSettings({ 'live.ntfy.enabled': false }); toast('Report feed turned off'); go('#/live/reports'); } }, 'Turn off')
       : h('button', { class: 'btn primary', onclick: consentDialog }, 'Connect report feed…')));
 }
@@ -115,7 +113,7 @@ async function consentDialog() {
       h('li', null, 'Reports are community observations, shown as “Reported …”, never as guaranteed active.'),
       h('li', null, 'The exact Alphapedia message format has not been validated yet; reports show the provider’s own text and any Alpha/Swarm or species labels are detected from that text.'),
       h('li', null, 'Old messages replayed after (re)connecting go to history without notifications.')),
-    h('div', { class: 'small' }, extLink('https://forums.pokemmo.com/index.php?/topic/197731-alphapedia-real-time-alphaswarm-pok%C3%A9mon-notifications-and-history-for-pc-mobile/', 'Alphapedia forum topic'), ' · ',
+    h('div', { class: 'small' }, extLink(state.boot.alphapedia.website, 'Alphapedia'), ' · ',
       extLink('https://docs.ntfy.sh/subscribe/api/', 'ntfy subscribe API'))),
   actions: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Connect (read-only)', value: true, kind: 'primary' }] });
   if (ok) { await saveSettings({ 'live.ntfy.consented': true, 'live.ntfy.enabled': true }); toast('Connecting to the report feed…'); go('#/live/reports'); }
