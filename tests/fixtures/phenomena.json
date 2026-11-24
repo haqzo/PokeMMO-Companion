@@ -1,0 +1,31 @@
+{
+  "provenance": "Reconstructed from the two Discord reports summarized by the owner on 2026-11-24. The embed envelope and field layout are reconstructed. Image paths are fictional placeholders for the deliberately undisclosed URLs, and the fixture is never requested from Imgur. This is not a live capture.",
+  "messages": [
+    {
+      "id": "1574893888588615792",
+      "channel_id": "1574857618701422602",
+      "author": {"id": "1499786261118845050", "bot": true},
+      "timestamp": "2026-11-24T21:06:03.153000+00:00",
+      "edited_timestamp": null,
+      "embeds": [{
+        "title": "Grass Pheno at Village Bridge",
+        "description": "Possibly found here: Emolga",
+        "fields": [{"name": "Notes", "value": "(Bottom Left)"}, {"name": "HMs Required", "value": "None required"}],
+        "image": {"url": "https://i.imgur.com/RebuiltGrass.png", "width": 1280, "height": 962}
+      }]
+    },
+    {
+      "id": "1574886721814921351",
+      "channel_id": "1574857618701422602",
+      "author": {"id": "1499786261118845050", "bot": true},
+      "timestamp": "2026-11-24T20:37:34.461000+00:00",
+      "edited_timestamp": null,
+      "embeds": [{
+        "title": "Shadow Pheno at Route 1",
+        "description": "No Pheno exclusives here",
+        "fields": [{"name": "Notes", "value": "(Middle Left)"}, {"name": "HMs Required", "value": "Surf"}],
+        "image": {"url": "https://i.imgur.com/RebuiltShadow.jpg", "width": 1377, "height": 577}
+      }]
+    }
+  ]
+}

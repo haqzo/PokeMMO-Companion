@@ -98,7 +98,7 @@ class Phenomena:
         except HTTPError as exc:
             exc.close()
             source, reports = None, ()
-        except (OSError, ValueError, http.client.HTTPException):
+        except (OSError, ValueError, RecursionError, http.client.HTTPException):
             source, reports = None, ()
         now = datetime.now(timezone.utc)
         now_iso = timestamp(now.isoformat())
@@ -170,7 +170,8 @@ class Phenomena:
         rows = self.db.query("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' "
                              "ORDER BY source_time DESC, message_id DESC LIMIT 300")
         reports = [{**json.loads(row["phenomenon"]), "caught_up": bool(row["is_replay"])} for row in rows]
-        recent = [r for r in reports if cutoff(now, RECENT_MINUTES) <= r["reported_at"] <= timestamp(now.isoformat())]
+        earliest, latest = cutoff(now, RECENT_MINUTES), timestamp(now.isoformat())
+        recent = [r for r in reports if earliest <= r["reported_at"] <= latest]
         if home:
             return {"source": source, "recent": recent[:2], "recent_minutes": RECENT_MINUTES}
         selected = self.report(mid) if mid else None

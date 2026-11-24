@@ -34,6 +34,7 @@ preparation only), `cryptography` (optional, signature checks).
 
 ## Community information
 * Alpha/Swarm reports: Alphapedia ntfy topics (opt-in).
+* Phenomenon reports and screenshot links: Alphapedia, through the optional owner-operated Companion Live relay.
 * Swarm duration estimate and roaming cycle: PokeMMO community wiki (pokemmo.shoutwiki.com).
 
 ## Distribution note

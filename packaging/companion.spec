@@ -6,10 +6,11 @@ from pathlib import Path
 root = Path(SPECPATH).resolve().parent
 # Explicit asset paths and formats. No whole-tree copy of data, settings, relay code or tooling.
 asset_patterns = (
-    r"ui/(?:index\.html|css/[a-z-]+\.css|img/[a-z-]+\.svg|js/(?:pages/)?[a-z-]+\.js)",
-    r"companion/data/[a-z_]+\.json",
-    r"companion/data/item-icons/[0-9]+\.png",
-    r"companion/data/sprites/(?:static(?:-shiny)?|ani(?:-shiny)?)/[A-Za-z0-9_-]+\.(?:png|gif)",
+    r"ui/(?:index\.html|css/[a-z-]+\.css|img/[a-z-]+\.svg|js/(?:pages/)?[a-z0-9-]+\.js)",
+    r"companion/data/(?:catalog_reference_synergy|form_art|forms|legendaries|legendary_mythical|news_snapshot|"
+    r"pokemmo_availability|species_index|themes)\.json",
+    r"companion/data/item-icons/(?:[0-9]+\.png|manifest\.json)",
+    r"companion/data/sprites/(?:(?:static(?:-shiny)?|ani(?:-shiny)?)/[A-Za-z0-9_-]+\.(?:png|gif)|index\.json)",
     r"companion/data/maps/(?:[a-z0-9-]+\.svg|geometry\.json|game/[a-z0-9-]+\.png)",
     r"companion/data/reference/(?:manifest\.json|(?:extras|items|species)\.json\.gz)",
     r"companion/data/walkthroughs/(?:kanto|johto|hoenn|sinnoh|unova)\.json",

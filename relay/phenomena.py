@@ -47,7 +47,7 @@ def normalize(message, guild_id=None):
             region = region.lower()
         elif location.casefold() == "village bridge":
             region = "unova"
-        return validate_report({
+        report = validate_report({
             "message_id": message.get("id"), "reported_at": message.get("timestamp"),
             "edited_at": message.get("edited_timestamp"), "type": kind, "location": location,
             "region": region if region in REGIONS else None, "description": description,
@@ -56,6 +56,8 @@ def normalize(message, guild_id=None):
             "image_url": image.get("url"), "image_width": image.get("width"),
             "image_height": image.get("height"), "guild_id": guild_id,
         })
+        if report:
+            return report
     return None
 
 
@@ -94,9 +96,12 @@ class Relay:
                       "User-Agent": "DiscordBot (https://github.com/haqzo/PokeMMO-Companion, 1.0)"})
         try:
             with self.fetch(req, timeout=10) as response:
-                payload = read_json(response)
                 delay = max(POLL_SECONDS, seconds(response.headers.get("X-RateLimit-Reset-After"))
                             if response.headers.get("X-RateLimit-Remaining") == "0" else 0)
+                try:
+                    payload = read_json(response)
+                except (ValueError, RecursionError):
+                    return self._failed("invalid_response", delay)
             if not isinstance(payload, list) or any(not isinstance(m, dict) for m in payload):
                 return self._failed("invalid_response", delay)
         except HTTPError as exc:
@@ -107,7 +112,7 @@ class Relay:
                         body = read_json(exc)
                         if isinstance(body, dict):
                             delay = max(delay, seconds(body.get("retry_after")))
-                    except (ValueError, OSError, http.client.HTTPException):
+                    except (ValueError, RecursionError, OSError, http.client.HTTPException):
                         pass
                     return self._failed("rate_limited", delay)
                 if exc.code in (401, 403, 404):

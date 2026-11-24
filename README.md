@@ -116,6 +116,10 @@ pin and saved positions are unavailable.
 
 Offline, everything except these checks and the optional Alpha/Swarm feed keeps working.
 
+## Closed alpha and Phenomenon relay
+
+[Tester guide](docs/closed-alpha.md) · [Private relay setup](relay/README.md) · [Standalone build instructions](packaging/README.md)
+
 ## Backups
 *Settings › Backup & recovery*: complete backups (.zip with your pictures) of notes, collection, showcases, guides
 with cycles and history, character runs and storyline progress, teams, timers, presets, map marks, settings and
