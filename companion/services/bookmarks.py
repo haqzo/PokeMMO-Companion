@@ -13,7 +13,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from ..storage import Storage, utcnow
 
-DEFAULTS = [  # seeded exactly once per data folder; editable and deletable
+ORIGINAL_DEFAULTS = [
     {"seed_key": "forums", "title": "PokeMMO Forums", "url": "https://forums.pokemmo.com/", "category": "Official",
      "description": "Official forums: announcements, changelogs, guides and community threads."},
     {"seed_key": "official", "title": "PokeMMO", "url": "https://pokemmo.com/", "category": "Official",
@@ -25,6 +25,16 @@ DEFAULTS = [  # seeded exactly once per data folder; editable and deletable
     {"seed_key": "hub", "title": "PokeMMO Hub", "url": "https://pokemmohub.com/", "category": "Community",
      "description": "Community tools website (external link only — the Companion uses no Hub data or API)."},
 ]
+PROJECT_DEFAULTS = [
+    {"seed_key": "haqzo-rom-patch-manager", "title": "ROM Patch Manager", "url": "https://haqzo.github.io/Rom-Patch-Manager/",
+     "category": "Projects by Haqzo", "description": "Manage and apply patches to your own ROM files."},
+    {"seed_key": "haqzo-better-default", "title": "Better Default", "url": "https://forums.pokemmo.com/index.php?/topic/201443/",
+     "category": "Projects by Haqzo", "description": "A refreshed take on PokeMMO’s default theme."},
+    {"seed_key": "haqzo-better-items", "title": "Better Items", "url": "https://forums.pokemmo.com/index.php?/topic/201627/",
+     "category": "Projects by Haqzo", "description": "A PokeMMO mod that updates the look of item icons."},
+]
+DEFAULTS = ORIGINAL_DEFAULTS + PROJECT_DEFAULTS
+SEED_BATCHES = (("bookmarks_seeded", ORIGINAL_DEFAULTS), ("bookmarks_projects_seeded", PROJECT_DEFAULTS))
 MAX_URL = 2048
 
 
@@ -87,16 +97,26 @@ class BookmarkService:
         self.seed()
 
     def seed(self) -> int:
-        if self.db.query_one("SELECT value FROM meta WHERE key='bookmarks_seeded'"):
-            return 0
+        """Add each batch once and respect matching custom entries and soft-deleted rows."""
         now = utcnow()
+        added = 0
         with self.db.tx() as c:
-            for i, d in enumerate(DEFAULTS):
-                c.execute("INSERT INTO bookmarks(id, title, url, description, category, favourite, position, seed_key, created_at, updated_at) "
-                          "VALUES(?,?,?,?,?,?,?,?,?,?)", (uuid.uuid4().hex[:12], d["title"], d["url"], d["description"], d["category"],
-                                                       0, i, d["seed_key"], now, now))
-            c.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('bookmarks_seeded', ?)", (now,))
-        return len(DEFAULTS)
+            rows = c.execute("SELECT seed_key, url FROM bookmarks").fetchall()
+            keys = {r[0] for r in rows}
+            urls = {r[1].rstrip("/") for r in rows}
+            pos = c.execute("SELECT COALESCE(MAX(position) + 1, 0) FROM bookmarks").fetchone()[0]
+            for marker, batch in SEED_BATCHES:
+                if c.execute("SELECT 1 FROM meta WHERE key=?", (marker,)).fetchone():
+                    continue
+                for d in batch:
+                    if d["seed_key"] in keys or d["url"].rstrip("/") in urls:
+                        continue
+                    c.execute("INSERT INTO bookmarks(id, title, url, description, category, favourite, position, seed_key, created_at, updated_at) "
+                              "VALUES(?,?,?,?,?,0,?,?,?,?)", (uuid.uuid4().hex[:12], d["title"], d["url"], d["description"],
+                                                           d["category"], pos + added, d["seed_key"], now, now))
+                    added += 1
+                c.execute("INSERT INTO meta(key, value) VALUES(?, ?)", (marker, now))
+        return added
 
     def list(self, q: str = "", category: str = "", fav: bool = False, include_deleted: bool = False) -> dict:
         rows = self.db.query("SELECT * FROM bookmarks" + ("" if include_deleted else " WHERE deleted_at IS NULL") +
@@ -110,7 +130,7 @@ class BookmarkService:
         if fav:
             out = [b for b in out if b["favourite"]]
         cats = sorted({r["category"] for r in rows if not r["deleted_at"]}, key=str.lower)
-        missing = [d for d in DEFAULTS if not any(r["seed_key"] == d["seed_key"] and not r["deleted_at"] for r in rows)]
+        missing = [d for d in DEFAULTS if not any(self._matches_default(r, d) and not r["deleted_at"] for r in rows)]
         return {"bookmarks": out, "categories": cats, "defaults_missing": [d["title"] for d in missing]}
 
     def get(self, bid: str) -> dict:
@@ -172,20 +192,27 @@ class BookmarkService:
                 c.execute("UPDATE bookmarks SET position=? WHERE id=?", (pos, str(bid)))
         return self.list()
 
+    @staticmethod
+    def _matches_default(row, default):
+        return row["seed_key"] == default["seed_key"] or row["url"].rstrip("/") == default["url"].rstrip("/")
+
     def restore_defaults(self) -> dict:
-        """Explicit user action only: re-add default links that are missing (never overwrites edited ones)."""
-        rows = self.db.query("SELECT seed_key, deleted_at, id FROM bookmarks")
+        """Explicit user action only. Restore missing defaults without duplicating a custom entry."""
         added = []
         now = utcnow()
-        for d in DEFAULTS:
-            live = [r for r in rows if r["seed_key"] == d["seed_key"] and not r["deleted_at"]]
-            if live:
-                continue
-            gone = [r for r in rows if r["seed_key"] == d["seed_key"]]
-            if gone:
-                self.db.execute("UPDATE bookmarks SET deleted_at=NULL, updated_at=? WHERE id=?", (now, gone[0]["id"]))
-            else:
-                self.db.execute("INSERT INTO bookmarks(id, title, url, description, category, favourite, position, seed_key, created_at, updated_at) "
-                                "VALUES(?,?,?,?,?,0,999,?,?,?)", (uuid.uuid4().hex[:12], d["title"], d["url"], d["description"], d["category"], d["seed_key"], now, now))
-            added.append(d["title"])
+        with self.db.tx() as c:
+            rows = c.execute("SELECT seed_key, url, deleted_at, id FROM bookmarks").fetchall()
+            for d in DEFAULTS:
+                if any(self._matches_default(r, d) and not r["deleted_at"] for r in rows):
+                    continue
+                gone = next((r for r in rows if r["seed_key"] == d["seed_key"]), None)
+                if gone:
+                    if any(not r["deleted_at"] and r["url"] == gone["url"] for r in rows):
+                        continue
+                    c.execute("UPDATE bookmarks SET deleted_at=NULL, updated_at=? WHERE id=?", (now, gone["id"]))
+                else:
+                    c.execute("INSERT INTO bookmarks(id, title, url, description, category, favourite, position, seed_key, created_at, updated_at) "
+                              "VALUES(?,?,?,?,?,0,999,?,?,?)", (uuid.uuid4().hex[:12], d["title"], d["url"], d["description"],
+                                                              d["category"], d["seed_key"], now, now))
+                added.append(d["title"])
         return {"restored": added, **self.list()}

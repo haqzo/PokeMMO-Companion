@@ -52,6 +52,7 @@ DEFAULTS: dict[str, Any] = {
     "guides.active_run": None,
     "guides.extras_open": True,              # storyline: "Timers & team for this region" panel expanded
     # Live / notifications
+    "live.phenomena.enabled": None,  # Legacy profiles used a non-empty override as opt-in.
     "live.phenomena.endpoint": "",
     "notify.phenomena": "off",
     "live.ntfy.enabled": False,              # opt-in only
@@ -238,6 +239,8 @@ def validate(key: str, value: Any) -> Any:
         return value
     if key == "items.filters" and not isinstance(value, dict):
         raise SettingsError("items.filters must be an object")
+    if key == "live.phenomena.enabled" and value is not None and type(value) is not bool:
+        raise SettingsError("Phenomenon online source must be true, false or null")
     if key == "live.phenomena.endpoint":
         from .phenomenon_protocol import endpoint_url
         try:

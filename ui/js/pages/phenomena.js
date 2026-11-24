@@ -3,7 +3,8 @@ import { go } from '../shell.js';
 
 const PROVIDER = 'https://forums.pokemmo.com/index.php?/topic/197731-alphapedia-real-time-alphaswarm-pok%C3%A9mon-notifications-and-history-for-pc-mobile/';
 const labels = {
-  disabled: 'Configure an approved relay in Settings → Live.',
+  disabled: 'Phenomenon feed is off.',
+  unconfigured: 'The Phenomenon service has not been configured yet.',
   starting: 'Waiting for the first relay refresh.',
   connected: 'Phenomenon feed connected.',
   offline: 'Phenomenon feed offline.',
@@ -14,10 +15,10 @@ const labels = {
 };
 const titleFor = (r) => [r.type, r.location].filter(Boolean).join(' at ') || 'Phenomenon report';
 
-function sourceLine(source) {
+export function phenomenonSourceLine(source, withLink = false) {
   return h('div', { class: 'small muted' }, labels[source.status] || labels.offline,
     source.last_success_at ? ' Last Discord refresh ' + fmtDate(source.last_success_at, true) + '.' : '',
-    source.status === 'disabled' ? [' ', h('a', { href: '#/settings/sources' }, 'Live settings')] : null);
+    withLink && source.status === 'disabled' ? [' ', h('a', { href: '#/settings/sources' }, 'Live settings')] : null);
 }
 
 function screenshot(r, enlarged = false) {
@@ -56,7 +57,7 @@ export function homePhenomena(el, data) {
   const reports = data.recent.slice(0, 2);
   mount(el, h('div', { class: 'row wrap' }, h('strong', null, 'Phenomena'), h('span', { class: 'grow' }),
     h('button', { class: 'btn ghost small', onclick: () => go('#/live/phenomena') }, 'Reports')),
-    sourceLine(data.source),
+    phenomenonSourceLine(data.source, true),
     h('div', { class: 'tiny muted' }, reports.length
       ? `Reported in the past ${data.recent_minutes} minutes. Activity unverified.`
       : `No Phenomenon reports in the past ${data.recent_minutes} minutes.`),
@@ -116,7 +117,7 @@ export async function renderPhenomena(el, { variant = 'workspace', selected = ''
   const refresh = async () => {
     data = await get('/api/live/phenomena' + (selected ? '?id=' + encodeURIComponent(selected) : ''));
     if (!box.isConnected) return;
-    mount(status, sourceLine(data.source),
+    mount(status, phenomenonSourceLine(data.source, true),
       h('div', { class: 'tiny muted' }, `Recent covers the past ${data.recent_minutes} minutes. Report age cannot verify activity.`));
     mount(selectedBox, selected ? (data.selected ? card(data.selected) : h('div', { class: 'small muted' }, 'This report is unavailable.')) : null);
     if (view) {

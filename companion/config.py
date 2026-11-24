@@ -13,6 +13,9 @@ REPO_DIR = PACKAGE_DIR.parent
 UI_DIR = REPO_DIR / "ui"
 BUNDLED_DATA_DIR = PACKAGE_DIR / "data"
 
+# Set to the owner-approved public HTTPS feed at release preparation.
+PHENOMENA_RELAY_URL = ""
+
 
 def default_data_dir() -> Path:
     """Per-user data directory (XDG on Linux, %APPDATA% on Windows)."""

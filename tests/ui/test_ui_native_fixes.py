@@ -155,6 +155,6 @@ def test_live_region_filter_and_disabled_phenomena_feed(app, page):  # noqa: F81
     assert rows.count() == 1 and "Feebas" in rows.first.inner_text()
     assert page.locator(".cur-card", has_text="Phenomen").count() == 0
     page.get_by_role("tab", name="Phenomena").click()
-    page.get_by_text("Configure an approved relay", exact=False).wait_for()
+    page.get_by_text("Phenomenon feed is off.").wait_for()
     assert page.locator(".phenomenon-card").count() == 0
     assert not page.errors

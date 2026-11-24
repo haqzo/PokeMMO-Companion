@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from companion.data import shortcuts as sc
-from companion.services.bookmarks import DEFAULTS, BookmarkError, normalize_url
+from companion.services.bookmarks import DEFAULTS, PROJECT_DEFAULTS, BookmarkError, BookmarkService, normalize_url
 from companion.storage import MIGRATIONS, SCHEMA_VERSION, Storage
 
 
@@ -12,21 +12,44 @@ from companion.storage import MIGRATIONS, SCHEMA_VERSION, Storage
 def test_defaults_seeded_exactly_once_and_never_reinserted(client, ctx):
     _, r = client.call("GET", "/api/bookmarks")
     urls = {b["url"] for b in r["bookmarks"]}
-    assert urls == {"https://forums.pokemmo.com/", "https://pokemmo.com/", "https://support.pokemmo.com/", "https://synergymmo.com/", "https://pokemmohub.com/"}
+    assert urls == {"https://forums.pokemmo.com/", "https://pokemmo.com/", "https://support.pokemmo.com/",
+                    "https://synergymmo.com/", "https://pokemmohub.com/"} | {d["url"] for d in PROJECT_DEFAULTS}
     hub = [b for b in r["bookmarks"] if b["seed_key"] == "hub"][0]
     forums = [b for b in r["bookmarks"] if b["seed_key"] == "forums"][0]
     client.call("DELETE", f"/api/bookmarks/{hub['id']}")
     client.call("PATCH", f"/api/bookmarks/{forums['id']}", {"url": "https://forums.pokemmo.com/index.php?/forum/1/", "title": "My forum"})
     # simulate an app restart / update: seeding runs again
-    from companion.services.bookmarks import BookmarkService
     assert BookmarkService(ctx.storage).seed() == 0
     _, r = client.call("GET", "/api/bookmarks")
     assert not any(b["seed_key"] == "hub" for b in r["bookmarks"])
     assert [b for b in r["bookmarks"] if b["seed_key"] == "forums"][0]["title"] == "My forum"
     assert r["defaults_missing"] == ["PokeMMO Hub"]
     _, r = client.call("POST", "/api/bookmarks/restore-defaults")
-    assert r["restored"] == ["PokeMMO Hub"] and len(r["bookmarks"]) == 5
+    assert r["restored"] == ["PokeMMO Hub"] and len(r["bookmarks"]) == len(DEFAULTS)
     assert [b for b in r["bookmarks"] if b["seed_key"] == "forums"][0]["title"] == "My forum"  # edits kept
+
+
+def test_project_defaults_upgrade_respects_custom_bookmarks_and_deletions(ctx):
+    db = ctx.storage
+    db.execute("DELETE FROM bookmarks WHERE seed_key LIKE 'haqzo-%'")
+    db.execute("DELETE FROM meta WHERE key='bookmarks_projects_seeded'")
+    project, deleted, missing = PROJECT_DEFAULTS
+    custom = ctx.bookmarks.create({"title": "My patch tool", "url": project["url"].rstrip("/"),
+                                   "category": "My tools", "favourite": True})
+    tombstone = ctx.bookmarks.create({"title": "Old theme link", "url": deleted["url"]})
+    ctx.bookmarks.delete(tombstone["id"])
+
+    service = BookmarkService(db)
+    assert service.get(custom["id"]) == custom
+    assert service.get(tombstone["id"])["deleted_at"]
+    assert service.list(category="Projects by Haqzo")["bookmarks"][0]["url"] == missing["url"]
+    assert len(service.list(include_deleted=True)["bookmarks"]) == len(DEFAULTS)
+    assert service.seed() == 0
+
+    service.delete(service.list(category="Projects by Haqzo")["bookmarks"][0]["id"])
+    assert BookmarkService(db).list(category="Projects by Haqzo")["bookmarks"] == []
+    assert project["title"] not in service.restore_defaults()["restored"]
+    assert service.get(custom["id"]) == custom
 
 
 def test_custom_bookmark_crud_search_favourite_order(client):
@@ -85,7 +108,6 @@ def test_v3_database_migrates_and_seeds(tmp_path):
     assert s.migrated_from == 3 and f"pre-migration-v3-to-v{SCHEMA_VERSION}" in s.backup_created
     assert s.query_one("SELECT kind, phenomenon FROM reports WHERE id='alpha'") == {"kind": "alpha", "phenomenon": None}
     assert s.query_one("SELECT title FROM lib_notes WHERE id='n1'")["title"] == "keep"
-    from companion.services.bookmarks import BookmarkService
     svc = BookmarkService(s)  # seeds on first use
     assert len(svc.list()["bookmarks"]) == len(DEFAULTS) and svc.seed() == 0 and BookmarkService(s).seed() == 0
     s.close()

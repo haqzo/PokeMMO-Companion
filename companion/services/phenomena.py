@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
 from urllib.request import Request
 
+from .. import config
 from ..phenomenon_protocol import (
     IMAGE_HOST, MAX_REPORTS, endpoint_url, image_url, merge_report, opener, read_json, timestamp, validate_report,
 )
@@ -59,18 +60,39 @@ class Phenomena:
         self._source = {"status": "disabled", "last_success_at": None}
         self._baseline = None
 
-    def apply_settings(self):
+    def _preferences(self):
+        settings = self.live.settings.all()
         try:
-            endpoint = endpoint_url(self.live.settings.get("live.phenomena.endpoint"))
+            override = endpoint_url(settings["live.phenomena.endpoint"])
         except ValueError:  # A settings backup may predate validation.
-            endpoint = ""
+            override = ""
+        try:
+            default = endpoint_url(config.PHENOMENA_RELAY_URL)
+        except ValueError:
+            default = ""
+        if not default.startswith("https://"):
+            default = ""
+        enabled = settings["live.phenomena.enabled"]
+        return (bool(override) if enabled is None else enabled is True), override or default
+
+    def source_status(self):
         with self._lock:
-            if self._stop.is_set() or endpoint == self._endpoint:
+            enabled, endpoint = self._preferences()
+            return {**self._source, "enabled": enabled, "configured": bool(endpoint)}
+
+    def apply_settings(self):
+        with self._lock:
+            enabled, configured_endpoint = self._preferences()
+            endpoint = configured_endpoint if enabled else ""
+            status = "starting" if endpoint else "unconfigured" if enabled else "disabled"
+            if self._stop.is_set():
+                return
+            if endpoint == self._endpoint and (endpoint or self._source["status"] == status):
                 return
             self._endpoint = endpoint
             self._generation += 1
             self._baseline = None
-            self._source = {"status": "starting" if endpoint else "disabled", "last_success_at": None}
+            self._source = {"status": status, "last_success_at": None}
             if endpoint and self._thread is None:
                 self._thread = threading.Thread(target=self._run, name="phenomena", daemon=True)
                 self._thread.start()
@@ -165,8 +187,7 @@ class Phenomena:
 
     def history(self, mid=None, now=None, *, home=False):
         now = now or datetime.now(timezone.utc)
-        with self._lock:
-            source = dict(self._source)
+        source = self.source_status()
         rows = self.db.query("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' "
                              "ORDER BY source_time DESC, message_id DESC LIMIT 300")
         reports = [{**json.loads(row["phenomenon"]), "caught_up": bool(row["is_replay"])} for row in rows]

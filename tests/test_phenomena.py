@@ -3,6 +3,7 @@ import io
 import json
 import socket
 import threading
+from unittest.mock import Mock
 from datetime import datetime, timedelta, timezone
 from email.message import Message
 from pathlib import Path
@@ -82,11 +83,33 @@ def test_image_proxy_checks_dns_before_connecting(monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: [
         (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("127.0.0.1", 443)),
         (socket.AF_INET6, socket.SOCK_STREAM, 0, "", ("fd00::1", 443, 0, 0)),
+        (socket.AF_INET6, socket.SOCK_STREAM, 0, "", ("fec0::1", 443, 0, 0)),
+        (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("169.254.1.1", 443)),
+        (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("240.0.0.1", 443)),
         (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("224.0.0.1", 443)),
     ])
     monkeypatch.setattr(socket, "socket", lambda *args: pytest.fail("attempted connection to a disallowed address"))
     with pytest.raises(OSError, match="unavailable"):
         phenomena.fetch_image("https://i.imgur.com/Test.png")
+
+
+def test_image_proxy_connects_to_public_ipv4_and_verifies_hostname(monkeypatch):
+    address = ("8.8.8.8", 443)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: [
+        (socket.AF_INET, socket.SOCK_STREAM, 0, "", address),
+    ])
+    raw = Mock()
+    connection = Mock()
+    connection.__enter__ = Mock(return_value=raw)
+    connection.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(socket, "socket", lambda *args: connection)
+    tls = Mock()
+    host = "i.imgur.com"
+    client = phenomena.PublicImageConnection(host, context=tls, timeout=3)
+    client.connect()
+    raw.connect.assert_called_once_with(address)
+    tls.wrap_socket.assert_called_once_with(raw, server_hostname=host)
+    assert client.sock is tls.wrap_socket.return_value
 
 
 def test_relay_edits_and_outages():
@@ -228,3 +251,43 @@ def test_endpoint_validation_and_blocked_poll_shutdown(ctx, monkeypatch):
         finish.set()
         service._thread.join(2)
     assert not service._thread.is_alive() and not failures
+
+
+def test_central_endpoint_opt_in_and_legacy_override(ctx, client, monkeypatch):
+    source_path = "/api/live/phenomena/source"
+    default = "https://relay.example/v1/phenomena"
+    service = ctx.live.phenomena
+    polled = threading.Event()
+
+    def poll(endpoint, generation):
+        service.poll_result = endpoint
+        polled.set()
+
+    monkeypatch.setattr(service, "poll", poll)
+    assert client.call("GET", source_path)[1]["status"] == "disabled"
+    assert client.call("PATCH", "/api/settings", {"live.phenomena.enabled": True})[0] == 200
+    assert client.call("GET", source_path)[1]["status"] == "unconfigured"
+    assert service._thread is None
+
+    # A maintainer-supplied default must be HTTPS, even though local overrides may use HTTP.
+    monkeypatch.setattr(phenomena.config, "PHENOMENA_RELAY_URL", LOCAL)
+    service.apply_settings()
+    assert client.call("GET", source_path)[1]["status"] == "unconfigured"
+    assert service._thread is None
+
+    monkeypatch.setattr(phenomena.config, "PHENOMENA_RELAY_URL", default)
+    client.call("PATCH", "/api/settings", {"live.phenomena.enabled": False})
+    assert service._thread is None
+    assert client.call("GET", source_path)[1] == {
+        "enabled": False, "configured": True, "status": "disabled", "last_success_at": None,
+    }
+    client.call("PATCH", "/api/settings", {"live.phenomena.enabled": True})
+    assert polled.wait(2) and service.poll_result == default
+
+    polled.clear()
+    client.call("PATCH", "/api/settings", {"live.phenomena.endpoint": LOCAL, "live.phenomena.enabled": None})
+    assert polled.wait(2) and service.poll_result == LOCAL
+    client.call("PATCH", "/api/settings", {"live.phenomena.enabled": False})
+    assert client.call("GET", source_path)[1]["status"] == "disabled"
+    assert ctx.settings.get("live.phenomena.endpoint") == LOCAL
+    assert client.call("PATCH", "/api/settings", {"live.phenomena.enabled": "true"})[0] == 400

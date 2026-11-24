@@ -56,3 +56,24 @@ def test_phenomena_on_home_live_and_popouts(app, page, monkeypatch):
         popout.get_by_text("Shadow at Route 1").wait_for()
     finally:
         popout.close()
+
+
+def test_phenomena_settings_keep_endpoint_in_advanced(app, page):
+    go(page, app, "#/settings/sources")
+    toggle = page.get_by_role("checkbox", name="Enable Phenomenon reports")
+    assert not toggle.is_checked()
+    assert page.get_by_label("Phenomenon relay override").count() == 0
+    toggle.check()
+    page.get_by_text("The Phenomenon service has not been configured yet.").wait_for()
+    page.get_by_role("button", name="Advanced", exact=True).click()
+    override = page.get_by_label("Phenomenon relay override")
+    override.wait_for()
+    assert override.input_value() == ""
+    assert app.ctx.settings.get("live.phenomena.enabled") is True
+    page.get_by_role("button", name="About & credits", exact=True).click()
+    page.get_by_role("heading", name="About the Developer").wait_for()
+    assert page.get_by_role("link", name="GitHub", exact=True).get_attribute("href") == "https://github.com/haqzo"
+    assert page.get_by_text("co-developed with MaToRiuKo", exact=False).is_visible()
+    assert page.get_by_role("heading", name="Credits", exact=True).is_visible()
+    app.ctx.settings.update({"live.phenomena.enabled": None})
+    app.ctx.live.phenomena.apply_settings()

@@ -1,6 +1,7 @@
 // Settings (docs/design/16) + data import + first-run onboarding.
 import { CONTEXTS } from '../sprites.js';
 import { appearanceSec, layoutSec, homeSec } from './settings-theme.js';
+import { phenomenonSourceLine } from './phenomena.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
@@ -185,8 +186,20 @@ async function notifications(b) {
 
 // -------------------------------------------------------------- sources
 async function sources(b) {
-  const src = await get('/api/live/source');
-  const n = await get('/api/news');
+  const [src, n, phenomena] = await Promise.all([get('/api/live/source'), get('/api/news'), get('/api/live/phenomena/source')]);
+  const feed = h('div', { class: 'stack tight' });
+  const drawPhenomena = (source) => mount(feed,
+    switchEl(source.enabled, async (enabled) => {
+      await set('live.phenomena.enabled')(enabled);
+      refreshPhenomena();
+    }, 'Enable Phenomenon reports'), phenomenonSourceLine(source));
+  const refreshPhenomena = async () => {
+    if (!b.isConnected) return;
+    const source = await get('/api/live/phenomena/source').catch(() => null);
+    if (source && b.isConnected) drawPhenomena(source);
+  };
+  drawPhenomena(phenomena);
+  if (b.isConnected) unsub.push(on('live.phenomena', refreshPhenomena));
   b.append(h('h2', { style: { marginTop: 0 } }, 'Live sources & news'),
     row('Alpha/Swarm report feed', 'Read-only subscription to the public Alphapedia ntfy topics (alphapings, swarmpings). Off until you connect it in Live.',
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? cap(src.status) : 'Off',
@@ -197,10 +210,7 @@ async function sources(b) {
     row('Feed server and topic', 'Advanced. HTTPS only.', h('div', { class: 'row wrap' },
       h('input', { class: 'input', style: { width: '260px' }, value: state.settings['live.ntfy.server'], onchange: (e) => set('live.ntfy.server')(e.target.value.trim()) }),
       h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: 'Comma-separated topics', onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
-    row('Phenomenon relay endpoint', 'Enter an approved relay URL ending in /v1/phenomena. Clear it to turn off the feed.',
-      h('input', { class: 'input', type: 'url', 'aria-label': 'Phenomenon relay endpoint', maxlength: 500,
-        placeholder: 'http://127.0.0.1:8767/v1/phenomena', value: state.settings['live.phenomena.endpoint'],
-        onchange: (e) => set('live.phenomena.endpoint')(e.target.value.trim()) })),
+    row('Phenomenon reports', 'Get recent community reports and location screenshots from Alphapedia.', feed),
     row('Swarm duration estimate', 'Used only for the “≈ time left” estimate on swarm reports. Community reports disagree (≈15, 20 or 30 min); this is not an official despawn time. Alphas use 75 min from the official changelog.',
       h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 5, max: 120, value: state.settings['live.swarm_estimate_minutes'], style: { width: '80px' },
         'aria-label': 'Swarm duration estimate in minutes', onchange: (e) => set('live.swarm_estimate_minutes')(Math.max(5, Math.min(120, Number(e.target.value) || 20))) }), h('span', { class: 'small' }, 'minutes'))),
@@ -298,6 +308,18 @@ export async function data(b) {
     h('div', { class: 'tiny muted' }, 'Reads “KANTO COMPLETE WALKTHROUGH.odt” etc. Re-importing keeps your checkmarks (stable step IDs) and flags any step whose wording changed.'),
     jobBox,
     await spriteLibrarySection(browse),
+    h('h3', null, 'Phenomenon relay'),
+    row('Phenomenon relay override', 'For local testing or a custom relay. Leave blank to use the service configured with Companion.',
+      h('input', { class: 'input', type: 'url', 'aria-label': 'Phenomenon relay override', maxlength: 500,
+        placeholder: 'http://127.0.0.1:8767/v1/phenomena', value: setting('live.phenomena.endpoint'),
+        onchange: async (e) => {
+          const input = e.target;
+          try {
+            await saveSettings({ 'live.phenomena.endpoint': input.value.trim(),
+              'live.phenomena.enabled': setting('live.phenomena.enabled') ?? Boolean(setting('live.phenomena.endpoint')) });
+            toast('Saved', { timeout: 1200 });
+          } catch (err) { toast(err.message, { kind: 'warn' }); }
+        } })),
     h('h3', null, 'Storage'),
     h('div', { class: 'small' }, 'Data folder: ', h('span', { class: 'mono' }, boot.data_dir)),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Clear report history', 'Delete all saved Alpha/Swarm reports and TEST entries?', 'Clear', true)) { await post('/api/live/clear', {}); toast('Report history cleared'); } } }, 'Clear report history')),
@@ -562,6 +584,13 @@ async function about(b) {
     discord ? h('div', null, h('h3', null, 'Community'),
       h('p', { class: 'small', style: { marginTop: 0 } }, 'Questions, beta testing, ideas and release news are on the PokeMMO Companion Discord. Joining is optional — Companion never needs a Discord account. ',
         extLink(discord, 'Join the community Discord'))) : null,
+    h('section', null, h('h3', null, 'About the Developer'),
+      h('div', { class: 'stack tight small' },
+        h('strong', null, 'Haqzo — Creator & Developer'),
+        h('div', null, 'PokeMMO player and community creator developing tools, themes and mods.'),
+        h('div', null, 'PokeMMO Companion, Better Default, Better Items, and ROM Patch Manager (co-developed with MaToRiuKo).'),
+        h('div', { class: 'row wrap' }, extLink('https://github.com/haqzo', 'GitHub'),
+          discord ? extLink(discord, 'Discord') : null))),
     h('h3', null, 'Credits'),
     h('ul', { class: 'small', style: { color: 'var(--text-secondary)', marginTop: 0 } },
       h('li', null, 'Pokémon sprites: Gen V Black/White sprites from the PokeAPI/sprites repository (CC0 repository; images © Nintendo / Creatures Inc. / GAME FREAK / The Pokémon Company).'),

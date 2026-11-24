@@ -134,16 +134,16 @@ export async function appearanceSec(b, { personal } = {}) {
     const t = current();
     t[section] = { ...t[section] };
     if (reset) delete t[section][key]; else t[section][key] = v;
-    commitTheme(t, id);
-    if (reset) redraw(); else refreshIssues();
+    const next = commitTheme(t, id);
+    if (reset) redraw(); else refreshIssues(resolve(next));
   };
-  const issueBox = h('div', { class: 'small' });
-  const refreshIssues = debounce(() => {
-    const list = contrastIssues(resolve(current()));
+  const issueBox = h('div', { class: 'small', role: 'status' });
+  const refreshIssues = (resolvedTheme) => {
+    const list = contrastIssues(resolvedTheme);
     mount(issueBox, list.length ? h('div', { class: 'notice warn small' }, h('strong', null, 'Readability: '),
       list.map((i) => `${i.label} ${i.ratio}:1 (aim for ${i.min}:1)`).join(' · ')) : h('span', { class: 'muted' }, 'All checked text colours meet the WCAG contrast targets.'));
-  }, 200);
-  refreshIssues();
+  };
+  refreshIssues(resolved);
   const p = cat.presets[theme.base].colors;
   const editor = h('div', { id: 'theme-editor', class: 'stack tight' },
     h('h3', null, 'Customize colours'),
