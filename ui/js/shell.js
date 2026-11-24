@@ -194,7 +194,7 @@ function renderRoute() {
 // --------------------------------------------------------------- popouts
 export const POPOUT_TOOLS = {
   storyline: { title: 'Storyline', w: 380, h: 460 }, pokedex: { title: 'Pokédex', w: 420, h: 560 },
-  reports: { title: 'Alpha & Swarm reports', w: 380, h: 480 }, typechart: { title: 'Type matchups', w: 420, h: 520 },
+  reports: { title: 'Alpha & Swarm reports', w: 380, h: 480 }, phenomena: { title: 'Phenomena', w: 420, h: 520 }, typechart: { title: 'Type matchups', w: 420, h: 520 },
   breeding: { title: 'Breeding', w: 460, h: 600 }, legendaries: { title: 'Legendaries', w: 360, h: 380 },
   cave: { title: 'Altering Cave', w: 360, h: 380 }, natures: { title: 'Natures', w: 380, h: 520 },
   notes: { title: 'Notes', w: 420, h: 520, i18n: 'notes.title' }, items: { title: 'Item Library', w: 460, h: 600, i18n: 'items.title' },
@@ -249,6 +249,7 @@ export const QA_TOOLS = {
 };
 const QA_PAGES = {
   pokedex: { label: 'Pokédex', icon: 'dex', route: '#/pokedex', popout: 'pokedex' },
+  phenomena: { label: 'Phenomena', icon: 'live', route: '#/live/phenomena', popout: 'phenomena' },
   reports: { label: 'Alpha & Swarm reports', icon: 'live', route: '#/live/reports', popout: 'reports' },
   legendaries: { label: 'Legendaries', icon: 'crown', route: '#/live/legendaries', popout: 'legendaries' },
   cave: { label: 'Altering Cave', icon: 'crystal', route: '#/live/cave', popout: 'cave' },

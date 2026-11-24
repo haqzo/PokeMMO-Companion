@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -129,6 +129,7 @@ MIGRATIONS: dict[int, list[str]] = {
                category TEXT NOT NULL DEFAULT 'General', favourite INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL DEFAULT 0,
                seed_key TEXT, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
     ],
+    5: ["ALTER TABLE reports ADD COLUMN phenomenon TEXT"],
 }
 
 

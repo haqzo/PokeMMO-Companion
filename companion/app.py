@@ -194,13 +194,13 @@ class AppContext:
             if svc is not None:
                 svc.stop()
         threads = [getattr(svc, "_thread", None) for svc in services if svc is not None]
-        threads += [getattr(self.news, "_auto_thread", None)] + list(getattr(self, "_oneoff", []))
+        threads += [self.live.phenomena._thread, getattr(self.news, "_auto_thread", None)] + list(getattr(self, "_oneoff", []))
         deadline = time.monotonic() + join_timeout
         for t in threads:
             if t is not None and t.is_alive() and t is not threading.current_thread():
                 t.join(max(0.0, deadline - time.monotonic()))
         still = [t.name for t in threads if t is not None and t.is_alive()]
         if still:
-            # e.g. the ntfy stream blocked in a network read: it checks its stop flag before touching the database
+            # e.g. a report worker blocked in a network read checks its stop flag before touching the database
             log.info("Shutdown: still finishing after %.0f s: %s", join_timeout, ", ".join(still))
         self.storage.close()

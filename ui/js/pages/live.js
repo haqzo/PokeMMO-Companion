@@ -3,6 +3,7 @@ import { animatedIn, motionGlobal } from '../sprites.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, relTime, fmtDate, cap, tabs, seg, toast, confirmDialog, modal,
   on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite, sourceInfo } from '../core.js';
 import { go, popoutButton } from '../shell.js';
+import { renderPhenomena } from './phenomena.js';
 
 let unsub = [];
 let ui = { kind: 'all', q: '', hideTests: false, calendar: false, region: '' };
@@ -68,15 +69,6 @@ export function currentCard(g, { compact = false, animate = false } = {}) {
     h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
     compact ? null : h('div', { class: 'tiny muted' }, `${g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider} · community report`, st.notes.length ? ' · ⚠ ' + st.notes[0] : '')));
 }
-/** Phenomena: Alphapedia publishes them through its Discord bot and personal webhooks only — there is no supported
- *  feed Companion can read (checked 2026-11-17 / 2026-11-24, docs/build/22). So nothing is shown as a live report;
- *  the optional community server, where the Alphapedia bot posts them, is linked when an invite is configured. */
-export function phenomenaNote() {
-  const url = state.boot && state.boot.community && state.boot.community.discord;
-  return h('p', { class: 'tiny muted phenomena-note', style: { margin: 0 } },
-    'Phenomena are not available here: Alphapedia shares them through its Discord bot, not through a feed Companion can read.',
-    url ? [' The Alphapedia bot posts them in the optional ', extLink(url, 'community Discord'), '.'] : '');
-}
 export function estimatesNote(est) {
   return h('p', { class: 'tiny muted', style: { margin: 0 } }, `Timers are estimates counted from when a Pokémon was reported (not when it spawned): Alpha ${est.alpha_minutes} min (official changelog), `,
     `Swarm ~${est.swarm_minutes} min (community estimate, not official — adjustable in Settings › Live). Nothing here confirms a Pokémon is still there.`);
@@ -85,19 +77,23 @@ const ROUTE_LABEL = { off: 'Off', toast: 'Companion toast', os: 'OS notification
 
 export async function render(el, route) {
   dispose();
-  const sub = ['reports', 'legendaries', 'cave'].includes(route.parts[0]) ? route.parts[0] : 'reports';
+  const sub = ['reports', 'phenomena', 'legendaries', 'cave'].includes(route.parts[0]) ? route.parts[0] : 'reports';
   const page = h('div', { class: 'page' });
   mount(el, page);
-  const src = await get('/api/live/source');
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Live'), h('div', { class: 'sub' }, 'Time-sensitive information — each item shows its source and age. Nothing here reads the game.')),
     h('div', { class: 'actions' }, popoutButton(sub))),
-  h('div', { class: 'row wrap', style: { marginBottom: '14px' } }, tabs([{ id: 'reports', label: 'Alpha & Swarm reports' }, { id: 'legendaries', label: 'Legendaries' }, { id: 'cave', label: 'Altering Cave' }],
+  h('div', { class: 'row wrap', style: { marginBottom: '14px' } }, tabs([{ id: 'reports', label: 'Alpha & Swarm reports' }, { id: 'phenomena', label: 'Phenomena' }, { id: 'legendaries', label: 'Legendaries' }, { id: 'cave', label: 'Altering Cave' }],
     sub, (t) => go('#/live/' + t), 'Live sections')));
   const body = h('div');
   page.append(body);
   if (sub === 'legendaries') return renderLegendaries(body);
   if (sub === 'cave') return renderCave(body);
-  return renderReports(body, route.parts[1], src);
+  if (sub === 'phenomena') {
+    const cleanup = await renderPhenomena(body, { selected: route.parts[1], subscribe: true });
+    if (page.isConnected) unsub.push(cleanup); else cleanup();
+    return;
+  }
+  return renderReports(body, route.parts[1], await get('/api/live/source'));
 }
 
 // ---------------------------------------------------------------- reports
@@ -168,7 +164,7 @@ async function renderReports(el, selectedId, src) {
       : !c.complete ? notice('warn', `The feed is ${c.source.status}${c.source.last_success_at ? ` (last data ${relTime(c.source.last_success_at)})` : ''} — recent reports may be missing. This does not mean none are active.`) : null;
     mount(curBox, c.current.length ? c.current.map((g) => currentCard(g)) :
       h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? 'No Alpha or Swarm reported recently. This does not mean none are active.' : 'Turn on the report feed to see community reports here.'));
-    mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates), phenomenaNote()));
+    mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
     if (stopTimers) stopTimers();
     stopTimers = startTimers(curBox, skew, () => loadCurrent());
   };

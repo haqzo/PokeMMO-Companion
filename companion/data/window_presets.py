@@ -7,6 +7,7 @@ remembered per tool and mode (settings key window.<tool>.sizes).
 PRESETS: dict[str, dict[str, tuple[int, int]]] = {
     "pokedex":     {"compact": (320, 440), "standard": (460, 600), "expanded": (700, 720)},
     "storyline":   {"compact": (340, 190), "standard": (380, 460), "expanded": (460, 640)},
+    "phenomena":   {"compact": (340, 380), "standard": (420, 520), "expanded": (660, 680)},
     "reports":     {"compact": (340, 230), "standard": (400, 480), "expanded": (560, 640)},
     "typechart":   {"compact": (360, 440), "standard": (600, 600), "expanded": (780, 740)},
     "breeding":    {"compact": (380, 440), "standard": (520, 660), "expanded": (920, 700)},

@@ -6,6 +6,7 @@ import { POPOUT_TOOLS, popoutSize } from './shell.js';
 import { renderDetail, dexCard, catalogFragment, applyFilters, loadList, currentFilters } from './pages/pokedex.js';
 import { renderTypeChart, renderNatures } from './pages/tools.js';
 import { render as renderBreeding } from './pages/breeding.js';
+import { renderPhenomena } from './pages/phenomena.js';
 import { sourceBar, reportRow, renderLegendaries, renderCave } from './pages/live.js';
 import { speciesIndex } from './components.js';
 import { t } from './i18n.js';
@@ -46,7 +47,7 @@ export function startPopout(el) {
     if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); } else drawBar();
   });
   const refresh = debounce(() => renderBody(), 120);
-  for (const t of ({ notes: ['notes'], items: ['items'], showcase: ['showcase', 'box'], customguide: ['cguides'], box: ['box'], storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async (d, ev) => {
+  for (const t of ({ notes: ['notes'], items: ['items'], showcase: ['showcase', 'box'], customguide: ['cguides'], box: ['box'], storyline: ['guides'], reports: ['live.report', 'live.source'], phenomena: ['live.phenomena'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async (d, ev) => {
     if (ev && ev.origin === WINDOW_ID && ['notes', 'items', 'showcase', 'customguide', 'box'].includes(POPOUT)) return;  // our own edit: don't redraw under the cursor
     if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
   window.addEventListener('hashchange', () => renderBody());
@@ -153,7 +154,7 @@ function openTextPopover(btn) {
 }
 function mainRoute() {
   const hash = location.hash.replace(/^#\/?/, '');
-  return { storyline: '#/guides?jump=1', pokedex: hash.startsWith('species/') ? '#/pokedex/' + hash.split('/')[1] : '#/pokedex', reports: '#/live/reports',
+  return { storyline: '#/guides?jump=1', pokedex: hash.startsWith('species/') ? '#/pokedex/' + hash.split('/')[1] : '#/pokedex', reports: '#/live/reports', phenomena: '#/live/phenomena',
     typechart: '#/tools/typechart', natures: '#/tools/natures', breeding: '#/tools/breeding', legendaries: '#/live/legendaries', cave: '#/live/cave',
     notes: '#/tools/notes' + (hash.startsWith('note/') ? '/' + hash.split('/')[1] : ''), items: '#/tools/items' + (hash.startsWith('item/') ? '/' + hash.split('/')[1] : ''),
     showcase: '#/collection/showcases', customguide: '#/guides/mine', locations: '#/tools/locations', box: '#/collection', calculator: '#/tools/calculator', timers: '#/tools/timers' }[POPOUT] || '#/home';
@@ -162,7 +163,7 @@ function mainRoute() {
 async function renderBody() {
   const keep = bodyEl.scrollTop;
   try {
-    const fn = { storyline, pokedex, reports, typechart, breeding, legendaries, cave, natures,
+    const fn = { storyline, pokedex, reports, phenomena: (el) => renderPhenomena(el, { variant: mode }), typechart, breeding, legendaries, cave, natures,
       notes: (el) => renderNotesPopout(el, mode), items: (el) => renderItemsPopout(el, mode), showcase: (el) => renderShowcasePopout(el, mode),
       customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode),
       calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })),

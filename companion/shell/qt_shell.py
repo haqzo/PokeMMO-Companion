@@ -37,7 +37,7 @@ log = logging.getLogger("companion.qt")
 
 TOOL_TITLES = {"storyline": "Storyline", "pokedex": "Pokédex", "reports": "Alpha & Swarm reports",
                "typechart": "Type matchups", "breeding": "Breeding", "legendaries": "Legendaries",
-               "cave": "Altering Cave", "natures": "Natures", "notes": "Notes", "items": "Item Library",
+               "phenomena": "Phenomena", "cave": "Altering Cave", "natures": "Natures", "notes": "Notes", "items": "Item Library",
                "showcase": "Showcase", "customguide": "My guide", "locations": "Locations", "timers": "Timers", "box": "My Box",
                "calculator": "Calculator"}
 

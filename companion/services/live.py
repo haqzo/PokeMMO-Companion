@@ -31,6 +31,7 @@ from ..settings import Settings
 from ..storage import Storage, utcnow
 from .dex import DexService
 from .notify import Notifier
+from .phenomena import Phenomena
 
 PARSER_VERSION = "alphapedia-ntfy-2"
 TOPIC_KIND = {"alphapings": "alpha", "swarmpings": "swarm"}
@@ -119,6 +120,7 @@ class LiveService:
         self.bus = bus
         self.dex = dex
         self.notifier = notifier
+        self.phenomena = Phenomena(self)
         self.toast_backend: Callable[[dict], bool] | None = None  # set by the Qt shell
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -335,7 +337,7 @@ class LiveService:
 
     def list(self, kind: str | None = None, q: str | None = None, include_tests: bool = True,
              limit: int = 300, region: str | None = None) -> list[dict]:
-        sql = "SELECT * FROM reports WHERE 1=1"
+        sql = "SELECT * FROM reports WHERE kind<>'phenomena'"
         args: list = []
         if region in REGION_NAMES:
             sql += " AND region=?"
@@ -358,7 +360,7 @@ class LiveService:
         return self.db.execute("UPDATE reports SET seen=1 WHERE seen=0")
 
     def clear(self, tests_only: bool = False) -> int:
-        n = self.db.execute("DELETE FROM reports" + (" WHERE is_test=1" if tests_only else ""))
+        n = self.db.execute("DELETE FROM reports WHERE kind<>'phenomena'" + (" AND is_test=1" if tests_only else ""))
         self.bus.publish("live.report", {"cleared": n})
         return n
 
@@ -372,12 +374,16 @@ class LiveService:
         kind = "test" if report["is_test"] else report["kind"]
         route = self.settings.get(f"notify.{kind}") or "off"
         quiet = bool(self.settings.get("notify.quiet"))
+        result = self.dispatch_notification(route, quiet, self.toast_payload(report))
+        self.db.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(result), report["id"]))
+        return result
+
+    def dispatch_notification(self, route: str, quiet: bool, payload: dict) -> dict:
         result: dict = {"route": route, "quiet": quiet, "at": utcnow()}
-        if quiet and not report["is_test"]:
+        if quiet and not payload["is_test"]:
             result["suppressed"] = "Do not disturb is on — saved to history only"
         else:
             if route in ("toast", "both"):
-                payload = self.toast_payload(report)
                 if self.toast_backend:
                     try:
                         result["toast"] = {"delivered": bool(self.toast_backend(payload)), "backend": "qt-window"}
@@ -388,13 +394,11 @@ class LiveService:
                     result["toast"] = {"delivered": self.bus.subscriber_count > 0, "backend": "in-window",
                                        "note": "Shown inside open Companion windows (browser mode)"}
             if route in ("os", "both"):
-                p = self.toast_payload(report)
-                result["os"] = self.notifier.notify(p["title"], p["line"])
-        self.db.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(result), report["id"]))
+                result["os"] = self.notifier.notify(payload["title"], payload["line"])
         return result
 
     def toast_payload(self, report: dict) -> dict:
-        label = {"alpha": "Alpha report", "swarm": "Swarm report", "test": "TEST notification"}.get(
+        label = {"alpha": "Alpha report", "swarm": "Swarm report", "phenomena": "Phenomenon report", "test": "TEST notification"}.get(
             "test" if report["is_test"] else report["kind"], "Community report")
         where = ", ".join(x for x in ((report.get("region") or "").capitalize(), report.get("location") or "") if x)
         title = f"{label}: {report['title'] or report['species_name'] or 'Details in Live'}"
@@ -425,6 +429,7 @@ class LiveService:
 
     # ------------------------------------------------------------ ntfy loop
     def apply_settings(self) -> None:
+        self.phenomena.apply_settings()
         enabled = bool(self.settings.get("live.ntfy.enabled")) and bool(self.settings.get("live.ntfy.consented"))
         running = self._thread is not None and self._thread.is_alive()
         if enabled and not running:
@@ -437,6 +442,7 @@ class LiveService:
 
     def stop(self) -> None:
         self._stop.set()
+        self.phenomena.stop()
 
     def _last_message_id(self) -> str | None:
         r = self.db.query_one("SELECT message_id FROM reports WHERE provider='ntfy' AND is_test=0 "

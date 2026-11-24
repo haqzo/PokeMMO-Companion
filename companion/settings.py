@@ -11,7 +11,7 @@ from typing import Any
 
 from .storage import Storage
 
-TOOLS = ("pokedex", "storyline", "reports", "typechart", "breeding", "legendaries", "cave", "natures",
+TOOLS = ("pokedex", "storyline", "reports", "phenomena", "typechart", "breeding", "legendaries", "cave", "natures",
          "notes", "items", "showcase", "customguide", "locations", "box", "calculator", "timers")
 LANGUAGES = ("en", "es", "zh")
 MODES = ("compact", "standard", "expanded")
@@ -52,6 +52,8 @@ DEFAULTS: dict[str, Any] = {
     "guides.active_run": None,
     "guides.extras_open": True,              # storyline: "Timers & team for this region" panel expanded
     # Live / notifications
+    "live.phenomena.endpoint": "",
+    "notify.phenomena": "off",
     "live.ntfy.enabled": False,              # opt-in only
     "live.swarm_estimate_minutes": 20,       # provisional swarm duration estimate (community reports disagree: ~15/20/30)
     "live.current_include_catchup": True,    # reports caught up after (re)connecting count in "Current" by their own time
@@ -135,7 +137,7 @@ _ENUMS = {
     "sprites.motion": ("system", "on", "off"),
     "game.on_exit": ("keep", "minimize", "quit"),
     "app.window_backend": ("auto", "wayland", "xwayland"),
-    "notify.alpha": ROUTES, "notify.swarm": ROUTES, "notify.other": ROUTES, "notify.timer": ROUTES, "notify.test": ROUTES,
+    "notify.phenomena": ROUTES, "notify.alpha": ROUTES, "notify.swarm": ROUTES, "notify.other": ROUTES, "notify.timer": ROUTES, "notify.test": ROUTES,
     "notify.toast_corner": ("top-left", "top-right", "bottom-left", "bottom-right"),
     "pokedex.scope": ("pokemmo", "reference"),
     "pokedex.density": ("compact", "standard", "large"),
@@ -236,6 +238,12 @@ def validate(key: str, value: Any) -> Any:
         return value
     if key == "items.filters" and not isinstance(value, dict):
         raise SettingsError("items.filters must be an object")
+    if key == "live.phenomena.endpoint":
+        from .phenomenon_protocol import endpoint_url
+        try:
+            return endpoint_url(value)
+        except ValueError as exc:
+            raise SettingsError(str(exc)) from exc
     if key == "live.current_include_catchup" and not isinstance(value, bool):
         raise SettingsError("live.current_include_catchup must be true or false")
     if key == "pokedex.animate" and value is not None and not isinstance(value, bool):

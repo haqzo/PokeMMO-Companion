@@ -37,7 +37,7 @@ def plain(value, limit=1000):
         return None
     # Discard messages' Discord user/role mentions and control characters.
     value = re.sub(r"<@(?:[!&])?[0-9]+>", "", value)
-    value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", value)
+    value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\ud800-\udfff]", "", value)
     return value.strip()[:limit] or None
 
 
