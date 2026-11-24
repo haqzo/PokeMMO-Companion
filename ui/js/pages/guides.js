@@ -75,7 +75,8 @@ export async function render(el, route) {
   const steps = st.steps;
   const done = new Set(st.done);
   const src = st.sources.find((s) => s.id === st.source);
-  const isImported = st.source === 'imported';
+  const isImported = st.source !== 'milestones';   // a full walkthrough (built-in or your own): every step counts
+  const ownFile = st.source === 'imported';         // view defaults unchanged: only your own files open chapter by chapter
   const counts = isImported ? st.counts.unclassified : st.counts.mandatory;
   const pct = counts.total ? Math.round(counts.done / counts.total * 100) : 0;
 
@@ -91,9 +92,11 @@ export async function render(el, route) {
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })),
       h('span', { class: 'small nowrap' }, isImported ? `${counts.done}/${counts.total} steps` : `${counts.done}/${counts.total} main-story milestones`)),
     h('div', { class: 'small muted' }, isImported
-      ? 'Your imported walkthrough: progress counts all steps because mandatory/optional is not classified. Steps are auto-tagged and not verified against the current game.'
+      ? (st.source === 'walkthrough'
+        ? 'Complete walkthrough by its original author, included with Companion. Progress counts every step. Steps are tagged automatically (battle, item, …).'
+        : 'Your own walkthrough file: progress counts every step. Steps are tagged automatically and not checked against the current game.')
       : `Progress counts main-story milestones only. Optional steps: ${st.counts.optional.done}/${st.counts.optional.total}. ${src.note}`),
-    !st.sources.some((s) => s.id === 'imported') ? h('div', { class: 'small' }, 'Have your own walkthrough files? ', h('a', { href: '#/settings/data' }, 'Import them privately'), ' — they are parsed on this computer and never uploaded.') : null);
+    null);
   page.append(header);
   const gx = guideExtras({ key: `story:${run.id}:${region}`, title: `${cap(region)} storyline · ${run.display}`, run: run.id,
     steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) });
@@ -112,7 +115,7 @@ export async function render(el, route) {
   const chapters = [];
   for (const s of steps) { const last = chapters[chapters.length - 1]; if (!last || last.key !== (s.chapter_index ?? s.chapter)) chapters.push({ key: s.chapter_index ?? s.chapter, name: s.chapter, steps: [s] }); else last.steps.push(s); }
   const curChapter = chapters.find((c) => c.steps.some((s) => s.id === st.active_step_id)) || chapters[0];
-  const showAll = ui.all[region + st.source] ?? !isImported;
+  const showAll = ui.all[region + st.source] ?? !ownFile;
   let selKey = ui.chapter[region + st.source] ?? curChapter.key;
   const stepsBox = h('div', { class: 'stack tight' });
   const searchIn = h('input', { class: 'input', type: 'search', placeholder: 'Search steps in this region', value: ui.search, oninput: debounce((e) => { ui.search = e.target.value; drawSteps(); }, 150) });
@@ -120,11 +123,11 @@ export async function render(el, route) {
   const drawChapters = () => mount(chapterList,
     h('button', { class: 'chapter-btn' + (showAll && ui.all[region + st.source] !== false ? ' active' : ''), onclick: () => { ui.all[region + st.source] = true; drawChapters(); drawSteps(); } }, 'All chapters', h('span', { class: 'pc' }, `${steps.filter((s) => done.has(s.id)).length}/${steps.length}`)),
     chapters.map((c) => { const d = c.steps.filter((s) => done.has(s.id)).length;
-      return h('button', { class: 'chapter-btn' + (!(ui.all[region + st.source] ?? !isImported) && c.key === selKey ? ' active' : '') + (d === c.steps.length ? ' complete' : ''), role: 'option',
+      return h('button', { class: 'chapter-btn' + (!(ui.all[region + st.source] ?? !ownFile) && c.key === selKey ? ' active' : '') + (d === c.steps.length ? ' complete' : ''), role: 'option',
         onclick: () => { ui.all[region + st.source] = false; selKey = c.key; ui.chapter[region + st.source] = c.key; drawChapters(); drawSteps(); } },
       c.steps.some((s) => s.id === st.active_step_id) ? icon('target') : null, h('span', { class: 'ellipsis' }, c.name), h('span', { class: 'pc' }, `${d}/${c.steps.length}`)); }));
   const drawSteps = () => {
-    const all = ui.all[region + st.source] ?? !isImported;
+    const all = ui.all[region + st.source] ?? !ownFile;
     let list = all ? steps : (chapters.find((c) => c.key === selKey) || curChapter).steps;
     const q = ui.search.trim().toLowerCase();
     if (q) list = steps.filter((s) => s.text.toLowerCase().includes(q) || s.chapter.toLowerCase().includes(q));

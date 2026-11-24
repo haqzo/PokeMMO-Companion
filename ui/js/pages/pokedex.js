@@ -368,8 +368,23 @@ export function catalogFragment(list, { sel, selForm, density, tracking, onOpen,
 
 /** Grid artwork: still (normal or shiny) by default; animated only while a card is on screen (IntersectionObserver),
  *  so a 649-card grid never decodes hundreds of animations at once. */
+// Animations start only once scrolling pauses (native performance fix 2026-11-24): tiles that fly past during a
+// fast scroll keep their light still image and never start decoding a GIF. Leaving tiles go back to stills at once.
+const pendingAni = new Set();
+let aniTimer = null;
 const gridArtObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver((entries) => {
-  for (const e of entries) setCardArt(e.target, e.isIntersecting);
+  for (const e of entries) {
+    const card = e.target;
+    card.__inView = e.isIntersecting;
+    if (!e.isIntersecting) { pendingAni.delete(card); setCardArt(card, false); continue; }
+    setCardArt(card, false);                       // the still now (cheap, cached)
+    pendingAni.add(card);
+  }
+  clearTimeout(aniTimer);
+  aniTimer = setTimeout(() => {
+    for (const c of pendingAni) if (c.__inView && c.isConnected) setCardArt(c, true);
+    pendingAni.clear();
+  }, 140);
 }, { rootMargin: '150px 0px' }) : null;
 function cardArt(s, density) {
   const shiny = !!setting('pokedex.shiny');

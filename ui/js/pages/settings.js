@@ -264,11 +264,12 @@ export async function data(b) {
   const guideSources = await Promise.all(['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => get('/api/guides/sources/' + r)));
   const importedGuides = guideSources.map((g, i) => [['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'][i], g.sources.find((s) => s.id === 'imported')]).filter(([, s]) => s);
   const ds = await get('/api/data/status');
-  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Data & privacy'),
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Advanced'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Everything Companion needs is built in. The options here are optional extras for people who want to use their own files.'),
     h('h3', null, 'PokeMMO data'),
     (() => { const rb = boot.dex.reference || {}; const rc = rb.counts || {};
-      return h('div', { class: 'card inset small stack tight bundled-data' }, h('div', null, badge('DUMP_ONLY', 'Built in'),
-        ` PokeMMO reference data, client data dated ${rb.dump_date ? fmtDate(rb.dump_date) : 'unknown'} · ${rc.species || 0} species · ${rc.location_rows || 0} encounter rows`),
+      return h('div', { class: 'card inset small stack tight bundled-data' }, h('div', null, h('strong', null, 'Built in'),
+        ` — PokeMMO reference data, client data dated ${rb.dump_date ? fmtDate(rb.dump_date) : 'unknown'} · ${rc.species || 0} species · ${rc.location_rows || 0} encounter rows`),
         h('div', { class: 'muted' }, 'Ships with the Companion and works offline. Nothing to install. ',
           m && m.source_kind !== 'bundled' && !m.error ? 'Your own client data (below) is currently used instead.' : '')); })(),
     h('details', { class: 'adv-data' }, h('summary', null, 'Optional, advanced: use your own PokeMMO client files (adds your client’s icons and sprites)'),
@@ -280,7 +281,7 @@ export async function data(b) {
       c.guides.length ? h('button', { class: 'btn small', onclick: () => runImport('guides', c.folder) }, 'Import walkthroughs') : null))) :
       h('div', { class: 'small muted', style: { marginBottom: '8px' } }, 'No PokeMMO client files found in the usual folders (Documents/PokeMMO-Companion, the PokeMMO Flatpak data folder, Downloads). Enter its folder below.'),
     ds.update_available ? notice('warn', 'Your client files changed since they were imported — re-import to refresh. Runs, checkmarks and settings are kept.') : null,
-    m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, badge('DUMP_ONLY', 'Imported'), ` ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
+    m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, h('strong', null, 'Your client files in use'), ` · imported ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
       h('div', { class: 'muted' }, Object.entries(m.sources).map(([k, v]) => `${k}: ${v.file}${v.sha256 ? ' (sha256 ' + v.sha256.slice(0, 12) + '…)' : ''}`).join(' · ')),
       (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not used — the built-in data is active.'),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, dumpPath), browse(dumpPath, 'dumps'), h('button', { class: 'btn primary', onclick: () => runImport('dumps', dumpPath.value) }, icon('download'), m ? 'Re-import' : 'Import')),
@@ -303,7 +304,7 @@ export async function data(b) {
 async function spriteLibrarySection(browse) {
   const st = await get('/api/sprites/library');
   const box = h('div', { class: 'stack tight' });
-  const path = h('input', { class: 'input', placeholder: '/home/you/Downloads/sprites-master  (folder or .zip)', 'aria-label': 'Sprite library folder', value: st.source || '' });
+  const path = h('input', { class: 'input', placeholder: '/home/you/Downloads/sprites-master  (folder or .zip)', 'aria-label': 'Sprite library folder', value: st.personal ? st.source || '' : '' });
   const msg = h('div', { class: 'small' });
   const c = st.coverage;
   const lf = st.local_forms || {};
@@ -316,28 +317,36 @@ async function spriteLibrarySection(browse) {
         const j = (await get('/api/sprites/library')).job;
         if (j.state === 'running') { setTimeout(poll, 500); return; }
         if (j.state === 'error') { mount(msg, notice('bad', j.error)); return; }
-        toast(`Sprite library installed: ${j.forms} forms, ${j.species} species${j.refused ? `, ${j.refused} files refused` : ''}`, { timeout: 7000 });
+        toast(`Your sprite library is now in use: ${j.forms} forms, ${j.species} species${j.refused ? `, ${j.refused} files not used` : ''}`, { timeout: 7000 });
         state.dexCache = null; refresh();
       };
       poll();
     } catch (e) { mount(msg, notice('bad', e.message)); }
   };
-  box.append(h('h3', null, 'Your own sprite library (optional)'),
-    h('p', { class: 'small muted', style: { margin: 0 } }, 'Companion already includes Gen V sprites for every Pokémon and form it supports — normal and shiny, still and animated. ',
-      'Only if you prefer your own copy of a sprite collection (for example ', extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), ' or ',
-      extLink('https://github.com/smogon/sprites', 'Smogon sprites'), ') can you point Companion at it here; it is copied into your private data folder and used instead of the built-in set. Remove it to go back to the built-in sprites.'),
-    st.installed ? h('div', { class: 'card inset small stack tight' },
-      h('div', null, badge('LOCAL', 'Your files'), ` Installed ${fmtDate(st.imported_at, true)} from `, h('span', { class: 'mono' }, st.source)),
-      h('div', null, `Forms: ${c.forms_ani} animated · ${c.forms_ani_shiny} animated shiny · ${c.forms_static} still — of ${c.forms_total}. `,
-        `Species: ${c.species_ani} animated · ${c.species_ani_shiny} animated shiny — of ${c.species_total}.`),
-      st.refused_count ? h('details', null, h('summary', null, `${st.refused_count} files refused`),
-        h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', r.reason)))) : null) :
-      h('div', { class: 'small muted' }, 'Using the built-in sprites.'),
+  // Built-in sprites ship with Companion; a personal library is only an optional override (native fix 2026-11-24:
+  // the built-in set used to be shown as "Your files — installed from built-in").
+  const own = !!st.personal;
+  const controls = h('div', { class: 'stack tight' },
     h('div', { class: 'row' }, h('div', { class: 'grow' }, path), browse(path, 'sprites'),
-      h('button', { class: 'btn primary', onclick: run }, icon('download'), st.installed ? 'Re-install' : 'Install sprite library'),
-      st.installed ? h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Remove sprite library', 'Remove your copied sprite files and go back to the built-in sprites? Your source folder is not touched.', 'Remove', true)) {
-        await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, 'Remove') : null),
-    h('div', { class: 'tiny muted' }, 'Accepted layouts: PokéAPI …/black-white/animated[/shiny]/479-wash.gif, Smogon src/sprites/gen5/srotom-owash.gif, Showdown gen5ani[-shiny]/rotom-wash.gif. A file is used only for the exact species or form its name states; copies of base-form art are refused. Grid tiles keep the small static icons.'),
+      h('button', { class: 'btn ' + (own ? '' : 'primary'), onclick: run }, icon('download'), own ? 'Replace with this folder' : 'Use this folder instead')),
+      h('div', { class: 'tiny muted' }, 'Accepted layouts: PokéAPI …/black-white/animated[/shiny]/479-wash.gif, Smogon src/sprites/gen5/srotom-owash.gif, Showdown gen5ani[-shiny]/rotom-wash.gif. A file is used only for the exact species or form its name states; copies of base-form art are refused. Grid tiles keep the small static icons.'));
+  box.append(h('h3', null, 'Pokémon sprites'),
+    own ? h('div', { class: 'card inset small stack tight' },
+      h('div', null, h('strong', null, 'Your own sprite library is in use'), ` — installed ${fmtDate(st.imported_at, true)} from `, h('span', { class: 'mono' }, st.source)),
+      c ? h('div', null, `Forms: ${c.forms_ani} animated · ${c.forms_ani_shiny} animated shiny · ${c.forms_static} still — of ${c.forms_total}. `,
+        `Species: ${c.species_ani} animated · ${c.species_ani_shiny} animated shiny — of ${c.species_total}.`) : null,
+      st.refused_count ? h('details', null, h('summary', null, `${st.refused_count} files were not used`),
+        h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', r.reason)))) : null,
+      h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: async () => {
+        if (await confirmDialog('Go back to the built-in sprites', 'Remove the copy of your sprite library from Companion’s data folder and use the built-in sprites again? Your own folder is not touched.', 'Use built-in sprites', true)) {
+          await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, 'Remove and use the built-in sprites')))
+      : h('div', { class: 'card inset small stack tight' },
+        h('div', null, h('strong', null, 'Built-in sprites'), ' — included with Companion, nothing to install.'),
+        h('div', { class: 'muted' }, `${c ? c.species_total : 649} Pokémon and ${c ? c.forms_total : 82} alternate forms${st.female ? `, ${st.female} female variants` : ''}: normal and shiny, still and animated. Sources are listed in About & credits.`)),
+    own ? h('details', null, h('summary', { class: 'small' }, 'Replace it with another folder'), controls)
+      : h('details', null, h('summary', { class: 'small' }, 'Optional: use your own sprite collection instead'),
+        h('p', { class: 'small muted' }, 'Only if you prefer your own copy of a sprite collection (for example ', extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), ' or ',
+          extLink('https://github.com/smogon/sprites', 'Smogon sprites'), '). It is copied into your private data folder and used instead of the built-in set until you remove it.'), controls),
     msg,
     h('details', null, h('summary', { class: 'small' }, 'Form artwork report'), await formArtReport()));
   return box;

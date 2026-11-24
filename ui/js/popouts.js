@@ -197,7 +197,7 @@ async function storyline(el) {
   const done = new Set(st.done);
   const i = Math.max(0, steps.findIndex((s) => s.id === st.active_step_id));
   const cur = steps[i];
-  const counts = st.source === 'imported' ? st.counts.unclassified : st.counts.mandatory;
+  const counts = st.source === 'milestones' ? st.counts.mandatory : st.counts.unclassified;
   Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => storyline(el) });
   const setActive = async (idx) => { const s = steps[Math.max(0, Math.min(steps.length - 1, idx))]; if (s) { await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); storyline(el); } };
   const toggle = async (s, val) => {
@@ -240,7 +240,7 @@ async function storyline(el) {
   while (hi < steps.length - 1 && steps[hi + 1].chapter === cur.chapter) hi++;
   const chapterSteps = steps.slice(lo, hi + 1);
   mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, cur.chapter), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav, extrasBox,
-    h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'imported' ? 'Your imported walkthrough.' : 'Milestone outline.', sourceInfo(st.source === 'imported' ? 'imported-unverified' : 'outline-unverified')));
+    h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'walkthrough' ? 'Complete walkthrough (built in, by its original author).' : st.source === 'imported' ? 'Your own walkthrough file.' : 'Milestone outline.', sourceInfo(st.source === 'milestones' ? 'outline-unverified' : 'imported-unverified')));
 }
 
 // ---------------------------------------------------------------- pokédex
