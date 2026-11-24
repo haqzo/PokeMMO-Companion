@@ -22,13 +22,13 @@ def home(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux paths")
 def test_detects_flatpak_standalone_and_manual(home, monkeypatch, tmp_path):
-    assert gl.detect() == [] or all(c["kind"] != "flatpak" for c in gl.detect())
-    (home / ".local/share/flatpak/app" / gl.FLATPAK_ID).mkdir(parents=True)
     fake_flatpak = tmp_path / "bin" / "flatpak"
     fake_flatpak.parent.mkdir()
+    monkeypatch.setenv("PATH", str(fake_flatpak.parent))
+    assert all(c["kind"] != "flatpak" for c in gl.detect())
+    (home / ".local/share/flatpak/app" / gl.FLATPAK_ID).mkdir(parents=True)
     fake_flatpak.write_text("#!/bin/sh\n")
     fake_flatpak.chmod(0o755)
-    monkeypatch.setenv("PATH", str(fake_flatpak.parent))
     sh = home / "PokeMMO" / "PokeMMO.sh"
     sh.parent.mkdir()
     sh.write_text("#!/bin/sh\n")

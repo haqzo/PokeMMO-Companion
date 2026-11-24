@@ -54,7 +54,8 @@ def test_artwork_only_in_the_prepared_builtin_library():
     """Since 2026-11-24 the prepared sprite library ships in companion/data/sprites (owner decision); no other
     animated artwork lives in the repository."""
     root = Path(__file__).resolve().parents[1]
-    gifs = [p for p in root.rglob("*.gif") if ".git" not in p.parts and "node_modules" not in p.parts]
+    generated = {".git", ".venv", ".build-venv", "build", "dist", "node_modules"}
+    gifs = [p for p in root.rglob("*.gif") if not generated.intersection(p.relative_to(root).parts)]
     assert gifs and all((root / "companion" / "data" / "sprites") in p.parents for p in gifs)
 
 

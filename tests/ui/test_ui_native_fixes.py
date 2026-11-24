@@ -144,7 +144,7 @@ def test_invite_validation(monkeypatch):
     assert config.community_links()["discord"] == "https://discord.gg/5Wbh28M3gu"
 
 
-def test_live_region_filter_and_phenomena_note(app, page):  # noqa: F811
+def test_live_region_filter_and_disabled_phenomena_feed(app, page):  # noqa: F811
     _ingest(app, [("g1", "Gyarados", "Kanto, Route 12", "alphapings", 300), ("f1", "Feebas", "Hoenn, Route 119", "swarmpings", 420)])
     go(page, app, "#/live/reports")
     page.wait_for_selector(".report-row")
@@ -153,7 +153,8 @@ def test_live_region_filter_and_phenomena_note(app, page):  # noqa: F811
     page.wait_for_timeout(500)
     rows = page.locator(".report-row")
     assert rows.count() == 1 and "Feebas" in rows.first.inner_text()
-    note = page.locator(".phenomena-note").inner_text()
-    assert "not available here" in note and "community Discord" in note
-    assert page.locator(".cur-card", has_text="Phenomen").count() == 0          # never a fabricated report
+    assert page.locator(".cur-card", has_text="Phenomen").count() == 0
+    page.get_by_role("tab", name="Phenomena").click()
+    page.get_by_text("Configure an approved relay", exact=False).wait_for()
+    assert page.locator(".phenomenon-card").count() == 0
     assert not page.errors
