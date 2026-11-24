@@ -77,7 +77,7 @@ a worst case (a new row every frame, first decode of every image). Theme, sprite
 reload the page (tested).
 
 ## Tests
-See the final report for the numbers of the last run. New: `tests/test_themes.py` (11), news ordering (1),
+Last run: backend **320 passed + 31 skipped** (clean profile) and **351 passed** with the owner's dumps and ROM folder; browser (headless Chromium, not native Qt) **127 passed** with dumps; `tools/clean_install_check.py` PASS. New: `tests/test_themes.py` (11), news ordering (1),
 race-safe launch (1), refdata recovery (1), `tests/ui/test_ui_themes.py` (5: live theme in main + popout, invalid
 hex never applied, restore default, layout/scales, Home order/equal heights/stacking, shiny Pokédex keeps
 filters/scroll, sprite preferences + global override), `tests/ui/test_ui_compare_guides.py` (4: both directions,
