@@ -5,7 +5,7 @@ import pytest
 
 from companion.data import shortcuts as sc
 from companion.services.bookmarks import DEFAULTS, BookmarkError, normalize_url
-from companion.storage import MIGRATIONS, Storage
+from companion.storage import MIGRATIONS, SCHEMA_VERSION, Storage
 
 
 # --------------------------------------------------------------- bookmarks
@@ -70,7 +70,7 @@ def test_open_uses_stored_url_and_reports_failure(client, ctx, monkeypatch):
     assert client.call("POST", f"/api/bookmarks/{b['id']}/open")[0] == 400
 
 
-def test_v3_database_migrates_to_v4_and_seeds(tmp_path):
+def test_v3_database_migrates_and_seeds(tmp_path):
     db = tmp_path / "v3.sqlite3"
     con = sqlite3.connect(db)
     for v in (1, 2, 3):
@@ -78,9 +78,12 @@ def test_v3_database_migrates_to_v4_and_seeds(tmp_path):
             con.execute(stmt)
     con.execute("INSERT INTO meta(key, value) VALUES('schema_version', '3')")
     con.execute("INSERT INTO lib_notes(id, title, created_at, updated_at) VALUES('n1', 'keep', 't', 't')")
+    con.execute("INSERT INTO reports(id, provider, message_id, kind, kind_basis, received_at) "
+                "VALUES('alpha', 'ntfy', 'abc', 'alpha', 'topic', 't')")
     con.commit(); con.close()
     s = Storage(db, tmp_path / "b")
-    assert s.migrated_from == 3 and "pre-migration-v3-to-v4" in s.backup_created
+    assert s.migrated_from == 3 and f"pre-migration-v3-to-v{SCHEMA_VERSION}" in s.backup_created
+    assert s.query_one("SELECT kind, phenomenon FROM reports WHERE id='alpha'") == {"kind": "alpha", "phenomenon": None}
     assert s.query_one("SELECT title FROM lib_notes WHERE id='n1'")["title"] == "keep"
     from companion.services.bookmarks import BookmarkService
     svc = BookmarkService(s)  # seeds on first use
