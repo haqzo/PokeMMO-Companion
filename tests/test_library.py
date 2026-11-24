@@ -97,10 +97,14 @@ def test_category_rules_explain_themselves():
 
 
 def test_item_api_works_on_a_clean_install(client):
-    """Built-in item data (names, categories, links; no description texts or icons) without any import."""
+    """Built-in item data (names, categories, links, PokeMMO item icons; no description texts) without any import."""
     code, r = client.call("GET", "/api/items")
     assert code == 200 and r["available"] is True and len(r["items"]) > 2000
-    assert all(not i.get("icon") for i in r["items"])
+    with_icon = [i for i in r["items"] if i.get("icon")]
+    assert len(with_icon) > 2000 and all(i["icon"].startswith("/assets/item-icons/") for i in with_icon)
+    import urllib.request
+    with urllib.request.urlopen(client.base + with_icon[0]["icon"]) as resp:
+        assert resp.read()[:8] == b"\x89PNG\r\n\x1a\n"
 
 
 def test_item_user_state_and_alias_lookup(client, ctx):

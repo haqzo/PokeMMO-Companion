@@ -12,6 +12,13 @@ from companion.services.importer import classify_rate, parse_walkthrough_odt
 
 
 # ------------------------------------------------------------------ guides
+@pytest.fixture(autouse=True)
+def _milestone_runs(monkeypatch):
+    """These run-mechanics tests use the milestone outline's step ids. New runs default to the bundled complete
+    walkthrough since 2026-11-24 (tested in tests/test_walkthroughs.py)."""
+    from companion.services.guides import GuideService
+    monkeypatch.setattr(GuideService, "default_source", lambda self, region: "milestones")
+
 def test_two_runs_have_independent_progress(ctx):
     g = ctx.guides
     a = g.create_run("Haqzo", "Main", "kanto")

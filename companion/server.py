@@ -637,6 +637,17 @@ def build_router(ctx: AppContext) -> Router:
     r.add("GET", "/api/guides/runs/<rid>/overview", lambda req: G.overview(req.params["rid"]))
     r.add("GET", "/api/guides/sources/<region>", lambda req: {"sources": G.sources(req.params["region"])})
 
+    def guide_catalog(req: Request) -> dict:
+        """Browse a region's guide without a character run (read only; progress needs a run)."""
+        region = req.params["region"]
+        src = req.q("source") or G.default_source(region)
+        try:
+            steps = G.steps(region, src)
+        except GuideError as exc:
+            raise ApiError(400, str(exc))
+        return {"region": region, "source": src, "sources": G.sources(region), "steps": steps}
+    r.add("GET", "/api/guides/catalog/<region>", guide_catalog)
+
     # ------------------------------------------------------------ backup
     r.add("GET", "/api/backup/export", lambda req: backup.export_all(ctx.storage))
 
@@ -901,6 +912,10 @@ def make_handler(ctx: AppContext, router: Router) -> type[BaseHTTPRequestHandler
             if path.startswith("/assets/library/"):
                 cache = "private, max-age=31536000, immutable" if query.get("v") else None
                 return self._static(ctx.sprite_library.root, path[len("/assets/library/"):], image_only=True, cache=cache)
+            if path.startswith("/assets/item-icons/"):
+                # PokeMMO item icons shipped with the app (companion/data/item-icons, PNG only).
+                return self._static(BUNDLED_DATA_DIR / "item-icons", path[len("/assets/item-icons/"):], image_only=True,
+                                    cache="private, max-age=86400")
             if path.startswith("/assets/builtin-maps/"):
                 # Original Companion map artwork shipped with the app (companion/data/maps, SVG only).
                 return self._static(BUILTIN_MAPS, path[len("/assets/builtin-maps/"):], svg_only=True, cache="private, max-age=3600")

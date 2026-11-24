@@ -1,8 +1,9 @@
-"""Optional, user-supplied sprite library (animated Gen V battle sprites, normal + shiny).
+"""Pokémon sprite library (Gen V Black/White-style battle sprites: static + animated, normal + shiny, forms,
+female variants).
 
-The Companion ships NO sprite artwork. The public repositories that hold Black/White-style animated
-sprites state that the images are © Nintendo / Game Freak / The Pokémon Company (and Smogon asks to be
-contacted before its community-made sprites are reused), so they are neither bundled nor hotlinked.
+Since 2026-11-24 a prepared library ships with the app in companion/data/sprites/ (built by
+tools/build_sprites.py from PokeAPI/sprites; images © The Pokémon Company — see CREDITS.md). Players need
+nothing else. A personal library imported in Settings › Advanced still takes precedence when present.
 A user who has a copy (for example a download of github.com/PokeAPI/sprites or github.com/smogon/sprites)
 can point the Companion at that folder or .zip once. Only files whose PATH names one exact species or
 form in a known layout are copied, validated and stored privately under <data>/private/sprite-library.
@@ -169,7 +170,9 @@ class SpriteLibrary:
     def __init__(self, paths: Paths, bus=None):
         self.paths = paths
         self.bus = bus
-        self.root = paths.private / "sprite-library"
+        self.private_root = paths.private / "sprite-library"
+        self.builtin_root = BUNDLED_DATA_DIR / "sprites"
+        self.root = self.private_root
         self.art = json.loads((BUNDLED_DATA_DIR / "form_art.json").read_text(encoding="utf-8"))
         self._lock = threading.Lock()
         self.job: dict = {"state": "idle"}
@@ -178,10 +181,16 @@ class SpriteLibrary:
 
     # ------------------------------------------------------------ lookup
     def reload(self) -> None:
-        try:
-            self.index = json.loads((self.root / "index.json").read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            self.index = None
+        """Personal library first (when imported), otherwise the built-in one."""
+        self.index, self.source_kind = None, None
+        for root, kind in ((self.private_root, "personal"), (self.builtin_root, "built-in")):
+            try:
+                self.index = json.loads((root / "index.json").read_text(encoding="utf-8"))
+                self.root, self.source_kind = root, kind
+                return
+            except (OSError, ValueError):
+                continue
+        self.root = self.private_root
 
     @property
     def installed(self) -> bool:
@@ -190,7 +199,7 @@ class SpriteLibrary:
     def backfill_bounds(self) -> int:
         """Libraries installed before 2026-11-23 have no visible bounds for their stills: add them once (atomic rewrite)."""
         idx = self.index
-        if not idx:
+        if not idx or self.source_kind != "personal":
             return 0
         n = 0
         for key, e in idx.get("entries", {}).items():
@@ -247,7 +256,10 @@ class SpriteLibrary:
         def cov(kind, keys):
             return sum(1 for k in keys if kind in entries.get(k, {}))
         species_keys = [str(s) for s in self.art["species"]]
-        return {"installed": self.installed, "imported_at": idx.get("imported_at"), "source": idx.get("source"),
+        return {"installed": self.installed, "source_kind": self.source_kind, "personal": (self.private_root / "index.json").is_file(),
+                "imported_at": idx.get("imported_at"), "source": idx.get("source") if self.source_kind == "personal" else "built-in",
+                "credits": idx.get("credits"), "female": sum(1 for k in entries if k.endswith("-female")),
+                "derived_stills": sum(1 for e in entries.values() for k in ("static", "static_shiny") if (e.get(k) or {}).get("derived")),
                 "refused": idx.get("refused", [])[:200], "refused_count": len(idx.get("refused", [])),
                 "coverage": {"forms_total": len(forms), "species_total": len(species_keys),
                              **{f"forms_{k}": cov(k, fkeys) for k in KINDS}, **{f"species_{k}": cov(k, species_keys) for k in KINDS}},
@@ -276,6 +288,11 @@ class SpriteLibrary:
             pats[f"gen5-shiny/{sd}.png"] = (key, "static_shiny", "showdown")
         for sid, e in self.art["species"].items():
             add(sid, e)
+            # female variants (PokéAPI layout only); rejected later if identical to the base artwork
+            pats[f"{BW}animated/female/{sid}.gif"] = (f"{sid}-female", "ani", "pokeapi")
+            pats[f"{BW}animated/shiny/female/{sid}.gif"] = (f"{sid}-female", "ani_shiny", "pokeapi")
+            pats[f"{BW}female/{sid}.png"] = (f"{sid}-female", "static", "pokeapi")
+            pats[f"{BW}shiny/female/{sid}.png"] = (f"{sid}-female", "static_shiny", "pokeapi")
         for k, e in self.art["forms"].items():
             add(k.replace(":", "-"), e)
         return pats
@@ -328,7 +345,7 @@ class SpriteLibrary:
             self.bus.publish("sprites", {"state": self.job["state"]})
 
     def import_from(self, src: Path) -> dict:
-        tmp = self.root.with_name("sprite-library.tmp")
+        tmp = self.private_root.with_name("sprite-library.tmp")
         shutil.rmtree(tmp, ignore_errors=True)
         for k in KINDS:
             (tmp / k.replace("_", "-")).mkdir(parents=True, exist_ok=True)
@@ -396,26 +413,26 @@ class SpriteLibrary:
                 "refused": len(refused), "scanned": scanned}
 
     def _swap(self, tmp: Path) -> None:
-        prev = self.root.with_name("sprite-library.prev")
+        prev = self.private_root.with_name("sprite-library.prev")
         shutil.rmtree(prev, ignore_errors=True)
         moved = False
         try:
-            if self.root.exists():
-                self.root.rename(prev)
+            if self.private_root.exists():
+                self.private_root.rename(prev)
                 moved = True
-            tmp.rename(self.root)
+            tmp.rename(self.private_root)
         except OSError:
-            if moved and not self.root.exists():
-                prev.rename(self.root)
+            if moved and not self.private_root.exists():
+                prev.rename(self.private_root)
             raise
         shutil.rmtree(prev, ignore_errors=True)
 
     def recover(self) -> None:
-        prev = self.root.with_name("sprite-library.prev")
-        if prev.exists() and not self.root.exists():
-            prev.rename(self.root)
-        shutil.rmtree(self.root.with_name("sprite-library.tmp"), ignore_errors=True)
+        prev = self.private_root.with_name("sprite-library.prev")
+        if prev.exists() and not self.private_root.exists():
+            prev.rename(self.private_root)
+        shutil.rmtree(self.private_root.with_name("sprite-library.tmp"), ignore_errors=True)
 
     def remove(self) -> None:
-        shutil.rmtree(self.root, ignore_errors=True)
+        shutil.rmtree(self.private_root, ignore_errors=True)
         self.reload()

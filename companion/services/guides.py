@@ -1,8 +1,11 @@
 """Guides: catalogs + named character runs with independent per-region progress.
 
 Catalog sources per region:
-  * ``milestones`` — bundled independently written outline (always available)
-  * ``imported``   — the user's own walkthrough, parsed locally (private/guides)
+  * ``walkthrough`` — the complete regional walkthrough shipped with the app (companion/data/walkthroughs,
+                      used with the author's permission; default for new runs since 2026-11-24)
+  * ``milestones``  — bundled independently written outline (always available)
+  * ``imported``    — a walkthrough file you imported yourself (private/guides; same step ids as the bundled one,
+                      so progress carries over)
 Progress is keyed by stable step IDs, so wording changes keep checkmarks; a
 changed text hash is surfaced for review instead of silently transferring.
 """
@@ -13,7 +16,7 @@ import json
 import re
 import uuid
 
-from ..config import Paths
+from ..config import BUNDLED_DATA_DIR, Paths
 from ..data.guide_milestones import SOURCE as MILESTONE_SOURCE, milestone_steps
 from ..data.reference import REGIONS
 from ..storage import Storage, utcnow
@@ -46,8 +49,23 @@ class GuideService:
         self._imported_cache[region] = data
         return data
 
+    def bundled(self, region: str) -> dict | None:
+        key = "bundled:" + region
+        if key not in self._imported_cache:
+            try:
+                self._imported_cache[key] = json.loads((BUNDLED_DATA_DIR / "walkthroughs" / f"{region}.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                self._imported_cache[key] = None
+        return self._imported_cache[key]
+
     def sources(self, region: str) -> list[dict]:
-        out = [{"id": "milestones", **MILESTONE_SOURCE, "steps": len(milestone_steps(region))}]
+        out = []
+        bw = self.bundled(region)
+        if bw:
+            out.append({"id": "walkthrough", "kind": "bundled", "label": f"Complete {region.capitalize()} walkthrough",
+                        "status": "community-walkthrough", "steps": len(bw["steps"]), "chapters": bw.get("chapters"),
+                        "note": "Community walkthrough for PokeMMO, included with the author's permission. Steps are auto-tagged."})
+        out.append({"id": "milestones", **MILESTONE_SOURCE, "steps": len(milestone_steps(region))})
         imp = self.imported(region)
         if imp:
             out.append({"id": "imported", "kind": "user-import", "label": f"Your walkthrough ({imp['file']})",
@@ -63,7 +81,13 @@ class GuideService:
         if source == "imported":
             imp = self.imported(region)
             return imp["steps"] if imp else []
+        if source == "walkthrough":
+            bw = self.bundled(region)
+            return bw["steps"] if bw else milestone_steps(region)
         return milestone_steps(region)
+
+    def default_source(self, region: str) -> str:
+        return "walkthrough" if self.bundled(region) else "milestones"
 
     # -------------------------------------------------------------- runs
     def list_runs(self, include_deleted: bool = False) -> list[dict]:
@@ -147,7 +171,7 @@ class GuideService:
     def _region_row(self, run_id: str, region: str) -> dict:
         row = self.db.query_one("SELECT * FROM run_regions WHERE run_id=? AND region=?", (run_id, region))
         if not row:
-            default_source = "milestones"
+            default_source = self.default_source(region)
             self.db.execute("INSERT OR IGNORE INTO run_regions(run_id, region, source, updated_at) VALUES(?,?,?,?)",
                             (run_id, region, default_source, utcnow()))
             row = self.db.query_one("SELECT * FROM run_regions WHERE run_id=? AND region=?", (run_id, region))
@@ -160,7 +184,7 @@ class GuideService:
         rr = self._region_row(run_id, region)
         source = rr["source"]
         if source == "imported" and not self.imported(region):
-            source = "milestones"
+            source = self.default_source(region)
         steps = self.steps(region, source)
         ids = {s["id"] for s in steps}
         rows = self.db.query("SELECT step_id, status, text_hash FROM step_status WHERE run_id=?", (run_id,))
@@ -191,7 +215,7 @@ class GuideService:
         now = utcnow()
         with self.db.tx() as c:
             if source is not None:
-                if source not in ("milestones", "imported"):
+                if source not in ("milestones", "imported", "walkthrough"):
                     raise GuideError("Unknown guide source")
                 c.execute("UPDATE run_regions SET source=?, active_step_id=NULL, updated_at=? WHERE run_id=? AND region=?",
                           (source, now, run_id, region))
@@ -206,10 +230,10 @@ class GuideService:
     def _hash_for(self, step_id: str) -> str | None:
         region = step_id.split(":")[0]
         if ":imp:" in step_id:
-            imp = self.imported(region)
-            for s in (imp or {}).get("steps", []):
-                if s["id"] == step_id:
-                    return s.get("text_hash")
+            for src in (self.imported(region), self.bundled(region)):
+                for s in (src or {}).get("steps", []):
+                    if s["id"] == step_id:
+                        return s.get("text_hash")
         return None
 
     def set_steps(self, run_id: str, step_ids: list[str], done: bool) -> dict:

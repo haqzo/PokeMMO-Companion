@@ -274,7 +274,7 @@ class DexService:
             sp = self.species.get(sid)
             av = self.availability(sid)
             entry = {"id": sid, "name": base["name"], "types": base["types"], "gen": base["gen"],
-                     "fav": sid in favourites, "icon": self.sprite_url(sid, "icon"), "still": self.still(sid),
+                     "fav": sid in favourites, "icon": self.sprite_url(sid, "icon"), **self.grid_art(str(sid)),
                      "size": self.size_tier(sid)["tier"],
                      "dex": av["membership"]["state"], "avail": av["short"], "avail_long": av["label"], "classes": av["classes"],
                      "tags": av["tags"], "evidence": av["evidence"], "permanent": av["permanent"]}
@@ -457,10 +457,19 @@ class DexService:
                 self._bounds_cache[key] = None
         return self._bounds_cache[key]
 
-    def still(self, sid: int) -> dict | None:
-        """Gen V still from your sprite library for grid tiles (None → the client box icon is used)."""
+    def grid_art(self, key: str) -> dict:
+        """Grid tile artwork for one species ('25') or form ('479-wash'): stills and animations, normal + shiny.
+        Missing variants stay None — nothing is substituted."""
         lib = self.library
-        return lib.still(str(sid)) if lib is not None and lib.installed else None
+        if lib is None or not lib.installed:
+            return {"still": None, "still_shiny": None, "ani": None, "ani_shiny": None}
+        u = lib.urls(key)
+        return {"still": lib.still(key), "still_shiny": lib.still(key, True), "ani": u.get("ani"), "ani_shiny": u.get("ani_shiny")}
+
+    def still(self, sid: int, shiny: bool = False) -> dict | None:
+        """Gen V still from the sprite library (built in, or your own) for grid tiles."""
+        lib = self.library
+        return lib.still(str(sid), shiny) if lib is not None and lib.installed else None
 
     def art(self, sid: int, form_key: str | None = None, bounds: bool = True) -> dict:
         """Artwork for a species or one of its forms. Never substitutes base or placeholder art for a form."""
@@ -484,6 +493,10 @@ class DexService:
         if lib is not None and lib.installed:
             out.update(lib.urls(lib_key))
             out["library"] = lib.provenance(lib_key)
+            if not form_key:
+                fem = lib.urls(f"{sid}-female")       # female variant where the artwork differs
+                if fem:
+                    out["female"] = fem
         # visible bounds per artwork (so transparent margins don't change the visual size) + the parent's size tier
         # (measured only for the Summary; lists don't need them and the first measurement reads every PNG)
         files = loc if form_key else (self.sprites.get(sid) or {})
@@ -504,6 +517,7 @@ class DexService:
             e = self.form_entry(k)
             av = self.availability(e["id"])
             inherit = e["kind"] in self.INHERIT_KINDS or "battle" in (e.get("note") or "").lower()
+            e.update(self.grid_art(k.replace(":", "-")))
             e.update({"entry": k, "fav": e["id"] in favourites, "dex": av["membership"]["state"],
                       "avail": av["short"] if inherit else "Form change not verified",
                       "tags": av["tags"] if inherit else ["unverified"], "permanent": av["permanent"] if inherit else None,

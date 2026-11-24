@@ -177,9 +177,28 @@ class ItemService:
     def _user(self) -> dict[int, dict]:
         return {r["item_id"]: r for r in self.storage.query("SELECT * FROM item_user")}
 
-    @staticmethod
-    def icon_url(g: dict) -> str | None:
-        return f"/assets/private/items/{g['icon']}" if g.get("icon") else None
+    _builtin_icons: set[str] | None = None
+
+    @classmethod
+    def builtin_icons(cls) -> set[str]:
+        if cls._builtin_icons is None:
+            try:
+                from ..config import BUNDLED_DATA_DIR
+                cls._builtin_icons = set(json.loads((BUNDLED_DATA_DIR / "item-icons" / "manifest.json").read_text(encoding="utf-8"))["files"])
+            except (OSError, ValueError, KeyError):
+                cls._builtin_icons = set()
+        return cls._builtin_icons
+
+    @classmethod
+    def icon_url(cls, g: dict) -> str | None:
+        """Your imported client icon when present, otherwise the built-in PokeMMO icon for the item's icon id."""
+        if g.get("icon"):
+            return f"/assets/private/items/{g['icon']}"
+        have = cls.builtin_icons()
+        for r in g.get("records", []):
+            if str(r.get("icon_id")) in have:
+                return f"/assets/item-icons/{r['icon_id']}.png"
+        return None
 
     def label(self, g: dict, lang: str) -> str:
         return g.get("names", {}).get(lang) or g["name"]

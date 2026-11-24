@@ -50,10 +50,12 @@ def test_external_sources_are_names_only_with_reuse_notes():
     assert ART["species"]["122"]["smogon"]["name"] == "smr_mime" and ART["species"]["122"]["smogon"]["served_name"] == "mrmime"
 
 
-def test_repository_contains_no_artwork():
+def test_artwork_only_in_the_prepared_builtin_library():
+    """Since 2026-11-24 the prepared sprite library ships in companion/data/sprites (owner decision); no other
+    animated artwork lives in the repository."""
     root = Path(__file__).resolve().parents[1]
-    tracked = [p for p in root.rglob("*") if p.suffix.lower() in (".gif",) and ".git" not in p.parts]
-    assert tracked == []
+    gifs = [p for p in root.rglob("*.gif") if ".git" not in p.parts and "node_modules" not in p.parts]
+    assert gifs and all((root / "companion" / "data" / "sprites") in p.parents for p in gifs)
 
 
 # ---------------------------------------------------------------- real dump
@@ -187,12 +189,14 @@ def test_library_served_with_cache_and_only_images(client, ctx, tmp_path):
     code, d = client.call("GET", "/api/dex/species/479?form=wash")
     assert d["form"]["art"]["ani"] == url and d["form"]["art"]["library"]["ani"]["layout"] == "pokeapi"
     code, st = client.call("GET", "/api/sprites/library")
-    assert st["installed"] and st["coverage"]["forms_ani"] == 3
+    assert st["installed"] and st["source_kind"] == "personal" and st["coverage"]["forms_ani"] == 3
     code, rep = client.call("GET", "/api/dex/art")
     row = next(x for x in rep["forms"] if x["key"] == "479:wash")
     assert row["library"] == ["ani", "ani_shiny", "static"] and row["known_sources"]["pokeapi_animated"]
     code, _ = client.call("DELETE", "/api/sprites/library")
-    assert not ctx.sprite_library.installed and client.call("GET", "/api/dex/species/479?form=wash")[1]["form"]["art"]["ani"] is None
+    # removing your own library falls back to the built-in one
+    assert ctx.sprite_library.source_kind == "built-in"
+    assert client.call("GET", "/api/dex/species/479?form=wash")[1]["form"]["art"]["ani"].startswith("/assets/library/ani/479-wash.gif")
 
 
 def test_library_import_api_validates_folder(client):

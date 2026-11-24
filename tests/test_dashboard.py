@@ -184,7 +184,8 @@ def test_calculator_popout_is_registered(ctx):
 def test_roamers_include_animation_only_with_a_library(ctx, tmp_path):
     from gifgen import make_gif
     leg = ctx.live.legendaries(None)
-    assert leg["current"]["kanto"]["ani"] is None
+    k0 = leg["current"]["kanto"]["id"]
+    assert leg["current"]["kanto"]["ani"].startswith(f"/assets/library/ani/{k0}.gif")      # built-in library
     bw = tmp_path / "s/sprites/pokemon/versions/generation-v/black-white/animated"
     bw.mkdir(parents=True)
     k = leg["current"]["kanto"]["id"]
