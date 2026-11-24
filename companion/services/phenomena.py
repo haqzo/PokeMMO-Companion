@@ -189,7 +189,7 @@ class PublicImageConnection(http.client.HTTPSConnection):
         addresses = socket.getaddrinfo(self.host, self.port, type=socket.SOCK_STREAM)
         for family, socktype, proto, _, sockaddr in addresses:
             ip = ipaddress.ip_address(sockaddr[0])
-            if not ip.is_global or ip.is_multicast or ip.is_reserved or ip.is_site_local:
+            if not ip.is_global or ip.is_multicast or ip.is_reserved or getattr(ip, "is_site_local", False):
                 continue
             with socket.socket(family, socktype, proto) as raw:
                 raw.settimeout(self.timeout)
