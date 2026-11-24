@@ -1223,3 +1223,9 @@ polyline.mk-draft { fill: none; }
   .notes-side { border-right: 0; border-bottom: 1px solid var(--border-subtle); max-height: 45vh; }
 }
 .loc-dir.wide .loc-dir-grid, .loc-dir[data-mode="wide"] .loc-dir-grid { grid-template-rows: minmax(0, 1fr); }
+/* guide timers & team inside guide popouts */
+.gx-pop { margin-top: 10px; border-top: 1px solid var(--border-subtle); padding-top: 6px; }
+.gx-pop > summary { cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+.gx-pop .gx-panel { margin-top: 6px; }
+.gx-pop .card { padding: 8px 10px; }
+.pop-step .gx-step { margin-top: 2px; }

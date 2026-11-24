@@ -149,6 +149,8 @@ def register(r, ctx, ApiError, Request) -> None:
     def timer_owner(req):
         return ctx.timers.attach(req.params["tid"], (req.body or {}).get("owner"))
     add("PUT", "/api/timers/<tid>/owner", guard(timer_owner))
+    add("POST", "/api/timers/cleanup", guard(lambda req: {"removed": ctx.timers.cleanup_finished(
+        str((req.body or {}).get("guide") or ""), (req.body or {}).get("keep_cycle"))}))
 
     add("GET", "/api/dex/moves", lambda req: {"moves": [{"name": m["name"], "type": m.get("type"), "category": m.get("category"),
                                                          "power": m.get("power")} for m in ctx.dex.skills()]})

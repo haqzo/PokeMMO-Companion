@@ -1,7 +1,7 @@
 // Independent popout windows (docs/design/04, 15). One shared backend state; each
 // popout has its own mode/scroll. In the native shell, Qt draws the titlebar
 // (pin, mode, window opacity, lock, minimise, close); in browser mode we draw it.
-import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, notice, applyAppearance, debounce, WINDOW_ID } from './core.js';
+import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, sourceInfo, notice, applyAppearance, debounce, WINDOW_ID } from './core.js';
 import { POPOUT_TOOLS, popoutSize } from './shell.js';
 import { renderDetail, dexCard, catalogFragment, applyFilters, loadList, currentFilters } from './pages/pokedex.js';
 import { renderTypeChart, renderNatures } from './pages/tools.js';
@@ -14,6 +14,7 @@ import { renderItemsPopout } from './pages/items.js';
 import { renderNotesPopout } from './pages/notes.js';
 import { renderBoxPopout, renderShowcasePopout } from './pages/box.js';
 import { renderCustomGuidePopout } from './pages/cguides.js';
+import { guideExtras } from './guide-extras.js';
 import { renderLocationsPopout } from './pages/locations.js';
 import { installTimerSound } from './timer-sound.js';
 
@@ -162,6 +163,17 @@ async function renderBody() {
   bodyEl.scrollTop = keep;
 }
 
+// ---------------------------------------------------------------- guide timers & team in popouts
+// Same TimerService timers and saved team ids as the main window (guide-extras.js) — nothing is copied.
+let popGx = null;
+export function popoutExtras(ctx, { open } = {}) {
+  if (popGx) popGx.dispose();
+  popGx = guideExtras({ ...ctx, nav: openInMain });
+  popGx.load().catch((e) => console.warn(e));
+  const box = h('details', { class: 'gx-pop', open: open ? '' : null }, h('summary', { class: 'small' }, icon('clock'), ' Timers & team'), popGx.panel());
+  return { gx: popGx, box };
+}
+
 // ---------------------------------------------------------------- storyline
 let storyRegion = null;
 async function storyline(el) {
@@ -184,9 +196,12 @@ async function storyline(el) {
     await post(`/api/guides/runs/${run.id}/steps`, { step: s.id, done: val, region, advance: val && s.id === st.active_step_id, next_active: next && next.id });
     storyline(el);
   };
-  const stepEl = (s, big) => h('label', { class: 'step' + (done.has(s.id) ? ' done' : '') + (s.id === cur.id ? ' current' : ''), style: { gridTemplateColumns: 'auto 1fr', cursor: 'pointer', padding: big ? '10px' : '7px 9px' } },
+  const { gx, box: extrasBox } = popoutExtras({ key: `story:${run.id}:${region}`, title: `${cap(region)} storyline · ${run.display}`, run: run.id,
+    steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) }, { open: mode === 'expanded' });
+  const stepLabel = (s, big) => h('label', { class: 'step' + (done.has(s.id) ? ' done' : '') + (s.id === cur.id ? ' current' : ''), style: { gridTemplateColumns: 'auto 1fr', cursor: 'pointer', padding: big ? '10px' : '7px 9px' } },
     h('input', { type: 'checkbox', class: 'check', checked: done.has(s.id), onchange: (e) => toggle(s, e.target.checked) }),
     h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, s.text), big ? h('div', { class: 'tiny muted' }, s.chapter) : null));
+  const stepEl = (s, big) => h('div', { class: 'pop-step' }, stepLabel(s, big), h('div', { style: { marginLeft: '30px' } }, gx.stepTimers(s.id)));
   const header = h('div', { class: 'stack tight', style: { marginBottom: '8px' } },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'ellipsis', style: { fontWeight: 700 } }, run.display), h('div', { class: 'tiny muted ellipsis' }, `${cap(region)} · ${cur ? cur.chapter : ''}`)),
@@ -203,10 +218,10 @@ async function storyline(el) {
       onchange: async (e) => { storyRegion = null; await saveSettings({ 'guides.active_run': e.target.value }); storyline(el); } },
     runs.runs.map((r) => h('option', { value: r.id, selected: r.id === run.id ? 'selected' : null }, r.display))) : null);
   if (!cur) { mount(el, header, h('div', { class: 'muted' }, 'This guide has no steps.')); return; }
-  if (mode === 'compact') { mount(el, header, stepEl(cur, true), nav); return; }
+  if (mode === 'compact') { mount(el, header, stepEl(cur, true), nav, extrasBox); return; }
   if (mode === 'standard') {
     const win = steps.slice(Math.max(0, i - 1), i + 6);
-    mount(el, header, h('div', { class: 'stack tight' }, win.map((s) => stepEl(s, s.id === cur.id))), nav);
+    mount(el, header, h('div', { class: 'stack tight' }, win.map((s) => stepEl(s, s.id === cur.id))), nav, extrasBox);
     return;
   }
   // contiguous block of steps in the current chapter (a town visited twice is two separate blocks)
@@ -214,8 +229,8 @@ async function storyline(el) {
   while (lo > 0 && steps[lo - 1].chapter === cur.chapter) lo--;
   while (hi < steps.length - 1 && steps[hi + 1].chapter === cur.chapter) hi++;
   const chapterSteps = steps.slice(lo, hi + 1);
-  mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, cur.chapter), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav,
-    h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'imported' ? 'Your imported walkthrough (unverified).' : 'Milestone outline (unverified).'));
+  mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, cur.chapter), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav, extrasBox,
+    h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'imported' ? 'Your imported walkthrough.' : 'Milestone outline.', sourceInfo(st.source === 'imported' ? 'imported-unverified' : 'outline-unverified')));
 }
 
 // ---------------------------------------------------------------- pokédex

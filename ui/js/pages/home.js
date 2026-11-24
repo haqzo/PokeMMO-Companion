@@ -7,7 +7,7 @@ import { currentCard, startTimers, likelyActive } from './live.js';
 
 let unsub = [];
 let newsCache = null;
-const KIND_LABEL = { changelog: 'Changelog', announcement: 'Announcement' };
+const KIND_LABEL = { changelog: 'Changelog', hotfix: 'Hotfix', announcement: 'Announcement', event: 'Event' };
 
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
@@ -165,26 +165,30 @@ function liveCard(cur, el) {
 
 // ------------------------------------------------------------ official updates
 async function updateCard(n, rerender) {
-  const full = await get('/api/news/' + n.latest.id);
-  const points = (full.groups || []).flatMap((g) => g.points).slice(0, 3);
+  const L = n.latest;
+  const full = L.discovered ? null : await get('/api/news/' + L.id).catch(() => null);
+  const points = ((full && full.groups) || []).flatMap((g) => g.points).slice(0, 3);
   const f = n.feed;
-  const feed = !f ? 'Official feed not checked yet' : f.ok ? (f.unchanged ? `Official feed up to date · checked ${relTime(f.checked_at)}` : `Official feed checked ${relTime(f.checked_at)} · ${f.count} posts listed`)
-    : `Last check failed ${relTime(f.checked_at)} — ${f.error}. Showing saved summaries.`;
+  // One short status line; details (interval, summaries date, errors) live in the tooltip.
+  const status = !f ? 'Not checked yet' : f.ok ? `Checked ${relTime(f.last_ok_at || f.checked_at)}` : `Offline — last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}`;
+  const detail = [n.auto_check ? `Checks the official Updates forum automatically every ${n.check_hours} h.` : 'Automatic checks are off.',
+    f && !f.ok ? `Last attempt failed: ${f.error}.` : '', f && f.stale ? 'The saved list may be out of date.' : '',
+    `Summaries written ${fmtDate(n.snapshot_checked_at)}.`].filter(Boolean).join(' ');
   return h('section', { class: 'card hero home-update', 'aria-labelledby': 'latest-h' },
-    h('div', { class: 'hero-eyebrow' }, icon('book'), 'Latest official update', h('span', { class: 'grow' }), provenanceLine(n.latest)),
-    h('h2', { class: 'headline', id: 'latest-h' }, n.latest.title),
-    h('p', { class: 'hero-summary' }, n.latest.summary),
+    h('div', { class: 'hero-eyebrow' }, icon('book'), 'Latest official update', h('span', { class: 'grow' }), provenanceLine(L)),
+    h('h2', { class: 'headline', id: 'latest-h' }, L.title),
+    L.has_summary === false || !L.summary ? h('p', { class: 'hero-summary muted' }, 'New official post — only its title, date and link are known in the Companion. Open it on the forum for the full changelog.')
+      : h('p', { class: 'hero-summary' }, L.summary),
     points.length ? h('ul', { class: 'hero-points' }, points.map((p) => h('li', null, p))) : null,
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn primary small', onclick: () => go('#/news/' + n.latest.id) }, 'Read details'),
-      h('button', { class: 'btn small', onclick: () => go('#/news') }, 'All updates & events')),
-    h('div', { class: 'update-foot row wrap tiny' }, h('span', { class: 'dot ' + (!f ? '' : f.ok ? 'connected' : 'offline') }), h('span', null, feed),
-      h('span', { class: 'muted' }, n.auto_check ? `· automatic check every ${n.check_hours} h` : '· automatic checks off'),
-      h('span', { class: 'muted', title: 'Summaries in the Companion are written and dated by hand; new official titles show “Summary pending verification” until then.' },
-        `· summaries written ${fmtDate(n.snapshot_checked_at)}`),
-      n.new_posts.length ? h('strong', null, `· ${n.new_posts.length} new post${n.new_posts.length === 1 ? '' : 's'} since`) : null,
+    L.edited_upstream ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, 'The official post was edited after this summary was written — check the forum for changes.') : null,
+    h('div', { class: 'row wrap' }, L.discovered ? extLink(L.source_url, 'Open official post')
+      : h('button', { class: 'btn primary small', onclick: () => go('#/news/' + L.id) }, 'Read details'),
+    h('button', { class: 'btn small', onclick: () => go('#/news') }, 'All updates & events')),
+    h('div', { class: 'update-foot row wrap tiny', title: detail }, h('span', { class: 'dot ' + (!f ? '' : f.ok && !f.stale ? 'connected' : 'offline') }), h('span', null, status),
+      n.new_posts.length ? h('span', { class: 'muted' }, `· ${n.new_posts.length} post${n.new_posts.length === 1 ? '' : 's'} without a summary yet`) : null,
       h('span', { class: 'grow' }),
-      h('button', { class: 'btn ghost small', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/news/check');
-        toast(r.throttled ? 'Checked less than a minute ago.' : r.ok ? `Official feed checked${r.unchanged ? ' — no changes' : ''}.` : `Could not refresh: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 });
+      h('button', { class: 'btn ghost small', title: detail, onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/news/check');
+        toast(r.throttled ? 'Checked less than a minute ago.' : r.ok ? `Official updates checked${r.unchanged ? ' — no changes' : ''}.` : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 });
         rerender(); } }, icon('refresh'), 'Check now')));
 }
 
@@ -195,8 +199,8 @@ function newsCard(n) {
   const fresh = hm.new_posts.slice(0, 3);
   const rest = hm.articles.filter((a) => !n.latest || a.id !== n.latest.id).slice(0, 5 - fresh.length);
   const rows = [
-    ...fresh.map((p) => h('div', { class: 'list-row compact new-post' }, h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'),
-      h('span', { class: 'grow ellipsis' }, p.title, h('span', { class: 'tiny muted' }, ' · summary pending verification')), h('span', { class: 'when' }, fmtDate(p.published)), extLink(p.link, 'Open'))),
+    ...fresh.filter((p) => !n.latest || p.id !== n.latest.id).map((p) => h('div', { class: 'list-row compact new-post' }, p.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'),
+      h('span', { class: 'grow ellipsis', title: p.summary_status }, p.title), h('span', { class: 'when' }, fmtDate(p.published)), extLink(p.source_url || p.link, 'Open'))),
     ...rest.map((a) => h('button', { class: 'list-row compact', onclick: () => go('#/news/' + a.id) },
       a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, KIND_LABEL[a.kind] || a.kind),
       h('span', { class: 'grow ellipsis' }, a.title), h('span', { class: 'when' }, fmtDate(a.published))))];
@@ -212,8 +216,7 @@ function eventsCard(n) {
   return h('section', { class: 'card home-events' }, h('div', { class: 'card-head' }, h('h2', null, 'Official events'), h('div', { class: 'right' },
     h('button', { class: 'btn ghost small', onclick: () => go('#/events') }, 'Archive', icon('chev')))),
   evs.length ? h('div', { class: 'list-rows' }, evs.map((e) => eventRow(e))) :
-    h('div', { class: 'small muted home-empty' }, 'No ongoing or upcoming official events',
-      h('span', { class: 'tiny' }, ` (snapshot ${fmtDate(n.snapshot_checked_at)}${n.feed && n.feed.ok ? `, feed checked ${relTime(n.feed.checked_at)}` : ''})`)));
+    h('div', { class: 'small muted home-empty', title: `Event list written ${fmtDate(n.snapshot_checked_at)}; new official event posts appear under official updates.` }, 'No ongoing or upcoming official events.'));
 }
 
 async function continueCard(runs, rerender) {
@@ -306,10 +309,13 @@ async function renderNewsList(el, route, initial) {
   const page = h('div', { class: 'page' });
   mount(el, page);
   const draw = () => {
-    const items = listFilter === 'events' ? [] : n.articles.filter((a) => listFilter === 'all' || (listFilter === 'pts' ? a.channel === 'pts' : a.kind === listFilter && a.channel === 'live'));
+    // Bundled summaries and newly discovered official posts in one list (newest first).
+    const all = n.records || n.articles;
+    const items = listFilter === 'events' ? [] : all.filter((a) => listFilter === 'all' || (listFilter === 'pts' ? a.channel === 'pts'
+      : listFilter === 'changelog' ? ['changelog', 'hotfix'].includes(a.kind) && a.channel === 'live' : a.kind === listFilter && a.channel === 'live'));
     mount(page,
       h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/home') }, icon('back'), 'Home'),
-        h('div', null, h('h1', null, 'Official updates & events'), h('div', { class: 'sub' }, `In-app summaries · snapshot checked ${fmtDate(n.snapshot_checked_at)}`))),
+        h('div', null, h('h1', null, 'Official updates & events'), h('div', { class: 'sub' }, n.feed && n.feed.last_ok_at ? `Official forum checked ${relTime(n.feed.last_ok_at)}` : `Summaries written ${fmtDate(n.snapshot_checked_at)}`))),
       h('div', { class: 'row wrap', style: { marginBottom: '14px' } },
         ['all', 'changelog', 'announcement', 'pts', 'events'].map((f) => h('button', { class: 'chip btnlike' + (listFilter === f ? ' active' : ''), onclick: () => { listFilter = f; draw(); } },
           { all: 'All', changelog: 'Changelogs', announcement: 'Announcements', pts: 'Test server (PTS)', events: 'Events' }[f]))),
@@ -318,10 +324,10 @@ async function renderNewsList(el, route, initial) {
           n.upcoming.length ? null : h('p', { class: 'muted', style: { marginTop: 0 } }, 'No upcoming official events confirmed in this snapshot.'),
           h('div', { class: 'list-rows' }, n.events.map(eventRow))) : null,
         items.length ? h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Posts')),
-          h('div', { class: 'list-rows' }, items.map((a) => h('button', { class: 'list-row', onclick: () => go('#/news/' + a.id) },
+          h('div', { class: 'list-rows' }, items.map((a) => h(a.discovered ? 'a' : 'button', a.discovered ? { class: 'list-row', href: a.source_url, target: '_blank', rel: 'noopener noreferrer' } : { class: 'list-row', onclick: () => go('#/news/' + a.id) },
             h('div', { class: 'grow' }, h('div', { class: 'row wrap' }, h('span', { style: { fontWeight: 600 } }, a.title),
               a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, KIND_LABEL[a.kind] || a.kind)),
-            h('div', { class: 'small muted ellipsis' }, a.summary)), h('span', { class: 'when' }, fmtDate(a.published)))))) : null,
+            h('div', { class: 'small muted ellipsis' }, a.summary || 'Official post — title, date and link only. Opens on the forum.')), h('span', { class: 'when' }, fmtDate(a.published)))))) : null,
         h('p', { class: 'small muted' }, n.about)));
   };
   draw();

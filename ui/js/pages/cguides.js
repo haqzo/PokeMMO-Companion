@@ -191,7 +191,12 @@ export async function renderCustomGuidePopout(el, mode) {
   if (!list.guides.some((g) => g.id === id)) id = list.guides[0] && list.guides[0].id;
   if (!id) { mount(el, h('div', { class: 'empty' }, 'No guides yet. ', h('button', { class: 'btn small', onclick: () => openRoute('#/guides/mine') }, t('cguide.new')))); return; }
   let g = await get('/api/cguides/' + id);
+  const { popoutExtras } = await import('../popouts.js');
   const draw = () => {
+    const { gx, box: extrasBox } = popoutExtras({ key: 'cg:' + g.id, title: g.title, steps: Object.fromEntries(g.steps.map((s) => [s.id, s.text.slice(0, 40)])),
+      cycle: async (create) => { if (create && !g.cycle) g.cycle = await post(`/api/cguides/${g.id}/cycle`); return g.cycle ? g.cycle.id : null; } }, { open: mode === 'expanded' });
+    const row = (s, compact) => (s.kind === 'check' ? h('div', null, stepRow(g, s, { onToggle: toggle, compact }), h('div', { style: { marginLeft: (s.depth * 18 + 28) + 'px' } }, gx.stepTimers(s.id)))
+      : stepRow(g, s, { onToggle: toggle, compact }));
     const checks = g.steps.filter((s) => s.kind === 'check');
     const next = checks.find((s) => !s.done_at);
     const picker = h('select', { class: 'input', 'aria-label': 'Guide', onchange: async (e) => { await saveSettings({ 'customguide.active': e.target.value }); renderCustomGuidePopout(el, mode); } },
@@ -199,12 +204,13 @@ export async function renderCustomGuidePopout(el, mode) {
     const toggle = async (s, done) => { g = await post(`/api/cguides/${g.id}/mark`, { step_id: s.id, done }); draw(); };
     if (mode === 'compact') {
       mount(el, h('div', { class: 'row' }, h('strong', { class: 'grow ellipsis' }, g.title), h('span', { class: 'small nowrap' }, `${g.done}/${g.checks}`)), progressBar(g.done, g.checks),
-        next ? stepRow(g, next, { onToggle: toggle, compact: true }) : h('div', { class: 'small' }, '✓ All done', g.recurring ? h('button', { class: 'btn small', style: { marginLeft: '6px' }, onclick: async () => { g = await post(`/api/cguides/${g.id}/complete`, {}); draw(); } }, 'Next cycle') : null));
+        next ? row(next, true) : h('div', { class: 'small' }, '✓ All done', g.recurring ? h('button', { class: 'btn small', style: { marginLeft: '6px' }, onclick: async () => { g = await post(`/api/cguides/${g.id}/complete`, {}); draw(); } }, 'Next cycle') : null), extrasBox);
       return;
     }
     mount(el, h('div', { class: 'row' }, picker, h('span', { class: 'small nowrap' }, `${g.done}/${g.checks}`)), progressBar(g.done, g.checks),
-      h('div', { class: 'stack tight', style: { marginTop: '6px' } }, g.steps.map((s) => stepRow(g, s, { onToggle: toggle, compact: mode !== 'expanded' }))),
-      g.done === g.checks && g.checks && g.recurring ? h('button', { class: 'btn primary small', onclick: async () => { g = await post(`/api/cguides/${g.id}/complete`, {}); draw(); } }, 'Finish cycle & start next') : null);
+      h('div', { class: 'stack tight', style: { marginTop: '6px' } }, g.steps.map((s) => row(s, mode !== 'expanded'))),
+      g.done === g.checks && g.checks && g.recurring ? h('button', { class: 'btn primary small', onclick: async () => { g = await post(`/api/cguides/${g.id}/complete`, {}); draw(); } }, 'Finish cycle & start next') : null,
+      extrasBox);
     const n = el.querySelector(`[data-step="${next && next.id}"]`); if (n) n.scrollIntoView({ block: 'nearest' });
   };
   draw();

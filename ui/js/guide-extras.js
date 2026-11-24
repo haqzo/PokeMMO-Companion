@@ -56,7 +56,8 @@ export async function templateDialog(initial = {}) {
 
 /**
  * The guide's state, shared by the panel and step controls of one guide page.
- * ctx: { key, title, run (storyline run id), cycle: async (create) => cycle id | null, steps: {id: title} }
+ * ctx: { key, title, run (storyline run id), cycle: async (create) => cycle id | null, steps: {id: title},
+ *        nav (route opener: the main window from a popout) }
  */
 export function guideExtras(ctx) {
   const st = { extras: null, timers: [], listeners: new Set(), unsub: [] };
@@ -133,17 +134,19 @@ export function guideExtras(ctx) {
         h('button', { class: 'icon-btn tiny', 'aria-label': 'Remove timer ' + tpl.name, onclick: async () => {
           if (await confirmDialog('Remove timer?', `“${tpl.name}” is removed from this guide. A timer that is running keeps running in Tools › Timers.`, 'Remove', true)) await save({ timers: ex.timers.filter((x) => x.id !== tpl.id) }); } }, icon('close')))))
           : h('div', { class: 'small muted' }, 'No guide timers yet. Add one (e.g. a rerun cooldown), or add a timer to a single step with “+ timer”.'),
-        others.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, ctx.cycle ? 'Other timers of this guide (earlier cycles or attached)' : 'Other timers of this guide'),
+        others.length ? h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'label grow' }, ctx.cycle ? 'Other timers of this guide (earlier cycles or attached)' : 'Other timers of this guide'),
+          others.some((t) => t.state === 'done' && !t.repeat) ? h('button', { class: 'btn tiny ghost', title: 'Remove finished timers from earlier cycles. Running timers and your checklist history are kept.',
+            onclick: async () => { const r = await post('/api/timers/cleanup', { guide: ctx.key, keep_cycle: curCycle() || null }); toast(`${r.removed} finished timer(s) removed`); load(); } }, 'Clear finished') : null),
           others.map((t) => h('div', { class: 'gx-timer row tight wrap' }, h('span', { class: 'grow small' }, t.name, t.owner && t.owner.cycle && t.owner.cycle !== String(curCycle() || '') ? h('span', { class: 'chip tiny' }, 'earlier cycle') : null),
             remEl(t), h('span', { class: 'tiny muted' }, STATE[t.state]),
             t.state === 'running' ? h('button', { class: 'btn small', onclick: () => act(t, 'pause') }, 'Pause') : t.state === 'paused' ? h('button', { class: 'btn small', onclick: () => act(t, 'resume') }, 'Resume') : null,
             h('button', { class: 'icon-btn tiny', title: 'Detach from this guide (the timer stays in Tools › Timers)', 'aria-label': 'Detach ' + t.name, onclick: async () => { await api('PUT', `/api/timers/${t.id}/owner`, { owner: null }); load(); } }, icon('close'))))) : null,
-        h('button', { class: 'btn tiny ghost', onclick: () => go('#/tools/timers') }, 'Open Timers', icon('chev')));
+        h('button', { class: 'btn tiny ghost', onclick: () => (ctx.nav || go)('#/tools/timers') }, 'Open Timers', icon('chev')));
       const teamCard = h('section', { class: 'card stack tight gx-team' }, h('h3', { class: 'gx-h' }, icon('box'), 'Team'),
         h('div', { class: 'row wrap tight' }, ex.team ? [
           h('button', { class: 'btn small', onclick: async () => { const d = await editTeamDialog({ ...ex.team }); if (d) load(); } }, 'Edit'),
           h('button', { class: 'btn small ghost', onclick: attachTeam }, 'Replace'),
-          h('button', { class: 'btn small ghost', onclick: () => go('#/tools/team?team=' + ex.team.id) }, 'Open in Team builder'),
+          h('button', { class: 'btn small ghost', onclick: () => (ctx.nav || go)('#/tools/team?team=' + ex.team.id) }, 'Open in Team builder'),
           h('button', { class: 'btn small ghost', onclick: async () => { await save({ team_id: null }); } }, 'Unlink')] : [
           h('button', { class: 'btn small primary', onclick: async () => { const d = await editTeamDialog(null); if (d) await save({ team_id: d.id }); } }, icon('plus'), 'Create team'),
           h('button', { class: 'btn small', onclick: attachTeam }, 'Attach saved team')]),

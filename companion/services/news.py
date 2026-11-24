@@ -1,13 +1,15 @@
 """Official news / changelog / events (docs/design/03).
 
 Bundled snapshot = independently written summaries with source URL and
-provenance. An optional *manual* "Check official forum" fetches the official
-Updates RSS feed (titles + dates + links only). New posts appear as
-"no in-app summary yet" — the Companion never fabricates an article body.
-No network request is made unless the user presses the button.
+provenance. The official Updates RSS feed is checked automatically (at start-up when the cache is stale, then
+every N hours, with back-off after failures) and on demand. Feed posts and bundled articles are merged into ONE
+list keyed by the forum topic id, so a newer official post becomes "Latest official update" immediately — with
+only its official title, date and link until a summary is written. The Companion never fabricates article bodies.
+Content edits are detected from a hash of the feed's description (the text itself is not stored).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -26,6 +28,7 @@ from ..storage import Storage, utcnow
 FEED_URL = "https://forums.pokemmo.com/index.php?/forum/5-updates.xml/"
 MANUAL_MIN_INTERVAL = 60          # seconds between manual checks
 AUTO_MIN_HOURS = 1                # never poll more often than hourly
+RETRY_MINUTES = (5, 15, 60)       # back-off after failed automatic checks (then the normal interval)
 log = logging.getLogger("companion.news")
 _TOPIC_RX = re.compile(r"topic/(\d+)")
 
@@ -37,6 +40,26 @@ def _parse_dt(value: str) -> datetime:
 
 
 HOME_WINDOW_DAYS = 90
+
+
+def topic_id(url: str) -> str | None:
+    m = _TOPIC_RX.search(url or "")
+    return m.group(1) if m else None
+
+
+def classify(title: str) -> tuple[str, str]:
+    """(kind, channel) of an official post from its title — PTS is never presented as live."""
+    t = (title or "").lower()
+    channel = "pts" if re.search(r"\bpts\b|public test server|test server", t) else "live"
+    if "hotfix" in t:
+        kind = "hotfix"
+    elif "changelog" in t or "patch" in t or "update" in t:
+        kind = "changelog"
+    elif re.search(r"\bevent\b|halloween|xmas|christmas|easter|lunar|anniversary|tournament|summer|valentine", t):
+        kind = "event"
+    else:
+        kind = "announcement"
+    return kind, channel
 
 
 def published_within(items: list[dict], now: datetime, days: int = HOME_WINDOW_DAYS) -> list[dict]:
@@ -73,16 +96,16 @@ class NewsService:
         if ev.get("confirmed_status") == "cancelled":
             return {"code": "cancelled", "label": "Cancelled"}
         if ev.get("confirmed_status") == "concluded":
-            return {"code": "concluded", "label": "Concluded"}
+            return {"code": "concluded", "label": "Ended"}
         start = _parse_dt(ev["starts"]) if ev.get("starts") else None
         end = _parse_dt(ev["ends"]) if ev.get("ends") else None
         if start and now < start:
             return {"code": "upcoming", "label": "Upcoming"}
         if end and now > end:
-            return {"code": "window_passed", "label": "Scheduled end passed (completion not confirmed)"}
+            return {"code": "window_passed", "label": "Ended (by schedule)"}
         if start and now >= start:
-            return {"code": "window_open", "label": "Scheduled window open — not confirmed live"}
-        return {"code": "unknown", "label": "Status unknown"}
+            return {"code": "window_open", "label": "Running (by schedule)"}
+        return {"code": "unknown", "label": "Dates unconfirmed"}
 
     def listing(self, now: datetime | None = None) -> dict:
         now = now or datetime.now(timezone.utc)
@@ -92,21 +115,24 @@ class NewsService:
             events.append({**e, "status": self.event_status(e, now)})
         upcoming = [e for e in events if e["status"]["code"] in ("upcoming", "window_open")]
         feed = self.db.get_setting("news.feed_cache", None)
-        known = self._topic_ids()
-        new_posts = []
-        if feed:
-            for item in feed.get("items", []):
-                m = _TOPIC_RX.search(item.get("link", ""))
-                if m and m.group(1) not in known:
-                    new_posts.append(item)
-        latest_live = next((a for a in articles if a["channel"] == "live" and a["kind"] == "changelog"), None)
-        for p in new_posts:
-            p["summary_status"] = "Summary pending verification — only the official title, date and link are known."
+        records = self.records(feed)
+        new_posts = [r for r in records if r.get("discovered")]
+        # Latest official update = newest LIVE changelog/hotfix by publication date, bundled or discovered.
+        latest_rec = next((r for r in records if r["channel"] == "live" and r["kind"] in ("changelog", "hotfix")), None)
         feed_info = feed and {k: v for k, v in feed.items() if k not in ("items", "etag", "last_modified") and not k.startswith("_")}
         if feed_info is not None:
             feed_info["auto"] = bool(self.db.get_setting("updates.auto_check", True))
+            hours = max(AUTO_MIN_HOURS, int(self.db.get_setting("updates.check_hours", 3) or 3))
+            last_ok = feed.get("last_ok_at")
+            try:
+                age_h = (now - _parse_dt(last_ok)).total_seconds() / 3600 if last_ok else None
+            except ValueError:
+                age_h = None
+            feed_info["stale"] = age_h is None or age_h > 2 * hours
+            feed_info["next_check_at"] = feed.get("_next_due_iso")
         return {"snapshot_checked_at": self.snapshot["snapshot_checked_at"], "about": self.snapshot["about"],
-                "articles": [self._brief(a) for a in articles], "latest": latest_live and self._brief(latest_live),
+                "articles": [self._brief(a) for a in articles], "latest": latest_rec,
+                "records": records,
                 "events": events, "upcoming": upcoming, "feed": feed_info,
                 "auto_check": bool(self.db.get_setting("updates.auto_check", True)),
                 "check_hours": self.db.get_setting("updates.check_hours", 3),
@@ -118,6 +144,45 @@ class NewsService:
                          "events": sorted([e for e in events if e["status"]["code"] in ("window_open", "upcoming")],
                                          key=lambda e: (e["status"]["code"] != "window_open", e.get("starts") or "")),
                          "older_new_posts": len(new_posts) - len(published_within(new_posts, now))}}
+
+    def records(self, feed: dict | None = None) -> list[dict]:
+        """Bundled articles + feed posts merged by forum topic id, newest publication first.
+        A bundled article keeps its summary; the feed adds edits it sees later. A post only in the feed is
+        `discovered` and carries no summary (title, date and link only)."""
+        feed = feed if feed is not None else (self.db.get_setting("news.feed_cache", None) or {})
+        by_tid: dict[str, dict] = {}
+        out: list[dict] = []
+        for a in self.snapshot["articles"]:
+            rec = {**self._brief(a), "topic_id": topic_id(a.get("source_url", "")), "has_summary": bool(a.get("summary")),
+                   "discovered": False}
+            out.append(rec)
+            if rec["topic_id"]:
+                by_tid[rec["topic_id"]] = rec
+        for it in (feed or {}).get("items", []):
+            tid = topic_id(it.get("link", ""))
+            if not tid:
+                continue
+            if tid in by_tid:
+                rec = by_tid[tid]
+                if it.get("edited") or it.get("content_changed"):
+                    rec["edited_upstream"] = {"title": it.get("title"), "seen_at": it.get("edited_seen_at"),
+                                              "content_changed": bool(it.get("content_changed"))}
+                continue
+            kind, channel = classify(it.get("title", ""))
+            rec = {"id": "forum-" + tid, "topic_id": tid, "kind": kind, "channel": channel, "title": it.get("title"),
+                   "published": it.get("published"), "updated": it.get("edited_seen_at"), "source_url": it.get("link"),
+                   "provenance": "official-direct", "summary": None, "has_summary": False, "discovered": True,
+                   "first_seen_at": it.get("first_seen_at"), "edited": bool(it.get("edited") or it.get("content_changed")),
+                   "summary_status": "Only the official title, date and link are known — open the post for details."}
+            by_tid[tid] = rec
+            out.append(rec)
+
+        def key(r):
+            try:
+                return _parse_dt(r.get("published") or "1970-01-01")
+            except ValueError:
+                return datetime(1970, 1, 1, tzinfo=timezone.utc)
+        return sorted(out, key=key, reverse=True)
 
     @staticmethod
     def _brief(a: dict) -> dict:
@@ -170,6 +235,12 @@ class NewsService:
                     result.update(self._failure(prev, f"HTTP {exc.code}"))
             except Exception as exc:  # network / parse — report honestly, keep the old list
                 result.update(self._failure(prev, f"{type(exc).__name__}: {str(exc)[:200]}"))
+            hours = max(AUTO_MIN_HOURS, int(self.db.get_setting("updates.check_hours", 3) or 3))
+            fails = 0 if result.get("ok") else int(prev.get("_fails", 0)) + 1
+            delay = hours * 3600 if not fails else min(hours * 3600, RETRY_MINUTES[min(fails, len(RETRY_MINUTES)) - 1] * 60)
+            result["_fails"] = fails
+            result["_next_due"] = now + delay
+            result["_next_due_iso"] = datetime.fromtimestamp(now + delay, timezone.utc).isoformat(timespec="seconds")
             self.db.set_settings({"news.feed_cache": result})
             return result
 
@@ -189,6 +260,10 @@ class NewsService:
                 item.update(edited=True, previous_title=o["title"], edited_seen_at=now)
             elif o and o.get("edited"):
                 item.update(edited=True, previous_title=o.get("previous_title"), edited_seen_at=o.get("edited_seen_at"))
+            if o and o.get("desc_hash") and it.get("desc_hash") and o["desc_hash"] != it["desc_hash"]:
+                item.update(content_changed=True, edited_seen_at=now)
+            elif o and o.get("content_changed"):
+                item.update(content_changed=True, edited_seen_at=o.get("edited_seen_at"))
             out.append(item)
         return out[:50]
 
@@ -206,9 +281,13 @@ class NewsService:
                     if settings.get("updates.auto_check"):
                         hours = max(AUTO_MIN_HOURS, int(settings.get("updates.check_hours") or 3))
                         prev = self.db.get_setting("news.feed_cache", None) or {}
-                        if time.time() - prev.get("_checked_epoch", 0) >= hours * 3600:
+                        due = prev.get("_next_due") or (prev.get("_checked_epoch", 0) + hours * 3600)
+                        if time.time() >= min(due, prev.get("_checked_epoch", 0) + hours * 3600):
+                            before = (self.records(prev)[:1] or [{}])[0].get("id")
                             res = self.check_feed(manual=False)
-                            bus.publish("news", {"ok": res.get("ok"), "count": res.get("count"), "auto": True})
+                            after = (self.records(res)[:1] or [{}])[0].get("id")
+                            bus.publish("news", {"ok": res.get("ok"), "count": res.get("count"), "auto": True,
+                                                 "changed": before != after or not res.get("unchanged")})
                 except Exception:  # pragma: no cover
                     log.exception("automatic news check failed")
                 if self._auto_stop.wait(300):
@@ -234,5 +313,7 @@ class NewsService:
                 published = parsedate_to_datetime(pub).astimezone(timezone.utc).isoformat() if pub else None
             except (TypeError, ValueError):
                 published = None
-            items.append({"title": title, "link": link, "published": published})
+            desc = it.findtext("description") or ""
+            items.append({"title": title, "link": link, "published": published,
+                          "desc_hash": hashlib.sha256(desc.encode("utf-8")).hexdigest()[:16] if desc else None})
         return items[:50]

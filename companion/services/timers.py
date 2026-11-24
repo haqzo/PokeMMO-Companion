@@ -268,6 +268,23 @@ class TimerService:
             self.store.delete_document(KIND, tid)
             self._publish("deleted", {"id": tid})
 
+    def cleanup_finished(self, guide: str, keep_cycle: str | None = None) -> int:
+        """Remove FINISHED, non-repeating timers that belong to `guide` (e.g. from earlier recurring cycles).
+        Running, paused, ready and repeating timers are never touched; timers of `keep_cycle` stay so
+        "Start again" keeps working. Guide checklists, cycles and their history are separate and unaffected."""
+        with self._lock:
+            gone = [t["id"] for t in self.timers.values()
+                    if (t.get("owner") or {}).get("guide") == guide and t.get("state") == "done" and not t.get("repeat")
+                    and (keep_cycle is None or (t.get("owner") or {}).get("cycle") != keep_cycle)]
+            for tid in gone:
+                self.timers.pop(tid, None)
+                self._anchor.pop(tid, None)
+                self.store.delete_document(KIND, tid)
+            if gone:
+                for tid in gone:
+                    self._publish("deleted", {"id": tid})
+            return len(gone)
+
     # ---------------------------------------------------------- completion
     def tick(self) -> list[dict]:
         """Check every running timer once. Returns the completions delivered (also used by tests)."""

@@ -110,3 +110,35 @@ def test_storyline_region_timer_and_step_timer(app, page):  # noqa: F811
     assert page.locator(".gx-step-timer").count() == 0
     app.ctx.timers.delete(t[0]["id"])
     assert not [e for e in page.errors if "favicon" not in e]
+
+
+def test_guide_popouts_have_timers_and_team(app, browser):  # noqa: F811
+    g = app.ctx.cguides.create({"title": "Popout reruns", "scope": "gym_rerun", "recurring": True})
+    app.ctx.cguides.put_steps(g["id"], [{"kind": "check", "depth": 0, "text": "Brock", "links": []}])
+    sid = app.ctx.cguides.get(g["id"])["steps"][0]["id"]
+    team = app.ctx.storage.put_document("team", "tpop", "Pop team", {"version": 2, "slots": [{"species": 25}, None, None, None, None, None]})
+    app.ctx.guide_extras.put("cg:" + g["id"], {"timers": [{"name": "Cooldown", "seconds": 600}],
+                                              "step_timers": {sid: [{"name": "Heal", "seconds": 90}]}, "team_id": "tpop"})
+    app.ctx.settings.update({"customguide.active": g["id"]})
+    for mode in ("compact", "standard", "expanded"):
+        p = browser.new_context(viewport={"width": 420 if mode != "expanded" else 640, "height": 620}).new_page()
+        errs = []
+        p.on("pageerror", lambda e: errs.append(str(e)))
+        p.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=customguide&mode={mode}&shell=browser#/")
+        p.wait_for_selector(".gx-pop")
+        if mode != "expanded":
+            p.locator(".gx-pop > summary").click()
+        p.wait_for_selector(".gx-pop .gx-timer[data-tpl]")
+        assert "Pop team" in p.locator(".gx-pop .gx-team").inner_text()
+        assert p.locator(".gx-step-timer").count() >= 1
+        if mode == "standard":
+            p.locator(".gx-pop .gx-timer[data-tpl]").get_by_role("button", name="Start").click()
+            _until(p, "/Running/.test(document.querySelector('.gx-pop .gx-timer[data-tpl]').textContent)")
+            p.locator(".gx-pop .gx-timer[data-tpl]").get_by_role("button", name="Pause").click()
+            _until(p, "/Paused/.test(document.querySelector('.gx-pop .gx-timer[data-tpl]').textContent)")
+        assert p.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+        assert not errs
+        p.context.close()
+    owned = app.ctx.timers.list("cg:" + g["id"])["timers"]
+    assert len(owned) == 1 and owned[0]["state"] == "paused"          # same TimerService timer, no copy
+    app.ctx.timers.delete(owned[0]["id"])

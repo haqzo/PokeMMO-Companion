@@ -206,7 +206,7 @@ def test_news_listing_home_section(ctx, monkeypatch):
         {"title": "Lunar New Year 2026", "link": "https://forums.pokemmo.com/index.php?/topic/990001-lny/", "published": "2026-02-10T00:00:00Z"},
         {"title": "Fresh post", "link": "https://forums.pokemmo.com/index.php?/topic/990002-fresh/", "published": "2026-11-21T00:00:00Z"}]}})
     n = svc.listing(now=NOW)
-    assert [p["title"] for p in n["new_posts"]] == ["Lunar New Year 2026", "Fresh post"]       # archive keeps both
+    assert [p["title"] for p in n["new_posts"]] == ["Fresh post", "Lunar New Year 2026"]       # archive keeps both, newest first
     assert [p["title"] for p in n["home"]["new_posts"]] == ["Fresh post"]
     assert n["home"]["older_new_posts"] == 1
     assert all((NOW - datetime.fromisoformat(a["published"]).replace(tzinfo=timezone.utc)).days <= 90 for a in n["home"]["articles"])
@@ -218,3 +218,85 @@ def test_news_listing_home_section(ctx, monkeypatch):
         {"id": "c", "title": "Halloween", "starts": "2026-10-20T00:00:00Z", "ends": "2026-11-05T00:00:00Z"}]
     n = svc.listing(now=NOW)
     assert [e["id"] for e in n["home"]["events"]] == ["b", "a"] and len(n["events"]) == 3
+
+
+# ---------------------------------------------------------------- merged official news (2026-11-24)
+RSS = """<?xml version="1.0"?><rss version="2.0"><channel><title>Updates</title>
+<item><title>{t1}</title><link>https://forums.pokemmo.com/index.php?/topic/990100-changelog-december-3rd-2026/</link>
+<pubDate>Thu, 03 Dec 2026 18:00:00 +0000</pubDate><description>{d1}</description></item>
+<item><title>PTS Changelog - December 1st, 2026</title><link>https://forums.pokemmo.com/index.php?/topic/990099-pts/</link>
+<pubDate>Tue, 01 Dec 2026 18:00:00 +0000</pubDate><description>pts</description></item>
+<item><title>Changelog — November 19th, 2026</title><link>https://forums.pokemmo.com/index.php?/topic/201822-changelog-november-19th-2026/</link>
+<pubDate>Thu, 19 Nov 2026 18:00:00 +0000</pubDate><description>{d2}</description></item>
+</channel></rss>"""
+
+
+class _Resp:
+    def __init__(self, body, headers=None):
+        self.body, self.headers = body, headers or {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, n=-1):
+        return self.body
+
+
+def test_discovered_changelog_becomes_latest_and_pts_never_does(ctx, monkeypatch):
+    import urllib.request
+    svc = NewsService(ctx.storage)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: _Resp(RSS.format(t1="Changelog - December 3rd, 2026", d1="a", d2="b").encode()))
+    r = svc.check_feed(manual=False)
+    assert r["ok"] and r["count"] == 3
+    n = svc.listing(now=datetime(2026, 12, 4, tzinfo=timezone.utc))
+    assert n["latest"]["title"] == "Changelog - December 3rd, 2026"
+    assert n["latest"]["discovered"] and n["latest"]["summary"] is None            # nothing fabricated
+    pts = next(x for x in n["records"] if x["topic_id"] == "990099")
+    assert pts["channel"] == "pts"
+    # the bundled November article is merged with its feed copy (same topic id), not listed twice
+    assert sum(1 for x in n["records"] if x["topic_id"] == "201822") == 1
+    assert next(x for x in n["records"] if x["topic_id"] == "201822")["has_summary"]
+
+
+def test_feed_edits_are_detected_by_title_and_content(ctx, monkeypatch):
+    import urllib.request
+    svc = NewsService(ctx.storage)
+    bodies = [RSS.format(t1="Changelog - December 3rd, 2026", d1="a", d2="b"), RSS.format(t1="Changelog - December 3rd, 2026 (updated)", d1="a", d2="b2")]
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: _Resp(bodies.pop(0).encode()))
+    svc.check_feed(manual=False)
+    ctx.storage.set_settings({"news.feed_cache": {**ctx.storage.get_setting("news.feed_cache"), "_checked_epoch": 0}})
+    svc.check_feed(manual=False)
+    recs = {x["topic_id"]: x for x in svc.records()}
+    assert recs["990100"]["edited"] and recs["990100"]["title"].endswith("(updated)")
+    assert recs["201822"]["edited_upstream"]["content_changed"] is True
+
+
+def test_failed_check_backs_off_then_keeps_cache(ctx, monkeypatch):
+    import time as _t
+    import urllib.request
+    svc = NewsService(ctx.storage)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: _Resp(RSS.format(t1="Changelog - December 3rd, 2026", d1="a", d2="b").encode()))
+    svc.check_feed(manual=False)
+
+    def boom(req, timeout=0):
+        raise OSError("offline")
+    monkeypatch.setattr(urllib.request, "urlopen", boom)
+    r = svc.check_feed(manual=False)
+    assert not r["ok"] and r["count"] if "count" in r else True
+    assert len(r["items"]) == 3                                              # offline: cached posts kept
+    assert 4 * 60 < r["_next_due"] - _t.time() <= 5 * 60                     # first retry after 5 min
+    r = svc.check_feed(manual=False)
+    assert 14 * 60 < r["_next_due"] - _t.time() <= 15 * 60
+    n = svc.listing()
+    assert n["feed"]["ok"] is False and n["latest"]["title"] == "Changelog - December 3rd, 2026"
+
+
+def test_stale_flag(ctx):
+    svc = NewsService(ctx.storage)
+    ctx.storage.set_settings({"news.feed_cache": {"ok": True, "items": [], "last_ok_at": "2026-11-01T00:00:00Z"}})
+    assert svc.listing(now=datetime(2026, 11, 24, tzinfo=timezone.utc))["feed"]["stale"] is True
+    ctx.storage.set_settings({"news.feed_cache": {"ok": True, "items": [], "last_ok_at": "2026-11-24T00:00:00Z"}})
+    assert svc.listing(now=datetime(2026, 11, 24, 1, tzinfo=timezone.utc))["feed"]["stale"] is False

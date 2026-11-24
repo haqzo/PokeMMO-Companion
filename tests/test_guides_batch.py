@@ -141,3 +141,18 @@ def test_library_scopes_include_new_categories(ctx):
         assert k in SCOPES
     g = ctx.cguides.create({"title": "Money", "scope": "money"})
     assert g["scope"] == "money"
+
+
+def test_cleanup_finished_keeps_running_and_current_cycle(env):
+    ctx, clk, bus, notif, svc = env
+    o = {"kind": "guide", "guide": "cg:g1", "template": "t"}
+    old_done = svc.create("Old", 10, start=True, owner={**o, "cycle": "c1"})
+    old_running = svc.create("Old long", 9999, start=True, owner={**o, "cycle": "c1"})
+    old_repeat = svc.create("Old rep", 10, start=True, repeat=True, owner={**o, "cycle": "c1"})
+    cur_done = svc.create("Cur", 10, start=True, owner={**o, "cycle": "c2"})
+    other_guide = svc.create("Other", 10, start=True, owner={**o, "guide": "cg:g2", "cycle": "c1"})
+    clk.advance(11)
+    svc.tick()
+    assert svc.cleanup_finished("cg:g1", keep_cycle="c2") == 1
+    ids = {t["id"] for t in svc.list()["timers"]}
+    assert old_done["id"] not in ids and {old_running["id"], old_repeat["id"], cur_done["id"], other_guide["id"]} <= ids
