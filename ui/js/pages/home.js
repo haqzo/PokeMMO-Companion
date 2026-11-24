@@ -169,6 +169,7 @@ function liveCard(cur, el) {
     clearTimeout(expiry);
     const ends = list.filter((g) => likelyActive(g, Date.now() + skew)).map((g) => Date.parse(g.status.ends_at) - (Date.now() + skew));
     if (ends.length) expiry = setTimeout(() => refresh(), Math.max(1000, Math.min(...ends) + 1000));   // switch to the still image when the estimate ends
+    box.dataset.count = String(Math.min(list.length, 9));
     mount(box, list.length ? cards :
       h('div', { class: 'small muted', style: { gridColumn: '1/-1', padding: '6px 2px' } }, src.enabled ? 'Nothing reported recently. This does not mean none are active.' : 'Connect the read-only report feed in Live to see community reports here.'));
     if (stop) stop();
@@ -216,15 +217,21 @@ async function updateCard(n, rerender) {
 function newsCard(n) {
   // Home lists only posts PUBLISHED in the last 90 days (n.home, computed by the backend). A post the feed check
   // only just discovered can still be old news (e.g. last year's holiday event) — that stays in the archive.
-  const hm = n.home || { new_posts: n.new_posts, articles: n.articles, window_days: 90 };
-  const fresh = hm.new_posts.slice(0, 3);
-  const rest = hm.articles.filter((a) => !n.latest || a.id !== n.latest.id).slice(0, 5 - fresh.length);
-  const rows = [
-    ...fresh.filter((p) => !n.latest || p.id !== n.latest.id).map((p) => h('div', { class: 'list-row compact new-post' }, p.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, p.edited ? 'Edited' : 'New'),
-      h('span', { class: 'grow ellipsis', title: p.summary_status }, p.title), h('span', { class: 'when' }, fmtDate(p.published)), extLink(p.source_url || p.link, 'Open'))),
-    ...rest.map((a) => h('button', { class: 'list-row compact', onclick: () => go('#/news/' + a.id) },
-      a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, KIND_LABEL[a.kind] || a.kind),
-      h('span', { class: 'grow ellipsis' }, a.title), h('span', { class: 'when' }, fmtDate(a.published))))];
+  const hm = n.home || { posts: n.records || [], window_days: 90 };
+  // One list, merged and sorted by PUBLICATION date in the backend (bundled + feed). Discovery or edit time never
+  // moves a post up; labels say what it is: New (published in the last 7 days), Edited, or found late.
+  const posts = (hm.posts || []).filter((p) => !n.latest || p.id !== n.latest.id).slice(0, 5);
+  const label = (p) => p.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS')
+    : h('span', { class: 'chip' }, KIND_LABEL[p.kind] || p.kind || 'Post');
+  const flag = (p) => p.is_edited ? h('span', { class: 'chip tiny', title: 'The official post was edited after it was published' }, 'Edited')
+    : p.is_new ? h('span', { class: 'chip tiny accent', title: 'Published in the last 7 days' }, 'New')
+      : p.found_late ? h('span', { class: 'tiny muted', title: `Found by the feed check ${fmtDate(p.first_seen_at)}; published ${fmtDate(p.published)}` }, 'found later') : null;
+  const rows = posts.map((p) => {
+    const inner = [label(p), h('span', { class: 'grow ellipsis', title: p.summary_status || p.title }, p.title), flag(p), h('span', { class: 'when' }, fmtDate(p.published))];
+    return p.has_summary === false || p.discovered
+      ? h('div', { class: 'list-row compact new-post', dataset: { published: p.published } }, ...inner, extLink(p.source_url || p.link, 'Open'))
+      : h('button', { class: 'list-row compact', dataset: { published: p.published }, onclick: () => go('#/news/' + p.id) }, ...inner);
+  });
   return h('section', { class: 'card home-news half' }, h('div', { class: 'card-head' }, h('h2', null, 'More official updates'),
     h('span', { class: 'tiny muted' }, `published in the last ${hm.window_days} days`),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/news') }, 'Archive', icon('chev')))),
@@ -248,7 +255,7 @@ async function continueCard(runs, rerender) {
   }
   const st = await get(`/api/guides/runs/${run.id}/state?region=${run.last_region}`);
   const step = st.steps.find((x) => x.id === st.active_step_id);
-  const c = st.source === 'imported' ? st.counts.unclassified : st.counts.mandatory;
+  const c = st.source === 'milestones' ? st.counts.mandatory : st.counts.unclassified;
   const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
   return h('section', { class: 'card half home-run stack tight' },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow' },

@@ -1319,3 +1319,17 @@ body { font-weight: var(--weight); }
 .settings-nav { max-height: calc(100vh - 150px); overflow-y: auto; overscroll-behavior: contain; }
 @container (max-width: 760px) { .settings-nav { max-height: none; overflow: visible; } }
 @media (max-width: 760px) { .settings-nav { max-height: none; overflow: visible; } }
+/* Home › Alpha & Swarm (native fix 2026-11-24): larger cards that use the panel. One report spans the panel,
+   two sit side by side, three or more in a 2-column grid (an odd last card spans the row). Sprites near the
+   Roaming Legendaries size; the sprite is fitted inside its box (never clipped). Narrow panels: one column. */
+.home-v3 > .home-live .home-cur { container-type: inline-size; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 10px; align-content: stretch; }
+.home-cur > .cur-card:last-child:nth-child(odd):not(:only-child) { grid-column: 1 / -1; }
+.home-cur .cur-card { padding: 10px 14px 10px 10px; gap: 14px; min-height: 124px; }
+.home-cur .cur-card.compact .rep-sprite { --rs: 104px; }
+.home-cur[data-count="1"] .cur-card.compact .rep-sprite { --rs: 128px; }
+.home-cur[data-count="1"] .cur-card .cur-name { font-size: 1.2rem; }
+.home-cur .rep-sprite { overflow: hidden; }
+.home-cur .rep-sprite > .still-art { flex: none; }
+@container (max-width: 420px) {
+  .home-cur .cur-card.compact .rep-sprite, .home-cur[data-count="1"] .cur-card.compact .rep-sprite { --rs: 80px; }
+}

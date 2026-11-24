@@ -13,12 +13,12 @@ export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 // offset once per refresh. Timers tick locally; the list is re-fetched every minute and whenever the window
 // becomes visible again (sleep/resume), which also re-classifies reports.
 const STATE_CLASS = { recent: 'ok', uncertain: 'warn', ended: 'muted', replayed: 'muted', test: 'test', info: 'muted' };
-const durText = (s) => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+const durText = (s) => { if (s < 60) return 'under 1 min'; const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
 export function timerText(st, nowMs) {
   if (!st || !st.duration_min) return '';
   const end = Date.parse(st.ends_at);
   const left = Math.round((end - nowMs) / 1000);
-  if (st.state === 'recent' && left > 0) return `≈ ${durText(left)} left (estimate)`;
+  if (st.state === 'recent' && left > 0) return left < 60 ? 'Estimated window ends in under 1 min' : `≈ ${durText(left)} left (estimate)`;
   if (left <= 0 && (st.state === 'recent' || st.state === 'uncertain')) return `Estimated window ended ${durText(-left)} ago`;
   return '';
 }
@@ -32,7 +32,11 @@ export function startTimers(root, skewMs, onExpire) {
     root.querySelectorAll('[data-ends]').forEach((el) => {
       const st = { state: el.dataset.state, duration_min: 1, ends_at: el.dataset.ends };
       el.textContent = timerText(st, now);
-      if (el.dataset.state === 'recent' && Date.parse(el.dataset.ends) <= now) expired = true;
+      if (el.dataset.state === 'recent' && Date.parse(el.dataset.ends) <= now) {
+        expired = true;
+        const chip = el.closest('.cur-card') && el.closest('.cur-card').querySelector('.cur-state');
+        if (chip && chip.textContent === 'Likely active') { chip.textContent = 'Estimate ended'; chip.className = 'cur-state warn'; }
+      }
     });
     if (expired && onExpire) onExpire();
   };
@@ -54,7 +58,9 @@ export function currentCard(g, { compact = false, animate = false } = {}) {
   reportSprite(g, { animate }),
   h('div', { class: 'cur-text' },
     h('div', { class: 'row tight' }, h('span', { class: `kind-label kind-${g.kind}` }, g.kind),
-      h('span', { class: `cur-state ${STATE_CLASS[st.state]}` }, st.state === 'recent' ? 'Likely active' : st.label)),
+      // "Likely active" only while the estimate really runs (the server's state can be a minute old)
+      st.state === 'recent' && st.ends_at && Date.parse(st.ends_at) <= Date.now() ? h('span', { class: 'cur-state warn' }, 'Estimate ended')
+        : h('span', { class: `cur-state ${STATE_CLASS[st.state]}` }, st.state === 'recent' ? 'Likely active' : st.label)),
     h('div', { class: 'cur-name ellipsis' }, (sure ? g.species_name : g.title) || '(no title)'),
     sure || !g.species_name ? null : h('div', { class: 'tiny muted ellipsis' }, 'Names several Pokémon'),
     where ? h('div', { class: 'small ellipsis cur-where' }, where) : h('div', { class: 'small muted' }, 'Location not identified'),
@@ -205,20 +211,29 @@ export function reportSprite(r, { battle = false, animate = false } = {}) {
     const img = h('img', { class: 'pixel rep-ani', src: r.species_ani, alt: r.species_name || '', decoding: 'async', style: { visibility: 'hidden' } });
     const box = h('div', { class: 'still-art' }, img);
     holder.append(box);
-    img.addEventListener('load', () => {
-      const size = holder.clientWidth || 72;
+    // The box size comes from CSS and is only known once the card is laid out (Home builds its cards before
+    // placing them): fit when it has a size, and again whenever it changes. The same <img> is kept, so the
+    // animation never restarts.
+    const fit = (size) => {
+      if (!img.naturalWidth || !size) return;
       const f = fitSprite(img.naturalWidth, img.naturalHeight, null, 'm', size, size);
       Object.assign(box.style, { width: size + 'px', height: size + 'px' });
       Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
       box.classList.toggle('smooth', f.smooth);
-    });
+    };
+    onBoxSize(holder, fit);
+    img.addEventListener('load', () => fit(holder.clientWidth));
     img.addEventListener('error', () => holder.replaceWith(reportSprite(r, { battle })));
     return holder;
   }
   if (r.species_still) {
     const holder = wrap(null, ' library');
-    // the box size comes from CSS (it changes with the window), so fit the still once it is in the page
-    requestAnimationFrame(() => { const size = holder.clientWidth || 72; holder.append(stillArt(r.species_still, { name: r.species_name || '' }, size, { cap: battle ? 2 : 1.5 })); });
+    let last = 0;
+    onBoxSize(holder, (size) => {
+      if (!size || size === last) return;
+      last = size;
+      holder.replaceChildren(stillArt(r.species_still, { name: r.species_name || '' }, size, { cap: battle ? 2 : 1.5, eager: true }));
+    });
     return holder;
   }
   const url = battle ? (r.species_front || r.species_icon) : r.species_icon;
@@ -230,6 +245,17 @@ export function reportSprite(r, { battle = false, animate = false } = {}) {
   return wrap(spriteFallback(r, kind));
 }
 const motionAllowed = () => motionGlobal();
+/** Call fn(width) once the element has a layout size and whenever it changes; stops when it leaves the page. */
+function onBoxSize(el, fn) {
+  if (typeof ResizeObserver !== 'function') { requestAnimationFrame(() => fn(el.clientWidth || 72)); return; }
+  let seen = false;
+  const ro = new ResizeObserver(() => {
+    if (!el.isConnected) { if (seen) ro.disconnect(); return; }
+    seen = true;
+    fn(Math.round(el.clientWidth));
+  });
+  ro.observe(el);
+}
 function spriteFallback(r, kind) {
   const why = r.species_match === 'ambiguous' ? 'This report mentions more than one Pokémon — no sprite shown'
     : r.species_id ? 'No local sprite — install your PokeMMO data' : 'No Pokémon identified in this report';

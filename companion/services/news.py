@@ -40,6 +40,7 @@ def _parse_dt(value: str) -> datetime:
 
 
 HOME_WINDOW_DAYS = 90
+NEW_DAYS = 7          # a post is labelled “New” only this long after its publication
 
 
 def topic_id(url: str) -> str | None:
@@ -145,7 +146,30 @@ class NewsService:
                          "articles": published_within([self._brief(a) for a in articles], now),
                          "events": sorted([e for e in events if e["status"]["code"] in ("window_open", "upcoming")],
                                          key=lambda e: (e["status"]["code"] != "window_open", e.get("starts") or "")),
-                         "older_new_posts": len(new_posts) - len(published_within(new_posts, now))}}
+                         "older_new_posts": len(new_posts) - len(published_within(new_posts, now)),
+                         # ONE merged list (bundled + feed, deduplicated by topic id), newest PUBLICATION first —
+                         # what Home renders (2026-11-24 native fix: Home used to put feed discoveries above
+                         # bundled articles regardless of their dates).
+                         "posts": [self._home_flags(r, now) for r in published_within(records, now)]}}
+
+    @staticmethod
+    def _home_flags(r: dict, now: datetime) -> dict:
+        """Honest labels: `new` only for posts PUBLISHED in the last NEW_DAYS days; `edited` when an edit was seen;
+        `found_late` when the feed noticed a post well after it was published (shown with its real date, never
+        as new)."""
+        out = dict(r)
+        try:
+            pub = _parse_dt(r.get("published") or "")
+        except (ValueError, TypeError):
+            pub = None
+        try:
+            seen = _parse_dt(r.get("first_seen_at") or "") if r.get("first_seen_at") else None
+        except (ValueError, TypeError):
+            seen = None
+        out["is_new"] = bool(pub and now - pub <= timedelta(days=NEW_DAYS))
+        out["is_edited"] = bool(r.get("edited") or r.get("edited_upstream"))
+        out["found_late"] = bool(r.get("discovered") and pub and seen and seen - pub > timedelta(days=3))
+        return out
 
     def records(self, feed: dict | None = None) -> list[dict]:
         """Bundled articles + feed posts merged by forum topic id, newest publication first.

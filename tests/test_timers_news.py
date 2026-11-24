@@ -320,3 +320,29 @@ def test_news_order_is_by_publication_not_edit_or_discovery(ctx):
     assert titles.index("Recent") < titles.index("Newer") < titles.index("Old but edited") < titles.index("Found late, published early")
     late = next(r for r in n["records"] if r["title"] == "Found late, published early")
     assert late["published"].startswith("2026-08-01") and late["first_seen_at"].startswith("2026-11-23")
+
+
+def test_home_posts_are_one_list_by_publication_with_honest_labels(ctx):
+    """Native report 2026-11-24: Home showed a feed-discovered Nov 1 Halloween changelog above the bundled Nov 13,
+    Nov 7 and Nov 5 posts, because it listed feed discoveries first and bundled articles after them."""
+    svc = NewsService(ctx.storage)
+    now = datetime(2026, 11, 24, 18, 0, tzinfo=timezone.utc)
+    ctx.storage.set_settings({"news.feed_cache": {"ok": True, "items": [
+        {"title": "Changelog - Halloween 2026", "link": "https://forums.pokemmo.com/index.php?/topic/990400-changelog-halloween-2026/",
+         "published": "2026-11-01T17:00:00Z", "first_seen_at": "2026-11-24T16:00:00Z"},
+        {"title": "Changelog - November 22nd, 2026", "link": "https://forums.pokemmo.com/index.php?/topic/990401-changelog-november-22nd-2026/",
+         "published": "2026-11-22T17:00:00Z", "first_seen_at": "2026-11-22T18:00:00Z"},
+        # the bundled Nov 13 post, seen in the feed with an edit: merged, not listed twice
+        {"title": "Changelog — November 13th, 2026", "link": "https://forums.pokemmo.com/index.php?/topic/201716-changelog-november-13th-2026/",
+         "published": "2026-11-13T17:00:00Z", "edited": True, "edited_seen_at": "2026-11-20T10:00:00Z"}]}})
+    posts = svc.listing(now=now)["home"]["posts"]
+    dates = [p["published"][:10] for p in posts]
+    assert dates == sorted(dates, reverse=True), dates
+    titles = [p["title"] for p in posts]
+    assert titles.index("Changelog — November 13th, 2026") < titles.index("Changelog - Halloween 2026")
+    assert sum("November 13th" in t for t in titles) == 1
+    by = {p["title"]: p for p in posts}
+    hall = by["Changelog - Halloween 2026"]
+    assert hall["found_late"] and not hall["is_new"]                       # old post found today: not "new"
+    assert by["Changelog - November 22nd, 2026"]["is_new"] and not by["Changelog - November 22nd, 2026"]["found_late"]
+    assert by["Changelog — November 13th, 2026"]["is_edited"] and not by["Changelog — November 13th, 2026"]["is_new"]
