@@ -6,9 +6,9 @@ An unofficial desktop companion for PokeMMO — Pokémon reference data, regiona
 
 [![Release](https://img.shields.io/github/v/release/haqzo/PokeMMO-Companion?include_prereleases&style=flat-square)](https://github.com/haqzo/PokeMMO-Companion/releases) [![Downloads](https://img.shields.io/github/downloads/haqzo/PokeMMO-Companion/total?style=flat-square)](https://github.com/haqzo/PokeMMO-Companion/releases) [![Stars](https://img.shields.io/github/stars/haqzo/PokeMMO-Companion?style=flat-square)](https://github.com/haqzo/PokeMMO-Companion/stargazers)
 
-[Downloads](https://github.com/haqzo/PokeMMO-Companion/releases) · [Installation](#installation) · [Showcase](showcase/) · [Discord](https://discord.gg/5Wbh28M3gu)
+[Downloads](https://github.com/haqzo/PokeMMO-Companion/releases) · [Installation](#installation) · [Showcase](showcase/) · [PokeMMO Forums](https://forums.pokemmo.com/index.php?/topic/201960-tools-pokemmo-companion-your-all-in-one-pokemmo-companion-tool-080-alpha/) · [Discord](https://discord.gg/5Wbh28M3gu)
 
-> **0.8.0 Alpha** — Preparing the first public release. Downloads will appear on GitHub Releases after publication.
+> **0.8.0 Alpha is now available!** [Download the first public alpha](https://github.com/haqzo/PokeMMO-Companion/releases/tag/v0.8.0).
 
 ![Companion home dashboard](showcase/screenshots/01-home-dashboard.png)
 
@@ -65,6 +65,8 @@ Updates are installed manually. Your personal data is stored separately from the
 [User guide, backups and troubleshooting](docs/closed-alpha.md)
 
 ## Community
+
+Join the discussion on the [official Companion forum thread](https://forums.pokemmo.com/index.php?/topic/201960-tools-pokemmo-companion-your-all-in-one-pokemmo-companion-tool-080-alpha/) for announcements, questions and community feedback.
 
 This is alpha software. Please report bugs, compatibility problems and translation feedback through [GitHub Issues](https://github.com/haqzo/PokeMMO-Companion/issues) or our [Discord](https://discord.gg/5Wbh28M3gu).
 
