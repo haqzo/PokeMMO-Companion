@@ -1,0 +1,9 @@
+# Build 30 — native notifications, optional imports, service messages and verification evidence
+
+Base 0b98448426cba8d2f33f3ea667f8172cbd55364b. Version 0.1.0; develop only.
+
+- 50 bilingual entries for background import progress, sprite rejection, data/launcher/guide timer/reference/update errors and notification availability. Settings and Home now render these recognized service strings without altering source payloads. Unknown provider strings and original English are preserved; dynamic field matching is restricted to known fields.
+- Eight native entries cover tray-running hint, live/timer notification headers and accessible dismiss control. Native Qt code has not been executed in this environment.
+- Added optional exact-known-English fallback capture to the existing three-language route/popout tests. Set `COMPANION_LOCALIZATION_FALLBACKS` to a local output directory when running the existing suite. Per-route/mode JSON reports text and accessibility attribute candidates with their catalog keys. No extra navigation or test matrix. This is a lower-bound candidate inventory: unknown English, dynamic/mixed strings, unopened dialogs and user/provider/brand exceptions still require context review. No fabricated coverage percentage.
+- Actual assembled catalog: 2950 supplemental keys, 3040 merged. Changed JS syntax and fallback probe syntax passed, no duplicate keys or placeholder mismatches, 159 isolated error/progress checks passed. Browser regression added; Python/Qt and full Playwright suite not executed. Direct Git clone from this environment failed DNS resolution; native Windows/asset gates remain.
+- Continue fast path: close remaining actual gaps, verify current candidate, quick performance smoke and targeted stabilization, then 0.8.0 friends-only closed alpha. No version bump, release or main merge.

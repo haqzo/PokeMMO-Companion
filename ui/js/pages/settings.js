@@ -179,9 +179,9 @@ async function notifications(b) {
     row(translateUI('ui.b272_settings_060'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 3, max: 60, value: s['notify.toast_duration'], style: { width: '90px' }, onchange: (e) => set('notify.toast_duration')(Number(e.target.value)) }), translateUI('settings.seconds'))),
     row(translateUI('ui.b272_settings_061'), null, rangeCell('notify.toast_opacity', 60, 100)),
     row(translateUI('ui.b272_settings_062'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 1, max: 365, value: s['notify.retention_days'], style: { width: '90px' }, onchange: (e) => set('notify.retention_days')(Number(e.target.value)) }), translateUI('settings.days'))),
-    row(translateUI('ui.b272_settings_063'), n.available ? translateUI('ui.b272_settings_064') : n.reason, h('span', { class: 'badge ' + (n.available ? 'verified' : 'unknown') }, n.backend)),
+    row(translateUI('ui.b272_settings_063'), n.available ? translateUI('ui.b272_settings_064') : apiErrorText(n.reason), h('span', { class: 'badge ' + (n.available ? 'verified' : 'unknown') }, n.backend)),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { const r = await post('/api/live/test', { kind: 'alpha' }); const d = r.delivery || {};
-      toast(translateUI('settings.test_delivery', { toast: d.toast ? (d.toast.delivered ? translateUI('settings.shown') : translateUI('settings.not_shown')) : translateUI('settings.off'), os: d.os ? (d.os.delivered ? translateUI('settings.sent') : translateUI('settings.failed', { error: d.os.error || '' })) : translateUI('settings.off') }), { timeout: 6000 }); } }, icon('bell'), translateUI('settings.send_test'))));
+      toast(translateUI('settings.test_delivery', { toast: d.toast ? (d.toast.delivered ? translateUI('settings.shown') : translateUI('settings.not_shown')) : translateUI('settings.off'), os: d.os ? (d.os.delivered ? translateUI('settings.sent') : translateUI('settings.failed', { error: apiErrorText(d.os.error) || '' })) : translateUI('settings.off') }), { timeout: 6000 }); } }, icon('bell'), translateUI('settings.send_test'))));
 }
 
 // -------------------------------------------------------------- sources
@@ -210,7 +210,7 @@ async function sources(b) {
     row(translateUI('ui.b272_settings_073'), translateUI('ui.b272_settings_074'),
       h('div', { class: 'stack tight' }, h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; const r = await post('/api/news/check');
         toast(r.ok ? translateUI('settings.checked_posts', { count: r.count }) : translateUI('settings.refresh_failed', { error: apiErrorText(r.error) }), { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), translateUI('settings.check_now')),
-      n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? translateUI('settings.last_check_ok', { date: relTime(n.feed.checked_at) }) : translateUI('settings.last_check_failed', { date: relTime(n.feed.checked_at), error: n.feed.error })) : h('span', { class: 'small muted' }, translateUI('settings.never_checked')))),
+      n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? translateUI('settings.last_check_ok', { date: relTime(n.feed.checked_at) }) : translateUI('settings.last_check_failed', { date: relTime(n.feed.checked_at), error: apiErrorText(n.feed.error) })) : h('span', { class: 'small muted' }, translateUI('settings.never_checked')))),
     row(translateUI('ui.b272_settings_075'), translateUI('settings.no_feed'), badge('UNKNOWN', translateUI('settings.not_connected'))));
 }
 
@@ -253,8 +253,8 @@ export async function data(b) {
       const { job } = await post('/api/import/' + kind, { folder: folder.trim() });
       const poll = async () => {
         const j = await get('/api/import/jobs/' + job);
-        if (j.state === 'running') { mount(jobBox, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), (j.messages || []).slice(-1)[0] || translateUI('advanced.working'))); setTimeout(poll, 400); return; }
-        if (j.state === 'error') { mount(jobBox, notice('bad', j.error)); return; }
+        if (j.state === 'running') { mount(jobBox, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), apiErrorText((j.messages || []).slice(-1)[0]) || translateUI('advanced.working'))); setTimeout(poll, 400); return; }
+        if (j.state === 'error') { mount(jobBox, notice('bad', apiErrorText(j.error))); return; }
         toast(kind === 'dumps' ? translateUI('advanced.dex_imported') : translateUI('advanced.guides_imported'));
         state.dexCache = null; await (await import('../core.js')).loadBoot();
         render(document.getElementById('main'), { parts: ['data'] });
@@ -284,7 +284,7 @@ export async function data(b) {
     ds.update_available ? notice('warn', translateUI('advanced.client_changed')) : null,
     m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, h('strong', null, translateUI('advanced.client_active')), translateUI('advanced.import_stats', { date: fmtDate(m.imported_at, true), species: m.counts.species, locations: m.counts.location_rows, icons: m.counts.icons || 0, sprites: m.counts.battle_sprites || 0 })),
       h('div', { class: 'muted' }, Object.entries(m.sources).map(([k, v]) => `${k}: ${v.file}${v.sha256 ? ' (sha256 ' + v.sha256.slice(0, 12) + '…)' : ''}`).join(' · ')),
-      (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : translateUI('advanced.client_inactive')),
+      (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? apiErrorText(m.error) : translateUI('advanced.client_inactive')),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, dumpPath), browse(dumpPath, 'dumps'), h('button', { class: 'btn primary', onclick: () => runImport('dumps', dumpPath.value) }, icon('download'), m ? translateUI('advanced.reimport') : t('common.import'))),
     h('div', { class: 'tiny muted' }, translateUI('advanced.dump_help'))),
     h('h3', null, translateUI('advanced.personal_guides')),
@@ -317,7 +317,7 @@ async function spriteLibrarySection(browse) {
       const poll = async () => {
         const j = (await get('/api/sprites/library')).job;
         if (j.state === 'running') { setTimeout(poll, 500); return; }
-        if (j.state === 'error') { mount(msg, notice('bad', j.error)); return; }
+        if (j.state === 'error') { mount(msg, notice('bad', apiErrorText(j.error))); return; }
         toast(translateUI('advanced.sprite_installed', { forms: j.forms, species: j.species, refused: j.refused ? translateUI('advanced.sprite_refused_suffix', { count: j.refused }) : '' }), { timeout: 7000 });
         state.dexCache = null; refresh();
       };
@@ -337,7 +337,7 @@ async function spriteLibrarySection(browse) {
       c ? h('div', null, translateUI('advanced.sprite_form_stats', { animated: c.forms_ani, shiny: c.forms_ani_shiny, still: c.forms_static, total: c.forms_total }),
         translateUI('advanced.sprite_species_stats', { animated: c.species_ani, shiny: c.species_ani_shiny, total: c.species_total })) : null,
       st.refused_count ? h('details', null, h('summary', null, translateUI('advanced.sprite_refused', { count: st.refused_count })),
-        h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', r.reason)))) : null,
+        h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', apiErrorText(r.reason))))) : null,
       h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: async () => {
         if (await confirmDialog(translateUI('advanced.sprite_go_back'), translateUI('advanced.sprite_remove_confirm'), translateUI('advanced.sprite_builtin_action'), true)) {
           await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, translateUI('advanced.sprite_remove'))))
@@ -470,7 +470,7 @@ async function updatesSec(b) {
       row(translateUI('ui.b272_settings_088'), ref.last_check_at ? translateUI('system.last_check', { date: relTime(ref.last_check_at) }) : translateUI('system.not_checked'), switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }))),
       ref.last_error ? notice('warn', ref.last_error) : null,
       h('div', { class: 'row wrap' },
-        h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? translateUI('system.ref_updated', { date: fmtDate(r.dump_date) }) : r.reason); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), translateUI('system.check_update')),
+        h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? translateUI('system.ref_updated', { date: fmtDate(r.dump_date) }) : apiErrorText(r.reason)); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), translateUI('system.check_update')),
         ref.previous_available ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/rollback'); toast(translateUI('system.previous_restored')); redraw(); } }, translateUI('system.previous_data')) : null,
         ref.downloaded ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/reset'); toast(translateUI('system.builtin_active')); redraw(); } }, translateUI('system.use_builtin')) : null)]
       : h('div', { class: 'small muted' }, translateUI('system.no_data_updates')),
@@ -505,7 +505,7 @@ async function backupSec(b) {
       : h('span', { class: 'tiny muted', title: translateUI('system.database_help') }, translateUI('system.database_copy')))) :
     h('div', { class: 'small muted' }, translateUI('ui.settings_backup_no')));
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.backup_recovery')),
-    st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? translateUI('system.restore_finished') : translateUI('system.restore_interrupted', { reason: st.recovered.reason })) : null,
+    st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? translateUI('system.restore_finished') : translateUI('system.restore_interrupted', { reason: apiErrorText(st.recovered.reason) })) : null,
     h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('ui.settings_backup_full')),
     row(translateUI('ui.settings_backup_auto'), auto ? translateUI('system.backup_last', { date: fmtDate(auto.created_at, true) }) : translateUI('system.backup_auto'),
       h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.settings_backup_auto'), onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },

@@ -2,7 +2,7 @@ import { locale, number, uiLabel } from '../i18n.js';
 import { plural, t as translateUI } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
 // Home + in-app official news / changelog / event reader (docs/design/03).
-import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
+import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { LANGS, lang } from '../i18n.js';
@@ -621,7 +621,7 @@ async function updateCard(n, rerender) {
   // One short status line; details (interval, summaries date, errors) live in the tooltip.
   const status = !f ? translateUI('ui.news_unknown_check') : f.ok ? translateUI('ui.news_checked', { age: relTime(f.last_ok_at || f.checked_at) }) : translateUI('ui.news_check_offline', { age: f.last_ok_at ? relTime(f.last_ok_at) : translateUI('ui.news_check_never') });
   const detail = [n.auto_check ? translateUI('ui.news_check_every', { hours: number(n.check_hours) }) : translateUI('ui.news_check_off'),
-    f && !f.ok ? translateUI('ui.news_check_failure', { error: f.error }) : '', f && f.stale ? translateUI('ui.news_check_stale') : '',
+    f && !f.ok ? translateUI('ui.news_check_failure', { error: apiErrorText(f.error) }) : '', f && f.stale ? translateUI('ui.news_check_stale') : '',
     translateUI('ui.news_check_summary', { date: fmtDate(n.snapshot_checked_at) })].filter(Boolean).join(' ');
   return h('section', { class: 'card hero home-update', 'aria-labelledby': 'latest-h' },
     h('div', { class: 'hero-eyebrow' }, icon('book'), translateUI('ui.official_update'), h('span', { class: 'grow' }), provenanceLine(L)),
@@ -637,7 +637,7 @@ async function updateCard(n, rerender) {
       n.new_posts.length ? h('span', { class: 'muted' }, translateUI('ui.b272_news_unchecked_count', { count: number(n.new_posts.length) })) : null,
       h('span', { class: 'grow' }),
       h('button', { class: 'btn ghost small', title: detail, onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/news/check');
-        toast(r.throttled ? translateUI('ui.b272_checked_recent') : r.ok ? translateUI(r.unchanged ? 'ui.b272_news_check_unchanged' : 'ui.b272_news_check_done') : translateUI('ui.b272_news_check_error', { error: r.error }), { kind: r.ok ? 'info' : 'warn', timeout: 6000 });
+        toast(r.throttled ? translateUI('ui.b272_checked_recent') : r.ok ? translateUI(r.unchanged ? 'ui.b272_news_check_unchanged' : 'ui.b272_news_check_done') : translateUI('ui.b272_news_check_error', { error: apiErrorText(r.error) }), { kind: r.ok ? 'info' : 'warn', timeout: 6000 });
         rerender(); } }, icon('refresh'), translateUI('ui.news_check_now'))));
 }
 
@@ -752,7 +752,7 @@ async function installNow(folder, rerender) {
   const poll = async () => {
     const j = await get('/api/import/jobs/' + job);
     if (j.state === 'running') { setTimeout(poll, 400); return; }
-    if (j.state === 'error') { toast(j.error, { kind: 'warn', timeout: 8000 }); return; }
+    if (j.state === 'error') { toast(apiErrorText(j.error), { kind: 'warn', timeout: 8000 }); return; }
     const { loadBoot } = await import('../core.js');
     await loadBoot(); state.dexCache = null;
     toast(translateUI('ui.b272_data_installed', { species: number(j.result.counts.species), icons: number(j.result.counts.icons || 0) }));

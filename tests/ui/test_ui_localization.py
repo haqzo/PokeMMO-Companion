@@ -17,6 +17,57 @@ def select_language(page, name, locale):
     page.wait_for_function("locale => document.documentElement.lang === locale", arg=locale)
 
 
+
+# Optional evidence capture during existing route/popout tests, not a second traversal.
+def capture_fallbacks(pg, language, scope):
+    folder = os.environ.get("COMPANION_LOCALIZATION_FALLBACKS")
+    if not folder or language == "en":
+        return
+    evidence = pg.evaluate(r"""async () => {
+      const { catalogEntries } = await import('/js/i18n.js');
+      const lang = document.documentElement.lang === 'es' ? 2 : 3;
+      const normalize = s => s.replace(/\\s+/g, ' ').trim();
+      const sources = new Map();
+      for (const [key, en, es, zh] of catalogEntries()) {
+        const row = [key, en, es, zh];
+        if (!en || en === row[lang] || /\\{\\w+\\}/.test(en)) continue;
+        const value = normalize(en);
+        if (value.length < 3 || !/[A-Za-z]/.test(value)) continue;
+        const keys = sources.get(value) || [];
+        keys.push(key); sources.set(value, keys);
+      }
+      const out = new Map();
+      const visible = e => e && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+        && !e.closest('[hidden], [aria-hidden="true"], details:not([open]) > :not(summary)');
+      const note = (value, context, e) => {
+        const normalized = normalize(value || '');
+        if (!sources.has(normalized)) return;
+        const id = context + ':' + normalized;
+        if (!out.has(id)) out.set(id, {text: normalized, context, keys: sources.get(normalized), tag: e.tagName});
+      };
+      const root = document.body;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode, e = node.parentElement;
+        if (visible(e) && !e.closest('script,style,textarea,option')) note(node.nodeValue, 'text', e);
+      }
+      for (const e of root.querySelectorAll('[title],[placeholder],[aria-label],[alt]')) {
+        if (!visible(e)) continue;
+        for (const attr of ['title','placeholder','aria-label','alt']) {
+          if (e.hasAttribute(attr)) note(e.getAttribute(attr), attr, e);
+        }
+      }
+      return [...out.values()];
+    }""")
+    target = Path(folder)
+    target.mkdir(parents=True, exist_ok=True)
+    name = "".join(c if c.isalnum() else "-" for c in scope)
+    (target / f"{language}-{name}.json").write_text(
+        json.dumps({"locale": language, "scope": scope, "candidates": evidence}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 def test_live_switch_and_persistence(clean, pg):
     clean.ctx.settings.update({"app.language": "en"})
     pg.goto(clean.url("#/home"))
@@ -89,6 +140,7 @@ def test_offline_route_inventory(clean, pg, language, locale, width, height):
         pg.locator("#main .page > *").first.wait_for(state="attached")
         assert pg.locator("html").get_attribute("lang") == locale, route
         assert not pg.errors, (route, pg.errors)
+        capture_fallbacks(pg, language, f"route-{width}x{height}-{route}")
         if shots and width == 1500 and route in screenshot_routes:
             pg.locator(screenshot_routes[route]).first.wait_for()
             target = Path(shots)
@@ -205,6 +257,7 @@ def test_offline_popout_inventory(clean, pg, language, locale):
                 pg.locator(".objective.s-text").wait_for()
                 assert pg.locator(".popout-body .step input").first.is_visible()
             assert not pg.errors, (tool, mode, pg.errors)
+            capture_fallbacks(pg, language, f"popout-{tool}-{mode}")
     finally:
         clean.ctx.settings.update({"guides.active_run": None})
         clean.ctx.guides.delete_run(run)
@@ -518,4 +571,27 @@ def test_catalog_form_names_and_artwork_report(clean, pg, language, arceus, cast
     }""")
     assert result[:6] == ["!", "?", arceus, castform, genesect, artwork]
     assert result[6].endswith(" — " + arceus)
+    assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "progress", "size"), [
+    ("en", "Reading Pokédex data…", "unexpected size 300×400"),
+    ("es", "Leyendo datos de la Pokédex…", "Tamaño inesperado: 300×400"),
+    ("zh", "正在读取宝可梦图鉴数据…", "尺寸异常：300×400"),
+])
+def test_import_progress_and_service_fallbacks(clean, pg, language, progress, size):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { apiErrorText } = await import('/js/core.js');
+      return [
+        apiErrorText('Reading Pokédex data…'),
+        apiErrorText('unexpected size 300×400'),
+        apiErrorText('Unknown provider field is required'),
+        apiErrorText('Folder not found: /home/example/Private Files'),
+      ];
+    }""")
+    assert result[:3] == [progress, size, "Unknown provider field is required"]
+    assert "/home/example/Private Files" in result[3]
     assert not pg.errors

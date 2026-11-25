@@ -13,6 +13,50 @@ export const WINDOW_ID = (POPOUT ? 'popout-' + POPOUT : 'main') + '-' + Math.ran
 export const state = { boot: null, settings: {}, caps: {}, dexCache: null };
 
 const API_ERROR_KEYS = {
+  "A sprite library import is already running": "errorui.sprite_running",
+  "not a valid GIF/PNG of at most 2 MB": "errorui.sprite_invalid",
+  "identical to the base species artwork": "errorui.sprite_identical",
+  "No recognised sprite files were found there. Point at a folder or .zip of github.com/PokeAPI/sprites or github.com/smogon/sprites (or a Showdown gen5ani folder). Your existing sprite library was kept.": "errorui.sprite_no_files",
+  "PokedexData.zip was not found in the selected folder. Choose the folder that contains your PokeMMO dump zips.": "errorui.dump_missing",
+  "No '<REGION> COMPLETE WALKTHROUGH.odt' files were found in that folder.": "errorui.guide_missing",
+  "No notification backend: start with the native window shell (PySide6) or install libnotify (notify-send).": "errorui.notify_none",
+  "That file does not exist": "errorui.launcher_missing",
+  "Choose PokeMMO.exe (or its shortcut)": "errorui.launcher_exe",
+  "That file is not a program that can be started": "errorui.launcher_program",
+  "No PokeMMO launcher found — choose it in Settings › Startup & game integration": "errorui.launcher_not_found",
+  "Invalid timer": "errorui.timer_invalid",
+  "Timer duration must be a whole number of seconds": "errorui.guide_timer_seconds",
+  "Timer duration must be between 1 second and 99:59:59": "errorui.guide_timer_range",
+  "Invalid timer id": "errorui.timer_id",
+  "Unknown guide": "errorui.guide_unknown",
+  "Too many timers": "errorui.timers_many",
+  "Invalid step timers": "errorui.step_timers",
+  "That team does not exist": "errorui.team_missing",
+  "Duplicate timer id": "errorui.timer_duplicate",
+  "Signature checking is not available in this build": "errorui.ref_signature_unavailable",
+  "species data has the wrong structure": "errorui.ref_species_structure",
+  "extras data has the wrong structure": "errorui.ref_extras_structure",
+  "only https sources are accepted": "errorui.ref_https",
+  "download is larger than allowed": "errorui.ref_download_large",
+  "data index has the wrong format": "errorui.ref_index_format",
+  "not a Companion data index": "errorui.ref_index_type",
+  "package is larger than allowed": "errorui.ref_package_large",
+  "package unpacks to more than allowed": "errorui.ref_unpacked_large",
+  "package contains unexpected files": "errorui.ref_unexpected_files",
+  "package manifest does not match the index": "errorui.ref_manifest_index",
+  "release list too large": "errorui.update_release_large",
+  "unexpected response": "errorui.update_response",
+  "download larger than allowed": "errorui.update_download_limit",
+  "Reading Pokédex data…": "errorui.import_read_dex",
+  "Extracting Pokémon icons…": "errorui.import_icons",
+  "Extracting battle sprites (front only)…": "errorui.import_battle",
+  "Extracting item icons…": "errorui.import_items",
+  "Reading client string tables (item names in Spanish / Chinese)…": "errorui.import_names",
+  "Building the Item Library…": "errorui.import_build_items",
+  "Import complete.": "errorui.import_complete",
+  "missing item catalog": "errorui.import_catalog",
+  "installed by an older Companion version": "errorui.import_older",
+  "local source changed": "errorui.import_changed",
   "Character name: 1–24 letters, digits, spaces, . ' or -": "errorui.character_name",
   "Run label: up to 24 letters, digits, spaces, . ' or -": "errorui.run_label",
   "A run with that character name and label already exists — add a different run label.": "errorui.run_duplicate",
@@ -150,6 +194,13 @@ export const isShortcutConflict = (error) => Boolean(shortcutConflict(error?.raw
 const VALIDATION_FIELDS = {"title":"title","body":"body","link label":"link_label","species":"species","nickname":"nickname","form":"form","level":"level","nature":"nature","ability":"ability","held item":"held_item","move":"move","OT":"ot","location":"location","encounter count":"encounter_count","notes":"notes","name":"name","background opacity":"background_opacity","cycle seconds":"cycle_seconds","columns":"columns","description":"description","source":"source","indent":"indent","step text":"step_text","note":"note","filename":"filename","label":"label","seen":"seen","owned":"owned","caught_ot":"caught_ot","caught_alpha":"caught_alpha","owned_shiny":"owned_shiny","costume":"costume"};
 const VALIDATION_STATS = {"hp":"stat_hp","attack":"stat_attack","defense":"stat_defense","sp_attack":"stat_sp_attack","sp_defense":"stat_sp_defense","speed":"stat_speed"};
 const OBSERVATION_FIELDS = new Set(['seen', 'owned', 'caught_ot', 'caught_alpha', 'owned_shiny', 'costume']);
+function knownValidationField(field) {
+  if (Object.hasOwn(VALIDATION_FIELDS, field)) return true;
+  const stat = /^(IV|EV) (\w+)$/.exec(field);
+  if (stat && Object.hasOwn(VALIDATION_STATS, stat[2])) return true;
+  const counter = /^(\w+) (value|maximum)$/.exec(field);
+  return Boolean(counter && OBSERVATION_FIELDS.has(counter[1]));
+}
 export function validationField(field) {
   if (lang() === 'en') return field;
   if (Object.hasOwn(VALIDATION_FIELDS, field)) return translateUI('fieldlia.' + VALIDATION_FIELDS[field]);
@@ -163,13 +214,19 @@ export function validationField(field) {
 }
 
 export function apiErrorText(message) {
-  if (Object.hasOwn(API_ERROR_KEYS, message)) return translateUI(API_ERROR_KEYS[message]);
   if (typeof message !== 'string' || lang() === 'en') return message;
+  if (Object.hasOwn(API_ERROR_KEYS, message)) return translateUI(API_ERROR_KEYS[message]);
   let match;
-  if ((match = /^(.+) is required$/.exec(message))) return translateUI('errorui.required', { field: validationField(match[1]) });
-  if ((match = /^(.+) is too long \(max (\d+) characters\)$/.exec(message))) return translateUI('errorui.text_max', { field: validationField(match[1]), max: match[2] });
-  if ((match = /^(.+) must be a whole number$/.exec(message))) return translateUI('errorui.whole_number', { field: validationField(match[1]) });
-  if ((match = /^(.+) must be between (-?\d+) and (-?\d+)$/.exec(message))) return translateUI('errorui.field_range', { field: validationField(match[1]), min: match[2], max: match[3] });
+  if ((match = /^Folder not found: (.+)$/.exec(message))) return translateUI('errorui.folder_missing', { path: match[1] });
+  if ((match = /^PokedexData\.zip is missing (.+)$/.exec(message))) return translateUI('errorui.dex_missing_member', { file: match[1] });
+  if ((match = /^unexpected size (\d+)×(\d+)$/.exec(message))) return translateUI('errorui.sprite_size', { width: match[1], height: match[2] });
+  if ((match = /^PokeMMO could not be started: (.+)$/.exec(message))) return translateUI('errorui.launcher_failure', { detail: match[1] });
+  if ((match = /^unsupported dataset schema (.+)$/.exec(message))) return translateUI('errorui.ref_schema', { schema: match[1] });
+  if ((match = /^manifest unreadable: (.+)$/.exec(message))) return translateUI('errorui.ref_manifest', { detail: match[1] });
+  if ((match = /^(.+) is required$/.exec(message)) && knownValidationField(match[1])) return translateUI('errorui.required', { field: validationField(match[1]) });
+  if ((match = /^(.+) is too long \(max (\d+) characters\)$/.exec(message)) && knownValidationField(match[1])) return translateUI('errorui.text_max', { field: validationField(match[1]), max: match[2] });
+  if ((match = /^(.+) must be a whole number$/.exec(message)) && knownValidationField(match[1])) return translateUI('errorui.whole_number', { field: validationField(match[1]) });
+  if ((match = /^(.+) must be between (-?\d+) and (-?\d+)$/.exec(message)) && knownValidationField(match[1])) return translateUI('errorui.field_range', { field: validationField(match[1]), min: match[2], max: match[3] });
   if ((match = /^(\w+): value cannot exceed the maximum shown$/.exec(message)) && OBSERVATION_FIELDS.has(match[1])) return translateUI('errorui.counter_max', { field: validationField(match[1]) });
   if ((match = /^Unknown nature: (.+)$/.exec(message))) return translateUI('errorui.unknown_nature', { value: match[1] });
   if ((match = /^Unknown link kind: (.+)$/.exec(message))) return translateUI('errorui.unknown_link', { value: match[1] });

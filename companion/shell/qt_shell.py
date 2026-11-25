@@ -466,7 +466,7 @@ class Toast(QWidget):
         row.addWidget(icon, 0, Qt.AlignTop)
         col = QVBoxLayout()
         col.setSpacing(2)
-        kind = QLabel(shell.tr_ui("TEST · NOT A REAL REPORT") if payload.get("is_test") else str(payload.get("kind", "report")).upper())
+        kind = QLabel(shell.tr_ui("TEST · NOT A REAL REPORT") if payload.get("is_test") else shell.tr_ui(str(payload.get("kind", "report")).upper()))
         kind.setObjectName("tkind")
         kind.setProperty("test", test)
         title = QLabel(payload.get("title", ""))
@@ -491,6 +491,8 @@ class Toast(QWidget):
         row.addLayout(col, 1)
         close = QToolButton()
         close.setText("✕")
+        close.setAccessibleName(shell.tr_ui("Dismiss notification"))
+        close.setToolTip(shell.tr_ui("Dismiss notification"))
         close.setFocusPolicy(Qt.NoFocus)
         close.clicked.connect(self.close)
         row.addWidget(close, 0, Qt.AlignTop)
@@ -594,8 +596,8 @@ class MainWindow(QMainWindow):
             e.ignore()
             self.hide()
             if not self._hint_shown:
-                self.shell.tray.showMessage(APP_NAME, "Still running in the tray (popouts and alerts stay active). "
-                                            "Use the tray menu → Quit to exit.", QSystemTrayIcon.MessageIcon.Information, 5000)
+                self.shell.tray.showMessage(APP_NAME, self.shell.tr_ui("Still running in the tray (popouts and alerts stay active). "
+                                            "Use the tray menu → Quit to exit."), QSystemTrayIcon.MessageIcon.Information, 5000)
                 self._hint_shown = True
             return
         e.accept()

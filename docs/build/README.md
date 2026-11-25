@@ -45,3 +45,5 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**29 — Service errors and roadmap reconciliation**](29-LOCALIZATION-SERVICE-ERRORS.md)
 
 - [**30 — Owner-confirmed translation review and 0.8.0 friends-only alpha gates**](30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md)
+
+- [30 — Native notifications, imports and fallback verification](30-LOCALIZATION-NATIVE-IMPORTS-VERIFICATION.md)

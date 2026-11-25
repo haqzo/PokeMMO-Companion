@@ -2,6 +2,14 @@
 from __future__ import annotations
 
 MESSAGES = {
+    "Still running in the tray (popouts and alerts stay active). Use the tray menu → Quit to exit.": ("Companion sigue activo en la bandeja del sistema (ventanas flotantes y avisos activos). Usa el menú de la bandeja → Salir para cerrarlo.", "Companion 仍在系统托盘中运行（浮动窗口和提醒保持启用）。请通过托盘菜单 → 退出关闭。"),
+    "ALPHA": ("ALFA", "头目"),
+    "SWARM": ("APARICIÓN MASIVA", "大量出现"),
+    "PHENOMENON": ("FENÓMENO", "现象"),
+    "TIMER": ("TEMPORIZADOR", "计时器"),
+    "REPORT": ("AVISO", "报告"),
+    "OTHER": ("OTRO", "其他"),
+    "Dismiss notification": ("Cerrar notificación", "关闭通知"),
     "Show Companion": ("Mostrar Companion", "显示 Companion"),
     "Open Storyline popout": ("Abrir la ventana de historia", "打开剧情浮动窗口"),
     "Quit (stops alerts)": ("Salir (detiene los avisos)", "退出（停止提醒）"),
