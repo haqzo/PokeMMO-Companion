@@ -15,7 +15,11 @@ const parse = (source) => acorn.parse(source, {ecmaVersion: 'latest', sourceType
 
 walk.simple(parse(fs.readFileSync(catalog, 'utf8')), {
   Property(node) {
-    declarations.add(node.key.value);
+    const key = node.key.value;
+    if (declarations.has(key)) {
+      throw new Error(`Duplicate translation key ${key} at ${catalog}:${node.loc.start.line}`);
+    }
+    declarations.add(key);
     sources.set(node.value.elements[0].value, node.key.value);
   },
 });

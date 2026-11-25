@@ -303,7 +303,6 @@ export const UI_STRINGS = {
   'ui.game_data': ["Game data", "Datos del juego", "游戏数据"],
   'ui.open_live': ["Open Live", "Abrir En vivo", "打开实时页面"],
   'ui.home_live_off': ["Feed off — no claim about current Alphas or Swarms", "Fuente desactivada. Consulta las apariciones en el juego.", "订阅已关闭，请在游戏内确认头目或大量出现。"],
-  'ui.home_feed_connect': ["Connect the read-only report feed in Live to see community reports here.", "Activa la fuente de solo lectura en En vivo para ver los avisos de la comunidad.", "在实时页面启用只读订阅，即可在此查看社区报告。"],
   'ui.news_official_source': ["Original post on the official PokeMMO forum", "Publicación original en el foro oficial de PokeMMO", "PokeMMO 官方论坛原帖"],
   'ui.published': ["Published", "Publicado", "发布时间"],
   'ui.patch_note': ["Patch note", "Nota del parche", "更新说明"],
