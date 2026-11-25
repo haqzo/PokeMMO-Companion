@@ -35,3 +35,7 @@ The owner and invited friends use the same 0.8.0 build. MaToRiuKo reviews Simpli
 Feedback: version/build SHA, OS, locale, page/tool and mode, steps to reproduce, current/expected wording or behavior, optional privacy-reviewed screenshot or video. Retest corrections before subsequent builds.
 
 Public beta and 1.0 remain later milestones. Existing exclusions remain unchanged: no encounter counter, damage calculator, GTL scraping, PokeMMO Hub API, game automation, memory hooks, Android/OCR/sync during this phase.
+
+## Owner-approved pre-0.8.0 performance requirement (25 November)
+
+Full baseline at 3c8b634: 581 passed, 52 skipped, no failures. Before packaging, optimize Balanced/default itself (not merely a low-performance preset). Prioritize incremental item popouts, detached sprite/card observer cleanup, cache retention, selective rendering and hidden animation handling. Preserve every feature and preference; do not delay timers or live alerts. Measure against the recorded owner baseline. Add localized Performance settings only for implemented, verifiable controls, with Balanced default and meaningful Lightweight/Custom options after the default improves. Re-run affected browser regressions and native measurements before version bump; Windows and distribution gates remain. No new release or main merge.

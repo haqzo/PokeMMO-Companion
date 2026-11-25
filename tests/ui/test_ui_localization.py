@@ -655,3 +655,30 @@ def test_rendered_fallback_corrections(clean, pg, language, guides, cave, none, 
     }""")
     assert result == [guides, cave, none, stat]
     assert not pg.errors
+
+
+def test_incremental_item_batches_cancel_stale_observers(clean, pg):
+    clean.ctx.settings.update({"app.language": "en", "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+        const { renderItemBatches } = await import('/js/pages/items.js');
+        const root = document.createElement('div');
+        root.style.cssText = 'height:80px;overflow:auto;position:fixed;top:0;left:0;width:300px';
+        const grid = document.createElement('div'); root.append(grid); document.body.append(root);
+        const tile = id => { const n = document.createElement('div'); n.dataset.testId = id; n.style.height = '24px'; return n; };
+        const list = Array.from({length: 300}, (_, i) => i);
+        renderItemBatches(grid, list, tile, root, 120);
+        const initial = grid.querySelectorAll('[data-test-id]').length;
+        root.scrollTop = root.scrollHeight;
+        await new Promise(r => setTimeout(r, 200));
+        const next = grid.querySelectorAll('[data-test-id]').length;
+        renderItemBatches(grid, [299], tile, root, 120);
+        await new Promise(r => setTimeout(r, 200));
+        const final = [...grid.querySelectorAll('[data-test-id]')].map(n => Number(n.dataset.testId));
+        root.remove(); return {initial, next, final};
+    }""")
+    assert result["initial"] == 120
+    assert result["next"] > 120
+    assert result["final"] == [299]
+    assert not pg.errors

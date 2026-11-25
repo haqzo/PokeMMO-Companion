@@ -13,7 +13,40 @@ const itemSource = (value) => SOURCE_KEYS[value] ? translateUI(SOURCE_KEYS[value
 let cache = null, unsub = [];
 const F0 = { q: '', cat: 'all', fav: false, held: false, evo: false, placeholders: false, sort: 'name' };
 let F = null;
-export function dispose() { unsub.forEach((u) => u()); unsub = []; }
+let stopBatches = null;
+function cancelBatches() { if (stopBatches) stopBatches(); stopBatches = null; }
+export function dispose() { cancelBatches(); unsub.forEach((u) => u()); unsub = []; }
+
+// Share incremental rendering between the main library and floating tool.
+// Search/filter still runs against the full data set; only the DOM is batched.
+export function renderItemBatches(grid, list, tile, root = null, batchSize = 240) {
+  cancelBatches();
+  clear(grid);
+  let shown = 0, observer = null, stopped = false;
+  const stop = () => { stopped = true; observer?.disconnect(); observer = null; };
+  stopBatches = stop;
+  const more = () => {
+    if (stopped) return;
+    const frag = document.createDocumentFragment();
+    for (const item of list.slice(shown, shown + batchSize)) frag.append(tile(item));
+    shown += batchSize;
+    grid.append(frag);
+    if (shown >= list.length) { observer?.disconnect(); observer = null; return; }
+    const sentinel = h('div', { class: 'more-sentinel', style: { gridColumn: '1/-1', height: '1px' } });
+    grid.append(sentinel);
+    observer = new IntersectionObserver((entries, obs) => {
+      if (stopped || !grid.isConnected) { obs.disconnect(); return; }
+      if (entries.some(e => e.isIntersecting)) { obs.disconnect(); sentinel.remove(); more(); }
+    }, { root, rootMargin: '200px 0px' });
+    observer.observe(sentinel);
+  };
+  if (typeof IntersectionObserver !== 'function') {
+    const frag = document.createDocumentFragment();
+    for (const item of list) frag.append(tile(item));
+    grid.append(frag);
+  } else if (list.length) more();
+  return stop;
+}
 
 async function load(force) {
   if (!cache || force || cache.lang !== lang()) cache = { ...(await get('/api/items?lang=' + lang())), lang: lang() };
@@ -79,17 +112,8 @@ export async function render(el, route) {
   const draw = () => {
     const list = applyItemFilters(data.items, F);
     count.textContent = translateUI('ui.item_counts', { count: number(list.length), total: number(data.items.filter((i) => i.category !== 'placeholder').length) });
-    clear(grid);
-    let shown = 0;
-    const more = () => {
-      const frag = document.createDocumentFragment();
-      for (const i of list.slice(shown, shown + 240)) frag.append(itemTile(i, { selected: i.id === sel, onOpen: (id) => go(`#/tools/items/${id}`) }));
-      shown += 240; grid.append(frag);
-      if (shown < list.length) { const s = h('div', { class: 'more-sentinel', style: { gridColumn: '1/-1', height: '1px' } }); grid.append(s);
-        new IntersectionObserver((ents, obs) => { if (ents[0].isIntersecting) { obs.disconnect(); s.remove(); more(); } }, { root: scroll }).observe(s); }
-    };
+    renderItemBatches(grid, list, i => itemTile(i, { selected: i.id === sel, onOpen: id => go(`#/tools/items/${id}`) }), scroll);
     if (!list.length) grid.append(h('div', { class: 'empty', style: { gridColumn: '1/-1' } }, h('h3', null, translateUI('ui.item_empty')), h('button', { class: 'btn small', onclick: () => { F = { ...F0 }; persist(); draw(); } }, translateUI('ui.b272_item_clear_filter'))));
-    else more();
   };
   const chip = (label, key) => h('button', { class: 'chip btnlike' + (F[key] ? ' active' : ''), 'aria-pressed': String(!!F[key]), onclick: (e) => { F[key] = !F[key]; e.currentTarget.classList.toggle('active', F[key]); e.currentTarget.setAttribute('aria-pressed', String(F[key])); persist(); draw(); } }, label);
   left.append(h('div', { class: 'dex-toolbar' },
@@ -162,6 +186,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
 
 // ------------------------------------------------------------- popout
 export async function renderItemsPopout(el, mode) {
+  cancelBatches();
   filters();
   const data = await load();
   if (!data.available) { mount(el, notice('info', itemSource(data.reason) || t('items.not_installed'))); return; }
@@ -177,7 +202,7 @@ export async function renderItemsPopout(el, mode) {
   const draw = () => {
     const list = applyItemFilters(data.items, F);
     countEl.textContent = translateUI('itemui.count', { count: number(list.length), total: number(data.items.filter((i) => i.category !== 'placeholder').length) });
-    mount(grid, list.map((i) => itemTile(i, { compact: mode === 'compact', onOpen: (id) => { location.hash = `#/item/${id}`; } })));
+    renderItemBatches(grid, list, i => itemTile(i, { compact: mode === 'compact', onOpen: id => { location.hash = `#/item/${id}`; } }), el, 120);
   };
   mount(el, h('div', { class: 'row', style: { marginBottom: '6px' } },
     h('input', { class: 'input', type: 'search', placeholder: t('common.search'), 'aria-label': translateUI('ui.search_items'), value: F.q, oninput: debounce((e) => { F.q = e.target.value; draw(); }, 120) }),

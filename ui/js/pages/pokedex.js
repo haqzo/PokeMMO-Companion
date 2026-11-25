@@ -28,7 +28,13 @@ let ui = { drawer: false, tab: 'summary', side: null, scroll: 0, locSeason: 'all
 let unsub = [];
 let gridEl = null, countEl = null, meta = null;
 
-export function dispose() { unsub.forEach((u) => u()); unsub = []; }
+export function dispose() {
+  unsub.forEach((u) => u()); unsub = [];
+  releaseGridArt(gridEl);
+  cardCache.cards.clear();
+  cardCache.list = null;
+  gridEl = null; countEl = null; lastFocus = null;
+}
 
 export async function loadList(force) {
   const run = setting('pokedex.progress_run');
@@ -334,8 +340,10 @@ function drawGrid(all, sel = Number(parseHash().parts[0]) || null, selForm = par
   const scope = setting('pokedex.scope') || 'reference';
   const inScope = all.filter((s) => scope !== 'pokemmo' || s.dex !== 'no').length;
   if (countEl) countEl.textContent = translateUI('dex.catalog_count', { shown: number(list.length), total: number(inScope) });
+  releaseGridArt(gridEl);
   clear(gridEl);
   if (!list.length) {
+    cardCache.cards.clear();
     gridEl.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, h('h3', null, translateUI('dex.no_species_match')),
       activeFilterCount() || F.q || F.gen !== 'all' ? h('p', null, translateUI('dex.search_hides_all'), h('button', { class: 'btn small', onclick: () => {
         F = { ...DEFAULT_F, sort: F.sort }; persistFilters(); rerender(); } }, translateUI('dex.clear_search_filters'))) : null));
@@ -345,6 +353,8 @@ function drawGrid(all, sel = Number(parseHash().parts[0]) || null, selForm = par
   const tracking = !!setting('pokedex.progress_run');
   const sig = `${density}|${tracking}`;
   if (cardCache.list !== all || cardCache.sig !== sig || cardCache.language !== setting('app.language')) { cardCache.list = all; cardCache.sig = sig; cardCache.language = setting('app.language'); cardCache.cards = new Map(); }
+  const keys = new Set(list.map(s => s.form_key ? `${s.id}:${s.form_key}` : String(s.id)));
+  for (const key of cardCache.cards.keys()) if (!keys.has(key)) cardCache.cards.delete(key);
   gridEl.append(catalogFragment(list, { sel, selForm, density, tracking, onOpen: (s) => go(entryRoute(s)), onKey: gridKeys, grouped: F.sort === 'num', cache: cardCache.cards }));
 }
 /** Cards with Generation headings (when sorted by number). Shared by the main grid and popouts. */
@@ -361,7 +371,7 @@ export function catalogFragment(list, { sel, selForm, density, tracking, onOpen,
     const selected = s.id === sel && (s.form_key || null) === (selForm || null);
     const key = s.form_key ? `${s.id}:${s.form_key}` : String(s.id);
     let card = cache && cache.get(key);
-    if (card) card.classList.toggle('selected', selected);
+    if (card) { card.classList.toggle('selected', selected); observeGridCard(card); }
     else {
       card = dexCard(s, { selected, density, tracking, onOpen, onKey });
       if (cache) cache.set(key, card);
@@ -376,10 +386,13 @@ export function catalogFragment(list, { sel, selForm, density, tracking, onOpen,
 // Animations start only once scrolling pauses (native performance fix 2026-11-24): tiles that fly past during a
 // fast scroll keep their light still image and never start decoding a GIF. Leaving tiles go back to stills at once.
 const pendingAni = new Set();
+const observedCards = new Set();
+const observedArt = new Set();
 let aniTimer = null;
 const gridArtObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver((entries) => {
   for (const e of entries) {
     const card = e.target;
+    if (!observedCards.has(card) || !card.isConnected) continue;
     card.__inView = e.isIntersecting;
     if (!e.isIntersecting) { pendingAni.delete(card); setCardArt(card, false); continue; }
     setCardArt(card, false);                       // the still now (cheap, cached)
@@ -387,10 +400,45 @@ const gridArtObserver = typeof IntersectionObserver === 'function' ? new Interse
   }
   clearTimeout(aniTimer);
   aniTimer = setTimeout(() => {
-    for (const c of pendingAni) if (c.__inView && c.isConnected) setCardArt(c, true);
+    for (const c of pendingAni) if (observedCards.has(c) && c.__inView && c.isConnected && !document.hidden) setCardArt(c, true);
     pendingAni.clear();
   }, 140);
 }, { rootMargin: '150px 0px' }) : null;
+function observeGridCard(card) {
+  if (gridArtObserver && !observedCards.has(card)) {
+    observedCards.add(card); gridArtObserver.observe(card);
+  }
+}
+function releaseCard(card) {
+  gridArtObserver?.unobserve(card);
+  observedCards.delete(card); pendingAni.delete(card);
+  card.__inView = false;
+  // Drop an animated image immediately, including cards retained for a filtered redraw.
+  setCardArt(card, false);
+}
+function releaseGridArt(root) {
+  root?.querySelectorAll('.dex-card').forEach(releaseCard);
+  if (!pendingAni.size) { clearTimeout(aniTimer); aniTimer = null; }
+}
+// A single observer per document prunes removed popout grids and detail art.
+// Ignore routine sprite image swaps; only removed cards/containers can retain observers.
+const artCleanupObserver = typeof MutationObserver === 'function' ? new MutationObserver(records => {
+  if (!records.some(r => [...r.removedNodes].some(n => n.nodeType === 1 &&
+      (n.matches('.dex-card,.art') || n.querySelector('.dex-card,.art'))))) return;
+  for (const card of observedCards) if (!card.isConnected) releaseCard(card);
+  for (const box of observedArt) if (!box.isConnected) {
+    artObserver?.unobserve(box); observedArt.delete(box); delete box.__fitArt;
+  }
+}) : null;
+artCleanupObserver?.observe(document.documentElement, { childList: true, subtree: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearTimeout(aniTimer); pendingAni.clear();
+    for (const card of observedCards) setCardArt(card, false);
+  } else {
+    for (const card of observedCards) if (card.isConnected && card.__inView) setCardArt(card, true);
+  }
+});
 function cardArt(s, density) {
   const shiny = !!setting('pokedex.shiny');
   const area = density === 'large' ? 96 : density === 'compact' ? 56 : 72;
@@ -400,7 +448,7 @@ function cardArt(s, density) {
 function setCardArt(card, visible) {
   const s = card.__s; if (!s) return;
   const a = cardArt(s, card.__density);
-  const want = visible && a.ani && animatedIn('dex_grid') ? 'ani' : 'still';
+  const want = visible && !document.hidden && a.ani && animatedIn('dex_grid') ? 'ani' : 'still';
   const k = `${want}|${a.shiny}`;
   if (card.__artKey === k) return;
   card.__artKey = k;
@@ -455,7 +503,7 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   makePinDraggable(el, { kind: 'pokemon', id: s.id });
   el.__s = s; el.__density = density;
   setCardArt(el, false);
-  if (gridArtObserver) gridArtObserver.observe(el);
+  observeGridCard(el);
   return el;
 }
 function favButton(s) {
@@ -576,7 +624,7 @@ export function pickArt(a, { shiny = false, isForm = false, animated = null, ctx
  *  of the frame its visible outline takes, so Charmander < Charmeleon < Charizard in every view and every
  *  Legendary/Mythical gets the large tier. Refits when the frame changes size (window resize, popout mode). */
 const artObserver = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => {
-  for (const e of entries) { const f = e.target.__fitArt; if (f) f(); }
+  for (const e of entries) { const f = e.target.__fitArt; if (e.target.isConnected && f) f(); }
 }) : null;
 export function artImage(art, sp) {
   if (!art.url) return h('div', { class: 'art-missing', title: art.detail || art.label, role: 'img', 'aria-label': art.label },
@@ -604,7 +652,7 @@ export function artImage(art, sp) {
     }
     fit();
     const box = el.parentElement;
-    if (box && artObserver) { box.__fitArt = fit; artObserver.observe(box); }
+    if (box?.isConnected && artObserver) { box.__fitArt = fit; observedArt.add(box); artObserver.observe(box); }
   });
   img.addEventListener('error', () => img.replaceWith(h('div', { class: 'art-missing', role: 'img', 'aria-label': translateUI('dex.art_file_missing') }, silhouette(sp, 72))));
   return img;
