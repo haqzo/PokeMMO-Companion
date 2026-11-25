@@ -66,6 +66,15 @@ def build(path):
 
     add("move", "move_names", [move["name"] for move in extras["skills"]] +
         [move["name"] for entry in species.values() for move in entry["moves"]])
+    # These four legacy client spellings share their move IDs with the named PokéAPI rows.
+    renamed_moves = {11: "ViceGrip", 136: "Hi Jump Kick", 185: "Faint Attack", 265: "SmellingSalt"}
+    move_names = translations(path, "move_names")
+    for move in extras["skills"]:
+        if renamed_moves.get(move["id"]) != move["name"]:
+            continue
+        for lang in out:
+            if name := move_names[str(move["id"])].get(lang):
+                out[lang]["move"][normalize(move["name"])] = name
     add("ability", "ability_names", [ability["name"] for entry in species.values() for ability in entry["abilities"]])
     add("item", "item_names", [item["name"] for item in items])
     add("location", "location_names", [loc["area"] for entry in species.values() for loc in entry["locations"]])
