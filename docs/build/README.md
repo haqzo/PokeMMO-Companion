@@ -1,6 +1,6 @@
 # v0.1.0 Implementation Package
 
-**Updated:** 2026-11-25 · **Status:** Build 29 localization continuation; feature implementation reports preserved below; full current regression and closed-alpha approval outstanding · **Branch:** `develop`.
+**Updated:** 2026-11-25 · **Status:** Build 31 completed optimization and internal Linux QA. Windows verification and closed-alpha approval are pending · **Branch:** `develop`.
 
 - [Full first-pass v0.1.0 plan](00-V0.1.0-FIRST-PASS-PLAN.md)
 - [Claude full implementation assignment](01-CLAUDE-V0.1.0-KICKOFF.md)
@@ -47,3 +47,5 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**30 — Owner-confirmed translation review and 0.8.0 friends-only alpha gates**](30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md)
 
 - [30 — Native notifications, imports and fallback verification](30-LOCALIZATION-NATIVE-IMPORTS-VERIFICATION.md)
+
+- [**31 — Final optimization and internal closed-alpha QA**](31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md)

@@ -1,6 +1,6 @@
 # Fast path to friends-only closed alpha 0.8.0
 
-Owner correction, 25 November 2026. Development remains 0.1.0 on develop until the actual alpha candidate is ready. Translation review by MaToRiuKo and a Spanish-speaking tester takes place during the 0.8.0 friends-only alpha, alongside the owner and invited friends. No separate pre-alpha reviewer build or exhaustive owner testing stage. This is a checklist, not a completed test report.
+Owner correction, 25 November 2026. Development remains 0.1.0 on develop until the actual alpha candidate is ready. Translation review by MaToRiuKo and a Spanish-speaking tester takes place during the 0.8.0 friends-only alpha, alongside the owner and invited friends. No separate pre-alpha reviewer build or exhaustive owner testing stage. The latest completed checks and limitations are recorded in [Build 31](31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md).
 
 ## 1 — Finish localization
 
@@ -10,23 +10,24 @@ Owner correction, 25 November 2026. Development remains 0.1.0 on develop until t
 
 ## 2 — Verify the candidate
 
-- [ ] Run existing full regression and localization checks on the exact candidate SHA; report actual passed/failed/skipped counts. Use existing route/popout matrices and focused interaction checks to identify remaining English, rendering, offline, persistence and functional blockers. Preserve personal data and use private dumps only locally.
-- [ ] Basic native Linux/KDE and Windows launch, restart and package checks. Existing private-only hosted Windows workflow guard remains; use authorized local build if appropriate.
+- [x] Run existing full regression and localization checks on the exact candidate SHA; report actual passed/failed/skipped counts. Use existing route/popout matrices and focused interaction checks to identify remaining English, rendering, offline, persistence and functional blockers. Preserve personal data and use private dumps only locally.
+- [x] Native Linux/KDE launch, restart and package checks.
+- [ ] Windows ZIP build and desktop verification using an authorized Windows host.
 
-**Owner evidence at 3388bb0:** localization 64 passed; Linux fresh-profile native launch and restart successful. Full exact-candidate regression and Windows checks still open.
+**Current verification:** 605 passed, 51 skipped, zero failures on the packaged source. Linux fresh-profile startup, restart, offline and package checks passed. Windows still needs a native build and desktop smoke test.
 
 ## 3 — Quick performance smoke
 
 Use the optional developer-only `tools/performance_smoke.py` with psutil installed in the development environment. Start a fresh-profile native app, identify its main PID, then run `python tools/performance_smoke.py PID --output /tmp/companion-perf.json` (choose a writable Windows path on Windows). Four short samples: idle, navigation, popouts, recovery. Record startup/relaunch and process exit separately. No installed-app dependency or telemetry.
 
-- [ ] Measure startup time, idle and active CPU/RAM including native child processes. Check normal navigation, a few floating tools, sprite animation, closing tools and quitting/relaunching. Record machine/OS and measurements; investigate sustained abnormal growth or major slowdown.
-- [x] Initial Linux performance smoke recorded (see Build 30 verification report). Short settled PSS/close-cycle check and process exit observation remain; no leak established.
-- [ ] Fix material performance issues only; no extensive profiling, speculative optimization or extra feature work.
+- [x] Measure startup time, idle and active CPU/RAM including native child processes. Check normal navigation, a few floating tools, sprite animation, closing tools and quitting/relaunching. Record machine/OS and measurements; investigate sustained abnormal growth or major slowdown.
+- [x] Settled PSS and two close/reopen cycles on both source builds confirmed destruction of floating windows and renderer recovery. Process exit checks passed.
+- [x] Close optimization after the matched native workloads and regression passed.
 
 ## 4 — Stabilize and prepare the alpha
 
-- [ ] Fix material bugs found by verification or quick performance checks. Retest affected paths and run final candidate checks. Keep scope limited to readiness.
-- [ ] Confirm applicable asset/reference/walkthrough redistribution permissions, intended audience and delivery method. When ready, bump 0.1.0 to **0.8.0**, build and verify Linux AppImage and Windows x64 ZIP, record checksums and supply recovery/tester instructions. Owner approval before distribution; no automatic main merge, public release, tag or Discord announcement.
+- [x] Resolve the native diagnostic failure, remove the unused Linux TIFF loader and verify the internal package.
+- [ ] After owner approval, change the version to **0.8.0**, build and verify the agreed packages, and record checksums. The owner handles permissions, audience and distribution. Use the [tester guide](../closed-alpha.md) for installation and recovery.
 
 ## 5 — Friends-only closed alpha testing
 
@@ -51,4 +52,4 @@ python -m pytest -q --tb=short
 python tools/clean_install_check.py
 ```
 
-The native tool requires PySide6 and a real desktop. Both native JSONs must say passed and confirm actual normal versus static GIF rendering. Compare like-for-like PSS and CPU, both recovery cycles, item tile counts and startup-to-render. Repeat anomalous results rather than setting arbitrary numerical guarantees. It does not prove packaged-app behavior or Windows compatibility. If measurements and regression are acceptable, close the optimization phase; do not require further speculative tuning. Build and verify the Linux and Windows candidates under the release gates above, after explicit version/distribution approval. For now the version remains 0.1.0.
+The native tool requires PySide6 and a real desktop. Both native JSONs must say passed and confirm actual normal versus static GIF rendering. Compare like-for-like PSS and CPU, both recovery cycles, item tile counts and startup-to-render. Repeat anomalous results rather than setting arbitrary numerical guarantees. It does not prove packaged-app behavior or Windows compatibility. If measurements and regression are acceptable, close the optimization phase; do not require further speculative tuning. Build the internal packages at 0.1.0. Approve the version change and distribution before preparing the 0.8.0 packages.
