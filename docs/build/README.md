@@ -33,3 +33,4 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**24 — Final closed-alpha preparation**](24-FINAL-CLOSED-ALPHA-PREPARATION.md)
 - [**25 — Phenomena reference and verified links**](25-PHENOMENA-REFERENCE.md)
 - [**26 — Linux AppImage external links**](26-LINUX-EXTERNAL-LINKS.md)
+- [**27 — Offline localization checkpoint**](27-OFFLINE-LOCALIZATION.md)
