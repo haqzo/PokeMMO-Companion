@@ -1,4 +1,5 @@
-import { t as translateUI } from '../i18n.js';
+import { t as translateUI, uiLabel, number } from '../i18n.js';
+import { gameTerm } from '../game-locale.js';
 // Guides — one place for the bundled Storyline walkthroughs (per character run) and My Guides (your own
 // checklists, reruns, routines). Routes:
 //   #/guides                  All guides (overview)
@@ -25,7 +26,7 @@ export async function render(el, route) {
   const tab = tabOf(route);
   const body = h('div', { class: 'guides-body' });
   mount(el, h('div', { class: 'guides-hub' },
-    h('div', { class: 'guides-tabs', role: 'tablist', 'aria-label': 'Guides' }, [['all', 'All guides', '#/guides'], ['storyline', 'Storyline', '#/guides/storyline'], ['mine', 'My Guides', '#/guides/mine']].map(([id, label, href]) =>
+    h('div', { class: 'guides-tabs', role: 'tablist', 'aria-label': translateUI('nav.guides') }, [['all', translateUI('ui.b272_collection_099'), '#/guides'], ['storyline', translateUI('ui.storyline'), '#/guides/storyline'], ['mine', translateUI('ui.b272_collection_100'), '#/guides/mine']].map(([id, label, href]) =>
       h('button', { class: 'tab' + (tab === id ? ' active' : ''), role: 'tab', 'aria-selected': String(tab === id), dataset: { tab: id }, onclick: () => go(href) }, label))),
     body));
   if (tab === 'storyline') { sub = storyline; return storyline.render(body, { ...route, parts: route.parts.slice(1) }); }
@@ -40,39 +41,39 @@ async function renderAll(el) {
   mount(el, page);
   const active = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
   const overview = active ? await get(`/api/guides/runs/${active.id}/overview`).catch(() => null) : null;
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Guides'),
-    h('div', { class: 'sub' }, 'Storyline walkthroughs with your per-character progress, and your own guides — with checklists, timers and teams.')),
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('nav.guides')),
+    h('div', { class: 'sub' }, translateUI('ui.b272_collection_101'))),
   h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => go('#/guides/mine?new=1') }, icon('plus'), translateUI('ui.new_guide')))));
   const REG = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
   // Region cards always show: with a run they open it at that region; without one they open the read-only walkthrough.
   const totals = active && overview ? null : Object.fromEntries(await Promise.all(REG.map((r) => get('/api/guides/catalog/' + r).then((c) => [r, c.steps.length]).catch(() => [r, 0]))));
   const story = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.storyline')),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline') }, active ? 'Open' : 'Start', icon('chev')))),
-    h('div', { class: 'small muted' }, active ? `Character run: ${active.display || active.character_name}` : 'Walkthroughs for all five regions. Browse now; create a character run to tick steps.'),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline') }, active ? translateUI('common.open') : translateUI('ui.start'), icon('chev')))),
+    h('div', { class: 'small muted' }, active ? translateUI('ui.b272_collection_108', { name: active.display || active.character_name }) : translateUI('ui.b272_collection_102')),
     h('div', { class: 'guides-regions' }, REG.map((r) => {
       if (overview) {
         const c = overview[r].mandatory.total ? overview[r].mandatory : overview[r].unclassified;
         const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
-        return h('button', { class: 'guides-region', dataset: { region: r }, onclick: () => go(`#/guides/storyline?region=${r}`) }, h('span', null, cap(r)),
+        return h('button', { class: 'guides-region', dataset: { region: r }, onclick: () => go(`#/guides/storyline?region=${r}`) }, h('span', null, gameTerm('region', cap(r))),
           h('div', { class: 'progress' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'tiny muted' }, `${c.done}/${c.total}`));
       }
-      return h('button', { class: 'guides-region', dataset: { region: r }, onclick: () => go(`#/guides/storyline?browse=1&region=${r}`) }, h('span', null, cap(r)),
-        h('span', { class: 'tiny muted' }, `${totals[r]} steps`));
+      return h('button', { class: 'guides-region', dataset: { region: r }, onclick: () => go(`#/guides/storyline?browse=1&region=${r}`) }, h('span', null, gameTerm('region', cap(r))),
+        h('span', { class: 'tiny muted' }, translateUI('ui.b272_collection_109', { count: number(totals[r]) })));
     })),
-    h('div', { class: 'row wrap tight guides-foot' }, active ? h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline?browse=1&region=kanto') }, 'Browse without ticking')
-      : h('button', { class: 'btn small', onclick: () => go('#/guides/storyline') }, icon('plus'), 'Create a character run'),
-      h('span', { class: 'tiny muted' }, 'Walkthroughs by their original author, bundled with permission.')));
+    h('div', { class: 'row wrap tight guides-foot' }, active ? h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline?browse=1&region=kanto') }, translateUI('ui.b272_collection_103'))
+      : h('button', { class: 'btn small', onclick: () => go('#/guides/storyline') }, icon('plus'), translateUI('ui.b272_collection_104')),
+      h('span', { class: 'tiny muted' }, translateUI('ui.b272_collection_105'))));
   const list = cg.guides.filter((g) => !g.archived_at);
   const count = (k) => list.filter((g) => g.scope === k).length;
   const shortcuts = SCOPES.filter(([k]) => k !== 'custom');
-  const minePane = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, 'My Guides'),
+  const minePane = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.b272_collection_100')),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/mine') }, translateUI('ui.all'), icon('chev')))),
   list.length ? h('div', { class: 'stack tight' }, list.slice(0, 5).map((g) => h('button', { class: 'tool-link', onclick: () => go('#/guides/mine/' + g.id) }, icon('list'),
-    h('div', null, h('div', { class: 'tl-title' }, g.title), h('div', { class: 'small muted' }, `${g.scope_label} · ${g.done}/${g.checks} done · edited ${relTime(g.updated_at)}`))))) :
-    h('div', { class: 'small muted' }, 'Your own checklists, reruns and routines. No character run needed.'),
-  h('div', { class: 'tiny muted' }, 'Categories — open yours, or start a new one:'),
+    h('div', null, h('div', { class: 'tl-title' }, g.title), h('div', { class: 'small muted' }, translateUI('ui.b272_collection_110', { scope: uiLabel(g.scope_label), done: number(g.done), total: number(g.checks), age: relTime(g.updated_at) })))))) :
+    h('div', { class: 'small muted' }, translateUI('ui.b272_collection_106')),
+  h('div', { class: 'tiny muted' }, translateUI('ui.b272_collection_107')),
   h('div', { class: 'guides-cats' }, shortcuts.map(([k, l]) => h('button', { class: 'chip btnlike', dataset: { scope: k },
-    title: count(k) ? `Open your ${l} guides` : `Start a ${l} guide`, onclick: () => go(count(k) ? '#/guides/mine?cat=' + k : `#/guides/mine?new=1&scope=${k}`) },
-    l, count(k) ? h('span', { class: 'count' }, count(k)) : h('span', { class: 'count' }, '+')))));
+    title: count(k) ? translateUI('ui.b272_collection_111', { scope: uiLabel(l) }) : translateUI('ui.b272_collection_112', { scope: uiLabel(l) }), onclick: () => go(count(k) ? '#/guides/mine?cat=' + k : `#/guides/mine?new=1&scope=${k}`) },
+    uiLabel(l), count(k) ? h('span', { class: 'count' }, count(k)) : h('span', { class: 'count' }, '+')))));
   page.append(h('div', { class: 'guides-all' }, story, minePane));
 }

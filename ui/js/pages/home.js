@@ -5,7 +5,8 @@ import { gameTerm, speciesLabel } from '../game-locale.js';
 import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
-import { LANGS } from '../i18n.js';
+import { LANGS, lang } from '../i18n.js';
+import { walkthroughStep } from '../walkthrough-locales.js';
 import { animatedIn, scaled } from '../sprites.js';
 import { loadList } from './pokedex.js';
 import { currentCard, startTimers, likelyActive } from './live.js';
@@ -277,7 +278,7 @@ async function continueCard(runs, rerender) {
       h('div', { class: 'eyebrow-text' }, translateUI('ui.b272_continue')), h('div', { style: { fontWeight: 700 } }, `${run.display} — ${gameTerm('region', cap(st.region))}`)),
       h('button', { class: 'btn small', onclick: () => go('#/guides?jump=1') }, translateUI('ui.b272_open_guide')), h('button', { class: 'btn ghost small', title: translateUI('ui.guide_storyline_window'), onclick: () => openPopout('storyline') }, icon('popout'))),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'small nowrap' }, `${c.done}/${c.total}`)),
-    step ? h('div', { class: 'small' }, h('span', { class: 'muted' }, `${step.chapter} · `), step.text) : null);
+    step ? h('div', { class: 'small' }, h('span', { class: 'muted' }, `${st.source === 'walkthrough' ? gameTerm('location', step.chapter) : step.chapter} · `), st.source === 'walkthrough' ? walkthroughStep(step, lang()) : step.text) : null);
 }
 
 function quickCard() {
