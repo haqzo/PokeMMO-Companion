@@ -105,7 +105,7 @@ def test_report_sprites_shrink_in_narrow_windows_and_popout(app, browser):  # no
 
 
 # ---------------------------------------------------------------- Pokédex loading
-def test_returning_to_pokedex_reuses_cards_and_home_does_not_refetch(app, page):
+def test_returning_to_pokedex_releases_cards_without_refetching_data(app, page):
     go(page, app, "#/pokedex")
     _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 649")
     page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe = 1")
@@ -116,13 +116,18 @@ def test_returning_to_pokedex_reuses_cards_and_home_does_not_refetch(app, page):
     page.wait_for_timeout(400)
     page.evaluate("location.hash = '#/pokedex'")
     _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 649")
-    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe") == 1  # same element, not rebuilt
+    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe === undefined")  # detached DOM is released on page exit
     assert not [u for u in reqs if "/api/dex/species" in u]  # Home and the return trip use the cached list
+    # A card still included in the filter is reused; excluded cards must not stay cached.
+    page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe = 2")
+    page.get_by_role("radio", name="I", exact=True).click()
+    _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 151")
+    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe") == 2
     page.get_by_role("radio", name="II", exact=True).click()
     _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 100")
     page.get_by_role("radio", name="All", exact=True).click()
     _until(page, "document.querySelectorAll('.dex-grid .dex-card').length === 649")
-    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe") == 1
+    assert page.evaluate("document.querySelector('.dex-card[data-id=\"25\"]').__probe === undefined")
     heads = page.locator(".gen-head").all_inner_texts()
     assert [h.split("·")[1].strip() for h in heads] == ["151", "100", "135", "107", "156"]
     page.wait_for_timeout(1200)  # filter save debounce
@@ -267,3 +272,27 @@ def test_listed_checks_drive_the_pokemmo_view(app, page):
     page.wait_for_selector(".avail-block")
     app.ctx.storage.execute("DELETE FROM roster_checks")
     app.ctx.load_roster_checks()
+
+
+def test_grid_observers_release_detached_cards(app, page):
+    page.add_init_script("""() => {
+        const Native = window.IntersectionObserver;
+        const targets = new Set();
+        window.__dexObserved = targets;
+        window.IntersectionObserver = class extends Native {
+            observe(el) { if (el.matches('.dex-card')) targets.add(el); super.observe(el); }
+            unobserve(el) { targets.delete(el); super.unobserve(el); }
+        };
+    }""")
+    go(page, app, "#/pokedex")
+    _until(page, "window.__dexObserved && window.__dexObserved.size === document.querySelectorAll('.dex-card').length && window.__dexObserved.size === 649")
+    page.get_by_role("radio", name="II", exact=True).click()
+    _until(page, "window.__dexObserved.size === 100 && [...window.__dexObserved].every(e => e.isConnected)")
+    page.evaluate("location.hash = '#/home'")
+    page.wait_for_selector(".home-page .card")
+    _until(page, "window.__dexObserved.size === 0")
+    page.evaluate("location.hash = '#/pokedex'")
+    _until(page, "window.__dexObserved.size === 100 && [...window.__dexObserved].every(e => e.isConnected)")
+    page.get_by_role("radio", name="All", exact=True).click()
+    _until(page, "window.__dexObserved.size === 649")
+    page.wait_for_timeout(1200)

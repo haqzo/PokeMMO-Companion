@@ -28,11 +28,10 @@ let ui = { drawer: false, tab: 'summary', side: null, scroll: 0, locSeason: 'all
 let unsub = [];
 let gridEl = null, countEl = null, meta = null;
 
-export function dispose() {
+export function dispose({ keepCards = false } = {}) {
   unsub.forEach((u) => u()); unsub = [];
   releaseGridArt(gridEl);
-  cardCache.cards.clear();
-  cardCache.list = null;
+  if (!keepCards) { cardCache.cards.clear(); cardCache.list = null; }
   gridEl = null; countEl = null; lastFocus = null;
 }
 
@@ -171,7 +170,7 @@ export async function render(el, route) {
     if (!staleGrid) return;
   }
   staleGrid = false;
-  dispose();
+  dispose({ keepCards: true });
   currentFilters();
   const all = await loadList();
   if (seq !== renderSeq) return;
