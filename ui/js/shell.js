@@ -263,7 +263,7 @@ const QA_PAGES = {
 export function qaInfo(item) {
   if (item.kind === 'tool') { const x = QA_TOOLS[item.id]; return x ? { ...x, label: x.i18n ? t(x.i18n) : uiLabel(x.label) } : null; }
   if (item.kind === 'page') { const x = QA_PAGES[item.id]; return x ? { ...x, label: uiLabel(x.label) } : null; }
-  if (item.kind === 'guide') return { label: 'Current guide step', icon: 'guides', route: '#/guides/storyline?jump=1', popout: 'storyline' };
+  if (item.kind === 'guide') return { label: t('ui.home_current_guide'), icon: 'guides', route: '#/guides/storyline?jump=1', popout: 'storyline' };
   if (item.kind === 'pokemon') {
     const sp = (state.dexCache || []).find((s) => s.id === Number(item.id));
     return { label: sp ? speciesLabel(sp.id, sp.name) : '#' + pad3(item.id), icon: 'dex', route: '#/pokedex/' + item.id, popout: 'pokedex',

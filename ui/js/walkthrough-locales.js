@@ -26,3 +26,9 @@ export const WALKTHROUGH_TEXT = {
   "unova:imp:001:03": ["b74b3865da96", "Entra en el laboratorio. Responde que sí a la segunda pregunta de la Profesora Encina para recibir la Pokédex.", "进入研究所。对红豆杉博士的第二个问题回答「是」，领取宝可梦图鉴。"],
   "unova:imp:001:04": ["b5c740878e75", "Sal del laboratorio para recibir el Mapa de tu madre. Ve al noreste hacia la Ruta 1.", "走出研究所，从妈妈那里领取城镇地图。向东北前往 1 号道路。"],
 };
+
+export function walkthroughStep(step, language) {
+  const entry = WALKTHROUGH_TEXT[step.id];
+  if (entry?.[0] === step.text_hash) return entry[{ es: 1, zh: 2 }[language]] ?? step.text;
+  return step.text;
+}

@@ -491,20 +491,20 @@ async function backupSec(b) {
       h('div', { class: 'tiny muted mono ellipsis' }, `${x.name} · ${fmtSize(x.bytes)}`)),
     x.kind === 'archive' ? h('button', { class: 'btn small', onclick: () => restoreFlow({ name: x.name }) }, 'Restore…')
       : h('span', { class: 'tiny muted', title: 'A copy of the database file. Use a complete backup (.zip) to restore from inside the Companion.' }, 'database copy'))) :
-    h('div', { class: 'small muted' }, 'No backups yet.'));
+    h('div', { class: 'small muted' }, translateUI('ui.settings_backup_no')));
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.backup_recovery')),
     st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? 'A restore was interrupted last time; it has been finished.' : `A restore was interrupted and could not be finished (${st.recovered.reason}). Your safety copy is in the backup folder.`) : null,
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'A complete backup contains your notes, collection, showcases, pictures, guides with their cycles and history, character runs and storyline progress, teams, timers and presets, map marks, settings and window positions. Never ROMs or PokeMMO client files. Nothing is uploaded anywhere.'),
-    row('Automatic backups', auto ? `Last: ${fmtDate(auto.created_at, true)}. The newest 7 are kept.` : 'Made in the background; the newest 7 are kept.',
-      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Automatic backups', onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('ui.settings_backup_full')),
+    row(translateUI('ui.settings_backup_auto'), auto ? `Last: ${fmtDate(auto.created_at, true)}. The newest 7 are kept.` : 'Made in the background; the newest 7 are kept.',
+      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.settings_backup_auto'), onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },
         [[0, 'Off'], [6, 'Every 6 hours'], [12, 'Every 12 hours'], [24, 'Daily'], [72, 'Every 3 days'], [168, 'Weekly']].map(([v, l]) =>
           h('option', { value: v, selected: Number(st.auto_hours) === v ? 'selected' : null }, l)))),
     h('div', { class: 'row wrap', style: { margin: '10px 0' } },
-      h('button', { class: 'btn primary', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/backup/archive'); toast(`Backup saved: ${r.name}`, { timeout: 6000 }); b.innerHTML = ''; backupSec(b); } }, icon('download'), 'Back up now'),
-      h('button', { class: 'btn', onclick: () => pickBackupFile() }, icon('upload'), 'Restore from a file…'),
-      h('button', { class: 'btn ghost', onclick: async () => downloadJson(`pokemmo-companion-data-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')) }, 'Export data only (JSON, no pictures)')),
-    h('div', { class: 'small' }, 'Backup folder: ', h('span', { class: 'mono' }, st.folder)),
-    h('h3', null, 'Saved backups'), listEl));
+      h('button', { class: 'btn primary', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/backup/archive'); toast(`Backup saved: ${r.name}`, { timeout: 6000 }); b.innerHTML = ''; backupSec(b); } }, icon('download'), translateUI('ui.settings_backup_now')),
+      h('button', { class: 'btn', onclick: () => pickBackupFile() }, icon('upload'), translateUI('ui.settings_backup_restore')),
+      h('button', { class: 'btn ghost', onclick: async () => downloadJson(`pokemmo-companion-data-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')) }, translateUI('ui.settings_backup_export'))),
+    h('div', { class: 'small' }, translateUI('ui.settings_backup_folder'), h('span', { class: 'mono' }, st.folder)),
+    h('h3', null, translateUI('ui.settings_backup_saved')), listEl));
 
   function pickBackupFile() {
     const inp = h('input', { type: 'file', accept: '.zip,.json,application/zip,application/json', style: { display: 'none' } });
@@ -551,7 +551,7 @@ async function about(b) {
   const discord = boot.community && boot.community.discord;
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.about_credits')),
     h('dl', { class: 'kv' }, h('dt', null, 'Version'), h('dd', null, `${boot.version} (development preview)`), h('dt', null, 'Window mode'), h('dd', null, boot.mode === 'qt' ? 'Native shell (PySide6)' : 'Browser'),
-      h('dt', null, 'Data folder'), h('dd', { class: 'mono' }, boot.data_dir)),
+      h('dt', null, translateUI('ui.settings_data_folder')), h('dd', { class: 'mono' }, boot.data_dir)),
     discord ? h('div', null, h('h3', null, translateUI('ui.community')),
       h('p', { class: 'small', style: { marginTop: 0 } }, 'Questions, beta testing, ideas and release news are on the PokeMMO Companion Discord. Joining is optional — Companion never needs a Discord account. ',
         extLink(discord, translateUI('ui.discord_join')))) : null,

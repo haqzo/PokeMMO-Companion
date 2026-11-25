@@ -1,3 +1,5 @@
+import { walkthroughStep } from './walkthrough-locales.js';
+import { gameTerm } from './game-locale.js';
 import { lang, uiLabel } from './i18n.js';
 import { t as translateUI } from './i18n.js';
 // Independent popout windows (docs/design/04, 15). One shared backend state; each
@@ -201,6 +203,7 @@ async function storyline(el) {
   const done = new Set(st.done);
   const i = Math.max(0, steps.findIndex((s) => s.id === st.active_step_id));
   const cur = steps[i];
+  const displayChapter = (name) => st.source === 'imported' ? name : gameTerm('location', name);
   const counts = st.source === 'milestones' ? st.counts.mandatory : st.counts.unclassified;
   Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => storyline(el) });
   const setActive = async (idx) => { const s = steps[Math.max(0, Math.min(steps.length - 1, idx))]; if (s) { await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); storyline(el); } };
@@ -214,11 +217,11 @@ async function storyline(el) {
     steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) }, { open: mode === 'expanded' });
   const stepLabel = (s, big) => h('label', { class: 'step' + (done.has(s.id) ? ' done' : '') + (s.id === cur.id ? ' current' : ''), style: { gridTemplateColumns: 'auto 1fr', cursor: 'pointer', padding: big ? '10px' : '7px 9px' } },
     h('input', { type: 'checkbox', class: 'check', checked: done.has(s.id), onchange: (e) => toggle(s, e.target.checked) }),
-    h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, s.text), big ? h('div', { class: 'tiny muted' }, s.chapter) : null));
+    h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, st.source === 'walkthrough' ? walkthroughStep(s, lang()) : s.text), big ? h('div', { class: 'tiny muted' }, displayChapter(s.chapter)) : null));
   const stepEl = (s, big) => h('div', { class: 'pop-step' }, stepLabel(s, big), h('div', { style: { marginLeft: '30px' } }, gx.stepTimers(s.id)));
   const header = h('div', { class: 'stack tight', style: { marginBottom: '8px' } },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow', style: { minWidth: 0 } },
-      h('div', { class: 'ellipsis', style: { fontWeight: 700 } }, run.display), h('div', { class: 'tiny muted ellipsis' }, `${cap(region)} · ${cur ? cur.chapter : ''}`)),
+      h('div', { class: 'ellipsis', style: { fontWeight: 700 } }, run.display), h('div', { class: 'tiny muted ellipsis' }, `${gameTerm('region', cap(region))} · ${cur ? displayChapter(cur.chapter) : ''}`)),
     mode !== 'compact' ? h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '1px 4px' }, 'aria-label': translateUI('ui.region'), onchange: async (e) => {
       storyRegion = e.target.value; await api('PATCH', `/api/guides/runs/${run.id}`, { region: storyRegion }); storyline(el); } },
     ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r, selected: r === region ? 'selected' : null }, cap(r)))) : null),
@@ -243,7 +246,7 @@ async function storyline(el) {
   while (lo > 0 && steps[lo - 1].chapter === cur.chapter) lo--;
   while (hi < steps.length - 1 && steps[hi + 1].chapter === cur.chapter) hi++;
   const chapterSteps = steps.slice(lo, hi + 1);
-  mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, cur.chapter), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav, extrasBox,
+  mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, displayChapter(cur.chapter)), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav, extrasBox,
     h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'walkthrough' ? 'Complete walkthrough (built in, by its original author).' : st.source === 'imported' ? 'Your own walkthrough file.' : 'Milestone outline.', sourceInfo(st.source === 'milestones' ? 'outline-unverified' : 'imported-unverified')));
 }
 

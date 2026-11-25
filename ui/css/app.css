@@ -418,6 +418,7 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0 3px; }
 /* ------------------------------------------------------------- settings */
 .settings-layout { display: grid; grid-template-columns: 200px minmax(0, 760px); gap: var(--sp-5); align-items: start; }
 @media (max-width: 860px) { .settings-layout { grid-template-columns: 1fr; } }
+.settings-layout .mono { overflow-wrap: anywhere; }
 .settings-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
 .set-row { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 6px 16px; align-items: center; padding: 10px 0; border-bottom: var(--bw) solid var(--border-subtle); }
 .set-row:last-child { border-bottom: 0; }

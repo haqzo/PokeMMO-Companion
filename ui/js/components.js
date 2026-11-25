@@ -10,7 +10,7 @@ export async function speciesIndex() {
 }
 
 /** Text input with suggestions; resolves to a species id. */
-export function speciesPicker({ value, onChange, label = t('game.species'), placeholder = t('game.species_search'), id }) {
+export function speciesPicker({ value, onChange, label = t('ui.species'), placeholder = t('ui.species_search'), id }) {
   const listId = 'species-dl-' + (++dlCounter);
   const input = h('input', { class: 'input', list: listId, placeholder, id: id || null, autocomplete: 'off', 'aria-label': label });
   const dl = h('datalist', { id: listId });
@@ -55,6 +55,6 @@ export const NATURES = ['Adamant', 'Bashful', 'Bold', 'Brave', 'Calm', 'Careful'
   'Lonely', 'Mild', 'Modest', 'Naive', 'Naughty', 'Quiet', 'Quirky', 'Rash', 'Relaxed', 'Sassy', 'Serious', 'Timid'];
 export function natureSelect(value, onChange, allowNone = true) {
   return h('select', { class: 'input', onchange: (e) => onChange(e.target.value || null), 'aria-label': t('ui.nature') },
-    allowNone ? h('option', { value: '' }, '— Nature —') : null,
+    allowNone ? h('option', { value: '' }, '— ' + t('ui.nature') + ' —') : null,
     NATURES.map((n) => h('option', { value: n, selected: n === value ? 'selected' : null }, gameTerm('nature', n))));
 }

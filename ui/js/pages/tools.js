@@ -1,5 +1,5 @@
 import { uiLabel } from '../i18n.js';
-import { t as translateUI } from '../i18n.js';
+import { number, plural, t as translateUI } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
 // Tools workspace (docs/design/07): grouped hub + individual tools.
 import { teamEditor, purposeLabel } from '../team-editor.js';
@@ -304,15 +304,17 @@ async function renderCatch(el) {
   const s = { species: null, hp_percent: 100, max_hp: 100, status: 'none', turn: 1, time: 'day', cave: false, water: false, level: 30, caught_before: false };
   const out = h('div');
   const run = async () => {
-    if (!s.species) { mount(out, h('div', { class: 'muted' }, 'Choose a species.')); return; }
+    if (!s.species) { mount(out, h('div', { class: 'muted' }, translateUI('ui.choose_species'))); return; }
     try {
       const r = await post('/api/tools/catch', s);
       mount(out, h('div', { class: 'stack tight' },
-        h('div', { class: 'small' }, `${speciesLabel(s.species, r.name)}: catch rate ${r.catch_rate} (${r.rate_source}) · HP ${r.cur_hp}/${r.max_hp} · ${r.status === 'none' ? 'no status' : r.status}`),
-        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Ball', 'Condition', 'Per ball', '90% within', '99% within'].map((c) => h('th', null, c)))),
-          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, x.label), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: 'PokeMMO behaviour for this ball not confirmed' }, ' · condition not confirmed')),
-            h('td', { style: { fontWeight: 700 } }, x.guaranteed ? '100% (certain)' : (x.percent >= 99.995 ? '>99.99%' : x.percent + '%')),
-            h('td', null, x.balls_for_90 ? x.balls_for_90 + ' balls' : '—'), h('td', null, x.balls_for_99 ? x.balls_for_99 + ' balls' : '—'))))),
+        h('div', { class: 'small' }, translateUI('ui.catch_result', { species: speciesLabel(s.species, r.name), rate: number(r.catch_rate),
+          source: r.rate_source, current: number(r.cur_hp), maximum: number(r.max_hp),
+          status: ['sleep', 'freeze', 'paralysis', 'poison', 'burn', 'none'].includes(r.status) ? translateUI('ui.catch_' + r.status) : r.status })),
+        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.catch_ball'), translateUI('ui.catch_condition'), translateUI('ui.catch_per_ball'), translateUI('ui.catch_90'), translateUI('ui.catch_99')].map((c) => h('th', null, c)))),
+          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, gameTerm('item', x.label)), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: 'PokeMMO behaviour for this ball not confirmed' }, translateUI('ui.catch_unconfirmed'))),
+            h('td', { style: { fontWeight: 700 } }, x.guaranteed ? translateUI('ui.catch_guaranteed') : (x.percent >= 99.995 ? '>99.99%' : x.percent + '%')),
+            h('td', null, x.balls_for_90 ? plural('ui.catch_count', x.balls_for_90) : '—'), h('td', null, x.balls_for_99 ? plural('ui.catch_count', x.balls_for_99) : '—'))))),
         h('ul', { class: 'tiny muted', style: { margin: 0 } }, r.notes.map((w) => h('li', null, w)))));
     } catch (e) { mount(out, notice('bad', e.message)); }
   };
@@ -323,15 +325,15 @@ async function renderCatch(el) {
   el.append(h('div', { class: 'grid-2', style: { alignItems: 'start' } },
     h('div', { class: 'card stack' },
       speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
-      h('div', { class: 'field' }, h('label', null, 'Target HP remaining'), h('div', { class: 'row' }, h('input', { type: 'range', min: 1, max: 100, value: 100, 'aria-label': 'HP remaining',
+      h('div', { class: 'field' }, h('label', null, translateUI('ui.catch_hp')), h('div', { class: 'row' }, h('input', { type: 'range', min: 1, max: 100, value: 100, 'aria-label': translateUI('ui.catch_hp_label'),
         oninput: (e) => { s.hp_percent = Number(e.target.value); hpLabel.textContent = e.target.value + '%'; run(); } }), hpLabel)),
-      h('div', { class: 'row' }, sel('Status', 'status', [['none', translateUI('ui.none')], ['sleep', 'Sleep ×2'], ['freeze', 'Freeze ×2'], ['paralysis', 'Paralysis ×1.5'], ['poison', 'Poison ×1.5'], ['burn', 'Burn ×1.5']]),
-        sel('Time', 'time', [['day', 'Morning / day'], ['night', translateUI('ui.night')]])),
-      h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Turn'), h('input', { class: 'input', type: 'number', min: 1, max: 99, value: 1, oninput: (e) => { s.turn = Number(e.target.value || 1); run(); } })),
-        h('div', { class: 'field', style: { width: '120px' } }, h('label', null, 'Wild level'), h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 30, oninput: (e) => { s.level = Number(e.target.value || 1); run(); } }))),
-      h('div', { class: 'row wrap' }, chk('In a cave', 'cave'), chk('Surfing / fishing', 'water'), chk('Already caught this species', 'caught_before')),
-      h('p', { class: 'tiny muted', style: { margin: 0 } }, 'Dusk Ball cave bonus no longer applies at Twist Mountain Center (official, 30 Oct 2026) — not every cave-named location qualifies.')),
-    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Capture chance by ball')), out)));
+      h('div', { class: 'row' }, sel(translateUI('ui.catch_status'), 'status', [['none', translateUI('ui.none')], ['sleep', (translateUI('ui.catch_sleep') + ' ×' + number(2))], ['freeze', (translateUI('ui.catch_freeze') + ' ×' + number(2))], ['paralysis', (translateUI('ui.catch_paralysis') + ' ×' + number(1.5))], ['poison', (translateUI('ui.catch_poison') + ' ×' + number(1.5))], ['burn', (translateUI('ui.catch_burn') + ' ×' + number(1.5))]]),
+        sel('Time', 'time', [['day', translateUI('ui.catch_morning')], ['night', translateUI('ui.night')]])),
+      h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.catch_turn')), h('input', { class: 'input', type: 'number', min: 1, max: 99, value: 1, oninput: (e) => { s.turn = Number(e.target.value || 1); run(); } })),
+        h('div', { class: 'field', style: { width: '120px' } }, h('label', null, translateUI('ui.catch_wild_level')), h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 30, oninput: (e) => { s.level = Number(e.target.value || 1); run(); } }))),
+      h('div', { class: 'row wrap' }, chk(translateUI('ui.catch_cave'), 'cave'), chk(translateUI('ui.catch_water'), 'water'), chk(translateUI('ui.catch_caught'), 'caught_before')),
+      h('p', { class: 'tiny muted', style: { margin: 0 } }, translateUI('ui.catch_warning'))),
+    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, translateUI('ui.catch_ball_heading'))), out)));
   run();
 }
 
