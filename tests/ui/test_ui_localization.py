@@ -616,3 +616,22 @@ def test_item_link_categories_and_evolution_methods(clean, pg, language, categor
     }""")
     assert result == [category, method, "future-category", "future method", "!", "?", True]
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "label"), [
+    ("en", "Open"),
+    ("es", "Abrir"),
+    ("zh", "打开"),
+])
+def test_window_settings_render_all_tool_cards(clean, pg, language, label):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/settings/windows"))
+    cards = pg.locator(".tool-pref-grid .tool-pref")
+    cards.first.wait_for()
+    count = pg.evaluate("""async () => {
+        const { POPOUT_TOOLS } = await import('/js/shell.js');
+        return Object.keys(POPOUT_TOOLS).length;
+    }""")
+    assert cards.count() == count
+    assert cards.get_by_role("button", name=label, exact=True).count() == count
+    assert not pg.errors

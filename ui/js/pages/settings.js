@@ -131,29 +131,29 @@ async function windows(b) {
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
       if (await confirmDialog(translateUI('ui.b272_settings_037'), translateUI('ui.b272_settings_038'))) { await post('/api/settings/reset', { prefix: 'window.' }); location.reload(); } } }, translateUI('ui.b272_settings_039'))));
 }
-function toolPrefCard(t, def, caps) {
+function toolPrefCard(toolId, def, caps) {
   const s = state.settings;
-  const presets = (state.boot.window_presets || {})[t] || {};
-  const sizes = s[`window.${t}.sizes`] || {};
+  const presets = (state.boot.window_presets || {})[toolId] || {};
+  const sizes = s[`window.${toolId}.sizes`] || {};
   const sizeLine = ['compact', 'standard', 'expanded'].map((m) => {
     const p = presets[m] || [];
     const c = sizes[m];
     return h('div', { class: 'row small', style: { justifyContent: 'space-between' } }, h('span', { class: 'muted' }, uiLabel(cap(m))),
       h('span', null, c ? translateUI('settings.your_size', { w: c.w, h: c.h }) : translateUI('settings.preset_size', { w: p[0], h: p[1] })),
-      c ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_040'), onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
+      c ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_040'), onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${toolId}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
   });
   return h('div', { class: 'card tool-pref stack tight' },
-    h('div', { class: 'row' }, h('strong', null, uiLabel(def.title)), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(t) }, icon('popout'), t('common.open'))),
+    h('div', { class: 'row' }, h('strong', null, uiLabel(def.title)), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(toolId) }, icon('popout'), t('common.open'))),
     h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, translateUI('ui.b272_settings_041')),
-      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${t}.mode`], set(`window.${t}.mode`), translateUI('settings.mode'))),
+      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${toolId}.mode`], set(`window.${toolId}.mode`), translateUI('settings.mode'))),
     h('div', { class: 'stack tight' }, sizeLine),
-    h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${t}.keep_size`], onchange: (e) => set(`window.${t}.keep_size`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_042'))),
+    h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${toolId}.keep_size`], onchange: (e) => set(`window.${toolId}.keep_size`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_042'))),
     h('div', { class: 'row wrap' },
-      h('label', { class: 'switch small', title: caps.pin ? '' : translateUI('ui.b272_settings_043') }, h('input', { type: 'checkbox', checked: s[`window.${t}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${t}.pinned`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_044'))),
-      h('label', { class: 'switch small', title: caps.native_windows ? '' : translateUI('ui.b272_settings_045') }, h('input', { type: 'checkbox', checked: s[`window.${t}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${t}.locked`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_046')))),
-    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, translateUI('ui.background')), rangeCell(`window.${t}.bg_opacity`, 35, 100),
-      h('span', { class: 'label' }, translateUI('ui.window')), rangeCell(`window.${t}.window_opacity`, 40, 100, !caps.window_opacity),
-      h('span', { class: 'label' }, translateUI('ui.text_size')), rangeCell(`window.${t}.text_scale`, 70, 180)));
+      h('label', { class: 'switch small', title: caps.pin ? '' : translateUI('ui.b272_settings_043') }, h('input', { type: 'checkbox', checked: s[`window.${toolId}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${toolId}.pinned`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_044'))),
+      h('label', { class: 'switch small', title: caps.native_windows ? '' : translateUI('ui.b272_settings_045') }, h('input', { type: 'checkbox', checked: s[`window.${toolId}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${toolId}.locked`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_046')))),
+    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, translateUI('ui.background')), rangeCell(`window.${toolId}.bg_opacity`, 35, 100),
+      h('span', { class: 'label' }, translateUI('ui.window')), rangeCell(`window.${toolId}.window_opacity`, 40, 100, !caps.window_opacity),
+      h('span', { class: 'label' }, translateUI('ui.text_size')), rangeCell(`window.${toolId}.text_scale`, 70, 180)));
 }
 function rangeCell(key, min, max, disabled) {
   const lbl = h('span', { class: 'tiny muted', style: { width: '34px', display: 'inline-block' } }, state.settings[key] + '%');
