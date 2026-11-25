@@ -1,6 +1,4 @@
 import { POPOUT, loadBoot, connectEvents, on, get, state, applyAppearance, h, mount, notice } from './core.js';
-import { startApp } from './shell.js';
-import { startPopout } from './popouts.js';
 import { installShortcuts } from './shortcuts.js';
 
 async function boot() {
@@ -27,7 +25,8 @@ async function boot() {
   });
   installShortcuts();
   wrapTables(root);
-  if (POPOUT) startPopout(root); else startApp(root);
+  if (POPOUT) { const { startPopout } = await import('./popouts.js'); startPopout(root); }
+  else { const { startApp } = await import('./shell.js'); startApp(root); }
 }
 /** Every data table scrolls sideways inside its own box instead of widening the page (narrow windows, large text). */
 function wrapTables(root) {

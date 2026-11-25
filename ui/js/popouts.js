@@ -7,20 +7,10 @@ import { t as translateUI } from './i18n.js';
 // (pin, mode, window opacity, lock, minimise, close); in browser mode we draw it.
 import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, sourceInfo, notice, applyAppearance, debounce, WINDOW_ID } from './core.js';
 import { POPOUT_TOOLS, popoutSize } from './shell.js';
-import { renderDetail, dexCard, catalogFragment, applyFilters, loadList, currentFilters } from './pages/pokedex.js';
-import { renderTypeChart, renderNatures } from './pages/tools.js';
-import { render as renderBreeding } from './pages/breeding.js';
-import { renderPhenomena } from './pages/phenomena.js';
-import { sourceBar, reportRow, renderLegendaries, renderCave } from './pages/live.js';
 import { speciesIndex } from './components.js';
 import { t } from './i18n.js';
 import { guideContext } from './shortcuts.js';
-import { renderItemsPopout } from './pages/items.js';
-import { renderNotesPopout } from './pages/notes.js';
-import { renderBoxPopout, renderShowcasePopout } from './pages/box.js';
-import { renderCustomGuidePopout } from './pages/cguides.js';
 import { guideExtras } from './guide-extras.js';
-import { renderLocationsPopout } from './pages/locations.js';
 import { installTimerSound } from './timer-sound.js';
 
 let root, bodyEl, mode, savedMode;
@@ -54,7 +44,7 @@ export function startPopout(el) {
     const keys = Object.keys((ev && ev.detail) || {});
     if (lang() !== lastLanguage) { lastLanguage = lang(); draw(); return; }
     const impact = popoutSettingsImpact(POPOUT, keys, location.hash.startsWith('#/species/'));
-    if (impact.filters) currentFilters(true);
+    if (impact.filters) import('./pages/pokedex.js').then(m => m.currentFilters(true));
     const m = setting(`window.${POPOUT}.mode`);
     applyAppearance();
     if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); return; }
@@ -179,9 +169,9 @@ function mainRoute() {
 async function renderBody() {
   const keep = bodyEl.scrollTop;
   try {
-    const fn = { storyline, pokedex, reports, phenomena: (el) => renderPhenomena(el, { variant: mode }), typechart, breeding, legendaries, cave, natures,
-      notes: (el) => renderNotesPopout(el, mode), items: (el) => renderItemsPopout(el, mode), showcase: (el) => renderShowcasePopout(el, mode),
-      customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode),
+    const fn = { storyline, pokedex, reports, phenomena: (el) => import('./pages/phenomena.js').then(m => m.renderPhenomena(el, { variant: mode })), typechart, breeding, legendaries, cave, natures,
+      notes: (el) => import('./pages/notes.js').then(m => m.renderNotesPopout(el, mode)), items: (el) => import('./pages/items.js').then(m => m.renderItemsPopout(el, mode)), showcase: (el) => import('./pages/box.js').then(m => m.renderShowcasePopout(el, mode)),
+      customguide: (el) => import('./pages/cguides.js').then(m => m.renderCustomGuidePopout(el, mode)), locations: (el) => import('./pages/locations.js').then(m => m.renderLocationsPopout(el, mode)), box: (el) => import('./pages/box.js').then(m => m.renderBoxPopout(el, mode)),
       calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })),
       timers: (el) => import('./pages/timers.js').then((m) => m.renderTimers(el, { variant: mode })) }[POPOUT];
     if (!fn) { mount(bodyEl, notice('bad', translateUI('ui.floating_unknown', { tool: POPOUT }))); return; }
@@ -266,6 +256,7 @@ async function storyline(el) {
 // Full filtered roster — no caps. Same scope/filters as the main Pokédex; own search box.
 let miniQuery = '';
 async function pokedex(el) {
+  const { renderDetail, catalogFragment, applyFilters, loadList, currentFilters } = await import('./pages/pokedex.js');
   const m = location.hash.match(/^#\/species\/(\d+)(?:\/([a-z0-9-]+))?/);
   if (m) {
     await renderDetail(el, Number(m[1]), { back: () => { location.hash = '#/'; }, popout: true, mode, form: m[2] || null });
@@ -292,6 +283,7 @@ async function pokedex(el) {
 
 // ---------------------------------------------------------------- reports
 async function reports(el) {
+  const { sourceBar, reportRow } = await import('./pages/live.js');
   const r = await get('/api/live/reports?tests=1');
   const list = mode === 'compact' ? r.reports.slice(0, 1) : r.reports;  // compact = latest only; others show full history
   const link = (x) => { const row = reportRow(x, false, mode !== 'expanded'); row.onclick = null; row.addEventListener('click', () => openInMain('#/live/reports/' + x.id)); return row; };
@@ -300,8 +292,8 @@ async function reports(el) {
     list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? translateUI('ui.live_popout_no_reports') : translateUI('ui.live_popout_off'))));
 }
 
-async function typechart(el) { clear(el); await renderTypeChart(el, null, { compact: mode !== 'expanded' }); }
-async function natures(el) { clear(el); await renderNatures(el, null, { compact: mode === 'compact' }); }
-async function breeding(el) { await renderBreeding(el, null, { popout: true, mode }); }
-async function legendaries(el) { await renderLegendaries(el, { compact: mode !== 'expanded' }); }
-async function cave(el) { await renderCave(el, { compact: mode !== 'expanded' }); }
+async function typechart(el) { const m = await import('./pages/tools.js'); clear(el); await m.renderTypeChart(el, null, { compact: mode !== 'expanded' }); }
+async function natures(el) { const m = await import('./pages/tools.js'); clear(el); await m.renderNatures(el, null, { compact: mode === 'compact' }); }
+async function breeding(el) { const m = await import('./pages/breeding.js'); await m.render(el, null, { popout: true, mode }); }
+async function legendaries(el) { const m = await import('./pages/live.js'); await m.renderLegendaries(el, { compact: mode !== 'expanded' }); }
+async function cave(el) { const m = await import('./pages/live.js'); await m.renderCave(el, { compact: mode !== 'expanded' }); }

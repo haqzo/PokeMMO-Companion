@@ -334,3 +334,18 @@ def test_current_report_reuses_sprite_without_allocating_an_observer(app, page):
         } finally { window.ResizeObserver = Native; }
     }""")
     assert result == {"same": True, "allocated": 0}
+
+
+def test_calculator_popout_does_not_load_unrelated_page_modules(app, browser):
+    context = browser.new_context(viewport={"width": 420, "height": 520})
+    pop = context.new_page()
+    requests = []
+    pop.on("request", lambda r: requests.append(r.url))
+    try:
+        pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=calculator&mode=standard&shell=browser")
+        pop.wait_for_selector(".popout-body button")
+        assert any("/js/pages/calculator.js" in u for u in requests)
+        for name in ("home", "settings", "pokedex", "items", "locations", "live"):
+            assert not any(f"/js/pages/{name}.js" in u for u in requests), name
+    finally:
+        context.close()

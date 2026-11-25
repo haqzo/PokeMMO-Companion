@@ -4,28 +4,31 @@ import { t as translateUI } from './i18n.js';
 // Main window chrome, navigation and router.
 import { installTimerSound } from './timer-sound.js';
 import { h, mount, icon, logo, state, setting, saveSettings, on, reportToast, post, SHELL, TOKEN, toast, debounce, get, pad3 } from './core.js';
-import * as home from './pages/home.js';
-import * as pokedex from './pages/pokedex.js';
-import * as tools from './pages/tools.js';
-import * as live from './pages/live.js';
-import * as guides from './pages/guides-hub.js';
-import * as collection from './pages/collection.js';
-import * as settingsPage from './pages/settings.js';
 import { t, LANGS, lang } from './i18n.js';
 
+// Load route modules only when requested, not in every floating tool.
+const home = () => import('./pages/home.js');
+const PAGES = {
+  home, news: home, events: home,
+  pokedex: () => import('./pages/pokedex.js'),
+  tools: () => import('./pages/tools.js'),
+  live: () => import('./pages/live.js'),
+  guides: () => import('./pages/guides-hub.js'),
+  collection: () => import('./pages/collection.js'),
+  settings: () => import('./pages/settings.js'),
+};
 // Main navigation. Frequently used tools are first-class entries (they open the same tool pages);
 // Collection groups My Pokémon (Box) and Showcases. Alt+1…8 follow this order.
 export const NAV = [
-  { id: 'home', label: 'Home', icon: 'home', page: home },
-  { id: 'pokedex', label: 'Pokédex', icon: 'dex', page: pokedex },
+  { id: 'home', label: 'Home', icon: 'home', page: PAGES.home },
+  { id: 'pokedex', label: 'Pokédex', icon: 'dex', page: PAGES.pokedex },
   { id: 'typechart', label: 'Type matchups', icon: 'shield', route: '#/tools/typechart' },
   { id: 'notes', label: 'Notes', icon: 'note', route: '#/tools/notes' },
-  { id: 'collection', label: 'Collection', icon: 'box', page: collection },
-  { id: 'tools', label: 'Tools', icon: 'tools', page: tools },
-  { id: 'live', label: 'Live', icon: 'live', page: live },
-  { id: 'guides', label: 'Guides', icon: 'guides', page: guides },
+  { id: 'collection', label: 'Collection', icon: 'box', page: PAGES.collection },
+  { id: 'tools', label: 'Tools', icon: 'tools', page: PAGES.tools },
+  { id: 'live', label: 'Live', icon: 'live', page: PAGES.live },
+  { id: 'guides', label: 'Guides', icon: 'guides', page: PAGES.guides },
 ];
-const PAGES = { home, news: home, events: home, pokedex, tools, live, guides, collection, settings: settingsPage };
 const navRoute = (n) => n.route || '#/' + n.id;
 /** Which main-nav entry a route belongs to (tool pages that have their own entry light that entry). */
 export function navIdFor(r) {
@@ -36,6 +39,7 @@ export function navIdFor(r) {
 }
 
 let root, mainEl, quickEl, current = { page: null, mod: null };
+let routeSequence = 0;
 
 export function parseRoute(hash = location.hash) {
   const raw = (hash || '#/home').replace(/^#\/?/, '');
@@ -142,6 +146,7 @@ export function renderChrome() {
   const brand = h('div', { class: 'brand' }, logo(28), h('div', { class: 'text' },
     h('div', { class: 'name' }, 'PokeMMO Companion')),
   vertical ? h('div', { class: 'brand-tools' }, toolbarExtras(true)) : null);
+  if (current.mod?.dispose) current.mod.dispose();
   mainEl = h('main', { class: 'main', id: 'main' });
   let shell;
   quickEl = h('div', { class: vertical ? 'quick' : 'quick-strip', role: 'list', 'aria-label': translateUI('ui.quick_access') });
@@ -169,12 +174,13 @@ export function renderChrome() {
   renderRoute();
 }
 
-function renderRoute() {
+async function renderRoute() {
   // old links keep working: My guides moved from Tools to Guides
   if (/^#\/tools\/cguides(\/|\?|$)/.test(location.hash)) { location.replace(location.hash.replace('#/tools/cguides', '#/guides/mine')); return; }
   const r = parseRoute();
-  const mod = PAGES[r.page];
-  if (!mod) { go('#/home'); return; }
+  const load = Object.hasOwn(PAGES, r.page) ? PAGES[r.page] : null;
+  if (!load) { go('#/home'); return; }
+  const seq = ++routeSequence, host = mainEl;
   // update active nav without rebuilding chrome
   const activeId = navIdFor(r);
   document.querySelectorAll('.nav-item').forEach((b) => {
@@ -182,14 +188,23 @@ function renderRoute() {
     b.classList.toggle('active', on_); b.setAttribute('aria-current', on_ ? 'page' : 'false');
   });
   document.querySelectorAll('.topbar .icon-btn[data-action=settings]').forEach((b) => b.classList.toggle('on', r.page === 'settings'));
-  if (current.mod && current.mod !== mod && current.mod.dispose) current.mod.dispose();
-  const samePage = current.mod === mod && current.page === r.page;
-  current = { page: r.page, mod };
   try {
-    mod.render(mainEl, r, { samePage });
+    const mod = await load();
+    if (seq !== routeSequence || host !== mainEl || !host.isConnected) return;
+    if (current.mod && current.mod !== mod && current.mod.dispose) current.mod.dispose();
+    const samePage = current.mod === mod && current.page === r.page;
+    current = { page: r.page, mod };
+    // Start the route render now; retain its existing same-page and async data behavior.
+    const pending = mod.render(host, r, { samePage });
+    Promise.resolve(pending).catch(e => {
+      if (seq !== routeSequence || host !== mainEl) return;
+      console.error(e);
+      mount(host, h('div', { class: 'page' }, h('div', { class: 'notice bad' }, translateUI('ui.ui_error', { message: e.message }))));
+    });
   } catch (e) {
+    if (seq !== routeSequence || host !== mainEl) return;
     console.error(e);
-    mount(mainEl, h('div', { class: 'page' }, h('div', { class: 'notice bad' }, translateUI('ui.ui_error', { message: e.message }))));
+    mount(host, h('div', { class: 'page' }, h('div', { class: 'notice bad' }, translateUI('ui.ui_error', { message: e.message }))));
   }
   const title = NAV.find((n) => n.id === activeId) ? t('nav.' + activeId) : r.page === 'settings' ? t('nav.settings') : '';
   document.title = `${title} — PokeMMO Companion`;
