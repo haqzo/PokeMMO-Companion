@@ -380,3 +380,41 @@ def test_item_references_timer_presets_and_bookmarks(clean, pg, language, ocarin
     }""")
     assert result == [ocarina, ball, preset, description, "My edited description", 0]
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "quantity_error"), [
+    ("en", "Quantity must be between 0 and 999999"),
+    ("es", "La cantidad debe estar entre 0 y 999999"),
+    ("zh", "数量必须介于 0 和 999999 之间"),
+])
+def test_imported_item_description_fallbacks(clean, pg, language, quantity_error):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { itemDescription } = await import('/js/game-locale.js');
+      const { apiErrorText, ApiError } = await import('/js/core.js');
+      const { applyItemFilters } = await import('/js/pages/items.js');
+      const raw = 'Imported {STRING_999999}';
+      const row = {desc: 'English source', desc_local: raw};
+      const error = new ApiError('Quantity must be between 0 and 999999');
+      const items = [{id: 1, name: 'Example', label: 'Imported label', search: 'example', category: 'other'}];
+      return [
+        itemDescription(row),
+        itemDescription({desc: raw, desc_local: raw}),
+        itemDescription({}),
+        itemDescription({desc: 'English source', desc_local: 'Local source'}, 'es'),
+        row.desc_local,
+        error.message, error.rawMessage,
+        applyItemFilters(items, {q: 'Imported label', cat: 'all', sort: 'id'}).map(i => i.id),
+      ];
+    }""")
+    raw = "Imported {STRING_999999}"
+    assert result == [
+        {"text": "English source", "english": "", "fallback": language != "en", "raw": [raw]},
+        {"text": "", "english": "", "fallback": False, "raw": [raw]},
+        {"text": "", "english": "", "fallback": False, "raw": []},
+        {"text": "Local source", "english": "English source", "fallback": False, "raw": []},
+        raw, quantity_error, "Quantity must be between 0 and 999999", [1],
+    ]
+    assert not pg.errors

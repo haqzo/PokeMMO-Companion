@@ -1,5 +1,5 @@
 import { number, uiLabel, t as translateUI } from '../i18n.js';
-import { compareLabels, gameTerm, itemLabel, matchesTerm, searchText, speciesLabel } from '../game-locale.js';
+import { compareLabels, gameTerm, itemDescription, itemLabel, matchesTerm, searchText, speciesLabel } from '../game-locale.js';
 // Item Library (docs/design/18 §1): every item group from the user's own installed dump.
 // Categories are inferred and say so; links come only from item IDs in the same dump.
 import { h, mount, clear, icon, get, api, state, setting, saveSettings, on, notice, badge, debounce, toast, pad3, seg, WINDOW_ID } from '../core.js';
@@ -32,7 +32,7 @@ export function applyItemFilters(items, f) {
     if (f.fav && !i.fav) return false;
     if (f.held && !i.held) return false;
     if (f.evo && !i.evo) return false;
-    if (q && !(searchText(i.search).includes(q) || matchesTerm('item', i.name, q) || String(i.id) === q)) return false;
+    if (q && !(searchText(i.search).includes(q) || searchText(itemLabel(i)).includes(q) || matchesTerm('item', i.name, q) || String(i.id) === q)) return false;
     return true;
   });
   const by = { name: (a, b) => compareLabels(itemLabel(a), itemLabel(b)), id: (a, b) => a.id - b.id, qty: (a, b) => (b.qty || 0) - (a.qty || 0) || compareLabels(itemLabel(a), itemLabel(b)) };
@@ -120,6 +120,7 @@ export async function render(el, route) {
 export async function renderItemDetail(pane, id, { back, popout } = {}) {
   let d;
   try { d = await get(`/api/items/${id}?lang=${lang()}`); } catch (e) { mount(pane, h('div', { class: 'detail-body' }, notice('bad', e.message))); return; }
+  const description = itemDescription(d);
   const qty = h('input', { class: 'input', type: 'number', min: 0, max: 999999, value: d.qty ?? '', style: { width: '110px' }, 'aria-label': t('items.owned_qty'),
     placeholder: '—', onchange: async (e) => { const v = e.target.value === '' ? null : Number(e.target.value);
       try { await api('PUT', `/api/items/${d.id}/user`, { qty: v }); cache = null; toast(t('common.saved')); } catch (err) { toast(err.message, { kind: 'warn' }); } } });
@@ -138,8 +139,10 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
         h('div', { class: 'row wrap', style: { marginTop: '4px' } }, h('span', { class: 'chip' }, itemCategory(d.category, d.category_label)),
           h('span', { class: 'tiny muted', title: translateUI('ui.b272_item_cat_basis') }, itemSource(d.category_basis))))),
     h('div', { class: 'detail-body stack' },
-      h('p', { class: 'item-desc', style: { margin: 0, whiteSpace: 'pre-line' } }, d.desc_local || d.desc || h('span', { class: 'muted small' }, translateUI('ui.b272_item_no_desc'))),
-      d.desc_local ? h('details', null, h('summary', { class: 'small' }, translateUI('ui.b272_item_en_desc')), h('p', { class: 'small', style: { whiteSpace: 'pre-line' } }, d.desc)) : null,
+      description.fallback ? h('div', { class: 'small muted' }, translateUI('itemui.desc_english_fallback')) : null,
+      h('p', { class: 'item-desc', style: { margin: 0, whiteSpace: 'pre-line' } }, description.text || h('span', { class: 'muted small' }, translateUI(description.raw.length ? 'itemui.desc_unresolved' : 'ui.b272_item_no_desc'))),
+      description.english ? h('details', null, h('summary', { class: 'small' }, translateUI('ui.b272_item_en_desc')), h('p', { class: 'small', style: { whiteSpace: 'pre-line' } }, description.english)) : null,
+      description.raw.length ? h('details', null, h('summary', { class: 'small' }, translateUI('itemui.desc_original')), description.raw.map(text => h('p', { class: 'small', style: { whiteSpace: 'pre-line' } }, text))) : null,
       h('div', { class: 'row wrap' }, h('label', { class: 'label', for: 'qty-' + d.id }, t('items.owned_qty')), qty,
         h('span', { class: 'tiny muted' }, translateUI('ui.b272_item_qty_manual'))),
       d.move ? h('div', { class: 'card inset' }, h('div', { class: 'label' }, translateUI('itemui.teaches')), h('div', null, h('strong', null, gameTerm('move', d.move.name)), translateUI('itemui.move_stats', { type: gameTerm('type', d.move.type), category: gameTerm('category_move', d.move.category), power: d.move.power || '—', accuracy: d.move.accuracy > 100 ? '—' : d.move.accuracy, pp: d.move.pp }))) : null,
@@ -155,7 +158,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.item_id'), translateUI('ui.b272_item_region_code'), translateUI('ui.b272_item_icon_id'), translateUI('ui.b272_item_icon')].map((c) => h('th', null, c)))),
           h('tbody', null, d.records.map((r) => h('tr', null, h('td', null, r.id), h('td', null, r.region_code), h('td', null, r.icon_id), h('td', null, r.has_icon ? '✓' : translateUI('itemui.missing')))))),
         h('div', { class: 'tiny muted' }, itemSource(d.provenance))),
-      linkedNotes('item', String(d.id), d.label),
+      linkedNotes('item', String(d.id), itemLabel(d)),
       !popout ? h('div', { class: 'row' }, popoutButton('items', `#/item/${d.id}`)) : null));
 }
 

@@ -1,4 +1,4 @@
-import { t, uiLabel } from './i18n.js';
+import { lang, t, uiLabel } from './i18n.js';
 import { gameTerm, itemLabel, searchText, speciesLabel } from './game-locale.js';
 // Shared entity links between the connected tools (Notes ↔ Pokédex, Items, Locations, Box, Guides).
 import { h, mount, icon, get, api, post, modal, toast, debounce, relTime, pad3, spriteOrFallback, POPOUT, SHELL } from './core.js';
@@ -33,13 +33,13 @@ export function linkChip(l, onRemove) {
 export async function pickLink(kinds = ['species', 'item', 'location', 'custom_guide', 'owned']) {
   const [species, items, locs, guides, box] = await Promise.all([
     kinds.includes('species') ? get('/api/dex/species?run=none').then((r) => r.species) : [],
-    kinds.includes('item') ? get('/api/items').then((r) => r.items).catch(() => []) : [],
+    kinds.includes('item') ? get('/api/items?lang=' + lang()).then((r) => r.items).catch(() => []) : [],
     kinds.includes('location') ? get('/api/locations').then((r) => r.locations).catch(() => []) : [],
     kinds.includes('custom_guide') ? get('/api/cguides').then((r) => r.guides) : [],
     kinds.includes('owned') ? get('/api/box').then((r) => r.entries) : []]);
   const pool = [
     ...species.map((s) => ({ kind: 'species', ref: String(s.id), label: s.name, display: speciesLabel(s.id, s.name), sub: '#' + pad3(s.id), icon: s.icon })),
-    ...items.filter((i) => i.category !== 'placeholder').map((i) => ({ kind: 'item', ref: String(i.id), label: i.label || i.name, display: itemLabel(i), sub: uiLabel(i.category), canonicalSub: i.category, icon: i.icon })),
+    ...items.filter((i) => i.category !== 'placeholder').map((i) => ({ kind: 'item', ref: String(i.id), label: i.name, display: itemLabel(i), sub: uiLabel(i.category), canonicalSub: i.category, icon: i.icon })),
     ...locs.map((l) => ({ kind: 'location', ref: l.id, label: l.name, display: gameTerm('location', l.name), sub: gameTerm('region', l.region), canonicalSub: l.region })),
     ...guides.map((g) => ({ kind: 'custom_guide', ref: g.id, label: g.title, sub: uiLabel(g.scope_label), canonicalSub: g.scope_label })),
     ...box.map((b) => ({ kind: 'owned', ref: b.id, label: b.nickname ? `${b.nickname} (${b.species_name})` : b.species_name, display: b.nickname ? `${b.nickname} (${speciesLabel(b.species_id, b.species_name)})` : speciesLabel(b.species_id, b.species_name),

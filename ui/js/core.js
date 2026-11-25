@@ -13,6 +13,7 @@ export const WINDOW_ID = (POPOUT ? 'popout-' + POPOUT : 'main') + '-' + Math.ran
 export const state = { boot: null, settings: {}, caps: {}, dexCache: null };
 
 const API_ERROR_KEYS = {
+  "Quantity must be between 0 and 999999": "errorui.item_quantity",
   "Invalid timer owner": "errorui.timer_owner",
   "Timer not found": "errorui.timer_missing",
   "Duration must be a whole number of seconds": "errorui.timer_seconds",

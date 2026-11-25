@@ -196,3 +196,17 @@ export function itemLabel(item) {
   const resolved = gameTerm('item', item.name);
   return /\{STRING_\d+\}/.test(resolved || '') ? item.name : resolved;
 }
+
+// Imported descriptions may contain unresolved client references. Never invent game text.
+// Keep original strings available for inspection, while preferring readable descriptions.
+export function itemDescription(item, language = lang()) {
+  const english = typeof item.desc === 'string' ? item.desc : '';
+  const local = typeof item.desc_local === 'string' ? item.desc_local : '';
+  const hasText = (value) => value.trim().length > 0;
+  const readable = (value) => hasText(value) && !/\{STRING_\d+\}/.test(value);
+  const raw = [...new Set([local, english].filter(value => hasText(value) && !readable(value)))];
+  if (readable(local) && (language !== 'en' || !readable(english))) {
+    return { text: local, english: readable(english) && english !== local ? english : '', fallback: false, raw };
+  }
+  return { text: readable(english) ? english : '', english: '', fallback: language !== 'en' && readable(english), raw };
+}
