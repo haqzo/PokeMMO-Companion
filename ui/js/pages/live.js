@@ -71,20 +71,21 @@ export function startTimers(root, skewMs, onExpire) {
   const id = setInterval(tick, 15000);
   tick();
   // built before it is placed in the page (Home assembles its sections first): fill the countdowns as soon as it is
-  if (!seen) { const t0 = Date.now(); const early = setInterval(() => { if (root.isConnected) { tick(); clearInterval(early); } else if (Date.now() - t0 > 5000) clearInterval(early); }, 50); }
-  requestAnimationFrame(tick);
-  return () => clearInterval(id);
+  let early = null;
+  if (!seen) { const t0 = Date.now(); early = setInterval(() => { if (root.isConnected) { tick(); clearInterval(early); } else if (Date.now() - t0 > 5000) clearInterval(early); }, 50); }
+  const frame = requestAnimationFrame(tick);
+  return () => { clearInterval(id); clearInterval(early); cancelAnimationFrame(frame); };
 }
 const timeOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 /** Card for one current Alpha/Swarm (several identical reports are one card, timed from the earliest). */
-export function currentCard(g, { compact = false, animate = false } = {}) {
+export function currentCard(g, { compact = false, animate = false, sprite = null } = {}) {
   const st = g.status;
   const sure = g.species_name && g.species_match !== 'ambiguous';  // a report naming several Pokémon shows its own title
   const name = (sure ? speciesLabel(g.species_id, g.species_name) : g.title) || translateUI('ui.live_no_title');
   const where = [g.region && gameTerm('region', cap(g.region)), gameTerm('location', g.location)].filter(Boolean).join(' · ');
   return h('button', { class: `cur-card kind-${g.kind}${compact ? ' compact' : ''}`, dataset: { report: g.id, state: st.state },
     onclick: () => go('#/live/reports/' + g.id), 'aria-label': [reportKind(g.kind), name, where, uiLabel(st.label)].filter(Boolean).join(', ') },
-  reportSprite(g, { animate }),
+  sprite || reportSprite(g, { animate }),
   h('div', { class: 'cur-text' },
     h('div', { class: 'row tight' }, h('span', { class: `kind-label kind-${g.kind}` }, reportKind(g.kind)),
       // "Likely active" only while the estimate really runs (the server's state can be a minute old)

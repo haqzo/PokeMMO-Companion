@@ -665,15 +665,22 @@ class QtShell:
             except queue.Empty:
                 break
             if ev.get("topic") == "settings":
-                language_changed = "app.language" in (ev.get("data") or {})
+                data = ev.get("data") or {}
+                keys = set(data)
+                # Reset/restore events may lack individual keys. Otherwise only
+                # update native controls whose actual preferences changed.
+                full_refresh = not keys or "reset" in keys
+                language_changed = full_refresh or "app.language" in keys
                 if self.tray is not None and language_changed:
                     for action, label in self._tray_labels:
                         action.setText(self.tr_ui(label))
                 for p in list(self.popouts.values()):
                     if language_changed:
                         p.bar.retranslate()
-                    p.apply_prefs()
-                if "appearance.ui_scale" in (ev.get("data") or {}):
+                    if full_refresh or any(f"window.{p.tool}.{key}" in keys for key in
+                                           ("mode", "window_opacity", "pinned", "keep_size", "locked")):
+                        p.apply_prefs()
+                if full_refresh or "appearance.ui_scale" in keys:
                     self.main.apply_ui_scale()
 
     def open_external(self, url: QUrl) -> None:

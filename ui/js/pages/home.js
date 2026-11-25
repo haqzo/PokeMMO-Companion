@@ -587,9 +587,8 @@ function liveCard(cur) {
       // Active reports and expired ones each follow their own Static/Animated preference (Settings › Pokémon & sprites).
       const anim = likelyActive(g, Date.now() + skew) ? animatedIn('report_active') : animatedIn('report_expired');
       const k = `${g.id}:${anim ? 'a' : 's'}`;
-      const node = currentCard(g, { compact: true, animate: anim });
       const old = sprites.get(k);
-      if (old) node.querySelector('.rep-sprite').replaceWith(old);
+      const node = currentCard(g, { compact: true, animate: anim, sprite: old });
       keep.set(k, old || node.querySelector('.rep-sprite'));
       return node;
     });

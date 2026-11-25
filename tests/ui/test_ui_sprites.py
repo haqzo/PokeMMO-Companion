@@ -315,3 +315,22 @@ def test_popout_settings_avoid_unrelated_body_redraws(app, page):
             impact('locations', ['sprites.motion']).body];
     }""")
     assert result == [False, True, True, True, False, True]
+
+
+def test_current_report_reuses_sprite_without_allocating_an_observer(app, page):
+    go(page, app, "#/home")
+    result = page.evaluate("""async () => {
+        const { currentCard } = await import('/js/pages/live.js');
+        const Native = window.ResizeObserver;
+        let allocated = 0;
+        window.ResizeObserver = class extends Native { constructor(cb) { super(cb); allocated++; } };
+        try {
+            const sprite = document.createElement('div'); sprite.className = 'rep-sprite';
+            const g = { id: 'probe', kind: 'alpha', title: 'Probe', provider: 'ntfy',
+                species_still: {url: '/probe.png', w: 16, h: 16},
+                status: {state: 'recent', label: 'Recent', start: new Date().toISOString(), notes: []} };
+            const card = currentCard(g, {compact: true, sprite});
+            return { same: card.querySelector('.rep-sprite') === sprite, allocated };
+        } finally { window.ResizeObserver = Native; }
+    }""")
+    assert result == {"same": True, "allocated": 0}
