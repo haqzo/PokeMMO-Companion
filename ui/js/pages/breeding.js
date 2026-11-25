@@ -7,6 +7,8 @@ import { speciesPicker, speciesIndex, natureSelect, downloadJson, pickJsonFile }
 
 const STATS = [['hp', 'HP'], ['attack', 'Atk'], ['defense', 'Def'], ['sp_attack', 'SpA'], ['sp_defense', 'SpD'], ['speed', 'Spe']];
 const ITEMS = ['none', 'Everstone', 'Power Weight', 'Power Bracer', 'Power Belt', 'Power Lens', 'Power Band', 'Power Anklet'];
+const STAT_LABEL_KEYS = { HP: 'boxui.stat_hp', Atk: 'boxui.stat_atk', Def: 'boxui.stat_def', SpA: 'boxui.stat_spa', SpD: 'boxui.stat_spd', Spe: 'boxui.stat_spe' };
+export const breedingStatLabel = (abbr) => Object.hasOwn(STAT_LABEL_KEYS, abbr) ? translateUI(STAT_LABEL_KEYS[abbr]) : abbr;
 const ITEM_STAT = { 'Power Weight': 'HP', 'Power Bracer': 'Atk', 'Power Belt': 'Def', 'Power Lens': 'SpA', 'Power Band': 'SpD', 'Power Anklet': 'Spe' };
 
 // Translate only service-owned breeding messages; keep canonical payloads unchanged.
@@ -125,10 +127,10 @@ async function renderPreview(el, { popout, mode }) {
     const genders = gc === 255 ? [['genderless', translateUI('ui.b273_breeding_008')]] : gc === 0 ? [['male', translateUI('ui.b273_breeding_009')]] : gc === 254 ? [['female', translateUI('ui.b273_breeding_010')]] : [['male', translateUI('ui.b273_breeding_009')], ['female', translateUI('ui.b273_breeding_010')]];
     if (sp && genders.length === 1) P.gender = genders[0][0];
     const ivRow = h('div', { class: 'iv-grid' }, h('span', { class: 'label' }, translateUI('ui.b273_breeding_011')),
-      STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max: 31, placeholder: '?', value: P.ivs[k] ?? '', title: translateUI('ui.b273_breeding_070', { stat: l }),
-        'aria-label': translateUI('ui.b273_breeding_071', { parent: label, stat: l }), oninput: (e) => { const v = e.target.value === '' ? null : Math.max(0, Math.min(31, Number(e.target.value))); P.ivs[k] = v; update(); } })));
+      STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max: 31, placeholder: '?', value: P.ivs[k] ?? '', title: translateUI('ui.b273_breeding_070', { stat: breedingStatLabel(l) }),
+        'aria-label': translateUI('ui.b273_breeding_071', { parent: label, stat: breedingStatLabel(l) }), oninput: (e) => { const v = e.target.value === '' ? null : Math.max(0, Math.min(31, Number(e.target.value))); P.ivs[k] = v; update(); } })));
     const itemSel = h('select', { class: 'input', 'aria-label': translateUI('ui.b273_breeding_072', { parent: label }), onchange: (e) => { P.item = e.target.value; update(); } },
-      ITEMS.map((it) => h('option', { value: it, selected: P.item === it ? 'selected' : null }, it === 'none' ? translateUI('ui.b273_breeding_012') : ITEM_STAT[it] ? `${itemName(it)} (${ITEM_STAT[it]})` : itemName(it))));
+      ITEMS.map((it) => h('option', { value: it, selected: P.item === it ? 'selected' : null }, it === 'none' ? translateUI('ui.b273_breeding_012') : ITEM_STAT[it] ? `${itemName(it)} (${breedingStatLabel(ITEM_STAT[it])})` : itemName(it))));
     const ic = itemIcons[P.item];
     return h('div', { class: 'parent-card' },
       h('div', { class: 'row' }, h('span', { class: 'eyebrow card-head', style: { margin: 0, fontSize: '.75rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 } }, label)),
@@ -151,7 +153,7 @@ async function renderPreview(el, { popout, mode }) {
       h('div', { class: 'eyebrow', style: { fontSize: '.75rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 } }, translateUI('ui.b273_breeding_017')),
       off ? h('div', { class: 'row' }, h('div', { style: { width: '48px', height: '48px', display: 'grid', placeItems: 'center' } }, spriteOrFallback(off.icon, off, 48)),
         h('div', null, h('div', { style: { fontWeight: 700, fontSize: '1.1rem' } }, speciesLabel(off.id, off.name)), typeChips(off.types, true))) : h('div', { class: 'muted' }, translateUI('ui.compatible_parents')),
-      h('div', { class: 'iv-grid' }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, l))),
+      h('div', { class: 'iv-grid' }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, breedingStatLabel(l)))),
       h('div', { class: 'iv-grid' }, h('span', { class: 'label' }, 'IV'), p.ivs.map((r) => h('div', { class: 'iv-cell ' + r.state, title: breedMessage(r.text) },
         r.state === 'guaranteed' ? (r.value ?? '?') : r.values && r.values.length ? r.values.join('/') : '?'))),
       h('div', { class: 'small' }, h('span', { class: 'label' }, translateUI('ui.b273_breeding_018')), p.nature.state === 'guaranteed' ? h('strong', null, gameTerm('nature', p.nature.value) || translateUI('ui.b273_breeding_019')) : null, ' ', h('span', { class: 'muted' }, breedMessage(p.nature.text))),
@@ -251,7 +253,7 @@ async function renderPlan(el, route) {
   };
   const goalChecks = h('div', { class: 'row wrap' }, STATS.map(([k, l]) => h('label', { class: 'chip btnlike' + (plan.ivs.includes(k) ? ' active' : '') },
     h('input', { type: 'checkbox', class: 'check', checked: plan.ivs.includes(k), onchange: (e) => { plan.ivs = e.target.checked ? [...plan.ivs, k] : plan.ivs.filter((x) => x !== k);
-      plan.node_status = {}; persist(); renderPlanAgain(); } }), `${l} 31`)));
+      plan.node_status = {}; persist(); renderPlanAgain(); } }), `${breedingStatLabel(l)} 31`)));
   const renderPlanAgain = () => renderPlan(el, { query: new URLSearchParams(doc ? 'plan=' + doc.id : '') });
   mount(el, h('div', { class: 'stack' },
     h('div', { class: 'card row wrap', style: { alignItems: 'flex-end' } },

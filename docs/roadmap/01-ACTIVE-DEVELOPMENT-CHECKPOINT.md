@@ -7,7 +7,7 @@ Current development version **0.1.0**, develop only. Owner reconfirmed on 25 Nov
 | Desktop core, connected tools, settings, themes, popouts | Implemented in prior builds | Regressions, real KDE/Windows behavior, owner review |
 | Pokédex, encounters, mechanics, live reports | Implemented with source limitations | Continue daily change watch and weekly accuracy review; do not infer availability or live reports |
 | Guides and walkthroughs | 2,845 steps and 318 headings per translated language | Verify coverage and known instruction issues; native-speaker review during closed alpha; derivative redistribution permission |
-| Interface localization | English, Spanish and Simplified Chinese offline; 2954 supplemental catalog keys | Remaining reference/service prose, interaction-by-interaction rendered fallback review, font/terminology checks |
+| Interface localization | English, Spanish and Simplified Chinese offline; 2958 supplemental catalog keys | Remaining reference/service prose, interaction-by-interaction rendered fallback review, font/terminology checks |
 | Verification | Prior Build 28: 543 passed, 51 skipped before final correction; subsequent targeted source checks | Full test suite at current exact SHA, full browser route/popout matrix, real dump checks where locally available |
 | Packaging | Prior Linux AppImage verified at Build 28, not current | Fresh Linux and Windows QA packages, native tests, checksums; no distribution before approval |
 | Friends-only alpha (0.8.0 target) | Version target agreed; build and distribution not approved | Complete localization, verification, quick performance smoke, targeted stabilization, applicable rights and final owner sign-off; language reviewers join alpha |

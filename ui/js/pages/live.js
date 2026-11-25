@@ -220,7 +220,7 @@ async function renderReports(el, selectedId, src) {
         oninput: debounce((e) => { ui.q = e.target.value; load(); }, 200) })),
       h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: ui.hideTests, onchange: (e) => { ui.hideTests = e.target.checked; load(); } }), h('span', { class: 'small' }, translateUI('ui.live_hide_tests'))),
       h('span', { class: 'grow' }),
-      h('button', { class: 'btn', onclick: testDialog }, icon('bell'), 'Send TEST notification'),
+      h('button', { class: 'btn', onclick: testDialog }, icon('bell'), translateUI('settings.send_test')),
       h('button', { class: 'btn ghost', title: translateUI('ui.live_delivery_settings', { alpha: routeLabel(setting('notify.alpha')), swarm: routeLabel(setting('notify.swarm')), availability: notifier.available ? '' : translateUI('ui.live_os_unavailable') }),
         onclick: () => go('#/settings/notifications') }, icon('gear'), translateUI('ui.live_delivery'))),
     setting('notify.quiet') ? h('div', { class: 'small muted' }, translateUI('ui.live_quiet')) : null,
@@ -374,7 +374,7 @@ export async function renderLegendaries(el, { compact = false } = {}) {
         compact ? null : h('div', { class: 'row', style: { marginTop: '6px' } }, run ? h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: caught,
           onchange: async (e) => { await post('/api/live/legendaries/caught', { species: mon.id, caught: e.target.checked }); toast(translateUI(e.target.checked ? 'ui.live_mark_caught' : 'ui.live_mark_uncaught', { pokemon: speciesLabel(mon.id, mon.name), character: run.display })); } }),
         h('span', { class: 'small' }, translateUI('ui.live_caught_by', { character: run.display }))) : h('span', { class: 'tiny muted' }, translateUI('ui.live_create_run')),
-        h('button', { class: 'btn small ghost', onclick: () => go('#/pokedex/' + mon.id) }, 'Pokédex'))));
+        h('button', { class: 'btn small ghost', onclick: () => go('#/pokedex/' + mon.id) }, translateUI('nav.pokedex')))));
   };
   const monthName = (m, y) => new Date(y, m - 1, 1).toLocaleString(locale(), { month: 'long', year: 'numeric' });
   const cur = L.current, nxt = L.next;

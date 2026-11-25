@@ -5,6 +5,7 @@ import { GAME_TERMS } from './game-terms.js';
 const glossary = {
   es: {
     region: { unova: 'Teselia' },
+    location: { alteringcave: 'Cueva Cambiante' },
     egg: { plant: 'Planta', field: 'Campo', chaos: 'Amorfo', humanoid: 'Humanoide', cannotbreed: 'No puede criar',
       genderless: 'Sin género', watera: 'Agua 1', waterb: 'Agua 2', waterc: 'Agua 3' },
     growth: { mediumfast: 'Medio rápido', mediumslow: 'Medio lento' },
@@ -14,6 +15,7 @@ const glossary = {
       superrod: 'Supercaña', goodrod: 'Caña Buena', oldrod: 'Caña Vieja' },
   },
   zh: {
+    location: { alteringcave: '变化洞窟' },
     egg: { plant: '植物群', field: '陆上群', chaos: '不定形群', humanoid: '人型群', cannotbreed: '无法孵蛋',
       genderless: '无性别', watera: '水中1群', waterb: '水中2群', waterc: '水中3群' },
     growth: { mediumfast: '中快', mediumslow: '中慢' },
@@ -214,6 +216,8 @@ export function matchesTerm(domain, value, query) {
 export function itemLabel(item) {
   const label = item.label;
   if (label && label !== item.name && !/\{STRING_\d+\}/.test(label)) return label;
+  // The client includes a literal None entry; preserve the canonical name/ID, localize its display.
+  if (item.name === 'None') return t('common.none');
   const resolved = gameTerm('item', item.name);
   return /\{STRING_\d+\}/.test(resolved || '') ? item.name : resolved;
 }

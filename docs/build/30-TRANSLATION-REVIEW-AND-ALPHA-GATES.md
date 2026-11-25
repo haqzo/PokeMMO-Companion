@@ -6,7 +6,7 @@ Owner correction, 25 November 2026. Development remains 0.1.0 on develop until t
 
 - [ ] Complete application-owned visible text in EN/ES/zh-Hans across all pages, tools, popouts, dialogs, settings, notifications, accessibility and native UI. Target 100% coverage; intentional originals such as personal text, external reports, filenames and technical identifiers are excluded.
 - [ ] Use existing audit and regression tooling to identify and close actual gaps. Check game terms, numeric placeholders, font rendering, and known gameplay-sensitive walkthrough issues; do not infer coverage from catalog counts.
-- [x] Prior source checkpoint: 2,845/2,845 walkthrough steps per language, 318/318 chapter headings, 2,954 supplemental interface keys (3,044 merged), 79 native entries. Rendered coverage and full application checks remain pending.
+- [x] Prior source checkpoint: 2,845/2,845 walkthrough steps per language, 318/318 chapter headings, 2,958 supplemental interface keys (3,048 merged), 79 native entries. Rendered coverage and full application checks remain pending.
 
 ## 2 — Verify the candidate
 

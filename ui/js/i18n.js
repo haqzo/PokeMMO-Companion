@@ -106,6 +106,9 @@ const labelKeys = new Map(Object.entries(UI_STRINGS).filter(([key]) => !/^(theme
 
 // The calculator uses a context-specific translation for Add; registry actions use the generic one.
 labelKeys.set('Add', 'ui.add');
+// Base dictionaries also own registry labels that are absent from supplemental UI_STRINGS.
+for (const [source, key] of [['Pokédex', 'nav.pokedex'], ['Guides', 'nav.guides'],
+    ['Item Library', 'items.title'], ['My Box', 'box.title']]) labelKeys.set(source, key);
 
 const shortcutLabels = new Map(Object.entries(UI_STRINGS)
   .filter(([key]) => /^shortcutui\./.test(key)).map(([key, [source]]) => [source, key]));

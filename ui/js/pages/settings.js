@@ -110,6 +110,10 @@ async function shortcutsSec(b) {
 
 // ------------------------------------------------------------ appearance
 // -------------------------------------------------------------- windows
+const CAPABILITY_NOTES = {"Browser mode: popouts open as browser windows. Pin/always-on-top, window opacity and native toasts need the native shell (PySide6).":"settings.cap_browser","Native Wayland: the compositor controls window position and stacking, so Pin and position restore are disabled. Relaunch with ./run.sh --xwayland (or Settings › Window backend) to enable them.":"settings.cap_wayland","Pin keeps a popout above normal windows. Exclusive-fullscreen games may still cover it — use windowed/borderless PokeMMO.":"settings.cap_pin","No system tray found: closing the main window quits the Companion.":"settings.cap_tray"};
+export function capabilityNote(note) {
+  return Object.hasOwn(CAPABILITY_NOTES, note) ? translateUI(CAPABILITY_NOTES[note]) : note;
+}
 async function windows(b) {
   const caps = (await get('/api/shell/capabilities'));
   const s = state.settings;
@@ -118,7 +122,7 @@ async function windows(b) {
     h('div', { class: 'card inset stack tight' }, h('div', null, h('strong', null, caps.mode === 'qt' ? translateUI('ui.b272_settings_020') : translateUI('ui.b272_settings_021')), h('span', { class: 'muted small' }, translateUI('settings.platform', { name: caps.platform }))),
       h('div', { class: 'grid-3' }, capRow(translateUI('ui.b272_settings_022'), caps.native_windows || caps.mode === 'browser'), capRow(translateUI('ui.b272_settings_023'), caps.pin), capRow(translateUI('ui.b272_settings_024'), caps.window_opacity),
         capRow(translateUI('ui.b272_settings_025'), caps.toast_window), capRow(translateUI('ui.b272_settings_026'), caps.tray), capRow(translateUI('ui.b272_settings_027'), caps.position)),
-      (caps.notes || []).map((n) => h('div', { class: 'small muted' }, '• ', n))),
+      (caps.notes || []).map((n) => h('div', { class: 'small muted' }, '• ', capabilityNote(n)))),
     row(translateUI('ui.b272_settings_028'), translateUI('ui.b272_settings_029'),
       seg([['auto', translateUI('settings.auto')], ['xwayland', 'XWayland'], ['wayland', translateUI('ui.b272_settings_030')]], s['app.window_backend'], set('app.window_backend'))),
     row(translateUI('ui.b272_settings_031'), translateUI('ui.b272_settings_032'),
@@ -143,7 +147,7 @@ function toolPrefCard(toolId, def, caps) {
       c ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_040'), onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${toolId}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
   });
   return h('div', { class: 'card tool-pref stack tight' },
-    h('div', { class: 'row' }, h('strong', null, uiLabel(def.title)), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(toolId) }, icon('popout'), t('common.open'))),
+    h('div', { class: 'row' }, h('strong', null, (def.i18n ? t(def.i18n) : uiLabel(def.title))), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(toolId) }, icon('popout'), t('common.open'))),
     h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, translateUI('ui.b272_settings_041')),
       seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${toolId}.mode`], set(`window.${toolId}.mode`), translateUI('settings.mode'))),
     h('div', { class: 'stack tight' }, sizeLine),
@@ -151,13 +155,13 @@ function toolPrefCard(toolId, def, caps) {
     h('div', { class: 'row wrap' },
       h('label', { class: 'switch small', title: caps.pin ? '' : translateUI('ui.b272_settings_043') }, h('input', { type: 'checkbox', checked: s[`window.${toolId}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${toolId}.pinned`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_044'))),
       h('label', { class: 'switch small', title: caps.native_windows ? '' : translateUI('ui.b272_settings_045') }, h('input', { type: 'checkbox', checked: s[`window.${toolId}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${toolId}.locked`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_046')))),
-    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, translateUI('ui.background')), rangeCell(`window.${toolId}.bg_opacity`, 35, 100),
-      h('span', { class: 'label' }, translateUI('ui.window')), rangeCell(`window.${toolId}.window_opacity`, 40, 100, !caps.window_opacity),
-      h('span', { class: 'label' }, translateUI('ui.text_size')), rangeCell(`window.${toolId}.text_scale`, 70, 180)));
+    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, translateUI('ui.background')), rangeCell(`window.${toolId}.bg_opacity`, 35, 100, false, translateUI('ui.background')),
+      h('span', { class: 'label' }, translateUI('ui.window')), rangeCell(`window.${toolId}.window_opacity`, 40, 100, !caps.window_opacity, translateUI('ui.window')),
+      h('span', { class: 'label' }, translateUI('ui.text_size')), rangeCell(`window.${toolId}.text_scale`, 70, 180, false, translateUI('ui.text_size'))));
 }
-function rangeCell(key, min, max, disabled) {
+function rangeCell(key, min, max, disabled, label = key) {
   const lbl = h('span', { class: 'tiny muted', style: { width: '34px', display: 'inline-block' } }, state.settings[key] + '%');
-  return h('div', { class: 'row', style: { minWidth: '140px' } }, h('input', { type: 'range', min, max, step: 5, value: state.settings[key], disabled: disabled ? 'disabled' : null, 'aria-label': key,
+  return h('div', { class: 'row', style: { minWidth: '140px' } }, h('input', { type: 'range', min, max, step: 5, value: state.settings[key], disabled: disabled ? 'disabled' : null, 'aria-label': label,
     oninput: (e) => { lbl.textContent = e.target.value + '%'; }, onchange: (e) => set(key)(Number(e.target.value)) }), lbl);
 }
 

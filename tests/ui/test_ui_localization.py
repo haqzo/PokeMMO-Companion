@@ -635,3 +635,23 @@ def test_window_settings_render_all_tool_cards(clean, pg, language, label):
     assert cards.count() == count
     assert cards.get_by_role("button", name=label, exact=True).count() == count
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "guides", "cave", "none", "stat", "send"), [
+    ("en", "Guides", "Altering Cave", "None", "Atk", "Send TEST notification"),
+    ("es", "Guías", "Cueva Cambiante", "Ninguno", "Atq", "Enviar notificación de PRUEBA"),
+    ("zh", "攻略", "变化洞窟", "无", "攻击", "发送测试通知"),
+])
+def test_rendered_fallback_corrections(clean, pg, language, guides, cave, none, stat, send):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/live/reports"))
+    pg.get_by_role("button", name=send, exact=True).wait_for()
+    result = pg.evaluate("""async () => {
+        const { gameTerm, itemLabel } = await import('/js/game-locale.js');
+        const { shortcutLabel } = await import('/js/i18n.js');
+        const { breedingStatLabel } = await import('/js/pages/breeding.js');
+        return [shortcutLabel('Guides'), gameTerm('location', 'Altering Cave'),
+            itemLabel({name: 'None', label: 'None'}), breedingStatLabel('Atk')];
+    }""")
+    assert result == [guides, cave, none, stat]
+    assert not pg.errors
