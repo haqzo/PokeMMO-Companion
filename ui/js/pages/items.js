@@ -1,5 +1,5 @@
 import { number, uiLabel, t as translateUI } from '../i18n.js';
-import { compareLabels, gameTerm, itemDescription, itemLabel, matchesTerm, searchText, speciesLabel } from '../game-locale.js';
+import { compareLabels, gameTerm, itemCategory, itemEvolutionMethod, itemDescription, itemLabel, matchesTerm, searchText, speciesLabel } from '../game-locale.js';
 // Item Library (docs/design/18 §1): every item group from the user's own installed dump.
 // Categories are inferred and say so; links come only from item IDs in the same dump.
 import { h, mount, clear, icon, get, api, state, setting, saveSettings, on, notice, badge, debounce, toast, pad3, seg, WINDOW_ID } from '../core.js';
@@ -7,9 +7,7 @@ import { go, popoutButton, pinButton } from '../shell.js';
 import { t, lang } from '../i18n.js';
 import { linkedNotes, openRoute } from '../links.js';
 
-const CATEGORY_KEYS = {"balls":"itemui.cat_balls","medicine":"itemui.cat_medicine","berries":"itemui.cat_berries","hold":"itemui.cat_hold","tms":"itemui.cat_tms","evolution":"itemui.cat_evolution","breeding":"itemui.cat_breeding","training":"itemui.cat_training","battle":"itemui.cat_battle","field":"itemui.cat_field","farming":"itemui.cat_farming","fossils":"itemui.cat_fossils","rewards":"itemui.cat_rewards","cosmetics":"itemui.cat_cosmetics","mail":"itemui.cat_mail","key":"itemui.cat_key","other":"itemui.cat_other","placeholder":"itemui.cat_placeholder"};
 const SOURCE_KEYS = {"name is a placeholder":"itemui.basis_placeholder","name starts with TM/HM":"itemui.basis_tm","name ends with “Ball”":"itemui.basis_ball","name ends with “Berry”":"itemui.basis_berry","name ends with “Mail”":"itemui.basis_mail","description says cosmetic / dye / particle effect":"itemui.basis_cosmetic","description mentions an unknown reward / dated event item":"itemui.basis_reward","name contains “Fossil”":"itemui.basis_fossil","name/description mentions seeds or planting":"itemui.basis_farming","known breeding item":"itemui.basis_breeding","used by an evolution in the game data":"itemui.basis_evolution","evolution stone description":"itemui.basis_stone","description mentions stats / EVs / nature / level":"itemui.basis_training","description mentions use in battle":"itemui.basis_battle","description mentions use outside battle / lures":"itemui.basis_field","description mentions restoring / healing":"itemui.basis_medicine","description mentions holding":"itemui.basis_hold","name looks like a key item":"itemui.basis_key","no rule matched":"itemui.basis_other","PokeMMO game data. Region codes are the game data's raw values.":"itemui.provenance","Install (or re-install) your PokeMMO data to build the Item Library from your own dump.":"itemui.unavailable"};
-const itemCategory = (key, fallback) => CATEGORY_KEYS[key] ? translateUI(CATEGORY_KEYS[key]) : fallback;
 const itemSource = (value) => SOURCE_KEYS[value] ? translateUI(SOURCE_KEYS[value]) : uiLabel(value);
 
 let cache = null, unsub = [];
@@ -147,7 +145,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
         h('span', { class: 'tiny muted' }, translateUI('ui.b272_item_qty_manual'))),
       d.move ? h('div', { class: 'card inset' }, h('div', { class: 'label' }, translateUI('itemui.teaches')), h('div', null, h('strong', null, gameTerm('move', d.move.name)), translateUI('itemui.move_stats', { type: gameTerm('type', d.move.type), category: gameTerm('category_move', d.move.category), power: d.move.power || '—', accuracy: d.move.accuracy > 100 ? '—' : d.move.accuracy, pp: d.move.pp }))) : null,
       d.evolution_uses.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, t('items.evolution')),
-        h('div', { class: 'row wrap' }, d.evolution_uses.map((e) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + e.to), title: `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)} (${e.method.replace(/_/g, ' ').toLowerCase()})` },
+        h('div', { class: 'row wrap' }, d.evolution_uses.map((e) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + e.to), title: `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)} (${itemEvolutionMethod(e.method)})` },
           e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)}`))))) : null,
       d.held_by.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, `${t('items.held_by')} (${d.held_by.length})`),
         h('div', { class: 'row wrap' }, d.held_by.map((s) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + s.id), title: speciesLabel(s.id, s.name) },

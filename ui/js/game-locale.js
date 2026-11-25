@@ -29,6 +29,20 @@ export function searchText(text) {
 }
 const keyFor = (value) => searchText(value).replace(/[^\p{L}\p{N}]/gu, '');
 const compare = new Map();
+const CATEGORY_KEYS = {"balls":"itemui.cat_balls","medicine":"itemui.cat_medicine","berries":"itemui.cat_berries","hold":"itemui.cat_hold","tms":"itemui.cat_tms","evolution":"itemui.cat_evolution","breeding":"itemui.cat_breeding","training":"itemui.cat_training","battle":"itemui.cat_battle","field":"itemui.cat_field","farming":"itemui.cat_farming","fossils":"itemui.cat_fossils","rewards":"itemui.cat_rewards","cosmetics":"itemui.cat_cosmetics","mail":"itemui.cat_mail","key":"itemui.cat_key","other":"itemui.cat_other","placeholder":"itemui.cat_placeholder"};
+export function itemCategory(key, fallback = key) {
+  return Object.hasOwn(CATEGORY_KEYS, key) ? t(CATEGORY_KEYS[key]) : fallback;
+}
+// Item API supplies method IDs, not level or held-item requirements. Display only what it supplies.
+const ITEM_EVOLUTION_KEYS = {
+  ITEM: 'itemui.evo_use', TRADE_WITH_ITEM: 'itemui.evo_trade',
+  ITEM_MALE: 'itemui.evo_male', ITEM_FEMALE: 'itemui.evo_female',
+  LEVEL_ITEM_NIGHT: 'dex.evo_item_night', LEVEL_ITEM_DAY: 'dex.evo_item_day'
+};
+export function itemEvolutionMethod(method) {
+  if (Object.hasOwn(ITEM_EVOLUTION_KEYS, method)) return t(ITEM_EVOLUTION_KEYS[method]);
+  return String(method ?? '').replace(/_/g, ' ').toLowerCase();
+}
 
 export function compareLabels(a, b) {
   const id = locale();
@@ -151,8 +165,8 @@ export function walkthroughChapter(name) {
 export function formLabel(id, canonical) {
   if (!canonical || lang() === 'en') return canonical;
   const sid = Number(id);
-  // Unown letters and punctuation identify distinct forms. Normalization otherwise merges ! and ?.
-  if (sid === 201 && /^[A-Z!?]$/.test(canonical)) return canonical;
+  // Invariant Unown letters and punctuation are stored distinctly in the generated catalog.
+  if (sid === 201 && /^[A-Z!?]$/.test(canonical)) return GAME_TERMS[lang()]?.form[`201:${canonical.toLowerCase()}`] || canonical;
   // The catalog uses the canonical type names for Arceus, not PokéAPI form names.
   if (sid === 493 && Object.hasOwn(GAME_TERMS.en.type, keyFor(canonical))) return gameTerm('type', canonical);
   if (sid === 351 && canonical === 'Normal Form') return t('dex.form_castform_normal');

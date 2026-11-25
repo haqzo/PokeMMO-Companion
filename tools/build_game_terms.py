@@ -20,6 +20,11 @@ def normalize(text):
     return "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if c.isalnum())
 
 
+def form_key(label):
+    # The two Unown punctuation forms must never share the empty normalized key.
+    return label if label in ("!", "?") else normalize(label)
+
+
 def rows(path, table):
     with (path / f"{table}.csv").open(encoding="utf-8", newline="") as source:
         return list(csv.DictReader(source))
@@ -105,20 +110,26 @@ def build(path):
         row = form_metadata.get(fid)
         sid = pokemon_species.get(row["pokemon_id"]) if row else None
         if sid and labels.get("en"):
-            known_forms[sid][normalize(labels["en"])] = labels
+            known_forms[sid][form_key(labels["en"])] = labels
 
     base_forms = json.loads(Path("companion/data/forms.json").read_text(encoding="utf-8"))["base_form_names"]
     for lang in out:
         out[lang]["form"] = {}
         for entry in forms:
             sid, label = str(entry["species_id"]), entry["form_name"]
-            found = known_forms[sid].get(normalize(label))
+            if sid == "201" and (label in ("!", "?") or len(label) == 1 and "A" <= label <= "Z"):
+                out[lang]["form"][f"{sid}:{form_key(label)}"] = label
+                continue
+            found = known_forms[sid].get(form_key(label))
             if found and lang in found:
-                out[lang]["form"][f"{sid}:{normalize(label)}"] = found[lang]
+                out[lang]["form"][f"{sid}:{form_key(label)}"] = found[lang]
         for sid, label in base_forms.items():
-            found = known_forms[sid].get(normalize(label))
+            if sid == "201" and (label in ("!", "?") or len(label) == 1 and "A" <= label <= "Z"):
+                out[lang]["form"][f"{sid}:{form_key(label)}"] = label
+                continue
+            found = known_forms[sid].get(form_key(label))
             if found and lang in found:
-                out[lang]["form"][f"{sid}:{normalize(label)}"] = found[lang]
+                out[lang]["form"][f"{sid}:{form_key(label)}"] = found[lang]
     return out
 
 

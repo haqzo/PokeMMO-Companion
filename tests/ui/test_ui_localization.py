@@ -26,11 +26,11 @@ def capture_fallbacks(pg, language, scope):
     evidence = pg.evaluate(r"""async () => {
       const { catalogEntries } = await import('/js/i18n.js');
       const lang = document.documentElement.lang === 'es' ? 2 : 3;
-      const normalize = s => s.replace(/\\s+/g, ' ').trim();
+      const normalize = s => s.replace(/\s+/g, ' ').trim();
       const sources = new Map();
       for (const [key, en, es, zh] of catalogEntries()) {
         const row = [key, en, es, zh];
-        if (!en || en === row[lang] || /\\{\\w+\\}/.test(en)) continue;
+        if (!en || en === row[lang] || /\{\w+\}/.test(en)) continue;
         const value = normalize(en);
         if (value.length < 3 || !/[A-Za-z]/.test(value)) continue;
         const keys = sources.get(value) || [];
@@ -594,4 +594,25 @@ def test_import_progress_and_service_fallbacks(clean, pg, language, progress, si
     }""")
     assert result[:3] == [progress, size, "Unknown provider field is required"]
     assert "/home/example/Private Files" in result[3]
+    assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "category", "method"), [
+    ("en", "Hold items", "Trade holding item"),
+    ("es", "Objetos equipados", "Intercambiar con el objeto equipado"),
+    ("zh", "携带道具", "携带道具交换"),
+])
+def test_item_link_categories_and_evolution_methods(clean, pg, language, category, method):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { itemCategory, itemEvolutionMethod, formLabel } = await import('/js/game-locale.js');
+      const { GAME_TERMS } = await import('/js/game-terms.js');
+      return [itemCategory('hold'), itemEvolutionMethod('TRADE_WITH_ITEM'),
+        itemCategory('future-category'), itemEvolutionMethod('FUTURE_METHOD'),
+        formLabel(201, '!'), formLabel(201, '?'),
+        Object.values(GAME_TERMS).every(d => d.form['201:!'] === '!' && d.form['201:?'] === '?')];
+    }""")
+    assert result == [category, method, "future-category", "future method", "!", "?", True]
     assert not pg.errors
