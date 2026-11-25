@@ -23,7 +23,12 @@ def test_walkthrough_locales_preserve_ids_hashes_and_numbers():
             step = canonical[step_id]
             assert digest == step["text_hash"]
             assert es.strip() and zh.strip()
-            if filename == "walkthrough-generated.js":
+            if filename == "walkthrough-generated.js" or step_id.startswith("kanto:imp:") and step_id not in {
+                "kanto:imp:001:00", "kanto:imp:001:01", "kanto:imp:002:00", "kanto:imp:003:00",
+                "kanto:imp:004:00", "kanto:imp:004:01", "kanto:imp:004:02", "kanto:imp:005:00",
+                "kanto:imp:006:00", "kanto:imp:006:01",
+            }:
                 assert re.findall(r"\d+", es) == re.findall(r"\d+", step["text"])
                 assert re.findall(r"\d+", zh) == re.findall(r"\d+", step["text"])
-    assert len(seen) >= 765
+    assert len(seen) >= 981
+    assert {step_id for step_id in canonical if step_id.startswith("kanto:")} <= seen

@@ -4,13 +4,15 @@ Separate Spanish and Simplified Chinese draft translations preserve original Eng
 
 | Region | Additional bilingual drafts | Total translated per language | Remaining per language |
 |---|---:|---:|---:|
-| kanto | 269 | 279 | 175 |
+| kanto | 444 | 454 | 0 |
 | johto | 121 | 131 | 486 |
 | hoenn | 127 | 137 | 389 |
 | sinnoh | 174 | 184 | 566 |
 | unova | 65 | 75 | 423 |
-| Total | 756 | 806 | 2039 |
+| Total | 931 | 981 | 1864 |
 
 Regenerate with `node tools/localization/build-walkthrough-phrases.mjs`. Preserve existing drafts when extending rules. Original guide content, credit, hashes and progress remain unchanged. Derivative redistribution and native-speaker review remain outstanding.
 
 The next manual pass adds 41 Kanto drafts, checked against canonical IDs, source hashes and numeric tokens. No original guide records were changed. Full application and walkthrough localization remain open.
+
+Four manual batches add 216 Kanto drafts (including the 41 above). All 454 Kanto step IDs now have matching Spanish and Simplified Chinese entries. Coverage does not imply native-speaker validation, gameplay verification or translated distribution permission. Other regions, interface text and source notes remain incomplete.

@@ -22,7 +22,7 @@ export function runInitial(run) { return (run.character_name || '?').trim().char
 export async function runForm({ title = translateUI('ui.guide_new_character_run'), name = '', label = '', region = 'kanto', withRegion = true, okLabel = translateUI('ui.guide_character_run_create') } = {}) {
   const err = h('div', { class: 'small', style: { color: 'var(--danger)' } });
   const nameIn = h('input', { class: 'input', maxlength: 24, value: name, placeholder: translateUI('ui.guide_character_hint'), 'aria-label': translateUI('ui.guide_character'), autocomplete: 'off' });
-  const labelIn = h('input', { class: 'input', maxlength: 24, value: label, placeholder: 'e.g. Main, Alt, Nuzlocke', 'aria-label': translateUI('ui.guide_run_label') });
+  const labelIn = h('input', { class: 'input', maxlength: 24, value: label, placeholder: translateUI('ui.b274_guides_001'), 'aria-label': translateUI('ui.guide_run_label') });
   const regionSel = h('select', { class: 'input', 'aria-label': translateUI('ui.guide_starting_region') }, REGIONS.map((r) => h('option', { value: r, selected: r === region ? 'selected' : null }, gameTerm('region', cap(r)))));
   return modal({ title, body: h('div', { class: 'stack tight' },
     h('div', { class: 'field' }, h('label', null, translateUI('ui.guide_character_required')), nameIn),
@@ -38,7 +38,7 @@ export async function runForm({ title = translateUI('ui.guide_new_character_run'
 export async function createRun() {
   const v = await runForm();
   if (!v) return null;
-  try { const run = await post('/api/guides/runs', v); toast(`Created run “${run.display}”`); return run; }
+  try { const run = await post('/api/guides/runs', v); toast(translateUI('ui.b274_guides_030', { name: run.display })); return run; }
   catch (e) { toast(e.message, { kind: 'warn', timeout: 6000 }); return null; }
 }
 
@@ -55,7 +55,7 @@ export async function render(el, route) {
         h('p', { class: 'muted', style: { margin: 0 } }, translateUI('ui.guide_character_run_help')),
         h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) render(el, route); } }, icon('plus'), translateUI('ui.guide_character_run_create')),
           h('button', { class: 'btn ghost', onclick: () => go('#/guides/storyline?browse=1&region=kanto') }, translateUI('ui.guide_read_before_run'))),
-        runs.deleted.length ? h('div', { class: 'small muted' }, `${runs.deleted.length} deleted run(s) can be restored from the run menu after creating a run, or in Settings › Guides.`) : null));
+        runs.deleted.length ? h('div', { class: 'small muted' }, translateUI('ui.b274_guides_031', { count: runs.deleted.length })) : null));
     return;
   }
   let run = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
@@ -71,8 +71,8 @@ export async function render(el, route) {
       h('button', { class: 'btn', title: translateUI('ui.guide_window_open'), onclick: () => openPopout('storyline') }, icon('popout'), translateUI('ui.guide_storyline_window')))));
   const sk = ['guide.prev', 'guide.next', 'guide.toggle'].map((a) => shortcutFor(a));
   page.append(h('div', { class: 'tiny muted', style: { margin: '-6px 0 10px' } }, sk.some(Boolean) ?
-    `Keyboard (while this window is focused): previous ${displayCombo(sk[0])} · next ${displayCombo(sk[1])} · tick/untick ${displayCombo(sk[2])} — change in Settings › Keyboard shortcuts.` :
-    'Guide keyboard shortcuts are unassigned — set them in Settings › Keyboard shortcuts.'));
+    translateUI('ui.b274_guides_032', { previous: displayCombo(sk[0]), next: displayCombo(sk[1]), toggle: displayCombo(sk[2]) }) :
+    translateUI('ui.b274_guides_002')));
 
   page.append(h('div', { class: 'row wrap', style: { marginBottom: '12px' } }, tabs(REGIONS.map((r) => {
     const c = overview[r].mandatory.total ? overview[r].mandatory : overview[r].unclassified;
@@ -91,33 +91,33 @@ export async function render(el, route) {
 
   const sourceSel = h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.guide_source_control'), onchange: async (e) => {
     await api('PATCH', `/api/guides/runs/${run.id}`, { region, source: e.target.value }); render(el, route); } },
-  st.sources.map((s) => h('option', { value: s.id, selected: s.id === st.source ? 'selected' : null }, `${s.label} · ${s.steps} steps`)));
+  st.sources.map((s) => h('option', { value: s.id, selected: s.id === st.source ? 'selected' : null }, translateUI('ui.b274_guides_033', { source: s.label, count: s.steps }))));
 
   const header = h('div', { class: 'card stack tight', style: { marginBottom: '14px' } },
-    h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0, fontSize: '1.2rem' } }, cap(region)), sourceSel, sourceInfo(src.status), h('span', { class: 'grow' }),
+    h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0, fontSize: '1.2rem' } }, gameTerm('region', cap(region))), sourceSel, sourceInfo(src.status), h('span', { class: 'grow' }),
       h('button', { class: 'btn ghost small', onclick: () => jumpToCurrent() }, icon('target'), translateUI('ui.guide_jump_current')),
-      h('button', { class: 'btn ghost small', title: translateUI('ui.guide_undo_step'), onclick: async () => { const r = await post(`/api/guides/runs/${run.id}/undo`); toast(r.undone ? `Undid ${r.undone} change(s)` : translateUI('ui.guide_undo_none')); render(el, route); } }, icon('undo'), 'Undo'),
+      h('button', { class: 'btn ghost small', title: translateUI('ui.guide_undo_step'), onclick: async () => { const r = await post(`/api/guides/runs/${run.id}/undo`); toast(r.undone ? translateUI('ui.b274_guides_034', { count: r.undone }) : translateUI('ui.guide_undo_none')); render(el, route); } }, icon('undo'), translateUI('ui.b274_guides_003')),
       h('button', { class: 'btn ghost small', onclick: () => bulkMark() }, translateUI('ui.guide_check_current'))),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })),
-      h('span', { class: 'small nowrap' }, isImported ? translateUI('ui.guide_steps', { done: counts.done, total: counts.total }) : `${counts.done}/${counts.total} main-story milestones`)),
+      h('span', { class: 'small nowrap' }, isImported ? translateUI('ui.guide_steps', { done: counts.done, total: counts.total }) : translateUI('ui.b274_guides_035', { done: counts.done, total: counts.total }))),
     h('div', { class: 'small muted' }, isImported
       ? (st.source === 'walkthrough'
-        ? 'Complete walkthrough by its original author, included with Companion. Progress counts every step. Steps are tagged automatically (battle, item, …).'
-        : 'Your own walkthrough file: progress counts every step. Steps are tagged automatically and not checked against the current game.')
-      : `Progress counts main-story milestones only. Optional steps: ${st.counts.optional.done}/${st.counts.optional.total}. ${src.note}`),
+        ? translateUI('ui.b274_guides_004')
+        : translateUI('ui.b274_guides_005'))
+      : translateUI('ui.b274_guides_036', { done: st.counts.optional.done, total: st.counts.optional.total, note: src.note })),
     null);
   page.append(header);
   const gx = guideExtras({ key: `story:${run.id}:${region}`, title: `${cap(region)} storyline · ${run.display}`, run: run.id,
     steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) });
   unsub.push(gx.dispose);
   page.append(h('details', { class: 'gx-story', open: setting('guides.extras_open') === false ? null : '' , ontoggle: (e) => saveSettings({ 'guides.extras_open': e.target.open }).catch(() => {}) },
-    h('summary', { class: 'small' }, 'Timers & team for this region'), gx.panel()));
+    h('summary', { class: 'small' }, translateUI('ui.b274_guides_006')), gx.panel()));
   gx.load().catch((e) => console.warn(e));
 
   if (st.changed.length) {
-    page.append(h('div', { style: { marginBottom: '12px' } }, notice('warn', h('strong', null, `${st.changed.length} checked step(s) changed wording since you ticked them. `),
-      'Your checkmarks were kept. Review them (marked “changed”) and acknowledge.',
-      h('button', { class: 'btn small', style: { marginLeft: '8px' }, onclick: async () => { await post(`/api/guides/runs/${run.id}/acknowledge`, { steps: st.changed }); render(el, route); } }, 'Acknowledge all'))));
+    page.append(h('div', { style: { marginBottom: '12px' } }, notice('warn', h('strong', null, translateUI('ui.b274_guides_037', { count: st.changed.length })),
+      translateUI('ui.b274_guides_007'),
+      h('button', { class: 'btn small', style: { marginLeft: '8px' }, onclick: async () => { await post(`/api/guides/runs/${run.id}/acknowledge`, { steps: st.changed }); render(el, route); } }, translateUI('ui.b274_guides_008')))));
   }
 
   // chapters
@@ -162,9 +162,9 @@ export async function render(el, route) {
     return h('div', { class: 'step' + (isDone ? ' done' : '') + (s.id === st.active_step_id ? ' current' : ''), id: 'step-' + s.id.replace(/[^\w-]/g, '_') }, cb,
       h('div', null, h('div', { class: 's-text' }, displayStep(s)),
         h('div', { class: 's-meta' }, s.id === st.active_step_id ? h('span', { class: 'badge corroborated plain' }, translateUI('ui.current')) : null,
-          s.mandatory === false ? h('span', { class: 'chip' }, translateUI('ui.optional')) : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? ' (auto-tag)' : '')) : null,
-          s.source_url ? extLink(s.source_url, 'Official changelog') : null, changed ? h('span', { class: 'chip tiny warn', title: translateUI('ui.guide_changed_hint') }, translateUI('ui.guide_changed')) : null), gx.stepTimers(s.id)),
-      s.id !== st.active_step_id ? h('button', { class: 'btn ghost small', title: 'Make this your current step', onclick: async () => {
+          s.mandatory === false ? h('span', { class: 'chip' }, translateUI('ui.optional')) : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? translateUI('ui.b274_guides_009') : '')) : null,
+          s.source_url ? extLink(s.source_url, translateUI('ui.b274_guides_010')) : null, changed ? h('span', { class: 'chip tiny warn', title: translateUI('ui.guide_changed_hint') }, translateUI('ui.guide_changed')) : null), gx.stepTimers(s.id)),
+      s.id !== st.active_step_id ? h('button', { class: 'btn ghost small', title: translateUI('ui.b274_guides_011'), onclick: async () => {
         await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); render(el, route); } }, translateUI('ui.guide_set_current')) : h('span'));
   };
   page.append(h('div', { class: 'guide-layout' }, h('div', { class: 'stack tight' }, searchIn, chapterList), stepsBox));
@@ -179,8 +179,8 @@ export async function render(el, route) {
   }
   async function bulkMark() {
     const p = await post(`/api/guides/runs/${run.id}/mark-through`, { region, step: st.active_step_id, preview: true });
-    if (!p.would_mark) { toast('Everything up to the current step is already checked.'); return; }
-    if (await confirmDialog('Mark earlier steps done', `This ticks ${p.would_mark} unchecked step(s) up to and including your current step in ${cap(region)} for ${run.display}. You can undo it.`, 'Mark done')) {
+    if (!p.would_mark) { toast(translateUI('ui.b274_guides_012')); return; }
+    if (await confirmDialog(translateUI('ui.b274_guides_013'), translateUI('ui.b274_guides_038', { count: p.would_mark, region: gameTerm('region', cap(region)), run: run.display }), translateUI('ui.b274_guides_014'))) {
       await post(`/api/guides/runs/${run.id}/mark-through`, { region, step: st.active_step_id }); render(el, route);
     }
   }
@@ -189,7 +189,7 @@ export async function render(el, route) {
 }
 
 function runSelector(runs, run, el, route) {
-  const btn = h('button', { class: 'run-pill', style: { cursor: 'pointer', color: 'inherit' }, 'aria-haspopup': 'menu', title: 'Switch or manage character runs' },
+  const btn = h('button', { class: 'run-pill', style: { cursor: 'pointer', color: 'inherit' }, 'aria-haspopup': 'menu', title: translateUI('ui.b274_guides_015') },
     h('span', { class: 'initial' }, runInitial(run)), h('span', { style: { fontWeight: 600 } }, run.character_name),
     run.run_label ? h('span', { class: 'small muted' }, run.run_label) : null, icon('down'));
   btn.addEventListener('click', (e) => {
@@ -200,15 +200,15 @@ function runSelector(runs, run, el, route) {
     const menu = h('div', { class: 'menu', role: 'menu', style: { top: r.bottom + 4 + 'px', right: (innerWidth - r.right) + 'px' } },
       runs.runs.map((x) => item(x.display + (x.id === run.id ? '  ✓' : ''), async () => { await saveSettings({ 'guides.active_run': x.id }); render(el, { ...route, query: new URLSearchParams() }); })),
       h('div', { class: 'sep' }),
-      item('New run…', async () => { if (await createRun()) render(el, { ...route, query: new URLSearchParams() }); }, 'plus'),
-      item('Rename…', async () => { const v = await runForm({ title: 'Rename run', name: run.character_name, label: run.run_label, withRegion: false, okLabel: 'Save' });
+      item(translateUI('ui.b274_guides_016'), async () => { if (await createRun()) render(el, { ...route, query: new URLSearchParams() }); }, 'plus'),
+      item(translateUI('ui.b274_guides_017'), async () => { const v = await runForm({ title: translateUI('ui.b274_guides_018'), name: run.character_name, label: run.run_label, withRegion: false, okLabel: translateUI('ui.save') });
         if (v) { try { await api('PATCH', `/api/guides/runs/${run.id}`, { name: v.name, label: v.label }); render(el, route); } catch (e2) { toast(e2.message, { kind: 'warn' }); } } }),
-      item('Duplicate as new run…', async () => { const v = await runForm({ title: 'Duplicate run (independent copy)', name: run.character_name, label: (run.run_label + ' copy').trim(), withRegion: false, okLabel: 'Duplicate' });
+      item(translateUI('ui.b274_guides_019'), async () => { const v = await runForm({ title: translateUI('ui.b274_guides_020'), name: run.character_name, label: (run.run_label + ' copy').trim(), withRegion: false, okLabel: translateUI('ui.duplicate') });
         if (v) { try { const n = await post(`/api/guides/runs/${run.id}/duplicate`, { label: v.label }); await saveSettings({ 'guides.active_run': n.id }); render(el, route); } catch (e2) { toast(e2.message, { kind: 'warn' }); } } }),
-      item('Export backup', async () => downloadJson(`pokemmo-companion-backup-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')), 'download'),
-      runs.deleted.length ? item(`Restore deleted run (${runs.deleted.length})…`, () => restoreDialog(runs.deleted, el, route)) : null,
+      item(translateUI('ui.b274_guides_021'), async () => downloadJson(`pokemmo-companion-backup-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')), 'download'),
+      runs.deleted.length ? item(translateUI('ui.b274_guides_039', { count: runs.deleted.length }), () => restoreDialog(runs.deleted, el, route)) : null,
       h('div', { class: 'sep' }),
-      item('Delete this run…', async () => { if (await confirmDialog('Delete run', `Delete “${run.display}”? It can be restored from this menu later (and from backups).`, 'Delete', true)) {
+      item(translateUI('ui.b274_guides_022'), async () => { if (await confirmDialog(translateUI('ui.b274_guides_023'), translateUI('ui.b274_guides_040', { name: run.display }), translateUI('ui.delete'), true)) {
         await api('DELETE', `/api/guides/runs/${run.id}`); render(el, { ...route, query: new URLSearchParams() }); } }, 'trash'));
     document.body.append(menu);
     const close = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', close); } };
@@ -220,9 +220,9 @@ function runSelector(runs, run, el, route) {
 }
 
 async function restoreDialog(deleted, el, route) {
-  await modal({ title: 'Restore a deleted run', body: h('div', { class: 'list-rows' }, deleted.map((d) => h('div', { class: 'list-row' }, h('span', { class: 'grow' }, d.display),
-    h('span', { class: 'when' }, 'deleted ', relTime(d.deleted_at)),
-    h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${d.id}/restore`); document.querySelector('.modal-back').remove(); render(el, route); toast('Run restored'); }
+  await modal({ title: translateUI('ui.b274_guides_024'), body: h('div', { class: 'list-rows' }, deleted.map((d) => h('div', { class: 'list-row' }, h('span', { class: 'grow' }, d.display),
+    h('span', { class: 'when' }, translateUI('ui.b274_guides_025'), relTime(d.deleted_at)),
+    h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${d.id}/restore`); document.querySelector('.modal-back').remove(); render(el, route); toast(translateUI('ui.b274_guides_026')); }
       catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.restore'))))), actions: [{ label: translateUI('ui.close'), kind: 'ghost' }] });
 }
 
@@ -234,8 +234,8 @@ async function browse(page, route, runs, el) {
   const q = (route.query.get('q') || '').toLowerCase();
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('ui.storyline')),
     h('div', { class: 'sub' }, translateUI('ui.guide_source_readonly'))),
-  h('div', { class: 'actions' }, runs.runs.length ? h('button', { class: 'btn', onclick: () => go(`#/guides/storyline?region=${region}`) }, 'Back to my run')
-    : h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) go(`#/guides/storyline?region=${region}`); } }, icon('plus'), 'Create a run'))));
+  h('div', { class: 'actions' }, runs.runs.length ? h('button', { class: 'btn', onclick: () => go(`#/guides/storyline?region=${region}`) }, translateUI('ui.b274_guides_027'))
+    : h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) go(`#/guides/storyline?region=${region}`); } }, icon('plus'), translateUI('ui.b274_guides_028')))));
   page.append(h('div', { class: 'row wrap', style: { marginBottom: '12px' } }, tabs(REGIONS.map((r) => ({ id: r, label: gameTerm('region', cap(r)) })), region,
     (r) => go(`#/guides/storyline?browse=1&region=${r}`), translateUI('ui.guide_regions'))));
   const chapters = [];
@@ -248,12 +248,12 @@ async function browse(page, route, runs, el) {
       const hits = term ? c.steps.filter((x) => [x.text, stepLabel(x), c.name, chapterLabel(c.name)].some((v) => searchText(v).includes(term))) : c.steps;
       if (!hits.length) return null;
       return h('details', { class: 'card tight browse-chapter', open: term ? '' : null },
-        h('summary', null, h('strong', null, chapterLabel(c.name) || 'Steps'), h('span', { class: 'tiny muted' }, ` · ${hits.length} step${hits.length === 1 ? '' : 's'}`)),
+        h('summary', null, h('strong', null, chapterLabel(c.name) || translateUI('ui.b274_guides_029')), h('span', { class: 'tiny muted' }, translateUI('ui.b274_guides_041', { count: hits.length }))),
         h('ol', { class: 'browse-list' }, hits.map((x) => h('li', null, stepLabel(x)))));
     }));
   };
   search.addEventListener('input', draw);
-  page.append(h('div', { class: 'row wrap', style: { marginBottom: '8px' } }, search, h('span', { class: 'small muted' }, `${cat.steps.length} steps in ${chapters.length} chapters`)), list,
-    h('p', { class: 'tiny muted' }, WALKTHROUGH_CREDIT));
+  page.append(h('div', { class: 'row wrap', style: { marginBottom: '8px' } }, search, h('span', { class: 'small muted' }, translateUI('ui.b274_guides_042', { steps: cat.steps.length, chapters: chapters.length }))), list,
+    h('p', { class: 'tiny muted' }, translateUI('ui.b274_guides_043')));
   draw();
 }
