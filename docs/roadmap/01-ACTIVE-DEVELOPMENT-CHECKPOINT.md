@@ -28,3 +28,6 @@ Android, OCR and cross-device accounts/sync remain future research. No encounter
 
 ## Evidence
 Latest source changes are tracked in [Build 30](../build/30-LOCALIZATION-NATIVE-IMPORTS-VERIFICATION.md); earlier changes in [Build 29](../build/29-LOCALIZATION-SERVICE-ERRORS.md). The connector environment cannot run the full Python/Playwright/Qt app: it has no local checkout, private dump or network clone access. Test results in older reports apply only to the recorded revisions. No release or asset redistribution approval is implied.
+
+
+**25 November owner verification:** application revision `3388bb0d829d62a9b3e867100e7980c4ab8b1ec1` passed 64 localization tests. Linux native fresh-profile startup/restart confirmed. Initial CPU/RSS measurements recorded in Build 30 verification report. Follow up once on settled memory retention (PSS) and process exit; then final regression and packaging gates. Windows remains unverified. Keep development version 0.1.0 until candidate readiness; no public release or merge.

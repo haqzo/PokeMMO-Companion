@@ -23,3 +23,18 @@ Owner log for 04950e94aea20aa92926399a3e915d9f050e5851: initial regression 396 p
 ## Owner retest and fallback evidence
 
 At ec9f75b2d5d64ae39ac878714030e4c31aca3daf, all 19 targeted retests passed (186 deselected); original 166 successful UI tests and 396 successful other tests are earlier-revision evidence. QA-results(1).zip contained 420 fallback reports, 70 candidate occurrences across 17 locale/text pairs (includes retained popout reports from the immediately preceding revision). Corrected direct Live labels, registry fallback for four headings, explicit popout title keys, Altering Cave location label, None item display (canonical raw name preserved), breeding stat abbreviations, and capability notes and slider accessibility labels. 57 isolated actual-source registry/capability/stat checks and JS syntax passed. Added focused browser regression; repeat affected routes/popouts and review any remaining candidate text. Four catalog keys added (2958 supplemental, 3048 merged). Exact-match probe is not proof of 100% localization. No actual performance or Windows package evidence yet.
+
+## Latest owner verification (25 November 2026)
+
+Tested application revision: `3388bb0d829d62a9b3e867100e7980c4ab8b1ec1`. Local localization suite: **64 passed**, exit 0 (152.52 s). Earlier full regression and targeted route results remain separate revision evidence; a full suite on the final candidate remains necessary. The preceding fallback review reported zero flagged exact-match candidates; this is not proof of exhaustive translation or native-speaker accuracy.
+
+Linux native fresh-profile launch and relaunch confirmed by owner on CachyOS, kernel 7.3.6-1-cachyos, Qt 6.12.0, xcb (XWayland), 12 logical CPUs, 15,847 MiB system RAM. Native capabilities reported pin, opacity, position, toasts and tray available. Both launches emitted a GBM-to-Vulkan fallback message and an unregistered desktop app ID portal warning; the owner reports the app opened fine. Log timestamps from application logging to Qt capability logging: about 0.48 s on first launch and 0.46 s on restart; these are not end-to-end startup measurements. No measured process-exit audit yet.
+
+| Phase | Median summed RSS (MiB) | Peak summed RSS (MiB) | CPU (% of one logical core) |
+| --- | ---: | ---: | ---: |
+| Home idle | 846.4 | 849.2 | 18.0 |
+| Pokédex navigation | 1040.7 | 1045.7 | 48.1 |
+| Several popouts | 1330.9 | 1377.1 | 49.3 |
+| Return to Home | 1421.5 | 1425.0 | 34.2 |
+
+All four samples were about five seconds; six processes, zero unreadable processes in each. CPU is modest on this system; summed RSS double-counts shared pages. Recovery RSS is higher than the initial idle sample; this could be cache retention or real growth. Source inspection confirms closed popouts are removed from the registry, use WA_DeleteOnClose, and own their web view/page. No demonstrated leak or speculative runtime change. One short follow-up with proportional set size (PSS), a warmed-up baseline, repeat open/close cycles and settled idle is sufficient to check material growth before packaging. Windows remains unverified. No new features, version bump or release.

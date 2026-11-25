@@ -13,11 +13,14 @@ Owner correction, 25 November 2026. Development remains 0.1.0 on develop until t
 - [ ] Run existing full regression and localization checks on the exact candidate SHA; report actual passed/failed/skipped counts. Use existing route/popout matrices and focused interaction checks to identify remaining English, rendering, offline, persistence and functional blockers. Preserve personal data and use private dumps only locally.
 - [ ] Basic native Linux/KDE and Windows launch, restart and package checks. Existing private-only hosted Windows workflow guard remains; use authorized local build if appropriate.
 
+**Owner evidence at 3388bb0:** localization 64 passed; Linux fresh-profile native launch and restart successful. Full exact-candidate regression and Windows checks still open.
+
 ## 3 — Quick performance smoke
 
 Use the optional developer-only `tools/performance_smoke.py` with psutil installed in the development environment. Start a fresh-profile native app, identify its main PID, then run `python tools/performance_smoke.py PID --output /tmp/companion-perf.json` (choose a writable Windows path on Windows). Four short samples: idle, navigation, popouts, recovery. Record startup/relaunch and process exit separately. No installed-app dependency or telemetry.
 
 - [ ] Measure startup time, idle and active CPU/RAM including native child processes. Check normal navigation, a few floating tools, sprite animation, closing tools and quitting/relaunching. Record machine/OS and measurements; investigate sustained abnormal growth or major slowdown.
+- [x] Initial Linux performance smoke recorded (see Build 30 verification report). Short settled PSS/close-cycle check and process exit observation remain; no leak established.
 - [ ] Fix material performance issues only; no extensive profiling, speculative optimization or extra feature work.
 
 ## 4 — Stabilize and prepare the alpha
