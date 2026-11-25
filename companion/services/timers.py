@@ -20,6 +20,7 @@ import threading
 import time
 import uuid
 
+from ..localization import native_text
 from ..storage import utcnow
 from ..storage import StorageClosedError
 
@@ -324,11 +325,13 @@ class TimerService:
     def _deliver(self, t: dict, event: str, late: float) -> dict:
         quiet = bool(self.settings.get("notify.quiet"))
         route = self.settings.get("notify.timer") or "both"
-        late_txt = f" (finished {int(late // 60)} min {int(late % 60)} s ago — the Companion was closed or asleep)" if late >= 5 else ""
-        payload = {"id": t["id"], "kind": "timer", "title": f"Timer finished: {t['name']}", "line": (
-            "Repeats — next round started." if t["repeat"] else "Your timer is up.") + late_txt,
+        language = self.settings.get('app.language') or 'en'
+        tr = lambda source: native_text(source, language)
+        late_txt = tr(' (finished {minutes} min {seconds} s ago — the Companion was closed or asleep)').format(minutes=int(late // 60), seconds=int(late % 60)) if late >= 5 else ''
+        payload = {"id": t["id"], "kind": "timer", "title": tr('Timer finished: {name}').format(name=t['name']), "line": (
+            tr('Repeats — next round started.') if t['repeat'] else tr('Your timer is up.')) + late_txt,
                    "reported": utcnow(), "is_test": False, "species_icon": None, "event": event,
-                   **self._where(t),
+                   **self._where(t, language),
                    "sound": bool(t["sound"]) and not quiet,
                    "corner": self.settings.get("notify.toast_corner"), "duration": self.settings.get("notify.toast_duration"),
                    "opacity": self.settings.get("notify.toast_opacity"), "screen": self.settings.get("notify.toast_screen")}
@@ -353,16 +356,17 @@ class TimerService:
         return result
 
     @staticmethod
-    def _where(t: dict) -> dict:
+    def _where(t: dict, language: str = 'en') -> dict:
         """Where a completion notification leads: the guide that owns the timer, or the Timers tool."""
+        tr = lambda source: native_text(source, language)
         o = t.get("owner") or {}
         g = o.get("guide") or ""
         if g.startswith("cg:"):
-            return {"route": f"#/guides/mine/{g[3:]}", "open_label": "Open guide", "meta": f"Guide timer · {o.get('label') or 'My guide'}"}
+            return {"route": f"#/guides/mine/{g[3:]}", "open_label": tr('Open guide'), "meta": tr('Guide timer · {label}').format(label=o.get('label') or tr('My guide'))}
         if g.startswith("story:"):
             region = g.split(":")[-1]
-            return {"route": f"#/guides/storyline?region={region}", "open_label": "Open guide", "meta": f"Storyline guide timer · {region.title()}"}
-        return {"route": "#/tools/timers", "open_label": "Open Timers", "meta": "Tools › Timers (your own timer)"}
+            return {"route": f"#/guides/storyline?region={region}", "open_label": tr('Open guide'), "meta": tr('Storyline guide timer · {region}').format(region=tr(region.title()))}
+        return {"route": "#/tools/timers", "open_label": tr('Open Timers'), "meta": tr('Tools › Timers (your own timer)')}
 
     def claim_sound(self, event: str) -> bool:
         """The first window to ask for an event plays the chime; every later window is told not to."""

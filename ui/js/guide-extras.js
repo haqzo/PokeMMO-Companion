@@ -6,7 +6,7 @@ import { plural, t as translateUI } from './i18n.js';
 // timer never ticks a step.
 import { h, mount, icon, get, post, api, on, toast, confirmDialog, modal } from './core.js';
 import { go } from './shell.js';
-import { fmt, timerStateLabel } from './pages/timers.js';
+import { fmt, timerStateLabel, builtinPresetLabel } from './pages/timers.js';
 import { teamStrip, editTeamDialog, purposeLabel } from './team-editor.js';
 
 let ticker = null;
@@ -38,12 +38,12 @@ export async function templateDialog(initial = {}) {
     ntf = h('input', { type: 'checkbox', checked: initial.notify !== false });
   const apply = (p) => { name.value = name.value || p.label; hh.value = Math.floor(p.seconds / 3600); mm.value = Math.floor((p.seconds % 3600) / 60); ss.value = p.seconds % 60;
     if ('repeat' in p) rep.checked = !!p.repeat; if ('sound' in p) snd.checked = !!p.sound; if ('notify' in p) ntf.checked = !!p.notify; };
-  const all = [...presets.map((p) => ({ ...p, mine: true })), ...builtin];
+  const all = [...presets.map((p) => ({ ...p, mine: true })), ...builtin.map(p => ({ ...p, label: builtinPresetLabel(p) }))];
   const body = h('div', { class: 'stack' },
     all.length ? h('div', { class: 'field' }, h('label', null, translateUI('ui.guide_extra_from_preset')), h('div', { class: 'row wrap tight' }, all.map((p) =>
       h('button', { class: 'btn small', type: 'button', onclick: () => apply(p) }, p.mine ? icon('star') : null, `${p.label} · ${fmt(p.seconds)}`)))) : null,
     h('div', { class: 'field' }, h('label', null, translateUI('ui.name')), name),
-    h('div', { class: 'row tight' }, hh, h('span', null, 'h'), mm, h('span', null, 'm'), ss, h('span', null, 's')),
+    h('div', { class: 'row tight' }, hh, h('span', null, translateUI('timerui.hour')), mm, h('span', null, translateUI('timerui.minute')), ss, h('span', null, translateUI('timerui.second'))),
     h('div', { class: 'row wrap' }, h('label', { class: 'row tight small' }, rep, translateUI('ui.repeat')), h('label', { class: 'row tight small' }, snd, translateUI('ui.sound')),
       h('label', { class: 'row tight small' }, ntf, translateUI('ui.guide_extra_notification'))),
     h('p', { class: 'tiny muted', style: { margin: 0 } }, translateUI('ui.guide_extra_timer_help')));

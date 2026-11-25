@@ -5,6 +5,59 @@ import { h, mount, icon, get, api, post, on, notice, debounce, toast, modal, con
 import { go, pinButton } from '../shell.js';
 import { t } from '../i18n.js';
 
+const DEFAULT_DESCRIPTIONS = {
+  "forums": [
+    "Official forums: announcements, changelogs, guides and community threads.",
+    "webui.forums"
+  ],
+  "official": [
+    "Official website and downloads.",
+    "webui.official_desc"
+  ],
+  "support": [
+    "Official help centre and support tickets.",
+    "webui.support"
+  ],
+  "synergy": [
+    "Community Pokédex and guides (external website).",
+    "webui.synergy"
+  ],
+  "hub": [
+    "Community tools website (external link only — the Companion uses no Hub data or API).",
+    "webui.hub"
+  ],
+  "haqzo-rom-patch-manager": [
+    "Manage and apply patches to your own ROM files.",
+    "webui.rom"
+  ],
+  "haqzo-better-default": [
+    "A refreshed take on PokeMMO’s default theme.",
+    "webui.default"
+  ],
+  "haqzo-better-items": [
+    "A PokeMMO mod that updates the look of item icons.",
+    "webui.items"
+  ],
+  "alphapedia": [
+    "Alpha and Swarm reports and a Unova Phenomenon reference.",
+    "webui.alphapedia"
+  ],
+  "alphapedia-discord": [
+    "The official Discord for the Alphapedia community tool.",
+    "webui.discord"
+  ]
+};
+const CATEGORY_KEYS = {
+  "Official": "webui.official",
+  "Community": "webui.community",
+  "Projects by Haqzo": "webui.projects",
+  "General": "webui.general"
+};
+export const bookmarkCategory = c => Object.hasOwn(CATEGORY_KEYS,c) ? translateUI(CATEGORY_KEYS[c]) : c;
+export function bookmarkDescription(b) {
+  const entry = DEFAULT_DESCRIPTIONS[b.seed_key];
+  return entry && entry[0] === b.description ? translateUI(entry[1]) : b.description;
+}
 let unsub = [];
 const f = { q: '', cat: '', fav: false };
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
@@ -48,7 +101,7 @@ export async function render(el, route) {
     if (reload) data = await get('/api/bookmarks');
     const q = f.q.toLowerCase();
     const list = data.bookmarks.filter((b) => (!f.cat || b.category === f.cat) && (!f.fav || b.favourite) &&
-      (!q || b.title.toLowerCase().includes(q) || b.url.toLowerCase().includes(q) || b.description.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)));
+      (!q || b.title.toLowerCase().includes(q) || b.url.toLowerCase().includes(q) || b.description.toLowerCase().includes(q) || bookmarkDescription(b).toLowerCase().includes(q) || b.category.toLowerCase().includes(q) || bookmarkCategory(b.category).toLowerCase().includes(q)));
     const groups = {};
     for (const b of list) (groups[b.favourite ? '★ Favourites' : b.category] ||= []).push(b);
     const move = async (b, d) => { const ids = data.bookmarks.map((x) => x.id); const i = ids.indexOf(b.id); const j = i + d; if (j < 0 || j >= ids.length) return;
@@ -57,7 +110,7 @@ export async function render(el, route) {
       h('button', { class: 'bm-main', title: translateUI('ui.b272_web_open_url', { url: b.url }), onclick: () => openBookmark(b) },
         h('span', { class: 'bm-ic', 'aria-hidden': 'true' }, (b.host || '?').replace(/^www\./, '').charAt(0).toUpperCase()),
         h('span', { class: 'grow', style: { minWidth: 0 } }, h('span', { class: 'bm-title ellipsis' }, b.title), h('span', { class: 'tiny muted ellipsis' }, b.url.replace(/^https:\/\//, '')),
-          b.description ? h('span', { class: 'small muted bm-desc' }, b.description) : null), icon('external')),
+          b.description ? h('span', { class: 'small muted bm-desc' }, bookmarkDescription(b)) : null), icon('external')),
       h('div', { class: 'bm-foot' },
         h('button', { class: 'icon-btn sm' + (b.favourite ? ' on' : ''), title: b.favourite ? translateUI('ui.b272_web_remove_fav') : t('common.favourite'), 'aria-pressed': String(b.favourite),
           onclick: async () => { await api('PATCH', '/api/bookmarks/' + b.id, { favourite: !b.favourite }); draw(true); } }, icon('star')),
@@ -72,9 +125,9 @@ export async function render(el, route) {
       h('div', { class: 'row wrap' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', id: 'links-search', value: f.q, placeholder: t('common.search'), 'aria-label': translateUI('ui.search_links'),
         oninput: debounce((e) => { f.q = e.target.value; draw().then(() => { const s = document.getElementById('links-search'); s && (s.focus(), s.setSelectionRange(s.value.length, s.value.length)); }); }, 150) })),
       h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.category'), onchange: (e) => { f.cat = e.target.value; draw(); } }, h('option', { value: '' }, translateUI('ui.all_categories')),
-        data.categories.map((c) => h('option', { value: c, selected: f.cat === c ? 'selected' : null }, c))),
+        data.categories.map((c) => h('option', { value: c, selected: f.cat === c ? 'selected' : null }, bookmarkCategory(c)))),
       h('button', { class: 'chip btnlike' + (f.fav ? ' active' : ''), 'aria-pressed': String(f.fav), onclick: () => { f.fav = !f.fav; draw(); } }, '★ ' + t('common.favourite'))),
-      list.length ? Object.entries(groups).map(([g, items]) => h('section', null, h('h3', { class: 'gen-head' }, g === '★ Favourites' ? translateUI('ui.b272_web_favourites') : g), h('div', { class: 'bm-grid' }, items.map(card)))) :
+      list.length ? Object.entries(groups).map(([g, items]) => h('section', null, h('h3', { class: 'gen-head' }, g === '★ Favourites' ? translateUI('ui.b272_web_favourites') : bookmarkCategory(g)), h('div', { class: 'bm-grid' }, items.map(card)))) :
         h('div', { class: 'empty' }, data.bookmarks.length ? translateUI('ui.b272_web_no_match') : translateUI('ui.b272_web_empty')),
       data.defaults_missing.length ? h('div', { class: 'row wrap small muted' }, translateUI('ui.b272_web_removed', { titles: data.defaults_missing.join(', ') }),
         h('button', { class: 'btn ghost small', onclick: async () => { await post('/api/bookmarks/restore-defaults'); draw(true); } }, translateUI('ui.restore_default_links'))) : null,

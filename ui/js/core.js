@@ -13,6 +13,22 @@ export const WINDOW_ID = (POPOUT ? 'popout-' + POPOUT : 'main') + '-' + Math.ran
 export const state = { boot: null, settings: {}, caps: {}, dexCache: null };
 
 const API_ERROR_KEYS = {
+  "Invalid timer owner": "errorui.timer_owner",
+  "Timer not found": "errorui.timer_missing",
+  "Duration must be a whole number of seconds": "errorui.timer_seconds",
+  "Duration must be between 1 second and 99:59:59": "errorui.timer_range",
+  "Unknown action": "errorui.timer_action",
+  "Enter a web address": "errorui.web_address",
+  "That address is too long": "errorui.web_long",
+  "The address contains spaces or characters that are not allowed": "errorui.web_chars",
+  "Only https:// web links can be saved": "errorui.web_https",
+  "Only https:// web links can be saved (http, javascript:, data:, file: and app links are blocked)": "errorui.web_protocol",
+  "Links with a user name or password are not allowed": "errorui.web_credentials",
+  "That does not look like a website address": "errorui.web_invalid",
+  "Links to this computer or the local network are not allowed": "errorui.web_local",
+  "You already have a bookmark for this address": "errorui.web_duplicate",
+  "Another bookmark already uses this address": "errorui.web_used",
+  "order must be a list of bookmark ids": "errorui.web_order",
   "Expected an object of settings": "errorui.settings",
   "folder is required": "errorui.folder_required",
   "Choose a folder first": "errorui.choose_folder",
@@ -41,6 +57,8 @@ export function apiErrorText(message) {
   if (typeof message !== 'string') return message;
   const status = /^Request failed \((\d+)\)$/.exec(message);
   if (status) return translateUI('errorui.request', { status: status[1] });
+  const limit = /^You can keep up to (\d+) (timers|presets)$/.exec(message);
+  if (limit) return translateUI(limit[2] === 'timers' ? 'errorui.timer_limit' : 'errorui.preset_limit', { count: limit[1] });
   const numeric = /^([a-zA-Z_]+) must be a number$/.exec(message);
   if (numeric) return translateUI('errorui.number', { field: numeric[1] });
   return message;

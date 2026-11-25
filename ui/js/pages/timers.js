@@ -16,6 +16,11 @@ export function fmt(sec) {
 }
 export const ownerRoute = (o) => o.guide.startsWith('cg:') ? '#/guides/mine/' + o.guide.slice(3)
   : o.guide.startsWith('story:') ? '#/guides/storyline?region=' + o.guide.split(':')[2] : '#/tools/timers';
+export function builtinPresetLabel(p) {
+  if (p.seconds === 3600 && p.label === '1 h') return translateUI('timerui.preset_hours', { count: 1 });
+  if ([300, 900, 1800].includes(p.seconds) && p.label === p.seconds / 60 + ' min') return translateUI('timerui.preset_minutes', { count: p.seconds / 60 });
+  return p.label;
+}
 const STATE_LABEL = { idle: 'ui.b272_timer_state_ready', running: 'ui.b272_timer_state_running', paused: 'ui.b272_timer_state_paused', done: 'ui.b272_timer_state_finished' };
 export const timerStateLabel = (state) => translateUI(STATE_LABEL[state] || STATE_LABEL.idle);
 
@@ -129,7 +134,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
   const presets = h('div', { class: 'row tight tm-presets', role: 'group', 'aria-label': translateUI('ui.presets') });
   const form = h('form', { class: 'tm-form', onsubmit: (e) => { e.preventDefault(); add(true); } },
     variant === 'compact' ? null : nameIn,
-    h('div', { class: 'row tight' }, hh, h('span', null, 'h'), mm, h('span', null, 'm'), ss, h('span', null, 's'),
+    h('div', { class: 'row tight' }, hh, h('span', null, translateUI('timerui.hour')), mm, h('span', null, translateUI('timerui.minute')), ss, h('span', null, translateUI('timerui.second')),
       h('label', { class: 'row tight small' }, repeat, translateUI('ui.repeat')), h('label', { class: 'row tight small' }, sound, translateUI('ui.sound'))),
     h('div', { class: 'row tight' }, h('button', { class: 'btn primary small', type: 'submit' }, icon('plus'), translateUI('ui.b272_timer_add_start')),
       h('button', { class: 'btn small', type: 'button', onclick: () => add(false) }, translateUI('ui.add')),
@@ -152,7 +157,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
   function drawPresets(list) {
     const up = list || data.user_presets || [];
     mount(presets, data.presets.map((p) => h('button', { class: 'btn small', type: 'button', onclick: async () => {
-      await post('/api/timers', { name: p.label, seconds: p.seconds, start: true }); refresh(); } }, p.label)),
+      await post('/api/timers', { name: builtinPresetLabel(p), seconds: p.seconds, start: true }); refresh(); } }, builtinPresetLabel(p))),
     up.map((p) => h('span', { class: 'tm-upreset' }, h('button', { class: 'btn small', type: 'button', title: translateUI('ui.b272_timer_preset_start', { name: p.label, duration: fmt(p.seconds) }), onclick: async () => {
       await post('/api/timers', { name: p.label, seconds: p.seconds, repeat: p.repeat, sound: p.sound, notify: p.notify, start: true }); refresh(); } }, icon('star'), p.label),
     variant === 'compact' ? null : h('button', { class: 'icon-btn tiny', 'aria-label': translateUI('ui.b272_timer_preset_delete_name', { name: p.label }), title: translateUI('ui.b272_timer_preset_delete_title'), onclick: async () => {

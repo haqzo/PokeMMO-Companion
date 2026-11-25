@@ -346,3 +346,22 @@ def test_home_posts_are_one_list_by_publication_with_honest_labels(ctx):
     assert hall["found_late"] and not hall["is_new"]                       # old post found today: not "new"
     assert by["Changelog - November 22nd, 2026"]["is_new"] and not by["Changelog - November 22nd, 2026"]["found_late"]
     assert by["Changelog — November 13th, 2026"]["is_edited"] and not by["Changelog — November 13th, 2026"]["is_new"]
+
+
+@pytest.mark.parametrize(("language", "title", "body", "button"), [
+    ("en", "Timer finished: My {egg}", "Your timer is up.", "Open Timers"),
+    ("es", "Temporizador finalizado: My {egg}", "Tu temporizador ha terminado.", "Abrir temporizadores"),
+    ("zh", "计时结束：My {egg}", "你的计时已结束。", "打开计时器"),
+])
+def test_localized_timer_notification_keeps_custom_name(env, language, title, body, button):
+    ctx, clk, bus, notif, svc = env
+    ctx.settings.update({"app.language": language, "notify.timer": "both", "notify.quiet": False})
+    timer = svc.create("My {egg}", 5, start=True)
+    clk.advance(5)
+    assert len(svc.tick()) == 1
+    payload = done_events(bus)[-1]
+    assert (payload["title"], payload["line"], payload["open_label"]) == (title, body, button)
+    assert notif.sent[-1] == (title, body)
+    assert svc.get(timer["id"])["name"] == "My {egg}"
+    assert payload["route"] == "#/tools/timers"
+    assert svc.tick() == []

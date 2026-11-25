@@ -274,7 +274,7 @@ async function pokedex(el) {
   };
   mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.search_pokemon'), value: miniQuery,
     'aria-label': translateUI('ui.search_pokemon'), oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), count),
-  h('div', { class: 'tiny muted' }, setting('pokedex.catalog') === 'species' ? 'Species only' : 'Pokémon & forms', translateUI('ui.floating_dex_filters')), results));
+  h('div', { class: 'tiny muted' }, setting('pokedex.catalog') === 'species' ? translateUI('popui.species') : translateUI('popui.forms'), translateUI('ui.floating_dex_filters')), results));
   drawList();
 }
 
