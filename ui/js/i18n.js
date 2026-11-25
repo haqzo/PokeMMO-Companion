@@ -101,7 +101,8 @@ for (const [key, [en, es, zh]] of Object.entries(UI_STRINGS)) {
   EN[key] = en; ES[key] = es; ZH[key] = zh;
 }
 
-const labelKeys = new Map(Object.entries(UI_STRINGS).map(([key, [source]]) => [source, key]));
+// Context-specific keys use explicit t() calls; they must not override registry labels.
+const labelKeys = new Map(Object.entries(UI_STRINGS).filter(([key]) => !/^(theme|settings)\./.test(key)).map(([key, [source]]) => [source, key]));
 
 // The calculator uses a context-specific translation for Add; registry actions use the generic one.
 labelKeys.set('Add', 'ui.add');
