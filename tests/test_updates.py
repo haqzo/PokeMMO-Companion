@@ -197,6 +197,7 @@ def test_update_check_channels_and_no_release(ctx):
 
     def opener(body):
         return lambda url, timeout: calls.append(url) or _Resp(body)
+    ctx.settings.update({"app_updates.channel": "stable"})
     c = AppUpdateChecker(ctx.storage, ctx.settings, opener=opener(b"[]"), current="0.1.0", public_key="")
     st = c.check()
     assert st["ok"] and st["latest"] is None and st["available"] is False            # no release published yet
@@ -239,16 +240,23 @@ def test_verified_download_and_checksum_mismatch(ctx, tmp_path):
     with pytest.raises(ValueError, match="signature"):
         c.download(name, tmp_path / "updates3")
     assert not (tmp_path / "updates3").exists()
+    files[base + "SHA256SUMS"] = sums
+    files[base + "SHA256SUMS.sig"] = base64.b64encode(bytes(64))
+    with pytest.raises(ValueError, match="signature"):
+        c.download(name, tmp_path / "updates4")
+    assert not (tmp_path / "updates4").exists()
 
 
 @pytest.mark.parametrize(("current", "target"), [
-    ("0.8.0", "0.8.1"), ("0.8.1", "0.8.12"), ("0.8.12", "0.9.0"),
+    ("0.8.0", "0.8.1"), ("0.8.1", "0.9.0"), ("0.9.0", "1.0.0"),
+    ("0.8.1", "0.8.12"), ("0.8.12", "0.9.0"),
     ("0.9.0", "0.9.11"), ("0.9.11", "1.0.0"), ("1.0.0", "1.0.1"),
 ])
 def test_release_series_progression(ctx, current, target):
     checker = AppUpdateChecker(ctx.storage, ctx.settings, current=current, public_key="",
                                opener=lambda *_: _Resp(_releases((f"v{target}", False, False),
                                                                   ("v8.0.0", False, True))))
+    ctx.settings.update({"app_updates.channel": "stable"})
     stable = checker.check()
     assert stable["available"] == target.startswith("1.")
     ctx.settings.update({"app_updates.channel": "prerelease"})
@@ -280,10 +288,20 @@ def test_platform_specific_release_packages(ctx, monkeypatch, system, selected):
         *names.values(), "PokeMMO-Companion-0.8.0-arm64.AppImage",
         "PokeMMO-Companion-0.8.11-windows-x86_64.zip", "SHA256SUMS",
     ]]
-    ctx.settings.update({"app_updates.channel": "prerelease"})
-    checker = AppUpdateChecker(ctx.storage, ctx.settings, public_key="example",
+    checker = AppUpdateChecker(ctx.storage, ctx.settings, current="0.1.0", public_key="example",
                                opener=lambda *_: _Resp(json.dumps([release]).encode()))
     assert [p["name"] for p in checker.check()["latest"]["packages"]] == ([names[selected]] if selected else [])
     wrong = names["linux" if selected == "windows" else "windows"]
     with pytest.raises(ValueError, match="not available for your platform"):
         checker.download(wrong, ctx.paths.root / "updates")
+
+
+def test_alpha_channel_default_preserves_explicit_preference(ctx):
+    from companion.settings import Settings
+
+    assert ctx.settings.get("app_updates.channel") == "prerelease"
+    assert ctx.settings.all()["app_updates.channel"] == "prerelease"
+    ctx.settings.update({"app_updates.channel": "stable"})
+    reloaded = Settings(ctx.storage)
+    assert reloaded.get("app_updates.channel") == "stable"
+    assert reloaded.all()["app_updates.channel"] == "stable"

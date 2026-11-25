@@ -1,26 +1,23 @@
 # Active development checkpoint — 25 November 2026
 
-Development remains **0.1.0** on `develop`. **0.8.0** is the first planned official alpha. The version change, main merge and GitHub publication each require owner approval. [Build 32 release checklist](../build/32-ALPHA-RELEASE-PREPARATION.md) The [final optimization and packaging report](../build/31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md) records the tested source, measurements, package checksum and verification limits.
+Development is at **0.8.0 Alpha** on `develop`. The approved version series are 0.8.x Alpha, 0.9.x Beta, 1.0.0 first stable and 1.x.x stable updates. GitHub Releases is the official download location once the owner approves publication from `main`. [Release runbook](../../packaging/README.md#release-packages)
 
 | Area | Current state | Remaining work |
 |---|---|---|
-| Desktop and personal tools | Fresh launch, single instance, immediate relaunch, popout lifecycle, backup and persistence verified on Linux | Windows build and fresh-machine smoke test |
-| Offline reference | Clean-profile check passed with 649 species, 559 moves, 2,090 items, 629 locations and 33,405 encounters. All five walkthroughs rendered from the package | Continue normal reference maintenance and accuracy review |
-| English, Spanish, Simplified Chinese | Automated route and popout checks. The packaged app rendered each language and loaded the bundled Companion Han font | Spanish and Simplified Chinese language feedback during closed alpha |
-| Balanced performance | Complete. Both native workloads passed two popout cycles with full renderer recovery | Collect ordinary performance reports during the alpha |
-| Regression | 605 passed, 51 skipped, zero failures on the packaged source | See skip reasons in the QA evidence |
-| Linux package | Version 0.1.0 x86-64 AppImage passed integrity checks, extraction fallback, offline QA and KDE smokes | Verify mounted execution on a FUSE-enabled host and determine the supported Linux compatibility baseline |
-| Windows package | Build and private-only hosted workflow ready for Windows verification. The workflow checks the extracted ZIP | Build the ZIP and run the Windows desktop checklist |
-| Friends-only alpha | Ready for an owner-approved build on the tested KDE Linux configuration via extraction | Owner approves 0.8.0, final package scope and distribution |
-| Public beta / 1.0 | Future | Alpha feedback, signing, approved reference hosting and platform baseline |
+| Desktop and personal tools | Earlier native Linux QA exercised fresh launch, single instance, immediate relaunch, popouts, backup and persistence | Interactive checks on the final Linux package and Windows 10 and 11 |
+| Offline reference | 649 species, 559 moves, 2,090 items, 629 locations and 33,405 encounters available from bundled data | Continue routine data and translation review |
+| Regression | 620 passed and 51 ROM- or dump-dependent tests skipped on the final candidate. The clean-install check passed | Capture package and desktop verification for the approved release tag |
+| Balanced performance | Earlier native workloads passed both popout cycles with full renderer recovery | Collect ordinary performance reports during alpha |
+| Linux package | Earlier internal AppImage passed offline and extracted KDE smoke tests on CachyOS | Build and check the release on Ubuntu 22.04 x86-64 and test direct FUSE launch |
+| Windows package | Hosted Windows x64 build and extracted ZIP backend self-check prepared | Run the release workflow and verify interactive use separately |
+| Application updates | Production public key pinned. Prerelease is the default for alpha and beta builds when no channel is saved | Sign and verify the final combined checksums on owner-controlled storage |
+| Friends-only alpha | Tester instructions and release notes prepared | Owner approves final source, package staging and distribution |
 
 ## Closed-alpha sequence
 
-1. Verify the Windows ZIP on a Windows x64 machine for a two-platform alpha. Use the [packaging guide](../../packaging/README.md#windows-x86-64) and the same offline, restart and personal-data checks as Linux.
-2. Once the owner approves the wave and version, build and verify the 0.8.0 packages, record their source commit and checksums, and use the [tester guide](../closed-alpha.md) for installation, recovery and feedback.
-3. MaToRiuKo reviews Simplified Chinese and a Spanish-speaking tester reviews Spanish during the same 0.8.0 closed alpha. Use their feedback for wording, terminology, layout and interaction fixes.
-
-Distribution decisions, asset and walkthrough permissions, and credits belong to the owner. Independent internal packaging uses the existing bundled assets and notices. Public release, tags, main merge and announcements require owner approval.
+1. After owner approval for `main` and the release tag, build both packages from the same approved revision. Record package sizes, checksums and the actual platform checks.
+2. Run the desktop checklist on target machines and update the release notes with the results. Use the [tester guide](../closed-alpha.md) for installation, recovery and feedback.
+3. Ask alpha testers to report wording, layout and interaction issues in Spanish and Simplified Chinese. Review asset permissions and distribution with the owner before any upload. [Earlier Linux QA evidence](../build/31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md)
 
 ## Deferred scope
 

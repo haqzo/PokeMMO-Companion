@@ -28,7 +28,7 @@ from ..storage import StorageClosedError
 log = logging.getLogger("companion.appupdate")
 RELEASES_URL = "https://api.github.com/repos/haqzo/PokeMMO-Companion/releases?per_page=20"
 APPROVED_DOWNLOAD_PREFIXES = ("https://github.com/haqzo/PokeMMO-Companion/releases/download/",)
-APP_UPDATE_PUBLIC_KEY = ""          # base64 raw Ed25519 key; empty = verified downloads switched off
+APP_UPDATE_PUBLIC_KEY = "q+mdnoWnEGwc8i/o8g4Pg5Lx3QiudlOQdut70y+vecs="  # base64 raw Ed25519 public key
 CHECK_HOURS = 24
 MAX_RELEASES_BYTES = 2_000_000
 MAX_DOWNLOAD_BYTES = 600_000_000

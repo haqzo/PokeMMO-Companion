@@ -3,33 +3,30 @@
 An unofficial desktop companion for PokeMMO on **Linux and Windows**: Pokédex, encounter locations, guides with
 timers and teams, calculators, Alpha/Swarm reports and floating tools you can keep next to the game.
 
-**Status:** v0.1.0 development preview on `develop`. No public release yet — the owner decides when.
+**Status.** The 0.8.0 Alpha release candidate is on `develop`. The first GitHub release is pending owner approval.
 Unofficial community project, not affiliated with PokeMMO.
 
 ## Install
 
-**When a release exists** (players): download one file from the GitHub *Releases* page — no Git, terminal or
-Python needed.
+After publication, use GitHub Releases to download the standalone package for your platform. [GitHub Releases](https://github.com/haqzo/PokeMMO-Companion/releases)
 
-* **Linux** (CachyOS, KDE Plasma and others): download `PokeMMO-Companion-<version>-x86_64.AppImage`, make it
-  executable (right-click › Properties › *Is executable*, or `chmod +x`), double-click.
-* **Windows**: download `PokeMMO-Companion-<version>-windows-x86_64.zip`, extract it anywhere, run
-  `pokemmo-companion.exe`.
+* **Linux x86-64.** Download `PokeMMO-Companion-0.8.0-x86_64.AppImage`, make it executable and open it. If FUSE is unavailable, launch it with `--appimage-extract-and-run`.
+* **Windows x86-64.** Download and extract `PokeMMO-Companion-0.8.0-windows-x86_64.zip`, then run `pokemmo-companion.exe` inside the extracted `pokemmo-companion` folder.
 
 Uninstall: delete the AppImage / the extracted folder. Your personal data is kept separately (below) and is only
 removed if you delete that folder yourself. Optional startup entries are removed in
 *Settings › Startup & game › Remove all startup entries* first.
 
-> The internal Linux AppImage passed CachyOS KDE testing. Windows package and desktop verification are pending. [Alpha release preparation](docs/build/32-ALPHA-RELEASE-PREPARATION.md)
+> Earlier internal desktop QA passed on CachyOS KDE. The Windows package and Ubuntu 22.04 release build await their first verification runs. [Release notes](docs/releases/0.8.0.md)
 
-**Development preview (today, Linux):**
+**Develop from source on Linux**
 ```bash
 git clone -b develop https://github.com/haqzo/PokeMMO-Companion.git && cd PokeMMO-Companion
 ./scripts/setup-venv.sh   # optional: PySide6 for native floating windows (else it runs in your browser)
 ./run.sh
 ```
 Updating a development checkout: close every Companion window (including floating tools) and quit it from the
-tray, then `git pull --ff-only` and `./run.sh`. Windows development: `run.ps1` (untested).
+tray, then `git pull --ff-only` and `./run.sh`. For Windows source launches, see `run.ps1`.
 
 ## First start
 Everything works immediately and offline. Built in, with nothing to import:
@@ -111,14 +108,14 @@ pin and saved positions are unavailable.
 * **PokeMMO reference data** — signed data packages can update the built-in data without a new app version,
   with checks before activation and the previous data kept for rollback. *Not set up yet: no approved data
   location exists; the built-in data is used.*
-* **Companion itself** — published GitHub releases are checked (stable or pre-release channel). Companion
-  never installs or restarts by itself and never offers development builds.
+* **Companion itself** — published GitHub releases are checked (stable or pre-release channel). Install updates
+  manually. Alpha and beta builds default to prerelease when no preference is saved. Explicit channel preferences are preserved.
 
 Offline, everything except these checks and the optional Alpha/Swarm feed keeps working.
 
 ## Closed alpha
 
-Development stays at 0.1.0 while the first 0.8.0 alpha is prepared. Spanish and Simplified Chinese terminology review is planned for alpha testing. GitHub Releases is the intended download location after owner approval. [Approval checklist](docs/build/32-ALPHA-RELEASE-PREPARATION.md)
+Spanish and Simplified Chinese terminology review is planned for the 0.8.0 Alpha. The release series is 0.8.x Alpha, 0.9.x Beta, 1.0.0 first stable, then 1.x.x stable updates. Alpha and beta use GitHub prereleases. Ongoing development is on `develop`, with approved releases on `main`. [Release runbook](packaging/README.md#release-packages)
 
 **Live → Phenomena** is an offline Unova encounter reference. Find current callouts and location pictures in `#phenomenon-callouts`. [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
 

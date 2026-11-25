@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from companion import __version__
 from tests.ui.test_ui_flows import app, browser, data_dir, go, page  # noqa: F401
 from test_phenomena import LOCAL, fixture_at, read, snapshot
 
@@ -66,6 +67,7 @@ def test_verified_provider_links_and_no_relay_setup(app, page):
     assert page.get_by_label("Phenomenon relay override").count() == 0
     page.get_by_role("button", name="About & credits", exact=True).click()
     page.get_by_role("heading", name="About the Developer").wait_for()
+    assert page.get_by_text(f"{__version__} Alpha", exact=True).is_visible()
     assert page.get_by_role("link", name="GitHub", exact=True).get_attribute("href") == "https://github.com/haqzo"
     assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
     assert page.get_by_role("link", name="Alphapedia Discord").get_attribute("href") == ALPHAPEDIA_DISCORD

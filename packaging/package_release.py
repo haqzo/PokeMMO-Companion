@@ -22,6 +22,12 @@ from companion.release import package_names, release_channel
 
 MAIN = "refs/remotes/origin/main"
 REPORT = "{target}-build.json"
+RELEASE_PYTHON = (3, 13, 14)
+LINUX_GLIBC_LIMIT = (2, 35)
+LINUX_TOOL_HASHES = {
+    "COMPANION_APPIMAGETOOL": "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0",
+    "COMPANION_APPIMAGE_RUNTIME": "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d",
+}
 
 
 def output(*command):
@@ -57,8 +63,10 @@ def source_revision(tag):
     return sha
 
 
-def linux_glibc_floor(appimage, extracted):
+def verify_linux_dependencies(appimage, extracted, internal):
     required = set()
+    search_path = os.pathsep.join(map(str, (internal, internal / "PySide6/Qt/lib")))
+    env = {**os.environ, "LC_ALL": "C", "LD_LIBRARY_PATH": search_path}
     for file in [appimage, *extracted.rglob("*")]:
         if file.is_symlink() or not file.is_file():
             continue
@@ -66,15 +74,27 @@ def linux_glibc_floor(appimage, extracted):
             if stream.read(4) != b"\x7fELF":
                 continue
         versions = output("env", "LC_ALL=C", "readelf", "--version-info", str(file))
+        # A static ELF such as the AppImage runtime has no interpreter or
+        # shared library dependencies. Check the launcher and all dynamic DSOs.
+        dynamic = output("env", "LC_ALL=C", "readelf", "--dynamic", str(file))
+        if "(NEEDED)" in dynamic:
+            linked = subprocess.run(["ldd", str(file)], cwd=ROOT, env=env, capture_output=True, text=True)
+            if linked.returncode or "not found" in linked.stdout + linked.stderr:
+                raise ValueError(f"Unresolved dependency in {file}: {linked.stdout}{linked.stderr}")
         needs = versions.partition("Version needs section")[2]
         required.update(tuple(map(int, version.split(".")))
                         for version in re.findall(r"Name: GLIBC_([0-9.]+)\b", needs))
     if not required:
         raise ValueError("No versioned glibc imports were found in the Linux bundle.")
-    return max(required)
+    highest = max(required)
+    glibc = ".".join(map(str, highest))
+    if highest > LINUX_GLIBC_LIMIT:
+        limit = ".".join(map(str, LINUX_GLIBC_LIMIT))
+        raise ValueError(f"Bundled ELF files require glibc {glibc}; limit is {limit}.")
+    return glibc
 
 
-def smoke(artifact, target, glibc_limit=None):
+def smoke(artifact, target, release=False):
     with tempfile.TemporaryDirectory(prefix="Companion package QA ") as directory:
         work = Path(directory)
         profile = work / "fresh profile"
@@ -103,12 +123,7 @@ def smoke(artifact, target, glibc_limit=None):
         for name in qt_files:
             if not any(internal.rglob(name)):
                 raise ValueError(f"Missing bundled Qt file: {name}")
-        glibc = None
-        if target == "linux" and glibc_limit:
-            floor = linux_glibc_floor(artifact, work / "squashfs-root")
-            glibc = ".".join(map(str, floor))
-            if floor > tuple(map(int, glibc_limit.split("."))):
-                raise ValueError(f"Bundled ELF files require glibc {glibc}; limit is {glibc_limit}.")
+        glibc = verify_linux_dependencies(artifact, work / "squashfs-root", internal) if target == "linux" and release else None
 
         env = os.environ.copy()
         for key in ("PYTHONPATH", "PYTHONHOME"):
@@ -127,6 +142,9 @@ def build(tag):
     target = {"win32": "windows", "linux": "linux"}.get(sys.platform)
     if not target:
         raise ValueError("Use a native Linux or Windows build host.")
+    if tag and (sys.version_info[:3] != RELEASE_PYTHON or platform.machine().lower() not in ("x86_64", "amd64")):
+        required = ".".join(map(str, RELEASE_PYTHON))
+        raise ValueError(f"Release builds require Python {required} on x86-64.")
     dist = ROOT / "dist"
     report = dist / REPORT.format(target=target)
     report.unlink(missing_ok=True)
@@ -138,10 +156,12 @@ def build(tag):
                    "packaging/windows/build.ps1", "-PythonExecutable", sys.executable]
         python = ROOT / ".build-venv/Scripts/python.exe"
     else:
-        for key in ("COMPANION_APPIMAGETOOL", "COMPANION_APPIMAGE_RUNTIME"):
+        for key, expected in LINUX_TOOL_HASHES.items():
             path = os.getenv(key)
             if path:
                 tools[key] = file_info(Path(path))
+                if tag and tools[key]["sha256"] != expected:
+                    raise ValueError(f"{key} does not match the pinned SHA-256.")
             elif tag:
                 raise ValueError(f"Set {key} to a verified local file for a release build.")
         command = ["bash", "packaging/linux/build-appimage.sh"]
@@ -151,15 +171,18 @@ def build(tag):
     info = file_info(artifact)
     if (dist / "SHA256SUMS").read_text(encoding="ascii") != checksum_line(info):
         raise ValueError("The package does not match its build checksum.")
-    glibc = smoke(artifact, target, "2.35" if tag else None)
+    glibc = smoke(artifact, target, release=bool(tag))
     if target == "linux" and not tag:
         print("Internal Linux build. The release glibc ceiling was not checked.")
+    checks = ["checksum", "bundled assets and runtimes", "fresh-profile backend self-check"]
+    if glibc is not None:
+        checks += ["dynamic ELF dependencies", "maximum GLIBC requirement"]
     provenance = {"commit": sha, "tag": tag, "version": __version__, "platform": target,
                   "host": platform.platform(), "runner_image": os.getenv("ImageVersion"),
                   "python": output(str(python), "--version"),
                   "dependencies": output(str(python), "-m", "pip", "freeze", "--all").splitlines(),
                   "external_tools": tools, "max_required_glibc": glibc, "package": info,
-                  "checks": ["checksum", "bundled assets and runtimes", "fresh-profile backend self-check"]}
+                  "checks": checks}
     report.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     print(f"Verified {artifact.name}: {info['bytes']} bytes, SHA-256 {info['sha256']}")
     print(report.read_text(encoding="utf-8"), end="")

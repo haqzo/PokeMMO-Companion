@@ -3,6 +3,7 @@ import sqlite3
 
 import pytest
 
+from companion import __version__
 from companion.data import reference as ref
 from companion.settings import SettingsError, validate
 from companion.storage import SCHEMA_VERSION, Storage
@@ -138,7 +139,7 @@ def test_static_traversal_blocked(client):
 
 def test_bootstrap_and_bad_setting(client):
     code, b = client.call("GET", "/api/bootstrap")
-    assert code == 200 and b["version"] == "0.1.0" and b["mode"] == "browser"
+    assert code == 200 and b["version"] == __version__ and b["mode"] == "browser"
     code, b = client.call("PATCH", "/api/settings", {"appearance.nav": "sideways"})
     assert code == 400 and "must be one of" in b["error"]
 

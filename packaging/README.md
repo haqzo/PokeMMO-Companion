@@ -10,8 +10,8 @@ Use a clean x86-64 Linux build host with Python and `venv`. Use the oldest distr
 2. Run `./packaging/linux/build-appimage.sh`. The script installs pinned dependencies in `.build-venv` and produces the AppImage and local `SHA256SUMS` in `dist/`.
 3. Run this from a terminal with a fresh data directory.
    ```sh
-   chmod +x dist/PokeMMO-Companion-0.1.0-x86_64.AppImage
-   dist/PokeMMO-Companion-0.1.0-x86_64.AppImage --appimage-extract-and-run --check --data-dir "$(mktemp -d)"
+   chmod +x dist/PokeMMO-Companion-0.8.0-x86_64.AppImage
+   dist/PokeMMO-Companion-0.8.0-x86_64.AppImage --appimage-extract-and-run --check --data-dir "$(mktemp -d)"
    ```
 4. You can also run the AppImage with `--appimage-extract` in an empty directory, then launch `./squashfs-root/AppRun`.
 5. Start the native UI with a separate empty directory, then repeat on a target desktop without the build toolchain. Verify normal double-click startup, direct FUSE startup when available, and the extraction fallback. [Upstream appimagetool](https://github.com/AppImage/appimagetool/releases/tag/1.9.1)
@@ -25,7 +25,7 @@ py -3.13 --version
 powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\windows\build.ps1
 ```
 
-The [manual Windows development workflow](../.github/workflows/windows-development.yml) runs the same script and a fresh-profile self-check with Windows x64 Python 3.13.14. GitHub only registers manual workflows from its default branch. For a hosted test without changing the public repository’s `main`, use an owner-approved private staging repository with `develop` as its default branch and containing this workflow. In **Actions → Windows x64 development build → Run workflow**, select `develop`. The default run builds the ZIP, checks its SHA-256, extracts it to a path containing spaces and runs the extracted executable with a fresh profile. Once redistribution is explicitly approved, set the private repository variable `ASSET_REDISTRIBUTION_APPROVED=true` and select **Upload the ZIP to this private repository after asset approval**. Approved artifacts expire after three days and are accessible to users who can read the private repository. [Manual dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) · [Artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+The [manual Windows development workflow](../.github/workflows/windows-development.yml) runs the same script and a fresh-profile self-check with Windows x64 Python 3.13.14. GitHub only registers manual workflows from its default branch. For optional private development QA before the official workflow is available, use an existing owner-approved private repository with `develop` as its default branch and containing this workflow. In **Actions → Windows x64 development build → Run workflow**, select `develop`. The default run builds the ZIP, checks its SHA-256, extracts it to a path containing spaces and runs the extracted executable with a fresh profile. Once redistribution is explicitly approved, set the private repository variable `ASSET_REDISTRIBUTION_APPROVED=true` and select **Upload the ZIP to this private repository after asset approval**. Approved artifacts expire after three days and are accessible to users who can read the private repository. [Manual dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) · [Artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
 
 For a build with automated verification and a provenance report, run `py -3.13 packaging/package_release.py build` from the checkout root. This uses the same Windows builder, verifies its checksum, compares packaged files against source, checks for the included Python and Qt WebEngine runtimes, and smoke-tests the extracted executable from a path with spaces. The Windows manual workflow runs this command and can include `windows-build.json` with an approved private upload. Run the desktop checklist on Windows client machines without the build toolchain.
 
@@ -48,45 +48,84 @@ Run the desktop checklist on Windows, then use the same command for the relaunch
 
 ## Release packages
 
-Work from clean checkouts of the same approved release tag. Fetch `origin/main` and the exact tag. The builder verifies that the tag resolves to HEAD, is on `origin/main` and matches both version declarations. Use Python 3.13.14 x64 on both builders.
+1. Get separate owner approval to merge the reviewed `develop` candidate into `main` and to tag the resulting revision. After the approved merge, use a clean checkout and compare `git rev-parse origin/main` with the approved **main** SHA. Once they agree, create and push only the approved tag.
 
-- **Windows:** On an approved Windows host run `py -3.13 packaging/package_release.py build --tag v0.8.0`.
-- **Linux:** On Ubuntu 22.04 x86-64 install the system libraries needed by Qt and `binutils`. Use verified copies of upstream [appimagetool 1.9.1](https://github.com/AppImage/appimagetool/releases/tag/1.9.1) and the [20251108 type-2 runtime](https://github.com/AppImage/type2-runtime/releases/tag/20251108). Export their absolute paths as `COMPANION_APPIMAGETOOL` and `COMPANION_APPIMAGE_RUNTIME`, then run `python3.13 packaging/package_release.py build --tag v0.8.0`. Run the desktop checklist on the target desktop.
-- Copy the two packages plus `linux-build.json` and `windows-build.json` from their `dist/` folders to one owner-approved private staging directory. From the same tag run `python3.13 packaging/package_release.py assemble --tag v0.8.0 --stage /path/to/private/stage`. This rehashes both files, verifies they match the source and per-platform reports, and writes one `SHA256SUMS` and `build-provenance.json`. Keep any separate native QA results with the review evidence.
+   ```sh
+   git fetch origin
+   git rev-parse origin/main
+   git tag -a v0.8.0 APPROVED_MAIN_SHA -m 'PokeMMO Companion 0.8.0 Alpha'
+   git push origin refs/tags/v0.8.0
+   git switch --detach v0.8.0
+   ```
 
-The [release workflow](../.github/workflows/release-build.yml) also runs both build checks by manual dispatch from `main` after registration on the default branch. The two upstream SHA-256 pins in the workflow also apply to the corresponding local downloads. Enter the exact approved tag in the workflow input. Use the local staging path above to retain the files for release. The hosted checks have read-only repository permissions and no artifact upload step.
+2. In **Actions → Build official release packages → Run workflow**, select `main`, enter `v0.8.0` and the full approved main SHA. Both jobs must verify the exact same revision and report success. Windows Server 2025 x64 hashes, extracts and runs the ZIP’s backend self-check from a path containing spaces with a fresh profile. Ubuntu 22.04 x64 verifies the AppImage checksum, bundled assets and runtime, resolves dynamic dependencies, enforces a maximum GLIBC requirement of 2.35 and runs the extracted backend self-check. These are automated package checks. Record interactive Windows 10 and 11 desktop tests, Linux desktop tests and FUSE launch separately. [GitHub-hosted runners](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job)
+
+3. Leave **retain_artifacts** off for verification-only runs. Signed-in GitHub users with read access to this public repository can download retained artifacts for three days. Only enable retention after the owner explicitly authorizes this exposure. Download the verified artifact for each platform from the successful run. If it was retried, check the run attempt in each artifact name against the successful job before staging. You can use `gh run download RUN_ID --repo haqzo/PokeMMO-Companion --pattern 'companion-v0.8.0-*' --dir /path/to/private/downloads`. Each artifact contains one package, its checksum and a platform build report. Use `chmod +x` on the downloaded AppImage before running it locally. The workflow uses read-only repository permissions. [Artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+
+   For private staging, use authorized local Windows x64 and Ubuntu 22.04 x64 hosts or VMs, each with a clean checkout of the same tag and Python **3.13.14 x64**. Verify the checked-out SHA against the approved main SHA on both hosts. On Windows run `py -3.13 packaging/package_release.py build --tag v0.8.0`. On Linux install the Qt dependencies and `binutils` shown in the release workflow. Download upstream appimagetool 1.9.1 and the 20251108 type-2 runtime, make appimagetool executable and export the absolute paths as `COMPANION_APPIMAGETOOL` and `COMPANION_APPIMAGE_RUNTIME`. Run `python3.13 packaging/package_release.py build --tag v0.8.0`. The release wrapper verifies both pinned tool digests before use. [Release workflow](../.github/workflows/release-build.yml) · [appimagetool](https://github.com/AppImage/appimagetool/releases/tag/1.9.1) · [Type-2 runtime](https://github.com/AppImage/type2-runtime/releases/tag/20251108)
+
+4. Copy both packages and `linux-build.json` and `windows-build.json` into an owner-controlled staging directory. Leave the individual runner checksum files in their own directories. From the tagged checkout run:
+
+   ```sh
+   python3.13 packaging/package_release.py assemble --tag v0.8.0 --stage /path/to/private/stage
+   ```
+
+   Assembly verifies the source revision, version, platform, filename, file size and SHA-256 against the reports from the packaged executable checks. It writes the combined `SHA256SUMS` and `build-provenance.json`. Keep the desktop test results alongside this evidence and update the release notes with the actual coverage before draft review.
 
 ## Signing releases
 
-The updater’s application signing key is separate from reference-data signing. An empty `APP_UPDATE_PUBLIC_KEY` keeps the release-page download flow. To enable signed application downloads, use these steps before the release commit is finalized.
+The 0.8.0 candidate pins the production application Ed25519 public key in `companion/services/appupdate.py`. The SHA-256 fingerprint of the raw 32-byte public key is `acfe6fde90a4699b738c92047430946d5f0fb921b5b75d964c25f8e1712ee85d`. Reference-data signing uses a separate key. This signature authenticates the exact checksum bytes. Windows Authenticode and Linux OS-level code signing are separate.
 
-1. On owner-controlled signing storage outside every clone, generate an encrypted Ed25519 private key with `openssl genpkey -algorithm ED25519 -aes-256-cbc -out app-ed25519.pem`. Save a secure backup and passphrase separately. Keep the private key off GitHub, build runners, working directories and public artifacts.
-2. Export the public half with `openssl pkey -in app-ed25519.pem -pubout -out app-ed25519-public.pem`. Using Python with `cryptography`, convert the public PEM to raw public bytes and print it in base64.
+Keep the encrypted private key outside checkouts on owner-controlled storage, with mode `600` and its directory mode `700`. Copy the encrypted file to an owner-controlled encrypted offline backup and store the passphrase separately. Keep the private key and passphrase off CI, GitHub and Discord. On owner-controlled storage, verify the backup by comparing the output with the pinned fingerprint.
 
-   ```sh
-   python -c 'import base64,sys; from pathlib import Path; from cryptography.hazmat.primitives.serialization import load_pem_public_key; key = load_pem_public_key(Path(sys.argv[1]).read_bytes()); print(base64.b64encode(key.public_bytes_raw()).decode("ascii"))' /path/to/app-ed25519-public.pem
-   ```
+```bash
+(
+  set -o pipefail
+  openssl pkey -in /path/to/encrypted-backup.pem -pubout -outform DER | tail -c 32 | sha256sum
+)
+```
 
-   Commit only the resulting base64 public key in `companion/services/appupdate.py`. If signing is deferred, builds with an empty pin will continue using the release page until players manually install a build with the pin.
-3. From private staging, sign the finished `SHA256SUMS` with OpenSSL 3. The release signature file is base64 text.
+To sign the finished combined `SHA256SUMS`, set the absolute paths to the tagged checkout and private staging directory. OpenSSL prompts for the passphrase when signing. Verification uses the public pin. The following Bash commands stop on failure.
 
-   ```sh
-   openssl pkeyutl -sign -rawin -inkey /private/app-ed25519.pem -in SHA256SUMS -out checksums.sig.raw
-   openssl pkeyutl -verify -pubin -rawin -inkey /private/app-ed25519-public.pem -in SHA256SUMS -sigfile checksums.sig.raw
-   openssl base64 -A -in checksums.sig.raw -out SHA256SUMS.sig
-   ```
+```bash
+(
+  set -euo pipefail
+  key_dir="$HOME/.local/state/pokemmo-companion-release"
+  repo=/absolute/path/to/tagged/checkout
+  stage=/absolute/path/to/private/stage
+  cd "$stage"
+  sha256sum --check SHA256SUMS
+  signature=$(mktemp .SHA256SUMS.sig.XXXXXX)
+  trap 'rm -f -- "$signature"' EXIT
+  openssl pkeyutl -sign -rawin -inkey "$key_dir/app-ed25519.pem" -in SHA256SUMS |
+    openssl base64 -A -out "$signature"
+  PYTHONPATH="$repo" python3 -c '
+import sys
+from pathlib import Path
+from companion.services.appupdate import APP_UPDATE_PUBLIC_KEY
+from companion.services.refdata import _verify_signature
+signature = Path(sys.argv[1]).read_text("ascii").strip()
+if not _verify_signature(Path("SHA256SUMS").read_bytes(), signature, APP_UPDATE_PUBLIC_KEY):
+    raise SystemExit("Signature failed against the pinned application public key")
+print("Signature verified against the pinned application public key")
+' "$signature"
+  mv -- "$signature" SHA256SUMS.sig
+)
+```
 
-   Verify the final text signature with the app’s verifier and the committed public pin. Upload `SHA256SUMS.sig`, not the raw signature or private key. Reassemble and re-sign if either package changes. The signature authenticates the checksum file, apart from any OS code signing.
+Run the verification with an interpreter that has `cryptography` installed. If either package changes, regenerate provenance and the combined checksums and sign them again.
 
 ## Draft review
 
-Create a draft using an approved existing tag. For 0.8.0, run the following from the private staging directory after package verification and owner authorization for staging on GitHub. Add `SHA256SUMS.sig` to the listed attachments if signing is configured and verified.
+After package verification and explicit owner approval to stage on GitHub, create a **draft prerelease** for the existing tag from the private staging directory.
 
 ```sh
 gh release create v0.8.0 --repo haqzo/PokeMMO-Companion --verify-tag --draft --prerelease \
-  --title "PokeMMO Companion 0.8.0 Alpha" --notes-file /path/to/repository/docs/releases/0.8.0.md \
+  --title 'PokeMMO Companion 0.8.0 Alpha' --notes-file /path/to/tagged/checkout/docs/releases/0.8.0.md \
   PokeMMO-Companion-0.8.0-x86_64.AppImage PokeMMO-Companion-0.8.0-windows-x86_64.zip \
-  SHA256SUMS build-provenance.json
+  SHA256SUMS SHA256SUMS.sig build-provenance.json
 ```
 
-Publish the reviewed draft only after explicit owner approval. The publication event drives the existing Discord announcement. Use `--prerelease` for 0.8.x and 0.9.x. Use a regular GitHub release for stable versions. [Approval and release checklist](../docs/build/32-ALPHA-RELEASE-PREPARATION.md)
+If you updated the notes after QA, use the reviewed copy for `--notes-file`. On GitHub, confirm the tag and target SHA, draft and prerelease flags, package names and sizes, all five attachments and the notes’ platform testing claims. Download the draft attachments to a separate directory. Run `sha256sum --check SHA256SUMS` there and repeat the Python verification command with `SHA256SUMS.sig` as its argument. To preview Discord text, prepare a local event JSON with `release.tag_name`, `name`, `html_url`, `body`, `prerelease: true` and the final `assets` names, using the proposed public URL. Run `GITHUB_EVENT_PATH=/path/to/local/event.json python3 .github/scripts/discord_release.py release --dry-run` from the checkout. It prints the payload locally. Check the Alpha label, both downloads, release notes and checksum links.
+
+Publish the draft only after separate approval. The publication event triggers the existing Discord announcement. Use the GitHub prerelease flag for 0.8.x and 0.9.x, and a regular release for 1.0.0 and later stable versions.

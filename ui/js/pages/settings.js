@@ -589,7 +589,7 @@ async function about(b) {
   const boot = state.boot;
   const discord = boot.community && boot.community.discord;
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.about_credits')),
-    h('dl', { class: 'kv' }, h('dt', null, translateUI('system.version')), h('dd', null, translateUI('system.dev_preview', { version: boot.version })), h('dt', null, translateUI('system.window_mode')), h('dd', null, boot.mode === 'qt' ? translateUI('system.native') : translateUI('system.browser')),
+    h('dl', { class: 'kv' }, h('dt', null, translateUI('system.version')), h('dd', null, translateUI('system.alpha_version', { version: boot.version })), h('dt', null, translateUI('system.window_mode')), h('dd', null, boot.mode === 'qt' ? translateUI('system.native') : translateUI('system.browser')),
       h('dt', null, translateUI('ui.settings_data_folder')), h('dd', { class: 'mono' }, boot.data_dir)),
     discord ? h('div', null, h('h3', null, translateUI('ui.community')),
       h('p', { class: 'small', style: { marginTop: 0 } }, translateUI('system.community_help'),
@@ -636,7 +636,7 @@ export async function onboarding() {
       h('div', { class: 'small muted' }, translateUI('system.your_data_help'))),
     h('div', { class: 'field' }, h('label', null, translateUI('system.guides')), h('div', { class: 'small muted' }, translateUI('system.guide_help'))),
     h('div', { class: 'tiny muted' }, translateUI('system.welcome_privacy')));
-  const r = await modal({ title: translateUI('system.welcome'), body, actions: [
+  const r = await modal({ title: translateUI('system.welcome', { version: state.boot.version }), body, actions: [
     { label: translateUI('system.skip'), value: 'skip', kind: 'ghost' }, { label: translateUI('settings.create_run'), value: 'run' }, { label: translateUI('system.import_now'), value: 'data', kind: 'primary' }] });
   await saveSettings({ 'app.onboarded': true, 'appearance.nav': nav });
   document.dispatchEvent(new CustomEvent('settings-changed'));

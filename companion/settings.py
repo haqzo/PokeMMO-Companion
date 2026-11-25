@@ -9,6 +9,8 @@ import re
 
 from typing import Any
 
+from . import __version__
+from .release import release_channel
 from .storage import Storage
 
 TOOLS = ("pokedex", "storyline", "reports", "phenomena", "typechart", "breeding", "legendaries", "cave", "natures",
@@ -79,7 +81,7 @@ DEFAULTS: dict[str, Any] = {
     "backup.auto_hours": 24,
     "reference.auto_update": True,           # install approved, signed reference-data packages automatically
     "app_updates.auto_check": True,          # look for new Companion releases (never installs by itself)
-    "app_updates.channel": "stable",         # stable | prerelease                 # complete backup archive in the background every N hours (0 = off)
+    "app_updates.channel": "stable" if release_channel(__version__) == "stable" else "prerelease",
     # Sidebar Quick Access (ordered list of {kind, id}); horizontal nav shows the same items as a strip
     # (Type matchups, Notes and Collection are in the main navigation since 2026-11-23, so not repeated here.)
     "nav.quick_access": [{"kind": "tool", "id": "breeding"}, {"kind": "guide", "id": "current"}],
@@ -192,7 +194,7 @@ def validate(key: str, value: Any) -> Any:
             raise SettingsError(f"{key} must be a number") from exc
         return max(lo, min(hi, v))
     if key == "shortcuts.global" and value:
-        raise SettingsError("System-wide shortcuts are not available in v0.1.0; shortcuts work while a Companion window is focused.")
+        raise SettingsError("Shortcuts work only while a Companion window is focused.")
     if isinstance(default, bool):
         if not isinstance(value, bool):
             raise SettingsError(f"{key} must be true/false")
@@ -230,7 +232,7 @@ def validate(key: str, value: Any) -> Any:
         except ValueError as exc:
             raise SettingsError(str(exc))
     if key == "shortcuts.global" and value:
-        raise SettingsError("System-wide shortcuts are not available in v0.1.0; shortcuts work while a Companion window is focused.")
+        raise SettingsError("Shortcuts work only while a Companion window is focused.")
     if key == "app.toolbar":
         allowed = ("language", "notes")
         if not isinstance(value, list) or any(v not in allowed for v in value):
