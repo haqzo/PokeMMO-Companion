@@ -12,7 +12,45 @@ export const SHELL = params.get('shell') || 'browser';
 export const WINDOW_ID = (POPOUT ? 'popout-' + POPOUT : 'main') + '-' + Math.random().toString(36).slice(2, 7);
 export const state = { boot: null, settings: {}, caps: {}, dexCache: null };
 
-export class ApiError extends Error {}
+const API_ERROR_KEYS = {
+  "Expected an object of settings": "errorui.settings",
+  "folder is required": "errorui.folder_required",
+  "Choose a folder first": "errorui.choose_folder",
+  "Run not found": "errorui.run_missing",
+  "Unknown species": "errorui.species",
+  "Choose the folder or .zip that contains the sprites": "errorui.sprite_folder",
+  "Article not found": "errorui.article",
+  "Event not found": "errorui.event",
+  "Unknown document kind": "errorui.document",
+  "Report not found": "errorui.report",
+  "Create or select a character run in Guides first": "errorui.select_run",
+  "Backup file is too large": "errorui.backup_large",
+  "Backup file could not be read": "errorui.backup_read",
+  "Choose a backup archive": "errorui.backup_choose",
+  "Backup not found": "errorui.backup_missing",
+  "Replacing your data needs confirmation": "errorui.replace_confirm",
+  "Check failed": "errorui.check",
+  "Unknown integration": "errorui.integration",
+  "Unknown shell action": "errorui.shell",
+  "Only the six monthly roamers are tracked here": "errorui.roamer",
+  "observed_at must be an ISO date/time": "errorui.observed",
+  "in_dex must be yes, no or clear": "errorui.dex_state"
+};
+export function apiErrorText(message) {
+  if (Object.hasOwn(API_ERROR_KEYS, message)) return translateUI(API_ERROR_KEYS[message]);
+  if (typeof message !== 'string') return message;
+  const status = /^Request failed \((\d+)\)$/.exec(message);
+  if (status) return translateUI('errorui.request', { status: status[1] });
+  const numeric = /^([a-zA-Z_]+) must be a number$/.exec(message);
+  if (numeric) return translateUI('errorui.number', { field: numeric[1] });
+  return message;
+}
+export class ApiError extends Error {
+  constructor(message) {
+    super(apiErrorText(message));
+    this.rawMessage = message;
+  }
+}
 
 export async function api(method, path, body) {
   const opts = { method, headers: { 'X-Companion-Token': TOKEN || '' } };

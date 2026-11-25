@@ -28,6 +28,7 @@ from .. import __version__
 from ..config import ALPHAPEDIA_URL, BUNDLED_DATA_DIR
 from ..events import EventBus
 from ..settings import Settings
+from ..localization import native_text
 from ..storage import Storage, utcnow
 from .dex import DexService
 from .notify import Notifier
@@ -401,12 +402,19 @@ class LiveService:
         label = {"alpha": "Alpha report", "swarm": "Swarm report", "phenomena": "Phenomenon report", "test": "TEST notification"}.get(
             "test" if report["is_test"] else report["kind"], "Community report")
         where = ", ".join(x for x in ((report.get("region") or "").capitalize(), report.get("location") or "") if x)
-        title = f"{label}: {report['title'] or report['species_name'] or 'Details in Live'}"
+        language = self.settings.get("app.language") or "en"
+        label = native_text(label, language)
+        report_title = report['title'] or report['species_name'] or native_text('Details in Live', language)
+        line = report['body'] or ''
+        if report['is_test']:
+            report_title = native_text(report_title, language)
+            line = native_text(line, language)
+        title = f"{label}: {report_title}"
         if where and not report["is_test"]:
             title += f" — {where}"
         when = report.get("source_time") or report["received_at"]
         return {"id": report["id"], "kind": "test" if report["is_test"] else report["kind"], "title": title[:120],
-                "line": (report["body"] or "")[:200], "reported": when, "is_test": bool(report["is_test"]),
+                "line": line[:200], "reported": when, "is_test": bool(report["is_test"]),
                 "species_icon": report.get("species_icon"),
                 "corner": self.settings.get("notify.toast_corner"),
                 "duration": self.settings.get("notify.toast_duration"),
