@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COUNTS = {
     "kanto": (454, 454),
-    "johto": (617, 355),
+    "johto": (617, 617),
     "hoenn": (526, 149),
     "sinnoh": (750, 194),
     "unova": (498, 185),
