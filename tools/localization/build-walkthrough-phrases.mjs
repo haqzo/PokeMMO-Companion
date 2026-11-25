@@ -12,6 +12,41 @@ function translateGuideLine(input,terms){
   const dpat="north east|north west|south east|south west|north|south|east|west";
   const things={house:["la casa","房屋"],building:["el edificio","建筑"],room:["la habitación","房间"],cave:["la cueva","洞窟"],gym:["el Gimnasio","道馆"],door:["la puerta","门"],elevator:["el ascensor","电梯"],portal:["el portal","传送门"],hole:["el agujero","洞口"],pokecenter:["el Centro Pokémon","宝可梦中心"],pokemart:["la Tienda Pokémon","宝可梦商店"],laboratory:["el laboratorio","研究所"],grass:["la hierba","草丛"],water:["el agua","水域"],"next area":["la siguiente zona","下一区域"],"next room":["la siguiente habitación","下一个房间"]};
   const fixed={
+    "talk to your dad": ["Habla con tu padre", "与爸爸交谈"],
+    "talk to your mom": ["Habla con tu madre", "与妈妈交谈"],
+    "talk to the first girl that you see": ["Habla con la primera chica que veas", "和你看到的第一个女孩交谈"],
+    "avoid all the other trainers": ["Evita a todos los demás Entrenadores", "避开其他所有训练家"],
+    "avoid all trainers": ["Evita a todos los Entrenadores", "避开所有训练家"],
+    "follow the path to the next tree you can cut": ["Sigue el camino hasta el siguiente árbol que puedas cortar", "沿路走到下一棵可以砍掉的树旁"],
+    "follow the path until you see stairs to your right": ["Sigue el camino hasta ver unas escaleras a tu derecha", "沿路走到右手边出现楼梯为止"],
+    "smash a rock": ["Usa Golpe Roca en una roca", "对一块岩石使用碎岩"],
+    "cut a tree": ["Usa Corte en un árbol", "对一棵树使用居合斩"],
+    "dive out of the water": ["Usa Buceo para salir a la superficie", "使用潜水浮出水面"],
+    "dive in the water": ["Usa Buceo para sumergirte", "使用潜水下潜"],
+    "go in the southern most wave": ["Entra en la corriente situada más al sur", "进入最南侧的水流"],
+    "go west in the wave": ["Ve hacia el oeste por la corriente", "沿水流向西走"],
+    "go on the button": ["Pisa el botón", "踩上按钮"],
+    "go upstairs": ["Sube las escaleras", "上楼梯"],
+    "go downstairs": ["Baja las escaleras", "下楼梯"],
+    "go down the stairs again": ["Vuelve a bajar las escaleras", "再次下楼梯"],
+    "go up the stairs again": ["Vuelve a subir las escaleras", "再次上楼梯"],
+    "enter the gym again": ["Vuelve a entrar en el Gimnasio", "再次进入道馆"],
+    "fight the team aqua member": ["Combate contra el miembro del Equipo Aqua", "与海洋队队员对战"],
+    "fight a team aqua member": ["Combate contra un miembro del Equipo Aqua", "与一名海洋队队员对战"],
+    "fight the team magma member": ["Combate contra el miembro del Equipo Magma", "与熔岩队队员对战"],
+    "fight a team magma member": ["Combate contra un miembro del Equipo Magma", "与一名熔岩队队员对战"],
+    "follow the path until you see the grass": ["Sigue el camino hasta ver la hierba", "沿路走，直到看到草丛"],
+    "go north until you see the stairs": ["Ve al norte hasta ver las escaleras", "向北走，直到看到楼梯"],
+    "go east until you see the stairs": ["Ve al este hasta ver las escaleras", "向东走，直到看到楼梯"],
+    "go west until you see the stairs": ["Ve al oeste hasta ver las escaleras", "向西走，直到看到楼梯"],
+    "go south until you see the stairs": ["Ve al sur hasta ver las escaleras", "向南走，直到看到楼梯"],
+    "fight a lady trainer": ["Combate contra una Dama", "与一名大小姐对战"],
+    "fight the rocket": ["Combate contra el miembro del Equipo Rocket", "与火箭队队员对战"],
+    "pick a pokeball": ["Recoge una Poké Ball", "拾取一个精灵球"],
+    "get a pokeball": ["Consigue una Poké Ball", "获得一个精灵球"],
+    "you will get a greatball": ["Recibirás una Super Ball", "你会获得一个超级球"],
+    "pick a hidden pokeball in the grass": ["Recoge una Poké Ball oculta en la hierba", "在草丛中拾取隐藏的精灵球"],
+    "pick a hidden pokeball near the bug trainer while avoiding that trainer": ["Recoge una Poké Ball oculta cerca del Cazabichos evitando que te vea", "避开捕虫少年，在他附近拾取隐藏的精灵球"],
     "go stand where the snorlax was and use the item finder to get a leftovers": ["Colócate donde estaba Snorlax y usa el Buscaobjetos para conseguir Restos","站到卡比兽原先的位置，使用探宝器获得吃剩的东西"],
     "the other balls are the pokemon electrode": ["Las otras Poké Balls son Pokémon Electrode","其他精灵球是顽皮雷弹"],
     "surf east and enter the cave while avoiding the swimmer": ["Usa Surf hacia el este y entra en la cueva evitando al Nadador","向东冲浪，避开游泳选手并进入洞窟"],
@@ -44,14 +79,14 @@ function translateGuideLine(input,terms){
     "go south and go in the 2nd room": ["Ve hacia el sur y entra en la 2.ª habitación","向南走，进入第 2 个房间"],
     "go in the 4th room and fight only the guy": ["Entra en la 4.ª habitación y combate solo contra el hombre","进入第 4 个房间，只与男子对战"],
     "talk to the scientist": ["Habla con el científico","与科学家交谈"],
-    "say yes and you will get a itemfinder if you own 30 pokemon": ["Responde que sí; si posees 30 Pokémon, recibirás el Buscaobjetos","选择“是”；如果已拥有 30 种宝可梦，就会获得探宝器"],
+    "say yes and you will get a itemfinder if you own 30 pokemon": ["Responde que sí; si tienes 30 especies registradas como capturadas en la Pokédex, recibirás el Buscaobjetos","选择“是”；如果图鉴中已登记捕获 30 种宝可梦，就会获得探宝器"],
     "in the house you can trade your nidorino for a nidorina by talking to the guy with the blue hat on the 2nd floor": ["En la casa puedes intercambiar tu Nidorino por una Nidorina hablando con el hombre de gorra azul del 2.º piso","在房屋内，可与第 2 层戴蓝色帽子的男子交谈，用尼多力诺交换尼多娜"],
     "go down the stairs and go west to exit the building": ["Baja las escaleras y ve hacia el oeste para salir del edificio","下楼梯，向西离开建筑"],
     "go west and fight the trainer with the grey hair": ["Ve hacia el oeste y combate contra el Entrenador de pelo gris","向西走，与灰发训练家对战"],
-    "check your pokedex and make sure you have at least 10 owned pokemon": ["Consulta tu Pokédex y asegúrate de tener al menos 10 Pokémon en posesión","查看宝可梦图鉴，确认至少已拥有 10 种宝可梦"],
+    "check your pokedex and make sure you have at least 10 owned pokemon": ["Consulta tu Pokédex y asegúrate de tener al menos 10 especies registradas como capturadas","查看宝可梦图鉴，确认至少已登记捕获 10 种宝可梦"],
     "enter the diglett cave and go down the stairs": ["Entra en la Cueva Diglett y baja las escaleras","进入地鼠洞穴，下楼梯"],
     "go south and if you enter the small house you can trade your abra for a mr.mime by talking to the guy north east": ["Ve hacia el sur. Si entras en la casa pequeña, podrás intercambiar tu Abra por un Mr. Mime hablando con el hombre del noreste","向南走。如果进入小房屋，可与东北侧的男子交谈，用凯西交换魔墙人偶"],
-    "you will get a hm05-flash if you own at least 10 pokemon": ["Recibirás la MO05 Destello si posees al menos 10 Pokémon","如果已拥有至少 10 种宝可梦，就会获得秘传学习器05“闪光”"],
+    "you will get a hm05-flash if you own at least 10 pokemon": ["Recibirás la MO05 Destello si tienes al menos 10 especies registradas como capturadas en la Pokédex","如果图鉴中已登记捕获至少 10 种宝可梦，就会获得秘传学习器05“闪光”"],
     "beat the gym leader to get a tm-shockwave": ["Derrota al líder del Gimnasio para conseguir la MT Onda Voltio","击败道馆馆主，获得招式学习器“电击波”"],
     "talk to the guy with the yellow hair to get a bicycle": ["Habla con el hombre de pelo rubio para conseguir una Bicicleta","与黄发男子交谈，获得自行车"],
     "go east and cut a tree to get a tm-teleport": ["Ve hacia el este y usa Corte en un árbol para conseguir la MT Teletransporte","向东走，使用居合斩砍树以获得招式学习器“瞬间移动”"],
@@ -63,7 +98,7 @@ function translateGuideLine(input,terms){
     "cut another tree and go west all the way while avoiding all the trainers": ["Usa Corte en otro árbol y ve hacia el oeste hasta el final evitando a todos los Entrenadores","使用居合斩砍掉另一棵树，向西走到尽头并避开所有训练家"],
     "go north and enter the small house": ["Ve hacia el norte y entra en la casa pequeña","向北走，进入小房屋"],
     "pick a hidden potion near the stairs": ["Recoge una Poción oculta cerca de las escaleras","在楼梯附近拾取隐藏的伤药"],
-    "go north of the pokecenter and go north west all the way to pick a ether": ["Ve al norte del Centro Pokémon y después hacia el noroeste hasta el final para recoger un Éter","到宝可梦中心北侧，再向西北走到尽头拾取以太"],
+    "go north of the pokecenter and go north west all the way to pick a ether": ["Ve al norte del Centro Pokémon y después hacia el noroeste hasta el final para recoger un Éter","到宝可梦中心北侧，再向西北走到尽头拾取PP 单项小补剂"],
     "go south of the pokecenter and cut a tree": ["Ve al sur del Centro Pokémon y usa Corte en un árbol","到宝可梦中心南侧，使用居合斩砍树"],
     "go north west and talk to the old woman to get a tea": ["Ve hacia el noroeste y habla con la anciana para conseguir Té","向西北走，与老妇人交谈获得茶"],
     "also give her a lemonade and you will get a tm-reflect": ["Dale también una Limonada y recibirás la MT Reflejo","另外给她一瓶劲爽汽水，获得招式学习器“反射壁”"],
@@ -79,7 +114,7 @@ function translateGuideLine(input,terms){
     "you need to use the bicycle for this area": ["Necesitas usar la Bicicleta en esta zona","此区域需要使用自行车"],
     "avoid the first biker by going west from the southern most position": ["Evita al primer motorista yendo hacia el oeste desde la posición más al sur","从最南侧的位置向西走，避开第一名骑车人"],
     "avoid all the trainers and go south east a few steps until you see the grass": ["Evita a todos los Entrenadores y avanza unos pasos hacia el sureste hasta ver la hierba","避开所有训练家，向东南走几步直到看到草丛"],
-    "go north a few steps to route 17 and pick a hidden ether": ["Avanza unos pasos hacia el norte hasta la Ruta 17 y recoge un Éter oculto","向北走几步到 17 号道路，拾取隐藏的以太"],
+    "go north a few steps to route 17 and pick a hidden ether": ["Avanza unos pasos hacia el norte hasta la Ruta 17 y recoge un Éter oculto","向北走几步到 17 号道路，拾取隐藏的PP 单项小补剂"],
     "if you want you can trade your golduck for a lickitung by talking to the guy on the 2nd floor": ["Si quieres, puedes intercambiar tu Golduck por un Lickitung hablando con el hombre del 2.º piso","如果愿意，可与第 2 层的男子交谈，用哥达鸭交换大舌头"],
     "avoid the trainer west and fight the other trainer": ["Evita al Entrenador del oeste y combate contra el otro","避开西侧的训练家，与另一名训练家对战"],
     "avoid the 2 trainers north west": ["Evita a los 2 Entrenadores del noroeste","避开西北侧的 2 名训练家"],
@@ -117,7 +152,7 @@ function translateGuideLine(input,terms){
   function item(v){const aliases={parlyzheal:"paralyzeheal",paralysisheal:"paralyzeheal"};const move=v.match(/^(tm|hm)[- ](.+)$/);if(move){const n=named("move",move[2]);return n?[`${move[1]==="tm"?"MT":"MO"} ${n[0]}`,`${move[1]==="tm"?"招式学习器":"秘传学习器"}：${n[1]}`]:null;}return named("item",aliases[key(v)]||v);}
   function clause(v,depth=0){
     if(depth>6)return null;
-    if(fixed[v])return fixed[v];
+    if (Object.hasOwn(fixed, v)) return fixed[v];
     let m;
     if(v.startsWith("now ")||v.startsWith("also ")){const a=clause(v.slice(v.indexOf(" ")+1),depth+1);if(a)return [(v.startsWith("now ")?"Ahora ":"También ")+a[0][0].toLowerCase()+a[0].slice(1),(v.startsWith("now ")?"现在":"另外")+a[1]];}
     if(v.includes(" and ")){const parts=v.split(/ and (?:then )?/);const pairs=parts.map(x=>clause(x,depth+1));if(pairs.every(Boolean))return [pairs.map(x=>x[0]).join(". "),pairs.map(x=>x[1]).join("。")];}
@@ -169,7 +204,7 @@ function translateGuideLine(input,terms){
     m=v.match(/^exit the (tower|ship|lab|laboratory)$/);
     if(m)return ["Sal de "+({tower:"la torre",ship:"el barco",lab:"el laboratorio",laboratory:"el laboratorio"}[m[1]]),"离开"+({tower:"塔楼",ship:"船",lab:"研究所",laboratory:"研究所"}[m[1]])];
     m=v.match(/^(fight|avoid|beat) (a|the|another|the next) (hiker|fisher|sailor|scientist|swimmer|biker|beauty trainer|beauty girl|scientist trainer|rocket trainer|guy trainer|old man|other trainer)$/);
-    if(m){const names={hiker:["Montañero","登山男"],fisher:["Pescador","垂钓者"],sailor:["Marinero","水手"],scientist:["científico","科学家"],swimmer:["Nadador","游泳选手"],biker:["motorista","骑车人"],"beauty trainer":["Bella","大姐姐"],"beauty girl":["Bella","大姐姐"],"scientist trainer":["científico","科学家"],"rocket trainer":["recluta del Equipo Rocket","火箭队队员"],"guy trainer":["Entrenador masculino","男训练家"],"old man":["anciano","老人"],"other trainer":["otro Entrenador","另一名训练家"]};const o=names[m[3]],f=m[3].startsWith("beauty"),q=m[2];const es=q==="a"?(f?"una ":"un "):q==="another"?(f?"otra ":"otro "):q==="the next"?(f?"la siguiente ":"el siguiente "):(f?"la ":"el ");const zh=q==="a"?"一名":q==="another"?"另一名":q==="the next"?"下一名":"该";return [(m[1]==="fight"?"Combate contra ":m[1]==="beat"?"Derrota a ":"Evita a ")+es+o[0],(m[1]==="fight"?"与":m[1]==="beat"?"击败":"避开")+zh+o[1]+(m[1]==="fight"?"对战":"")];}
+    if(m){const names={hiker:["Montañero","登山男"],fisher:["Pescador","垂钓者"],sailor:["Marinero","水手"],scientist:["científico","科学家"],swimmer:["Nadador","游泳选手"],biker:["motorista","骑车人"],"beauty trainer":["Bella","大姐姐"],"beauty girl":["Bella","大姐姐"],"scientist trainer":["científico","科学家"],"rocket trainer":["recluta del Equipo Rocket","火箭队队员"],"guy trainer":["Entrenador masculino","男训练家"],"old man":["anciano","老人"],"other trainer":["otro Entrenador","另一名训练家"]};const o=names[m[3]],f=m[3].startsWith("beauty"),q=m[2];const es=q==="a"?(f?"una ":"un "):q==="another"?(f?"otra ":"otro "):q==="the next"?(f?"la siguiente ":"el siguiente "):(f?"la ":"el ");const zh=q==="a"?"一名":q==="another"?"另一名":q==="the next"?"下一名":"该";return [((m[1]==="fight"?"Combate contra ":m[1]==="beat"?"Derrota a ":"Evita a ")+es+o[0]).replace(/\ba el\b/g,"al"),(m[1]==="fight"?"与":m[1]==="beat"?"击败":"避开")+zh+o[1]+(m[1]==="fight"?"对战":"")];}
     m=v.match(/^(talk to the (guy|girl|fisher|old man|old woman|scientist|fighter|other fighter|gym guide))( and say yes)? to get (?:a|an|the|x\d+) (.+)$/);
     if(m&&!/\d/.test(m[0].split(" to get ")[1].split(" ")[0])){const n=item(m[4]);const npc={guy:["el hombre","男子"],girl:["la chica","女孩"],fisher:["el Pescador","垂钓者"],"old man":["el anciano","老人"],"old woman":["la anciana","老妇人"],scientist:["el científico","科学家"],fighter:["el luchador","格斗家"],"other fighter":["el otro luchador","另一名格斗家"],"gym guide":["el guía del Gimnasio","道馆向导"]}[m[2]];if(n)return ["Habla con "+npc[0]+(m[3]?" y responde que sí":"")+" para conseguir "+n[0],"与"+npc[1]+"交谈"+(m[3]?"，选择“是”":"")+"，领取"+n[1]];}
     m=v.match(/^beat the gym leader to get a (.+)$/);
@@ -183,31 +218,72 @@ function translateGuideLine(input,terms){
   const pair=clause(raw);
   return pair?[pair[0]+".",pair[1]+"。"]:null;
 }
-function buildTranslations(guides,terms,manualIds){
-  const out={},counts={};
-  for(const guide of guides){let n=0;for(const step of guide.steps){
-    if(manualIds.has(step.id)||step.text!==step.lines.join(" ")||!step.lines.length)continue;
+function buildTranslations(guides, terms, existingIds) {
+  const out = {};
+  for (const guide of guides) for (const step of guide.steps) {
+    if(existingIds.has(step.id)||step.text!==step.lines.join(" ")||!step.lines.length)continue;
     const pairs=step.lines.map(l=>translateGuideLine(l,terms));if(!pairs.every(Boolean))continue;
     const es=pairs.map(p=>p[0]).join(" "),zh=pairs.map(p=>p[1]).join("");
-    const nums=s=>[...s.matchAll(/\d+/g)].map(m=>m[0]).join(",");
+    const nums = s => s.normalize("NFKC").match(/\d+/g)?.join(",") ?? "";
     if(nums(step.text)!==nums(es)||nums(step.text)!==nums(zh))continue;
-    out[step.id]=[step.text_hash,es,zh];n++;
-  }counts[guide.region]=n;}
-  return {out,counts};
+    out[step.id] = [step.text_hash, es, zh];
+  }
+  return out;
 }
-const manual = fs.readFileSync('ui/js/walkthrough-locales.js', 'utf8');
-const manualIds = new Set([...manual.matchAll(/^\s*"([^"]+)": \[/gm)].map(m => m[1]));
-const guides = regions.map(region => JSON.parse(fs.readFileSync('companion/data/walkthroughs/'+region+'.json','utf8')));
-const {out,counts} = buildTranslations(guides,GAME_TERMS,manualIds);
-// Keep existing drafts when their source identity is unchanged, and prefer manual translations.
-if (fs.existsSync('ui/js/walkthrough-generated.js')) {
-  const previous = fs.readFileSync('ui/js/walkthrough-generated.js','utf8');
-  const canonical = new Map(guides.flatMap(g => g.steps.map(s => [s.id,s.text_hash])));
-  for (const m of previous.matchAll(/^\s*"([^"]+)": (\[.*\]),$/gm)) {
-    const row = JSON.parse(m[2]);
-    if (!manualIds.has(m[1]) && canonical.get(m[1]) === row[0]) out[m[1]] = row;
+const manualPath = 'ui/js/walkthrough-locales.js';
+const outputPath = 'ui/js/walkthrough-generated.js';
+const guides = regions.map(region => JSON.parse(fs.readFileSync(
+  `companion/data/walkthroughs/${region}.json`, 'utf8',
+)));
+const canonical = new Map();
+for (const { steps } of guides) {
+  for (const { id, text_hash } of steps) {
+    if (canonical.has(id)) throw new Error(`Duplicate canonical step ${id}`);
+    canonical.set(id, text_hash);
   }
 }
+
+function readTranslations(path) {
+  const rows = new Map();
+  const source = fs.readFileSync(path, 'utf8');
+  const body = source.match(/^export const (?:WALKTHROUGH_TEXT|GENERATED_WALKTHROUGH_TEXT) = \{\n([\s\S]*?)^};$/m)?.[1];
+  if (body === undefined) throw new Error(`Cannot read translation table in ${path}`);
+  for (const line of body.trim().split('\n')) {
+    if (!line.trim()) continue;
+    const match = line.match(/^\s*"([^"]+)": (\[.*\]),$/);
+    if (!match) throw new Error(`Unrecognized translation row in ${path}: ${line}`);
+    const [, id, raw] = match;
+    if (rows.has(id)) throw new Error(`Duplicate step ${id} in ${path}`);
+    const entry = JSON.parse(raw);
+    if (!canonical.has(id) || entry[0] !== canonical.get(id)) {
+      throw new Error(`Review ${id} in ${path} before regenerating: missing or changed canonical source`);
+    }
+    if (entry.length !== 3 || !entry.slice(1).every(text => typeof text === 'string' && text.trim())) {
+      throw new Error(`Invalid translation for ${id} in ${path}`);
+    }
+    rows.set(id, entry);
+  }
+  if (!rows.size) throw new Error(`No translation rows found in ${path}`);
+  return rows;
+}
+
+const manual = readTranslations(manualPath);
+const previous = fs.existsSync(outputPath) ? readTranslations(outputPath) : new Map();
+const existingIds = new Set([...manual.keys(), ...previous.keys()]);
+const out = buildTranslations(guides, GAME_TERMS, existingIds);
+// Keep reviewed text byte-for-byte. A manual entry can explicitly replace a generated entry.
+for (const [id, entry] of previous) {
+  if (!manual.has(id)) out[id] = entry;
+}
 const rendered = '// Generated bilingual walkthrough drafts. Rebuild with tools/localization/build-walkthrough-phrases.mjs.\n// Exact source IDs and hashes; unrecognized lines are not translated by this generator.\nexport const GENERATED_WALKTHROUGH_TEXT = {\n'+Object.entries(out).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>'  '+JSON.stringify(k)+': '+JSON.stringify(v)+',').join('\n')+'\n};\n';
-fs.writeFileSync('ui/js/walkthrough-generated.js',rendered);
-console.log(JSON.stringify(counts));
+if (process.argv.includes('--check')) {
+  if (fs.readFileSync(outputPath, 'utf8') !== rendered) {
+    throw new Error(`Run node tools/localization/build-walkthrough-phrases.mjs to update ${outputPath}`);
+  }
+} else {
+  fs.writeFileSync(outputPath, rendered);
+}
+for (const { region, steps } of guides) {
+  const covered = steps.filter(({ id }) => manual.has(id) || Object.hasOwn(out, id)).length;
+  console.log(`${region}: ${covered}/${steps.length} in both languages`);
+}

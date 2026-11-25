@@ -1,6 +1,6 @@
 import { walkthroughStep } from '../walkthrough-locales.js';
 import { lang } from '../i18n.js';
-import { gameTerm, searchText } from '../game-locale.js';
+import { gameTerm, searchText, walkthroughChapter } from '../game-locale.js';
 import { t as translateUI } from '../i18n.js';
 // Guides (docs/design/14–17): named character runs, five regions, manual progress.
 import { guideContext, shortcutFor, displayCombo } from '../shortcuts.js';
@@ -13,7 +13,15 @@ const REGIONS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
 let unsub = [];
 let ui = { chapter: {}, search: '', all: {} };
 const stepLabel = (step) => walkthroughStep(step, lang());
-const chapterLabel = (name) => gameTerm('location', name);
+const STEP_KIND_LABELS = { battle: 'ui.guide_kind_battle', gym: 'ui.guide_kind_gym',
+  item: 'ui.item', league: 'ui.guide_kind_league', story: 'ui.guide_kind_story' };
+
+function guideSourceLabel(source, region) {
+  if (source.id === 'walkthrough') {
+    return translateUI('ui.guide_source_complete', { region: gameTerm('region', cap(region)) });
+  }
+  return source.id === 'milestones' ? translateUI('ui.guide_source_milestones') : source.label;
+}
 
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
@@ -81,7 +89,7 @@ export async function render(el, route) {
 
   const steps = st.steps;
   const displayStep = st.source === 'walkthrough' ? stepLabel : (step) => step.text;
-  const displayChapter = st.source === 'imported' ? (name) => name : chapterLabel;
+  const displayChapter = st.source === 'imported' ? (name) => name : walkthroughChapter;
   const done = new Set(st.done);
   const src = st.sources.find((s) => s.id === st.source);
   const isImported = st.source !== 'milestones';   // a full walkthrough (built-in or your own): every step counts
@@ -91,7 +99,7 @@ export async function render(el, route) {
 
   const sourceSel = h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.guide_source_control'), onchange: async (e) => {
     await api('PATCH', `/api/guides/runs/${run.id}`, { region, source: e.target.value }); render(el, route); } },
-  st.sources.map((s) => h('option', { value: s.id, selected: s.id === st.source ? 'selected' : null }, translateUI('ui.b274_guides_033', { source: s.label, count: s.steps }))));
+  st.sources.map((s) => h('option', { value: s.id, selected: s.id === st.source ? 'selected' : null }, translateUI('ui.b274_guides_033', { source: guideSourceLabel(s, region), count: s.steps }))));
 
   const header = h('div', { class: 'card stack tight', style: { marginBottom: '14px' } },
     h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0, fontSize: '1.2rem' } }, gameTerm('region', cap(region))), sourceSel, sourceInfo(src.status), h('span', { class: 'grow' }),
@@ -104,7 +112,7 @@ export async function render(el, route) {
       ? (st.source === 'walkthrough'
         ? translateUI('ui.b274_guides_004')
         : translateUI('ui.b274_guides_005'))
-      : translateUI('ui.b274_guides_036', { done: st.counts.optional.done, total: st.counts.optional.total, note: src.note })),
+      : translateUI('ui.b274_guides_036', { done: st.counts.optional.done, total: st.counts.optional.total, note: translateUI('ui.guide_source_milestone_note') })),
     null);
   page.append(header);
   const gx = guideExtras({ key: `story:${run.id}:${region}`, title: `${cap(region)} storyline · ${run.display}`, run: run.id,
@@ -162,7 +170,7 @@ export async function render(el, route) {
     return h('div', { class: 'step' + (isDone ? ' done' : '') + (s.id === st.active_step_id ? ' current' : ''), id: 'step-' + s.id.replace(/[^\w-]/g, '_') }, cb,
       h('div', null, h('div', { class: 's-text' }, displayStep(s)),
         h('div', { class: 's-meta' }, s.id === st.active_step_id ? h('span', { class: 'badge corroborated plain' }, translateUI('ui.current')) : null,
-          s.mandatory === false ? h('span', { class: 'chip' }, translateUI('ui.optional')) : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? translateUI('ui.b274_guides_009') : '')) : null,
+          s.mandatory === false ? h('span', { class: 'chip' }, translateUI('ui.optional')) : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, (STEP_KIND_LABELS[s.kind] ? translateUI(STEP_KIND_LABELS[s.kind]) : cap(s.kind)) + (isImported ? translateUI('ui.b274_guides_009') : '')) : null,
           s.source_url ? extLink(s.source_url, translateUI('ui.b274_guides_010')) : null, changed ? h('span', { class: 'chip tiny warn', title: translateUI('ui.guide_changed_hint') }, translateUI('ui.guide_changed')) : null), gx.stepTimers(s.id)),
       s.id !== st.active_step_id ? h('button', { class: 'btn ghost small', title: translateUI('ui.b274_guides_011'), onclick: async () => {
         await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); render(el, route); } }, translateUI('ui.guide_set_current')) : h('span'));
@@ -245,10 +253,10 @@ async function browse(page, route, runs, el) {
   const draw = () => {
     const term = searchText(search.value);
     mount(list, chapters.map((c) => {
-      const hits = term ? c.steps.filter((x) => [x.text, stepLabel(x), c.name, chapterLabel(c.name)].some((v) => searchText(v).includes(term))) : c.steps;
+      const hits = term ? c.steps.filter((x) => [x.text, stepLabel(x), c.name, walkthroughChapter(c.name)].some((v) => searchText(v).includes(term))) : c.steps;
       if (!hits.length) return null;
       return h('details', { class: 'card tight browse-chapter', open: term ? '' : null },
-        h('summary', null, h('strong', null, chapterLabel(c.name) || translateUI('ui.b274_guides_029')), h('span', { class: 'tiny muted' }, translateUI('ui.b274_guides_041', { count: hits.length }))),
+        h('summary', null, h('strong', null, walkthroughChapter(c.name) || translateUI('ui.b274_guides_029')), h('span', { class: 'tiny muted' }, translateUI('ui.b274_guides_041', { count: hits.length }))),
         h('ol', { class: 'browse-list' }, hits.map((x) => h('li', null, stepLabel(x)))));
     }));
   };

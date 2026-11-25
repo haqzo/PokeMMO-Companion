@@ -17,6 +17,7 @@ export function fmt(sec) {
 export const ownerRoute = (o) => o.guide.startsWith('cg:') ? '#/guides/mine/' + o.guide.slice(3)
   : o.guide.startsWith('story:') ? '#/guides/storyline?region=' + o.guide.split(':')[2] : '#/tools/timers';
 const STATE_LABEL = { idle: 'ui.b272_timer_state_ready', running: 'ui.b272_timer_state_running', paused: 'ui.b272_timer_state_paused', done: 'ui.b272_timer_state_finished' };
+export const timerStateLabel = (state) => translateUI(STATE_LABEL[state] || STATE_LABEL.idle);
 
 function ring(progress, size) {
   const r = size / 2 - 4, c = 2 * Math.PI * r;
@@ -60,7 +61,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
     };
     const bar = compact ? h('div', { class: 'tm-bar' }, h('span', { style: { width: (t.progress * 100).toFixed(1) + '%' } })) : null;
     const c = h('div', { class: 'tm-card ' + t.state, role: 'listitem', tabindex: '0', dataset: { id: t.id, state: t.state },
-      'aria-label': `${t.name}: ${translateUI(STATE_LABEL[t.state])}`,
+      'aria-label': `${t.name}: ${timerStateLabel(t.state)}`,
       onkeydown: (e) => {
         if (e.target !== c) return;
         if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); act(t, toggle[1]); }
@@ -72,7 +73,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
         onclick: () => go(ownerRoute(t.owner)) }, icon('guides'), t.owner.label) : null, t.repeat ? h('span', { class: 'chip tiny', title: translateUI('ui.b272_timer_repeat_auto') }, translateUI('ui.b272_timer_repeat_chip')) : null,
         t.pinned ? h('span', { class: 'chip tiny' }, translateUI('ui.b272_timer_quick')) : null),
       compact ? h('div', { class: 'row tight' }, timeEl, bar) : null,
-      h('div', { class: 'tiny muted tm-state' }, translateUI(STATE_LABEL[t.state]), t.state === 'done' && t.late_by >= 5 ? translateUI('ui.b272_timer_late') : '',
+      h('div', { class: 'tiny muted tm-state' }, timerStateLabel(t.state), t.state === 'done' && t.late_by >= 5 ? translateUI('ui.b272_timer_late') : '',
         t.state !== 'done' ? translateUI('ui.b272_timer_of', { duration: fmt(t.duration) }) : ''),
       h('div', { class: 'row tight tm-actions' },
         h('button', { class: 'btn small' + (t.state === 'running' ? '' : ' primary'), onclick: () => act(t, toggle[1]) }, toggle[0]),

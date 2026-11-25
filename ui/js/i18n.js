@@ -118,8 +118,9 @@ export function lang() { return (state.settings && state.settings['app.language'
 
 /** Translate a key with {name} placeholders. Missing keys fall back to English, then to the key itself. */
 export function t(key, vars) {
-  const d = DICTS[lang()] || EN;
-  let s = d[key] ?? EN[key] ?? key;
+  const language = lang();
+  const d = Object.hasOwn(DICTS, language) ? DICTS[language] : EN;
+  const s = Object.hasOwn(d, key) ? d[key] : Object.hasOwn(EN, key) ? EN[key] : key;
   return vars ? s.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) => Object.hasOwn(vars, name) ? String(vars[name]) : match) : s;
 }
 

@@ -276,17 +276,19 @@ export function badge(status, label, title) {
 }
 // Player-facing source information (2026-11-24 cleanup): the record keeps its provenance, but instead of a coloured
 // technical badge the UI shows one discreet ⓘ button whose tooltip / click explains it in plain words.
-const SOURCE_TEXT = { VERIFIED: 'Checked against an official PokeMMO source.', OFFICIAL: 'From an official PokeMMO source.',
-  CORROBORATED: 'Confirmed by more than one independent source.', DUMP_ONLY: 'From the PokeMMO game data (client snapshot of 16 Nov 2026); not checked in game.',
-  REPORTED: 'Reported by players; not confirmed.', ESTIMATE: 'An estimate, not an exact value.', LOCAL: 'From your own files.',
-  'official-direct': 'Read directly from the official post.', 'official-via-research': 'Summarised from the official post.',
-  'secondary-crosscheck': 'From the official post, cross-checked with a second source.', 'COMMUNITY-CYCLE': 'Community-documented cycle; not confirmed in game.',
-  'outline-unverified': 'A milestone outline; not yet checked step by step.', 'imported-unverified': 'Your own import; not checked.' };
-export function sourceText(status) { return SOURCE_TEXT[status] || ''; }
+const SOURCE_TEXT = { VERIFIED: 'ui.source_verified', OFFICIAL: 'ui.source_official',
+  CORROBORATED: 'ui.source_corroborated', DUMP_ONLY: 'ui.source_dump',
+  REPORTED: 'ui.source_reported', ESTIMATE: 'ui.source_estimate', LOCAL: 'ui.source_local',
+  'official-direct': 'ui.source_direct', 'official-via-research': 'ui.source_research',
+  'secondary-crosscheck': 'ui.source_crosscheck', 'COMMUNITY-CYCLE': 'ui.source_community_cycle',
+  'outline-unverified': 'ui.source_outline', 'imported-unverified': 'ui.source_imported', 'community-walkthrough': 'ui.source_walkthrough' };
+export function sourceText(status) {
+  return Object.hasOwn(SOURCE_TEXT, status) ? translateUI(SOURCE_TEXT[status]) : '';
+}
 export function sourceInfo(status, extra) {
-  const text = [SOURCE_TEXT[status] || '', extra || ''].filter(Boolean).join(' ');
+  const text = [sourceText(status), extra || ''].filter(Boolean).join(' ');
   if (!text) return null;
-  return h('button', { class: 'src-info', type: 'button', title: text, 'aria-label': 'Source: ' + text, dataset: { source: status || '' },
+  return h('button', { class: 'src-info', type: 'button', title: text, 'aria-label': translateUI('ui.source_aria', { description: text }), dataset: { source: status || '' },
     onclick: (e) => { e.stopPropagation(); toast(text, { timeout: 6000 }); } }, icon('info'));
 }
 export function notice(kind, ...content) {

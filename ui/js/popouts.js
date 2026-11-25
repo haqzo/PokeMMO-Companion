@@ -1,5 +1,5 @@
 import { walkthroughStep } from './walkthrough-locales.js';
-import { gameTerm } from './game-locale.js';
+import { gameTerm, walkthroughChapter } from './game-locale.js';
 import { lang, uiLabel } from './i18n.js';
 import { t as translateUI } from './i18n.js';
 // Independent popout windows (docs/design/04, 15). One shared backend state; each
@@ -186,7 +186,7 @@ export function popoutExtras(ctx, { open } = {}) {
   if (popGx) popGx.dispose();
   popGx = guideExtras({ ...ctx, nav: openInMain });
   popGx.load().catch((e) => console.warn(e));
-  const box = h('details', { class: 'gx-pop', open: open ? '' : null }, h('summary', { class: 'small' }, icon('clock'), ' Timers & team'), popGx.panel());
+  const box = h('details', { class: 'gx-pop', open: open ? '' : null }, h('summary', { class: 'small' }, icon('clock'), translateUI('ui.guide_popout_timer_team')), popGx.panel());
   return { gx: popGx, box };
 }
 
@@ -195,15 +195,15 @@ let storyRegion = null;
 async function storyline(el) {
   const runs = await get('/api/guides/runs');
   const run = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
-  if (!run) { mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'objective' }, 'No character run yet.'),
-    h('button', { class: 'btn', onclick: () => openInMain('#/guides/storyline') }, 'Create one in Guides'))); return; }
+  if (!run) { mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'objective' }, translateUI('ui.guide_popout_no_run')),
+    h('button', { class: 'btn', onclick: () => openInMain('#/guides/storyline') }, translateUI('ui.guide_popout_create_run')))); return; }
   const region = storyRegion || run.last_region;
   const st = await get(`/api/guides/runs/${run.id}/state?region=${region}`);
   const steps = st.steps.filter((s) => st.show_optional || s.mandatory !== false);
   const done = new Set(st.done);
   const i = Math.max(0, steps.findIndex((s) => s.id === st.active_step_id));
   const cur = steps[i];
-  const displayChapter = (name) => st.source === 'imported' ? name : gameTerm('location', name);
+  const displayChapter = (name) => st.source === 'imported' ? name : walkthroughChapter(name);
   const counts = st.source === 'milestones' ? st.counts.mandatory : st.counts.unclassified;
   Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => storyline(el) });
   const setActive = async (idx) => { const s = steps[Math.max(0, Math.min(steps.length - 1, idx))]; if (s) { await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); storyline(el); } };
@@ -224,17 +224,17 @@ async function storyline(el) {
       h('div', { class: 'ellipsis', style: { fontWeight: 700 } }, run.display), h('div', { class: 'tiny muted ellipsis' }, `${gameTerm('region', cap(region))} · ${cur ? displayChapter(cur.chapter) : ''}`)),
     mode !== 'compact' ? h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '1px 4px' }, 'aria-label': translateUI('ui.region'), onchange: async (e) => {
       storyRegion = e.target.value; await api('PATCH', `/api/guides/runs/${run.id}`, { region: storyRegion }); storyline(el); } },
-    ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r, selected: r === region ? 'selected' : null }, cap(r)))) : null),
+    ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r, selected: r === region ? 'selected' : null }, gameTerm('region', cap(r))))) : null),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: (counts.total ? counts.done / counts.total * 100 : 0) + '%' } })),
       h('span', { class: 'tiny' }, `${counts.done}/${counts.total}`)));
   const nav = h('div', { class: 'row', style: { marginTop: '8px' } },
-    h('button', { class: 'btn small', onclick: () => setActive(i - 1), title: 'Previous step', 'aria-label': 'Previous step' }, icon('back')),
-    h('button', { class: 'btn small', onclick: () => setActive(i + 1), title: 'Next step', 'aria-label': 'Next step' }, icon('chev')),
-    h('span', { class: 'tiny muted' }, `Step ${i + 1} of ${steps.length}`), h('span', { class: 'grow' }),
-    mode !== 'compact' && runs.runs.length > 1 ? h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '1px 4px' }, 'aria-label': 'Switch character run',
+    h('button', { class: 'btn small', onclick: () => setActive(i - 1), title: translateUI('ui.guide_popout_previous'), 'aria-label': translateUI('ui.guide_popout_previous') }, icon('back')),
+    h('button', { class: 'btn small', onclick: () => setActive(i + 1), title: translateUI('ui.guide_popout_next'), 'aria-label': translateUI('ui.guide_popout_next') }, icon('chev')),
+    h('span', { class: 'tiny muted' }, translateUI('ui.guide_popout_position', { step: i + 1, total: steps.length })), h('span', { class: 'grow' }),
+    mode !== 'compact' && runs.runs.length > 1 ? h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '1px 4px' }, 'aria-label': translateUI('ui.guide_popout_switch'),
       onchange: async (e) => { storyRegion = null; await saveSettings({ 'guides.active_run': e.target.value }); storyline(el); } },
     runs.runs.map((r) => h('option', { value: r.id, selected: r.id === run.id ? 'selected' : null }, r.display))) : null);
-  if (!cur) { mount(el, header, h('div', { class: 'muted' }, 'This guide has no steps.')); return; }
+  if (!cur) { mount(el, header, h('div', { class: 'muted' }, translateUI('ui.guide_popout_empty'))); return; }
   if (mode === 'compact') { mount(el, header, stepEl(cur, true), nav, extrasBox); return; }
   if (mode === 'standard') {
     const win = steps.slice(Math.max(0, i - 1), i + 6);
@@ -247,7 +247,7 @@ async function storyline(el) {
   while (hi < steps.length - 1 && steps[hi + 1].chapter === cur.chapter) hi++;
   const chapterSteps = steps.slice(lo, hi + 1);
   mount(el, header, h('div', { class: 'step-chapter', style: { marginTop: '4px' } }, displayChapter(cur.chapter)), h('div', { class: 'stack tight' }, chapterSteps.map((s) => stepEl(s, s.id === cur.id))), nav, extrasBox,
-    h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'walkthrough' ? 'Complete walkthrough (built in, by its original author).' : st.source === 'imported' ? 'Your own walkthrough file.' : 'Milestone outline.', sourceInfo(st.source === 'milestones' ? 'outline-unverified' : 'imported-unverified')));
+    h('div', { class: 'tiny muted', style: { marginTop: '8px' } }, st.source === 'walkthrough' ? translateUI('ui.guide_popout_bundled') : st.source === 'imported' ? translateUI('ui.guide_popout_imported') : translateUI('ui.guide_popout_milestones'), sourceInfo(st.sources.find(({ id }) => id === st.source)?.status)));
 }
 
 // ---------------------------------------------------------------- pokédex
