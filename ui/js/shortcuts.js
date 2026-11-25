@@ -3,6 +3,9 @@
 // Never fires while typing (inputs, textareas, selects, contenteditable, IME), while a dialog is
 // open, while a binding is being recorded, or on key auto-repeat.
 import { get, post, api, on, toast, setting, state, POPOUT, SHELL } from './core.js';
+import { lang, t } from './i18n.js';
+import { gameTerm } from './game-locale.js';
+import { walkthroughStep } from './walkthrough-locales.js';
 
 let bindings = {};       // action id -> combo
 let byCombo = {};        // combo -> action id
@@ -64,6 +67,19 @@ function inScope(scope) {
   return { guides: r.startsWith('guides'), pokedex: r.startsWith('pokedex'), notes: r.startsWith('tools/notes'), items: r.startsWith('tools/items'), links: r.startsWith('tools/links') }[scope] || false;
 }
 
+// Localize the application-authored wrapper and the hash-matched bundled objective.
+export function guideActionMessage(result) {
+  if (lang() === 'en') return result.message;
+  const kind = result.message_kind;
+  if (kind === 'no_steps' || kind === 'stale') return t('shortcutui.' + kind);
+  if (kind === 'first' || kind === 'last') return t('shortcutui.' + kind, { region: gameTerm('region', result.message_region) });
+  if (['step', 'ticked', 'unticked'].includes(kind) && result.message_step) {
+    const step = result.state?.source === 'imported' ? result.message_step.text : walkthroughStep(result.message_step, lang());
+    return t('shortcutui.' + kind, { step: [...String(step ?? '')].slice(0, 80).join(''), current: result.message_index, total: result.message_total });
+  }
+  return result.message;
+}
+
 let busy = false;
 async function guideAction(action) {
   if (busy) return;  // one action at a time: a second press while the first is in flight is dropped
@@ -71,11 +87,11 @@ async function guideAction(action) {
   try {
     let run = guideContext.run, region = guideContext.region;
     if (!run) { const r = await get('/api/guides/runs'); run = r.active || (r.runs[0] && r.runs[0].id); }
-    if (!run) { toast('Create a character run in Guides first.', { kind: 'warn' }); return; }
+    if (!run) { toast(t('ui.b272_collection_029'), { kind: 'warn' }); return; }
     const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const res = await post(`/api/guides/runs/${run}/action`, { action, region, expect_step: guideContext.step || undefined, nonce });
     if (res.duplicate) return;
-    toast(res.message, { kind: res.ok ? 'info' : 'warn', timeout: 2200 });
+    toast(guideActionMessage(res), { kind: res.ok ? 'info' : 'warn', timeout: 2200 });
     if (guideContext.refresh) guideContext.refresh();
   } catch (e) { toast(e.message, { kind: 'warn' }); } finally { busy = false; }
 }

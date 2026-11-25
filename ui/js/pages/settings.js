@@ -1,5 +1,5 @@
 import { gameTerm } from '../game-locale.js';
-import { uiLabel } from '../i18n.js';
+import { uiLabel, shortcutLabel } from '../i18n.js';
 import { t as translateUI } from '../i18n.js';
 // Settings (docs/design/16) + data import + first-run onboarding.
 import { CONTEXTS } from '../sprites.js';
@@ -67,7 +67,7 @@ async function shortcutsSec(b) {
       if (e.key === 'Escape') { draw(); return; }
       const combo = comboFromEvent(e);
       if (!combo) { toast(translateUI('ui.b272_settings_002'), { kind: 'warn' }); draw(); return; }
-      try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${uiLabel(a.label)}: ${displayCombo(combo)}`); }
+      try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${shortcutLabel(a.label)}: ${displayCombo(combo)}`); }
       catch (err) {
         if (isShortcutConflict(err) && await confirmDialog(translateUI('ui.b272_settings_003'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) {
           try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo, replace: true }); } catch (x) { toast(x.message, { kind: 'warn' }); }
@@ -79,15 +79,15 @@ async function shortcutsSec(b) {
   };
   const draw = () => {
     const groups = {};
-    for (const a of data.actions.filter((x) => !q || x.label.toLowerCase().includes(q) || uiLabel(x.label).toLowerCase().includes(q) || x.group.toLowerCase().includes(q) || uiLabel(x.group).toLowerCase().includes(q) || (x.binding || '').toLowerCase().includes(q))) (groups[a.group] ||= []).push(a);
-    mount(listEl, Object.entries(groups).map(([g, acts]) => h('section', { class: 'stack tight' }, h('h3', { style: { margin: '8px 0 0' } }, uiLabel(g)),
+    for (const a of data.actions.filter((x) => !q || x.label.toLowerCase().includes(q) || shortcutLabel(x.label).toLowerCase().includes(q) || x.group.toLowerCase().includes(q) || shortcutLabel(x.group).toLowerCase().includes(q) || (x.binding || '').toLowerCase().includes(q))) (groups[a.group] ||= []).push(a);
+    mount(listEl, Object.entries(groups).map(([g, acts]) => h('section', { class: 'stack tight' }, h('h3', { style: { margin: '8px 0 0' } }, shortcutLabel(g)),
       acts.map((a) => {
-        const rec = h('button', { class: 'btn small kb-rec', 'aria-label': translateUI('settings.shortcut_change_for', { label: uiLabel(a.label) }), onclick: (e) => record(a, e.currentTarget) }, a.binding ? translateUI('settings.shortcut_change') : translateUI('settings.shortcut_assign'));
-        return h('div', { class: 'set-row kb-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, uiLabel(a.label)),
+        const rec = h('button', { class: 'btn small kb-rec', 'aria-label': translateUI('settings.shortcut_change_for', { label: shortcutLabel(a.label) }), onclick: (e) => record(a, e.currentTarget) }, a.binding ? translateUI('settings.shortcut_change') : translateUI('settings.shortcut_assign'));
+        return h('div', { class: 'set-row kb-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, shortcutLabel(a.label)),
           h('div', { class: 'desc' }, { app: translateUI('ui.b272_settings_005'), guides: translateUI('ui.b272_settings_006'), pokedex: translateUI('ui.b272_settings_007'), notes: translateUI('ui.b272_settings_008'), items: t('items.title'), links: translateUI('ui.b272_settings_009') }[a.scope] || a.scope,
             a.default && a.default !== a.binding ? translateUI('settings.shortcut_default', { key: displayCombo(a.default) }) : '')),
         h('div', { class: 'row' }, h('kbd', { class: 'kb' + (a.binding ? '' : ' none') }, displayCombo(a.binding)), rec,
-          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': translateUI('settings.shortcut_clear_for', { label: uiLabel(a.label) }), onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
+          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': translateUI('settings.shortcut_clear_for', { label: shortcutLabel(a.label) }), onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
           a.default !== a.binding ? h('button', { class: 'btn ghost small', onclick: async () => {
             try { data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true }); } catch (err) {
               if (isShortcutConflict(err)) {
@@ -97,7 +97,7 @@ async function shortcutsSec(b) {
       }))));
   };
   b.append(h('h2', { style: { marginTop: 0 } }, t('shortcuts.title')),
-    notice('info', data.global_note),
+    notice('info', shortcutLabel(data.global_note)),
     row(translateUI('ui.b272_settings_010'), translateUI('ui.b272_settings_011'), switchEl(setting('shortcuts.enabled') !== false, set('shortcuts.enabled'))),
     row(translateUI('ui.b272_settings_012'), translateUI('ui.b272_settings_013'), switchEl(false, () => toast(translateUI('ui.b272_settings_014'), { kind: 'warn' }))),
     h('div', { class: 'row', style: { margin: '8px 0' } }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.b272_settings_015'), 'aria-label': translateUI('ui.b272_settings_016'),

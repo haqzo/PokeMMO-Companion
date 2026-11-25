@@ -1,5 +1,5 @@
 import { t as translateUI } from './i18n.js';
-import { lang, locale, t, uiLabel } from './i18n.js';
+import { lang, locale, t, shortcutLabel } from './i18n.js';
 import { gameTerm, speciesLabel } from './game-locale.js';
 // Core helpers: API client, DOM builder, icons, live sync, toasts, dialogs, formatting.
 import { applyTheme } from './themes.js';
@@ -126,7 +126,7 @@ export function apiErrorText(message) {
   if (typeof message !== 'string') return message;
   const conflict = shortcutConflict(message);
   if (conflict) return translateUI(conflict[3] ? 'errorui.shortcut_conflict' : 'errorui.shortcut_conflict_short',
-    { combo: conflict[1], action: uiLabel(conflict[2]) });
+    { combo: conflict[1], action: shortcutLabel(conflict[2]) });
   const reserved = /^([^\n]+) is reserved by the system or the Companion$/.exec(message);
   if (reserved) return translateUI('errorui.shortcut_reserved', { combo: reserved[1] });
   const checksum = /^Backup archive is damaged \(checksum mismatch in (.+)\)$/.exec(message);

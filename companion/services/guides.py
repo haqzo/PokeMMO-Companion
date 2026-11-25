@@ -278,11 +278,11 @@ class GuideService:
         st = self.state(run_id, region)
         steps = [x for x in self.steps(region, st["source"]) if st["show_optional"] or x.get("mandatory") is not False]
         if not steps:
-            return {"ok": False, "message": "This guide has no steps.", "state": st}
+            return {"ok": False, "message": "This guide has no steps.", "message_kind": "no_steps", "state": st}
         ids = [x["id"] for x in steps]
         cur = st["active_step_id"] if st["active_step_id"] in ids else ids[0]
         if expect_step and expect_step != cur:
-            return {"ok": False, "stale": True, "message": "The current step changed in another window — nothing was changed.", "state": st}
+            return {"ok": False, "stale": True, "message": "The current step changed in another window — nothing was changed.", "message_kind": "stale", "state": st}
         i = ids.index(cur)
         msg = None
         if action == "toggle":
@@ -290,15 +290,22 @@ class GuideService:
             self.set_region_prefs(run_id, region, active_step_id=cur)  # pin the pointer so ticking never moves it
             self.set_steps(run_id, [cur], not done)
             msg = ("Unticked" if done else "Ticked") + f": {steps[i]['text'][:80]}"
+            message_kind = "unticked" if done else "ticked"
+            message_index = i
         else:
             j = i + (1 if action == "next" else -1)
             if j < 0 or j >= len(ids):
                 return {"ok": False, "boundary": "start" if j < 0 else "end",
-                        "message": f"{'First' if j < 0 else 'Last'} step of {region.title()} — nothing changed.", "state": st}
+                        "message": f"{'First' if j < 0 else 'Last'} step of {region.title()} — nothing changed.",
+                        "message_kind": "first" if j < 0 else "last", "message_region": region, "state": st}
             self.set_region_prefs(run_id, region, active_step_id=ids[j])
             msg = f"Step {j + 1} of {len(ids)}: {steps[j]['text'][:80]}"
+            message_kind = "step"
+            message_index = j
         new = self.state(run_id, region)
-        return {"ok": True, "message": msg, "state": new, "step": new["active_step_id"],
+        message_step = {key: steps[message_index].get(key) for key in ("id", "text", "text_hash")}
+        return {"ok": True, "message": msg, "message_kind": message_kind, "message_step": message_step,
+                "message_index": message_index + 1, "message_total": len(ids), "state": new, "step": new["active_step_id"],
                 "done": new["active_step_id"] in set(new["done"])}
 
     def mark_through(self, run_id: str, region: str, step_id: str, preview: bool = False) -> dict:

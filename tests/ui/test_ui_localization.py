@@ -427,14 +427,14 @@ def test_service_errors_and_shortcut_conflicts(clean, pg, language):
     pg.locator("#main .page").first.wait_for()
     result = pg.evaluate("""async () => {
       const { apiErrorText, ApiError, isShortcutConflict } = await import('/js/core.js');
-      const { t, uiLabel } = await import('/js/i18n.js');
+      const { t, shortcutLabel } = await import('/js/i18n.js');
       const action = 'Focus Pokédex search';
       const raw = 'Ctrl+F is already used by “' + action + '”. Choose another key or replace it.';
       const e = new ApiError(raw);
       return {
         conflict: isShortcutConflict(e), nonconflict: isShortcutConflict(new ApiError('Shortcut already used')),
         raw: e.rawMessage, text: e.message,
-        expected: t('errorui.shortcut_conflict', {combo: 'Ctrl+F', action: uiLabel(action)}),
+        expected: t('errorui.shortcut_conflict', {combo: 'Ctrl+F', action: shortcutLabel(action)}),
         ev: apiErrorText('EV total cannot exceed 510'),
         expectedEV: t('errorui.ev_total'),
         backup: apiErrorText('Backup archive is damaged (checksum mismatch in backup.json)'),
@@ -448,4 +448,26 @@ def test_service_errors_and_shortcut_conflicts(clean, pg, language):
     assert result["ev"] == result["expectedEV"] and "510" in result["ev"]
     assert result["backup"] == result["expectedBackup"] and "backup.json" in result["backup"]
     assert result["unknown"] == "Unexpected provider message 123"
+    assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "label", "custom"), [
+    ("en", "Focus Pokédex search", "Ticked: Personal objective"),
+    ("es", "Enfocar la búsqueda de la Pokédex", "Marcado: Personal objective"),
+    ("zh", "聚焦宝可梦图鉴搜索框", "已勾选：Personal objective"),
+])
+def test_shortcut_labels_and_guide_feedback(clean, pg, language, label, custom):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { shortcutLabel } = await import('/js/i18n.js');
+      const { guideActionMessage } = await import('/js/shortcuts.js');
+      return [
+        shortcutLabel('Focus Pokédex search'),
+        guideActionMessage({message: 'Ticked: Personal objective', message_kind: 'ticked',
+          message_step: {text: 'Personal objective'}, state: {source: 'imported'}}),
+      ];
+    }""")
+    assert result == [label, custom]
     assert not pg.errors
