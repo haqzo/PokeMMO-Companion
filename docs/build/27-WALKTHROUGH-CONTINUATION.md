@@ -16,3 +16,7 @@ Regenerate with `node tools/localization/build-walkthrough-phrases.mjs`. Preserv
 The next manual pass adds 41 Kanto drafts, checked against canonical IDs, source hashes and numeric tokens. No original guide records were changed. Full application and walkthrough localization remain open.
 
 Four manual batches add 216 Kanto drafts (including the 41 above). All 454 Kanto step IDs now have matching Spanish and Simplified Chinese entries. Coverage does not imply native-speaker validation, gameplay verification or translated distribution permission. Other regions, interface text and source notes remain incomplete.
+
+## Subsequent audit
+
+The [November 25 localization audit](28-LOCALIZATION-AUDIT.md) independently counted 1,196 bilingual entries at `ee451d7` and raised coverage to 1,237 of 2,845 per language. It also documents the completed chapter heading catalog, quality fixes, stronger regression checks and the remaining application and walkthrough work.
