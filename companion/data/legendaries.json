@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "checked_at": "2026-11-22",
+  "source_url": "https://forums.pokemmo.com/index.php?/topic/160729-roaming-legendaries-faq/",
+  "status": "COMMUNITY-CYCLE",
+  "status_note": "Documented community cycle from the Roaming Legendaries FAQ. It has not been checked against the live game for the current month, and the exact rollover time/timezone is unknown, so no countdown is shown.",
+  "cycle": {
+    "kanto": {"1": 145, "4": 145, "7": 145, "10": 145, "2": 146, "5": 146, "8": 146, "11": 146, "3": 144, "6": 144, "9": 144, "12": 144},
+    "johto": {"1": 244, "4": 244, "7": 244, "10": 244, "2": 245, "5": 245, "8": 245, "11": 245, "3": 243, "6": 243, "9": 243, "12": 243}
+  },
+  "requirements": {
+    "kanto": "Community FAQ ties Kanto roamers to post-League progress. Exact current unlock conditions, encounter methods and Legendary Lure eligibility are not verified in this build.",
+    "johto": "Community FAQ ties Johto roamers to Johto storyline progress (Ecruteak / Burned Tower events). Exact current conditions are not verified in this build."
+  },
+  "not_roamers": [
+    {"species": 644, "label": "Zekrom", "class": "storyline-temporary", "note": "Unova storyline encounter; dump says obtainable=true but that does not mean permanently ownable."},
+    {"species": 150, "label": "Mewtwo", "class": "special/unverified", "note": "Acquisition class needs verification; never shown as a roamer."}
+  ]
+}

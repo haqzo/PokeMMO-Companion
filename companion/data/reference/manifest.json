@@ -1,0 +1,77 @@
+{
+ "importer": "dex-2",
+ "schema": 1,
+ "bundled": true,
+ "built_at": "2026-11-23T19:02:31Z",
+ "imported_at": "2026-11-22T21:38:18Z",
+ "dump_date": "2026-11-16",
+ "source": {
+  "kind": "PokeMMO client data dump (maintainer's own client files, processed privately)",
+  "files": {
+   "strings": {
+    "file": "XML-Strings.zip",
+    "sha256": "a86d107f37787e3fc9fd4ca8e8e7533fca97a45c4975ef1b6826204f75b17a1c"
+   },
+   "pokedex": {
+    "file": "PokedexData.zip",
+    "sha256": "55cea09809ec9a115acab075f880a050a6e7cfd74af3ba4a0afaf11e7b75a2f7"
+   }
+  },
+  "dump_date": "2026-11-16"
+ },
+ "counts": {
+  "species": 649,
+  "location_rows": 33405,
+  "skills": 559,
+  "item_groups": 2090,
+  "regions": {
+   "hoenn": {
+    "rows": 5539,
+    "locations": 127
+   },
+   "johto": {
+    "rows": 6006,
+    "locations": 104
+   },
+   "kanto": {
+    "rows": 7520,
+    "locations": 124
+   },
+   "sinnoh": {
+    "rows": 7438,
+    "locations": 159
+   },
+   "unova": {
+    "rows": 6902,
+    "locations": 115
+   }
+  }
+ },
+ "files": [
+  {
+   "file": "species.json.gz",
+   "bytes": 21403112,
+   "sha256": "3ea623ef23ec3e2df9e037d9ba80535ac10392396f4c60368a7be2a5df7eb0d4"
+  },
+  {
+   "file": "extras.json.gz",
+   "bytes": 140702,
+   "sha256": "1662decaf0e9c72bc6258a13649c0752d2304bbd7f4a60e89a7c66c5105c51b7"
+  },
+  {
+   "file": "items.json.gz",
+   "bytes": 645717,
+   "sha256": "e7c49ce6ea9fcb706d9c87581b3ada794446a61e1607b80cac77bda35dbe055e"
+  }
+ ],
+ "excluded": [
+  "sprites, icons, battle sprites, item icons, cries (artwork/audio are not redistributed)",
+  "item description texts",
+  "any path or file from the maintainer's computer"
+ ],
+ "caveats": [
+  "Encounter rows are as the client data lists them on the dump date; later patches may change them.",
+  "Rates are the client's own per-time labels; nothing is converted or estimated.",
+  "July 2026 encounter rebuild: verify against the dump date before calling data current."
+ ]
+}

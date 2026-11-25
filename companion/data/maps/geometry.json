@@ -1,0 +1,10291 @@
+{
+"version": 1,
+"maps": [
+{
+"id": "kanto",
+"region": "kanto",
+"label": "Kanto",
+"file": "kanto.svg",
+"w": 1120,
+"h": 920,
+"parent": null,
+"submaps": [
+"sevii-123",
+"sevii-4567"
+],
+"sha256": "05a2e44c5d93e4676f5b526ea35201ce063e3195f21862e97a3274be9a3597b0",
+"features": [
+{
+"id": "pallet",
+"name": "Pallet Town",
+"kind": "town",
+"location_ids": [
+"kanto:3"
+],
+"x": 0.17857,
+"y": 0.7,
+"w": 0.03571,
+"h": 0.03478
+},
+{
+"id": "viridian",
+"name": "Viridian City",
+"kind": "town",
+"location_ids": [
+"kanto:259"
+],
+"x": 0.17321,
+"y": 0.52174,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "pewter",
+"name": "Pewter City",
+"kind": "town",
+"location_ids": [],
+"x": 0.17321,
+"y": 0.21739,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "cerulean",
+"name": "Cerulean City",
+"kind": "town",
+"location_ids": [
+"kanto:771"
+],
+"x": 0.60179,
+"y": 0.15217,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "saffron",
+"name": "Saffron City",
+"kind": "town",
+"location_ids": [],
+"x": 0.60179,
+"y": 0.36957,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "celadon",
+"name": "Celadon City",
+"kind": "town",
+"location_ids": [
+"kanto:1539"
+],
+"x": 0.44107,
+"y": 0.36957,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "vermilion",
+"name": "Vermilion City",
+"kind": "town",
+"location_ids": [
+"kanto:1283"
+],
+"x": 0.60179,
+"y": 0.58696,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "lavender",
+"name": "Lavender Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.80357,
+"y": 0.37391,
+"w": 0.03571,
+"h": 0.03478
+},
+{
+"id": "fuchsia",
+"name": "Fuchsia City",
+"kind": "town",
+"location_ids": [
+"kanto:1795"
+],
+"x": 0.49464,
+"y": 0.73913,
+"w": 0.04643,
+"h": 0.04348
+},
+{
+"id": "cinnabar",
+"name": "Cinnabar Island",
+"kind": "town",
+"location_ids": [
+"kanto:2051"
+],
+"x": 0.17857,
+"y": 0.89565,
+"w": 0.03571,
+"h": 0.03478
+},
+{
+"id": "indigo",
+"name": "Indigo Plateau",
+"kind": "town",
+"location_ids": [],
+"x": 0.05357,
+"y": 0.11304,
+"w": 0.03571,
+"h": 0.03478
+},
+{
+"id": "r1",
+"name": "Route 1",
+"kind": "route",
+"location_ids": [
+"kanto:4867"
+],
+"lines": [
+[
+[
+0.19643,
+0.71739
+],
+[
+0.19643,
+0.54348
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r2",
+"name": "Route 2",
+"kind": "route",
+"location_ids": [
+"kanto:5123"
+],
+"lines": [
+[
+[
+0.19643,
+0.54348
+],
+[
+0.19643,
+0.45652
+],
+[
+0.19643,
+0.32609
+],
+[
+0.19643,
+0.23913
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r22",
+"name": "Route 22",
+"kind": "route",
+"location_ids": [
+"kanto:10499"
+],
+"lines": [
+[
+[
+0.19643,
+0.54348
+],
+[
+0.07143,
+0.54348
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r23",
+"name": "Route 23",
+"kind": "route",
+"location_ids": [
+"kanto:10755"
+],
+"lines": [
+[
+[
+0.07143,
+0.54348
+],
+[
+0.07143,
+0.32609
+],
+[
+0.07143,
+0.15217
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r3",
+"name": "Route 3",
+"kind": "route",
+"location_ids": [
+"kanto:5379"
+],
+"lines": [
+[
+[
+0.19643,
+0.23913
+],
+[
+0.32143,
+0.23913
+],
+[
+0.375,
+0.19565
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r4",
+"name": "Route 4",
+"kind": "route",
+"location_ids": [
+"kanto:5635"
+],
+"lines": [
+[
+[
+0.44643,
+0.17391
+],
+[
+0.625,
+0.17391
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r24",
+"name": "Route 24",
+"kind": "route",
+"location_ids": [
+"kanto:11011"
+],
+"lines": [
+[
+[
+0.625,
+0.17391
+],
+[
+0.625,
+0.06522
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r25",
+"name": "Route 25",
+"kind": "route",
+"location_ids": [
+"kanto:11267"
+],
+"lines": [
+[
+[
+0.625,
+0.06522
+],
+[
+0.82143,
+0.06522
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r5",
+"name": "Route 5",
+"kind": "route",
+"location_ids": [
+"kanto:5891"
+],
+"lines": [
+[
+[
+0.625,
+0.17391
+],
+[
+0.625,
+0.28261
+],
+[
+0.625,
+0.3913
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r6",
+"name": "Route 6",
+"kind": "route",
+"location_ids": [
+"kanto:6147"
+],
+"lines": [
+[
+[
+0.625,
+0.3913
+],
+[
+0.625,
+0.5
+],
+[
+0.625,
+0.6087
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r7",
+"name": "Route 7",
+"kind": "route",
+"location_ids": [
+"kanto:6403"
+],
+"lines": [
+[
+[
+0.46429,
+0.3913
+],
+[
+0.55357,
+0.3913
+],
+[
+0.625,
+0.3913
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r8",
+"name": "Route 8",
+"kind": "route",
+"location_ids": [
+"kanto:6659"
+],
+"lines": [
+[
+[
+0.625,
+0.3913
+],
+[
+0.71429,
+0.3913
+],
+[
+0.82143,
+0.3913
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r9",
+"name": "Route 9",
+"kind": "route",
+"location_ids": [
+"kanto:6915"
+],
+"lines": [
+[
+[
+0.625,
+0.17391
+],
+[
+0.82143,
+0.17391
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r10",
+"name": "Route 10",
+"kind": "route",
+"location_ids": [
+"kanto:7171"
+],
+"lines": [
+[
+[
+0.82143,
+0.17391
+],
+[
+0.82143,
+0.32609
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r11",
+"name": "Route 11",
+"kind": "route",
+"location_ids": [
+"kanto:7427"
+],
+"lines": [
+[
+[
+0.625,
+0.6087
+],
+[
+0.78571,
+0.6087
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r12",
+"name": "Route 12",
+"kind": "route",
+"location_ids": [
+"kanto:7683"
+],
+"lines": [
+[
+[
+0.82143,
+0.3913
+],
+[
+0.82143,
+0.65217
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r13",
+"name": "Route 13",
+"kind": "route",
+"location_ids": [
+"kanto:7939"
+],
+"lines": [
+[
+[
+0.82143,
+0.65217
+],
+[
+0.71429,
+0.67391
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r14",
+"name": "Route 14",
+"kind": "route",
+"location_ids": [
+"kanto:8195"
+],
+"lines": [
+[
+[
+0.71429,
+0.67391
+],
+[
+0.67857,
+0.78261
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r15",
+"name": "Route 15",
+"kind": "route",
+"location_ids": [
+"kanto:8451"
+],
+"lines": [
+[
+[
+0.67857,
+0.78261
+],
+[
+0.57143,
+0.76087
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r16",
+"name": "Route 16",
+"kind": "route",
+"location_ids": [
+"kanto:8707"
+],
+"lines": [
+[
+[
+0.46429,
+0.3913
+],
+[
+0.33929,
+0.3913
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r17",
+"name": "Route 17",
+"kind": "route",
+"location_ids": [
+"kanto:8963"
+],
+"lines": [
+[
+[
+0.33929,
+0.3913
+],
+[
+0.33929,
+0.71739
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r18",
+"name": "Route 18",
+"kind": "route",
+"location_ids": [
+"kanto:9219"
+],
+"lines": [
+[
+[
+0.33929,
+0.71739
+],
+[
+0.46429,
+0.76087
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r19",
+"name": "Route 19",
+"kind": "sea",
+"location_ids": [
+"kanto:9475"
+],
+"lines": [
+[
+[
+0.51786,
+0.82609
+],
+[
+0.51786,
+0.95652
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r20",
+"name": "Route 20",
+"kind": "sea",
+"location_ids": [
+"kanto:9731"
+],
+"lines": [
+[
+[
+0.51786,
+0.95652
+],
+[
+0.25,
+0.95652
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r21n",
+"name": "Route 21 (North)",
+"kind": "sea",
+"location_ids": [
+"kanto:9987"
+],
+"lines": [
+[
+[
+0.19643,
+0.76087
+],
+[
+0.19643,
+0.81522
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r21s",
+"name": "Route 21 (South)",
+"kind": "sea",
+"location_ids": [
+"kanto:10243"
+],
+"lines": [
+[
+[
+0.19643,
+0.81522
+],
+[
+0.19643,
+0.86957
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "viridian-forest",
+"name": "Viridian Forest",
+"kind": "landmark",
+"location_ids": [
+"kanto:1"
+],
+"x": 0.19643,
+"y": 0.3913
+},
+{
+"id": "mt-moon",
+"name": "Mt. Moon",
+"kind": "cave",
+"location_ids": [
+"kanto:257",
+"kanto:513",
+"kanto:769"
+],
+"x": 0.41071,
+"y": 0.18478
+},
+{
+"id": "cerulean-cave",
+"name": "Cerulean Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:18433",
+"kanto:18689",
+"kanto:18945"
+],
+"x": 0.55357,
+"y": 0.13043
+},
+{
+"id": "rock-tunnel",
+"name": "Rock Tunnel",
+"kind": "cave",
+"location_ids": [
+"kanto:20737",
+"kanto:20993"
+],
+"x": 0.82143,
+"y": 0.25
+},
+{
+"id": "power-plant",
+"name": "Power Plant",
+"kind": "landmark",
+"location_ids": [
+"kanto:24321"
+],
+"x": 0.88393,
+"y": 0.29348
+},
+{
+"id": "pokemon-tower",
+"name": "Pokémon Tower",
+"kind": "landmark",
+"location_ids": [
+"kanto:23041",
+"kanto:23297",
+"kanto:23553",
+"kanto:23809",
+"kanto:24065"
+],
+"x": 0.85714,
+"y": 0.42391
+},
+{
+"id": "digletts-cave",
+"name": "Diglett's Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:9473"
+],
+"x": 0.69643,
+"y": 0.56522
+},
+{
+"id": "safari-zone",
+"name": "Safari Zone",
+"kind": "area",
+"location_ids": [
+"kanto:16129",
+"kanto:16385",
+"kanto:16641",
+"kanto:16897"
+],
+"x": 0.51786,
+"y": 0.65217
+},
+{
+"id": "seafoam",
+"name": "Seafoam Islands",
+"kind": "cave",
+"location_ids": [
+"kanto:21249",
+"kanto:21505",
+"kanto:21761",
+"kanto:22017",
+"kanto:22273"
+],
+"x": 0.375,
+"y": 0.95652
+},
+{
+"id": "pokemon-mansion",
+"name": "Pokémon Mansion",
+"kind": "landmark",
+"location_ids": [
+"kanto:15105",
+"kanto:15361",
+"kanto:15617",
+"kanto:15873"
+],
+"x": 0.15179,
+"y": 0.8913
+},
+{
+"id": "victory-road",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"kanto:10241",
+"kanto:10497",
+"kanto:9985"
+],
+"x": 0.07143,
+"y": 0.23913
+},
+{
+"id": "ss-anne",
+"name": "S.S. Anne",
+"kind": "landmark",
+"location_ids": [
+"kanto:1025"
+],
+"x": 0.66071,
+"y": 0.69565
+}
+]
+},
+{
+"id": "sevii-123",
+"region": "kanto",
+"label": "Sevii Islands 1–3",
+"file": "sevii-123.svg",
+"w": 1100,
+"h": 840,
+"parent": "kanto",
+"submaps": [],
+"sha256": "6569f371477c3ab85a66feb339552fbfbebe3202f7304ba521f1e158b5684f2a",
+"features": [
+{
+"id": "one-island",
+"name": "One Island",
+"kind": "town",
+"location_ids": [
+"kanto:3075"
+],
+"x": 0.18182,
+"y": 0.64762,
+"w": 0.03636,
+"h": 0.0381
+},
+{
+"id": "two-island",
+"name": "Two Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.45455,
+"y": 0.52857,
+"w": 0.03636,
+"h": 0.0381
+},
+{
+"id": "three-island",
+"name": "Three Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.72727,
+"y": 0.74286,
+"w": 0.03636,
+"h": 0.0381
+},
+{
+"id": "kindle-road",
+"name": "Kindle Road",
+"kind": "route",
+"location_ids": [
+"kanto:11523"
+],
+"lines": [
+[
+[
+0.2,
+0.66667
+],
+[
+0.2,
+0.47619
+],
+[
+0.18182,
+0.2619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "treasure-beach",
+"name": "Treasure Beach",
+"kind": "area",
+"location_ids": [
+"kanto:11779"
+],
+"x": 0.16364,
+"y": 0.80952
+},
+{
+"id": "mt-ember",
+"name": "Mt. Ember",
+"kind": "cave",
+"location_ids": [
+"kanto:24833",
+"kanto:25089",
+"kanto:25345",
+"kanto:25601",
+"kanto:26369",
+"kanto:26625",
+"kanto:26881",
+"kanto:27137",
+"kanto:27393",
+"kanto:27649"
+],
+"x": 0.16364,
+"y": 0.14286
+},
+{
+"id": "cape-brink",
+"name": "Cape Brink",
+"kind": "area",
+"location_ids": [
+"kanto:12035"
+],
+"x": 0.45455,
+"y": 0.42857
+},
+{
+"id": "bond-bridge",
+"name": "Bond Bridge",
+"kind": "route",
+"location_ids": [
+"kanto:12291"
+],
+"lines": [
+[
+[
+0.6,
+0.7619
+],
+[
+0.74545,
+0.7619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "berry-forest",
+"name": "Berry Forest",
+"kind": "landmark",
+"location_ids": [
+"kanto:27905"
+],
+"x": 0.58182,
+"y": 0.64286
+},
+{
+"id": "three-isle-port",
+"name": "Three Isle Port",
+"kind": "area",
+"location_ids": [
+"kanto:12547"
+],
+"x": 0.8,
+"y": 0.85714
+}
+]
+},
+{
+"id": "sevii-4567",
+"region": "kanto",
+"label": "Sevii Islands 4–7",
+"file": "sevii-4567.svg",
+"w": 1200,
+"h": 900,
+"parent": "kanto",
+"submaps": [],
+"sha256": "10a7471fc8b84d31056213f88d067bc4dcba167d4aef0eda2235829ea0c2a475",
+"features": [
+{
+"id": "four-island",
+"name": "Four Island",
+"kind": "town",
+"location_ids": [
+"kanto:3843"
+],
+"x": 0.13333,
+"y": 0.18222,
+"w": 0.03333,
+"h": 0.03556
+},
+{
+"id": "five-island",
+"name": "Five Island",
+"kind": "town",
+"location_ids": [
+"kanto:4099"
+],
+"x": 0.33333,
+"y": 0.49333,
+"w": 0.03333,
+"h": 0.03556
+},
+{
+"id": "six-island",
+"name": "Six Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.58333,
+"y": 0.36,
+"w": 0.03333,
+"h": 0.03556
+},
+{
+"id": "seven-island",
+"name": "Seven Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.5,
+"y": 0.69333,
+"w": 0.03333,
+"h": 0.03556
+},
+{
+"id": "icefall-cave",
+"name": "Icefall Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:28161",
+"kanto:28417",
+"kanto:28673",
+"kanto:28929"
+],
+"x": 0.1,
+"y": 0.13333
+},
+{
+"id": "five-isle-meadow",
+"name": "Five Isle Meadow",
+"kind": "area",
+"location_ids": [
+"kanto:14339"
+],
+"x": 0.38333,
+"y": 0.42222
+},
+{
+"id": "water-labyrinth",
+"name": "Water Labyrinth",
+"kind": "area",
+"location_ids": [
+"kanto:14083"
+],
+"x": 0.28333,
+"y": 0.37778
+},
+{
+"id": "memorial-pillar",
+"name": "Memorial Pillar",
+"kind": "landmark",
+"location_ids": [
+"kanto:14595"
+],
+"x": 0.41667,
+"y": 0.55556
+},
+{
+"id": "resort-gorgeous",
+"name": "Resort Gorgeous",
+"kind": "area",
+"location_ids": [
+"kanto:13827"
+],
+"x": 0.3,
+"y": 0.26667
+},
+{
+"id": "lost-cave",
+"name": "Lost Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:3330",
+"kanto:3586",
+"kanto:3842",
+"kanto:4098",
+"kanto:4354",
+"kanto:4610",
+"kanto:4866",
+"kanto:5122",
+"kanto:5378",
+"kanto:5634",
+"kanto:5890",
+"kanto:6146",
+"kanto:6402",
+"kanto:6658"
+],
+"x": 0.25,
+"y": 0.22222
+},
+{
+"id": "water-path",
+"name": "Water Path",
+"kind": "route",
+"location_ids": [
+"kanto:15363"
+],
+"lines": [
+[
+[
+0.6,
+0.37778
+],
+[
+0.7,
+0.28889
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "ruin-valley",
+"name": "Ruin Valley",
+"kind": "area",
+"location_ids": [
+"kanto:15619"
+],
+"x": 0.71667,
+"y": 0.4
+},
+{
+"id": "green-path",
+"name": "Green Path",
+"kind": "route",
+"location_ids": [
+"kanto:15107"
+],
+"lines": [
+[
+[
+0.55,
+0.28889
+],
+[
+0.6,
+0.33333
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "pattern-bush",
+"name": "Pattern Bush",
+"kind": "area",
+"location_ids": [
+"kanto:30977"
+],
+"x": 0.55,
+"y": 0.24444
+},
+{
+"id": "outcast-island",
+"name": "Outcast Island",
+"kind": "area",
+"location_ids": [
+"kanto:14851"
+],
+"x": 0.5,
+"y": 0.13333
+},
+{
+"id": "altering-cave",
+"name": "Altering Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:31233"
+],
+"x": 0.5,
+"y": 0.05556
+},
+{
+"id": "trainer-tower",
+"name": "Trainer Tower",
+"kind": "landmark",
+"location_ids": [
+"kanto:15875"
+],
+"x": 0.48333,
+"y": 0.82222
+},
+{
+"id": "canyon-entrance",
+"name": "Canyon Entrance",
+"kind": "area",
+"location_ids": [
+"kanto:16131"
+],
+"x": 0.56667,
+"y": 0.66667
+},
+{
+"id": "sevault-canyon",
+"name": "Sevault Canyon",
+"kind": "area",
+"location_ids": [
+"kanto:16387"
+],
+"x": 0.63333,
+"y": 0.77778
+},
+{
+"id": "tanoby-ruins",
+"name": "Tanoby Ruins",
+"kind": "landmark",
+"location_ids": [
+"kanto:16643",
+"kanto:6914",
+"kanto:7170",
+"kanto:7426",
+"kanto:7682",
+"kanto:7938",
+"kanto:8194",
+"kanto:8450"
+],
+"x": 0.58333,
+"y": 0.88889
+}
+]
+},
+{
+"id": "johto",
+"region": "johto",
+"label": "Johto",
+"file": "johto.svg",
+"w": 1240,
+"h": 740,
+"parent": null,
+"submaps": [],
+"sha256": "f08fbcb8506e56b6527c2dfec7b6ed160be66a7abddd72d4b5cf039352ebfeae",
+"features": [
+{
+"id": "new-bark",
+"name": "New Bark Town",
+"kind": "town",
+"location_ids": [
+"johto:60"
+],
+"x": 0.77419,
+"y": 0.62703,
+"w": 0.03226,
+"h": 0.04324
+},
+{
+"id": "cherrygrove",
+"name": "Cherrygrove City",
+"kind": "town",
+"location_ids": [
+"johto:67"
+],
+"x": 0.62903,
+"y": 0.65405,
+"w": 0.03226,
+"h": 0.04324
+},
+{
+"id": "violet",
+"name": "Violet City",
+"kind": "town",
+"location_ids": [
+"johto:73"
+],
+"x": 0.55968,
+"y": 0.35135,
+"w": 0.04194,
+"h": 0.05405
+},
+{
+"id": "azalea",
+"name": "Azalea Town",
+"kind": "town",
+"location_ids": [
+"johto:74"
+],
+"x": 0.41935,
+"y": 0.76216,
+"w": 0.03226,
+"h": 0.04324
+},
+{
+"id": "goldenrod",
+"name": "Goldenrod City",
+"kind": "town",
+"location_ids": [],
+"x": 0.35,
+"y": 0.43243,
+"w": 0.04194,
+"h": 0.05405
+},
+{
+"id": "ecruteak",
+"name": "Ecruteak City",
+"kind": "town",
+"location_ids": [
+"johto:78"
+],
+"x": 0.38226,
+"y": 0.18919,
+"w": 0.04194,
+"h": 0.05405
+},
+{
+"id": "olivine",
+"name": "Olivine City",
+"kind": "town",
+"location_ids": [
+"johto:77"
+],
+"x": 0.17258,
+"y": 0.2973,
+"w": 0.04194,
+"h": 0.05405
+},
+{
+"id": "cianwood",
+"name": "Cianwood City",
+"kind": "town",
+"location_ids": [
+"johto:75"
+],
+"x": 0.03226,
+"y": 0.49189,
+"w": 0.03226,
+"h": 0.04324
+},
+{
+"id": "mahogany",
+"name": "Mahogany Town",
+"kind": "town",
+"location_ids": [
+"johto:87"
+],
+"x": 0.64516,
+"y": 0.19459,
+"w": 0.03226,
+"h": 0.04324
+},
+{
+"id": "blackthorn",
+"name": "Blackthorn City",
+"kind": "town",
+"location_ids": [
+"johto:89"
+],
+"x": 0.81774,
+"y": 0.18919,
+"w": 0.04194,
+"h": 0.05405
+},
+{
+"id": "r29",
+"name": "Route 29",
+"kind": "route",
+"location_ids": [
+"johto:33"
+],
+"lines": [
+[
+[
+0.79032,
+0.64865
+],
+[
+0.64516,
+0.67568
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r30",
+"name": "Route 30",
+"kind": "route",
+"location_ids": [
+"johto:34"
+],
+"lines": [
+[
+[
+0.64516,
+0.67568
+],
+[
+0.64516,
+0.51351
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r31",
+"name": "Route 31",
+"kind": "route",
+"location_ids": [
+"johto:35"
+],
+"lines": [
+[
+[
+0.64516,
+0.51351
+],
+[
+0.64516,
+0.40541
+],
+[
+0.58065,
+0.37838
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r32",
+"name": "Route 32",
+"kind": "route",
+"location_ids": [
+"johto:36"
+],
+"lines": [
+[
+[
+0.58065,
+0.37838
+],
+[
+0.58065,
+0.62162
+],
+[
+0.58065,
+0.78378
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r33",
+"name": "Route 33",
+"kind": "route",
+"location_ids": [
+"johto:37"
+],
+"lines": [
+[
+[
+0.54839,
+0.83784
+],
+[
+0.43548,
+0.78378
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r34",
+"name": "Route 34",
+"kind": "route",
+"location_ids": [
+"johto:38"
+],
+"lines": [
+[
+[
+0.37097,
+0.67568
+],
+[
+0.37097,
+0.45946
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r35",
+"name": "Route 35",
+"kind": "route",
+"location_ids": [
+"johto:39"
+],
+"lines": [
+[
+[
+0.37097,
+0.45946
+],
+[
+0.37097,
+0.35135
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r36",
+"name": "Route 36",
+"kind": "route",
+"location_ids": [
+"johto:40"
+],
+"lines": [
+[
+[
+0.40323,
+0.32432
+],
+[
+0.51613,
+0.32432
+],
+[
+0.58065,
+0.37838
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r37",
+"name": "Route 37",
+"kind": "route",
+"location_ids": [
+"johto:41"
+],
+"lines": [
+[
+[
+0.46774,
+0.32432
+],
+[
+0.40323,
+0.21622
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r38",
+"name": "Route 38",
+"kind": "route",
+"location_ids": [
+"johto:42"
+],
+"lines": [
+[
+[
+0.40323,
+0.21622
+],
+[
+0.27419,
+0.21622
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r39",
+"name": "Route 39",
+"kind": "route",
+"location_ids": [
+"johto:43"
+],
+"lines": [
+[
+[
+0.27419,
+0.21622
+],
+[
+0.22581,
+0.2973
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r40",
+"name": "Route 40",
+"kind": "sea",
+"location_ids": [
+"johto:94"
+],
+"lines": [
+[
+[
+0.17742,
+0.37838
+],
+[
+0.14516,
+0.51351
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r41",
+"name": "Route 41",
+"kind": "sea",
+"location_ids": [
+"johto:95"
+],
+"lines": [
+[
+[
+0.12903,
+0.56757
+],
+[
+0.06452,
+0.54054
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r42",
+"name": "Route 42",
+"kind": "route",
+"location_ids": [
+"johto:44"
+],
+"lines": [
+[
+[
+0.40323,
+0.21622
+],
+[
+0.51613,
+0.21622
+],
+[
+0.66129,
+0.21622
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r43",
+"name": "Route 43",
+"kind": "route",
+"location_ids": [
+"johto:45"
+],
+"lines": [
+[
+[
+0.66129,
+0.21622
+],
+[
+0.66129,
+0.10811
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r44",
+"name": "Route 44",
+"kind": "route",
+"location_ids": [
+"johto:46"
+],
+"lines": [
+[
+[
+0.66129,
+0.21622
+],
+[
+0.77419,
+0.18919
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r45",
+"name": "Route 45",
+"kind": "route",
+"location_ids": [
+"johto:47"
+],
+"lines": [
+[
+[
+0.83871,
+0.21622
+],
+[
+0.83871,
+0.37838
+],
+[
+0.83871,
+0.54054
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r46",
+"name": "Route 46",
+"kind": "route",
+"location_ids": [
+"johto:48"
+],
+"lines": [
+[
+[
+0.83871,
+0.54054
+],
+[
+0.72581,
+0.62162
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r27",
+"name": "Route 27",
+"kind": "route",
+"location_ids": [
+"johto:31"
+],
+"lines": [
+[
+[
+0.79032,
+0.64865
+],
+[
+0.90323,
+0.64865
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r26",
+"name": "Route 26",
+"kind": "route",
+"location_ids": [
+"johto:30"
+],
+"lines": [
+[
+[
+0.90323,
+0.64865
+],
+[
+0.90323,
+0.2973
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r28",
+"name": "Route 28",
+"kind": "route",
+"location_ids": [
+"johto:32"
+],
+"lines": [
+[
+[
+0.90323,
+0.18919
+],
+[
+0.95161,
+0.13514
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r47",
+"name": "Route 47",
+"kind": "route",
+"location_ids": [
+"johto:151"
+],
+"lines": [
+[
+[
+0.04839,
+0.51351
+],
+[
+0.02419,
+0.40541
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r48",
+"name": "Route 48",
+"kind": "route",
+"location_ids": [
+"johto:152"
+],
+"lines": [
+[
+[
+0.02419,
+0.40541
+],
+[
+0.04839,
+0.24324
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "lake-of-rage",
+"name": "Lake of Rage",
+"kind": "area",
+"location_ids": [
+"johto:88"
+],
+"x": 0.67742,
+"y": 0.04054
+},
+{
+"id": "sprout-tower",
+"name": "Sprout Tower",
+"kind": "landmark",
+"location_ids": [
+"johto:155",
+"johto:156"
+],
+"x": 0.6129,
+"y": 0.32432
+},
+{
+"id": "ruins-of-alph",
+"name": "Ruins of Alph",
+"kind": "landmark",
+"location_ids": [
+"johto:113",
+"johto:315",
+"johto:323",
+"johto:491"
+],
+"x": 0.51613,
+"y": 0.51351
+},
+{
+"id": "union-cave",
+"name": "Union Cave",
+"kind": "cave",
+"location_ids": [
+"johto:153",
+"johto:154",
+"johto:99"
+],
+"x": 0.58065,
+"y": 0.81081
+},
+{
+"id": "slowpoke-well",
+"name": "Slowpoke Well",
+"kind": "cave",
+"location_ids": [
+"johto:177",
+"johto:181"
+],
+"x": 0.46774,
+"y": 0.83784
+},
+{
+"id": "ilex-forest",
+"name": "Ilex Forest",
+"kind": "landmark",
+"location_ids": [
+"johto:117"
+],
+"x": 0.37097,
+"y": 0.72973
+},
+{
+"id": "national-park",
+"name": "National Park",
+"kind": "area",
+"location_ids": [
+"johto:96"
+],
+"x": 0.37097,
+"y": 0.32432
+},
+{
+"id": "pokeathlon",
+"name": "Pokéathlon Dome",
+"kind": "landmark",
+"location_ids": [
+"johto:280"
+],
+"x": 0.32258,
+"y": 0.37838
+},
+{
+"id": "burned-tower",
+"name": "Burned Tower",
+"kind": "landmark",
+"location_ids": [
+"johto:217",
+"johto:7"
+],
+"x": 0.37097,
+"y": 0.16216
+},
+{
+"id": "bell-tower",
+"name": "Bell Tower",
+"kind": "landmark",
+"location_ids": [
+"johto:332",
+"johto:333",
+"johto:334",
+"johto:335",
+"johto:336",
+"johto:337",
+"johto:338",
+"johto:339",
+"johto:341"
+],
+"x": 0.43548,
+"y": 0.14865
+},
+{
+"id": "whirl-islands",
+"name": "Whirl Islands",
+"kind": "cave",
+"location_ids": [
+"johto:121",
+"johto:242",
+"johto:243",
+"johto:486"
+],
+"x": 0.12903,
+"y": 0.62162
+},
+{
+"id": "mt-mortar",
+"name": "Mt. Mortar",
+"kind": "cave",
+"location_ids": [
+"johto:119",
+"johto:250",
+"johto:251",
+"johto:252"
+],
+"x": 0.53226,
+"y": 0.18919
+},
+{
+"id": "rocket-hq",
+"name": "Team Rocket HQ",
+"kind": "landmark",
+"location_ids": [
+"johto:247",
+"johto:248",
+"johto:249"
+],
+"x": 0.69355,
+"y": 0.25676
+},
+{
+"id": "ice-path",
+"name": "Ice Path",
+"kind": "cave",
+"location_ids": [
+"johto:120",
+"johto:237",
+"johto:238",
+"johto:239"
+],
+"x": 0.79032,
+"y": 0.16216
+},
+{
+"id": "dragons-den",
+"name": "Dragon's Den",
+"kind": "cave",
+"location_ids": [
+"johto:253"
+],
+"x": 0.87097,
+"y": 0.14865
+},
+{
+"id": "dark-cave",
+"name": "Dark Cave",
+"kind": "cave",
+"location_ids": [
+"johto:123",
+"johto:176"
+],
+"x": 0.67742,
+"y": 0.45946
+},
+{
+"id": "tohjo-falls",
+"name": "Tohjo Falls",
+"kind": "cave",
+"location_ids": [
+"johto:126",
+"johto:298"
+],
+"x": 0.87097,
+"y": 0.64865
+},
+{
+"id": "victory-road-j",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"johto:124",
+"johto:178",
+"johto:179"
+],
+"x": 0.90323,
+"y": 0.24324
+},
+{
+"id": "mt-silver",
+"name": "Mt. Silver",
+"kind": "cave",
+"location_ids": [
+"johto:90",
+"johto:122",
+"johto:459",
+"johto:460",
+"johto:461",
+"johto:462",
+"johto:463",
+"johto:464"
+],
+"x": 0.95161,
+"y": 0.08108
+},
+{
+"id": "cliff-cave",
+"name": "Cliff Cave",
+"kind": "cave",
+"location_ids": [
+"johto:342"
+],
+"x": 0.01613,
+"y": 0.45946
+},
+{
+"id": "cliff-edge-gate",
+"name": "Cliff Edge Gate",
+"kind": "landmark",
+"location_ids": [
+"johto:279"
+],
+"x": 0.03226,
+"y": 0.35135
+},
+{
+"id": "safari-zone-j",
+"name": "Safari Zone",
+"kind": "area",
+"location_ids": [
+"johto:343",
+"johto:344",
+"johto:345",
+"johto:346",
+"johto:347",
+"johto:348",
+"johto:349",
+"johto:350",
+"johto:351",
+"johto:352",
+"johto:353",
+"johto:354",
+"johto:174"
+],
+"x": 0.06452,
+"y": 0.16216
+}
+]
+},
+{
+"id": "hoenn",
+"region": "hoenn",
+"label": "Hoenn",
+"file": "hoenn.svg",
+"w": 1320,
+"h": 840,
+"parent": null,
+"submaps": [],
+"sha256": "7ba27a5c2a95491b2b4e656754b715c254f2898cfeabce4c9260285223ecd02a",
+"features": [
+{
+"id": "littleroot",
+"name": "Littleroot Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.21212,
+"y": 0.74286,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "oldale",
+"name": "Oldale Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.21212,
+"y": 0.62381,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "petalburg",
+"name": "Petalburg City",
+"kind": "town",
+"location_ids": [
+"hoenn:50"
+],
+"x": 0.10606,
+"y": 0.6,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "rustboro",
+"name": "Rustboro City",
+"kind": "town",
+"location_ids": [
+"hoenn:818"
+],
+"x": 0.04091,
+"y": 0.33333,
+"w": 0.03939,
+"h": 0.04762
+},
+{
+"id": "dewford",
+"name": "Dewford Town",
+"kind": "town",
+"location_ids": [
+"hoenn:2866"
+],
+"x": 0.06061,
+"y": 0.8619,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "slateport",
+"name": "Slateport City",
+"kind": "town",
+"location_ids": [
+"hoenn:306"
+],
+"x": 0.31364,
+"y": 0.7619,
+"w": 0.03939,
+"h": 0.04762
+},
+{
+"id": "mauville",
+"name": "Mauville City",
+"kind": "town",
+"location_ids": [],
+"x": 0.31364,
+"y": 0.45238,
+"w": 0.03939,
+"h": 0.04762
+},
+{
+"id": "verdanturf",
+"name": "Verdanturf Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.21212,
+"y": 0.45714,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "fallarbor",
+"name": "Fallarbor Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.18182,
+"y": 0.07619,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "lavaridge",
+"name": "Lavaridge Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.22727,
+"y": 0.29048,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "fortree",
+"name": "Fortree City",
+"kind": "town",
+"location_ids": [],
+"x": 0.45455,
+"y": 0.1,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "lilycove",
+"name": "Lilycove City",
+"kind": "town",
+"location_ids": [
+"hoenn:1330"
+],
+"x": 0.66212,
+"y": 0.2381,
+"w": 0.03939,
+"h": 0.04762
+},
+{
+"id": "mossdeep",
+"name": "Mossdeep City",
+"kind": "town",
+"location_ids": [
+"hoenn:1586"
+],
+"x": 0.81818,
+"y": 0.3381,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "sootopolis",
+"name": "Sootopolis City",
+"kind": "town",
+"location_ids": [
+"hoenn:1842"
+],
+"x": 0.75758,
+"y": 0.50476,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "pacifidlog",
+"name": "Pacifidlog Town",
+"kind": "town",
+"location_ids": [
+"hoenn:3890"
+],
+"x": 0.51515,
+"y": 0.76667,
+"w": 0.0303,
+"h": 0.0381
+},
+{
+"id": "ever-grande",
+"name": "Ever Grande City",
+"kind": "town",
+"location_ids": [
+"hoenn:2098"
+],
+"x": 0.9197,
+"y": 0.57143,
+"w": 0.03939,
+"h": 0.04762
+},
+{
+"id": "r101",
+"name": "Route 101",
+"kind": "route",
+"location_ids": [
+"hoenn:4146"
+],
+"lines": [
+[
+[
+0.22727,
+0.7619
+],
+[
+0.22727,
+0.64286
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r102",
+"name": "Route 102",
+"kind": "route",
+"location_ids": [
+"hoenn:4402"
+],
+"lines": [
+[
+[
+0.22727,
+0.64286
+],
+[
+0.12121,
+0.61905
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r103",
+"name": "Route 103",
+"kind": "route",
+"location_ids": [
+"hoenn:4658"
+],
+"lines": [
+[
+[
+0.22727,
+0.64286
+],
+[
+0.22727,
+0.54762
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r104",
+"name": "Route 104",
+"kind": "route",
+"location_ids": [
+"hoenn:4914"
+],
+"lines": [
+[
+[
+0.12121,
+0.61905
+],
+[
+0.06061,
+0.61905
+],
+[
+0.06061,
+0.52381
+],
+[
+0.06061,
+0.35714
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r105",
+"name": "Route 105",
+"kind": "sea",
+"location_ids": [
+"hoenn:5170"
+],
+"lines": [
+[
+[
+0.06061,
+0.66667
+],
+[
+0.06061,
+0.7619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r106",
+"name": "Route 106",
+"kind": "sea",
+"location_ids": [
+"hoenn:5426"
+],
+"lines": [
+[
+[
+0.06061,
+0.7619
+],
+[
+0.07576,
+0.88095
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r107",
+"name": "Route 107",
+"kind": "sea",
+"location_ids": [
+"hoenn:5682"
+],
+"lines": [
+[
+[
+0.07576,
+0.88095
+],
+[
+0.19697,
+0.88095
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r108",
+"name": "Route 108",
+"kind": "sea",
+"location_ids": [
+"hoenn:5938"
+],
+"lines": [
+[
+[
+0.19697,
+0.88095
+],
+[
+0.27273,
+0.88095
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r109",
+"name": "Route 109",
+"kind": "sea",
+"location_ids": [
+"hoenn:6194"
+],
+"lines": [
+[
+[
+0.27273,
+0.88095
+],
+[
+0.33333,
+0.78571
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r110",
+"name": "Route 110",
+"kind": "route",
+"location_ids": [
+"hoenn:6450"
+],
+"lines": [
+[
+[
+0.33333,
+0.78571
+],
+[
+0.33333,
+0.61905
+],
+[
+0.33333,
+0.47619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r111",
+"name": "Route 111",
+"kind": "route",
+"location_ids": [
+"hoenn:6706"
+],
+"lines": [
+[
+[
+0.33333,
+0.47619
+],
+[
+0.33333,
+0.30952
+],
+[
+0.33333,
+0.16667
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r112",
+"name": "Route 112",
+"kind": "route",
+"location_ids": [
+"hoenn:6962"
+],
+"lines": [
+[
+[
+0.33333,
+0.30952
+],
+[
+0.24242,
+0.30952
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r113",
+"name": "Route 113",
+"kind": "route",
+"location_ids": [
+"hoenn:7218"
+],
+"lines": [
+[
+[
+0.33333,
+0.16667
+],
+[
+0.19697,
+0.09524
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r114",
+"name": "Route 114",
+"kind": "route",
+"location_ids": [
+"hoenn:7474"
+],
+"lines": [
+[
+[
+0.19697,
+0.09524
+],
+[
+0.10606,
+0.09524
+],
+[
+0.10606,
+0.21429
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r115",
+"name": "Route 115",
+"kind": "route",
+"location_ids": [
+"hoenn:7730"
+],
+"lines": [
+[
+[
+0.06061,
+0.35714
+],
+[
+0.06061,
+0.21429
+],
+[
+0.10606,
+0.21429
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r116",
+"name": "Route 116",
+"kind": "route",
+"location_ids": [
+"hoenn:7986"
+],
+"lines": [
+[
+[
+0.06061,
+0.35714
+],
+[
+0.16667,
+0.35714
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r117",
+"name": "Route 117",
+"kind": "route",
+"location_ids": [
+"hoenn:8242"
+],
+"lines": [
+[
+[
+0.22727,
+0.47619
+],
+[
+0.33333,
+0.47619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r118",
+"name": "Route 118",
+"kind": "route",
+"location_ids": [
+"hoenn:8498"
+],
+"lines": [
+[
+[
+0.33333,
+0.47619
+],
+[
+0.4697,
+0.47619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r119",
+"name": "Route 119",
+"kind": "route",
+"location_ids": [
+"hoenn:8754"
+],
+"lines": [
+[
+[
+0.4697,
+0.47619
+],
+[
+0.4697,
+0.14286
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r120",
+"name": "Route 120",
+"kind": "route",
+"location_ids": [
+"hoenn:9010"
+],
+"lines": [
+[
+[
+0.4697,
+0.11905
+],
+[
+0.59091,
+0.11905
+],
+[
+0.59091,
+0.28571
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r121",
+"name": "Route 121",
+"kind": "route",
+"location_ids": [
+"hoenn:9266"
+],
+"lines": [
+[
+[
+0.59091,
+0.28571
+],
+[
+0.68182,
+0.2619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r122",
+"name": "Route 122",
+"kind": "sea",
+"location_ids": [
+"hoenn:9522"
+],
+"lines": [
+[
+[
+0.57576,
+0.30952
+],
+[
+0.57576,
+0.40476
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r123",
+"name": "Route 123",
+"kind": "route",
+"location_ids": [
+"hoenn:9778"
+],
+"lines": [
+[
+[
+0.57576,
+0.47619
+],
+[
+0.4697,
+0.47619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r124",
+"name": "Route 124",
+"kind": "sea",
+"location_ids": [
+"hoenn:10034",
+"hoenn:12850"
+],
+"lines": [
+[
+[
+0.72727,
+0.2619
+],
+[
+0.83333,
+0.2619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r125",
+"name": "Route 125",
+"kind": "sea",
+"location_ids": [
+"hoenn:10290"
+],
+"lines": [
+[
+[
+0.83333,
+0.2619
+],
+[
+0.89394,
+0.21429
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r126",
+"name": "Route 126",
+"kind": "sea",
+"location_ids": [
+"hoenn:10546",
+"hoenn:13106"
+],
+"lines": [
+[
+[
+0.72727,
+0.45238
+],
+[
+0.75758,
+0.59524
+],
+[
+0.81818,
+0.57143
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r127",
+"name": "Route 127",
+"kind": "sea",
+"location_ids": [
+"hoenn:10802"
+],
+"lines": [
+[
+[
+0.84848,
+0.40476
+],
+[
+0.86364,
+0.59524
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r128",
+"name": "Route 128",
+"kind": "sea",
+"location_ids": [
+"hoenn:11058"
+],
+"lines": [
+[
+[
+0.84848,
+0.61905
+],
+[
+0.90909,
+0.61905
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r129",
+"name": "Route 129",
+"kind": "sea",
+"location_ids": [
+"hoenn:11314"
+],
+"lines": [
+[
+[
+0.84848,
+0.66667
+],
+[
+0.72727,
+0.7381
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r130",
+"name": "Route 130",
+"kind": "sea",
+"location_ids": [
+"hoenn:11570"
+],
+"lines": [
+[
+[
+0.72727,
+0.7381
+],
+[
+0.60606,
+0.7619
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r131",
+"name": "Route 131",
+"kind": "sea",
+"location_ids": [
+"hoenn:11826"
+],
+"lines": [
+[
+[
+0.60606,
+0.7619
+],
+[
+0.5303,
+0.78571
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r132",
+"name": "Route 132",
+"kind": "sea",
+"location_ids": [
+"hoenn:12082"
+],
+"lines": [
+[
+[
+0.5303,
+0.78571
+],
+[
+0.45455,
+0.78571
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r133",
+"name": "Route 133",
+"kind": "sea",
+"location_ids": [
+"hoenn:12338"
+],
+"lines": [
+[
+[
+0.45455,
+0.78571
+],
+[
+0.40909,
+0.78571
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r134",
+"name": "Route 134",
+"kind": "sea",
+"location_ids": [
+"hoenn:12594"
+],
+"lines": [
+[
+[
+0.40909,
+0.78571
+],
+[
+0.36364,
+0.80952
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "petalburg-woods",
+"name": "Petalburg Woods",
+"kind": "landmark",
+"location_ids": [
+"hoenn:2890"
+],
+"x": 0.06061,
+"y": 0.52381
+},
+{
+"id": "rusturf-tunnel",
+"name": "Rusturf Tunnel",
+"kind": "cave",
+"location_ids": [
+"hoenn:1098"
+],
+"x": 0.13636,
+"y": 0.38095
+},
+{
+"id": "granite-cave",
+"name": "Granite Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:1866",
+"hoenn:2122",
+"hoenn:2378",
+"hoenn:2634"
+],
+"x": 0.04545,
+"y": 0.85714
+},
+{
+"id": "abandoned-ship",
+"name": "Abandoned Ship",
+"kind": "landmark",
+"location_ids": [
+"hoenn:14922",
+"hoenn:16714"
+],
+"x": 0.24242,
+"y": 0.91667
+},
+{
+"id": "new-mauville",
+"name": "New Mauville",
+"kind": "landmark",
+"location_ids": [
+"hoenn:13386",
+"hoenn:13642"
+],
+"x": 0.39394,
+"y": 0.54762
+},
+{
+"id": "mirage-tower",
+"name": "Mirage Tower",
+"kind": "landmark",
+"location_ids": [
+"hoenn:24138",
+"hoenn:24394",
+"hoenn:24650",
+"hoenn:24906"
+],
+"x": 0.36364,
+"y": 0.2381
+},
+{
+"id": "desert-underpass",
+"name": "Desert Underpass",
+"kind": "cave",
+"location_ids": [
+"hoenn:25162"
+],
+"x": 0.30303,
+"y": 0.14286
+},
+{
+"id": "fiery-path",
+"name": "Fiery Path",
+"kind": "cave",
+"location_ids": [
+"hoenn:3658"
+],
+"x": 0.30303,
+"y": 0.30952
+},
+{
+"id": "jagged-pass",
+"name": "Jagged Pass",
+"kind": "area",
+"location_ids": [
+"hoenn:3402"
+],
+"x": 0.25758,
+"y": 0.2381
+},
+{
+"id": "magma-hideout",
+"name": "Magma Hideout",
+"kind": "landmark",
+"location_ids": [
+"hoenn:22090",
+"hoenn:22346",
+"hoenn:22602",
+"hoenn:22858",
+"hoenn:23114",
+"hoenn:23370",
+"hoenn:23626",
+"hoenn:23882"
+],
+"x": 0.2803,
+"y": 0.20238
+},
+{
+"id": "meteor-falls",
+"name": "Meteor Falls",
+"kind": "cave",
+"location_ids": [
+"hoenn:27466",
+"hoenn:330",
+"hoenn:586",
+"hoenn:74",
+"hoenn:842"
+],
+"x": 0.10606,
+"y": 0.2619
+},
+{
+"id": "scorched-slab",
+"name": "Scorched Slab",
+"kind": "cave",
+"location_ids": [
+"hoenn:18762"
+],
+"x": 0.56061,
+"y": 0.19048
+},
+{
+"id": "mt-pyre",
+"name": "Mt. Pyre",
+"kind": "cave",
+"location_ids": [
+"hoenn:3914",
+"hoenn:4170",
+"hoenn:4426",
+"hoenn:4682",
+"hoenn:4938",
+"hoenn:5194",
+"hoenn:5450",
+"hoenn:5706"
+],
+"x": 0.59091,
+"y": 0.44048
+},
+{
+"id": "safari-zone-h",
+"name": "Safari Zone",
+"kind": "area",
+"location_ids": [
+"hoenn:3148",
+"hoenn:332",
+"hoenn:3404",
+"hoenn:588",
+"hoenn:76",
+"hoenn:844"
+],
+"x": 0.63636,
+"y": 0.35714
+},
+{
+"id": "aqua-hideout",
+"name": "Aqua Hideout",
+"kind": "landmark",
+"location_ids": [
+"hoenn:19530",
+"hoenn:5962",
+"hoenn:6474"
+],
+"x": 0.72727,
+"y": 0.21429
+},
+{
+"id": "shoal-cave",
+"name": "Shoal Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:11850",
+"hoenn:12106",
+"hoenn:12362",
+"hoenn:12618",
+"hoenn:12874",
+"hoenn:13130",
+"hoenn:21322"
+],
+"x": 0.90909,
+"y": 0.17857
+},
+{
+"id": "cave-of-origin",
+"name": "Cave Of Origin",
+"kind": "cave",
+"location_ids": [
+"hoenn:10058",
+"hoenn:10314",
+"hoenn:10570",
+"hoenn:9546",
+"hoenn:9802"
+],
+"x": 0.78788,
+"y": 0.4881
+},
+{
+"id": "seafloor-cavern",
+"name": "Seafloor Cavern",
+"kind": "cave",
+"location_ids": [
+"hoenn:6986",
+"hoenn:7242",
+"hoenn:7498",
+"hoenn:7754",
+"hoenn:8010",
+"hoenn:8266",
+"hoenn:8522",
+"hoenn:8778",
+"hoenn:9034"
+],
+"x": 0.87879,
+"y": 0.69048
+},
+{
+"id": "sky-pillar",
+"name": "Sky Pillar",
+"kind": "landmark",
+"location_ids": [
+"hoenn:20298",
+"hoenn:20554",
+"hoenn:20810",
+"hoenn:21066",
+"hoenn:21578"
+],
+"x": 0.63636,
+"y": 0.83333
+},
+{
+"id": "victory-road-h",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"hoenn:11082",
+"hoenn:11338",
+"hoenn:11594"
+],
+"x": 0.93939,
+"y": 0.52381
+},
+{
+"id": "altering-cave-h",
+"name": "Altering Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:27210"
+],
+"x": 0.19697,
+"y": 0.54762
+},
+{
+"id": "sealed-chamber",
+"name": "Sealed Chamber",
+"kind": "landmark",
+"location_ids": [
+"hoenn:18250"
+],
+"x": 0.42424,
+"y": 0.83333
+},
+{
+"id": "battle-frontier",
+"name": "Battle Frontier",
+"kind": "area",
+"location_ids": [
+"hoenn:3660"
+],
+"x": 0.51515,
+"y": 0.90476
+},
+{
+"id": "artisan-cave",
+"name": "Artisan Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:25418",
+"hoenn:25674"
+],
+"x": 0.48485,
+"y": 0.94048
+}
+]
+},
+{
+"id": "sinnoh",
+"region": "sinnoh",
+"label": "Sinnoh",
+"file": "sinnoh.svg",
+"w": 1040,
+"h": 1040,
+"parent": null,
+"submaps": [],
+"sha256": "436809d30e6fde52c77979c1672c8b97af6662ec1b5e195827972d78ec6c840f",
+"features": [
+{
+"id": "twinleaf",
+"name": "Twinleaf Town",
+"kind": "town",
+"location_ids": [
+"sinnoh:411"
+],
+"x": 0.19231,
+"y": 0.86923,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "sandgem",
+"name": "Sandgem Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.30769,
+"y": 0.83077,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "jubilife",
+"name": "Jubilife City",
+"kind": "town",
+"location_ids": [],
+"x": 0.30192,
+"y": 0.67308,
+"w": 0.05,
+"h": 0.03846
+},
+{
+"id": "oreburgh",
+"name": "Oreburgh City",
+"kind": "town",
+"location_ids": [],
+"x": 0.45577,
+"y": 0.65385,
+"w": 0.05,
+"h": 0.03846
+},
+{
+"id": "floaroma",
+"name": "Floaroma Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.26923,
+"y": 0.52308,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "eterna",
+"name": "Eterna City",
+"kind": "town",
+"location_ids": [
+"sinnoh:65"
+],
+"x": 0.35962,
+"y": 0.34615,
+"w": 0.05,
+"h": 0.03846
+},
+{
+"id": "hearthome",
+"name": "Hearthome City",
+"kind": "town",
+"location_ids": [],
+"x": 0.57115,
+"y": 0.5,
+"w": 0.05,
+"h": 0.03846
+},
+{
+"id": "solaceon",
+"name": "Solaceon Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.63462,
+"y": 0.61923,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "veilstone",
+"name": "Veilstone City",
+"kind": "town",
+"location_ids": [],
+"x": 0.80192,
+"y": 0.48077,
+"w": 0.05,
+"h": 0.03846
+},
+{
+"id": "pastoria",
+"name": "Pastoria City",
+"kind": "town",
+"location_ids": [
+"sinnoh:120"
+],
+"x": 0.67308,
+"y": 0.77308,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "celestic",
+"name": "Celestic Town",
+"kind": "town",
+"location_ids": [
+"sinnoh:442"
+],
+"x": 0.59615,
+"y": 0.40769,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "canalave",
+"name": "Canalave City",
+"kind": "town",
+"location_ids": [
+"sinnoh:33"
+],
+"x": 0.11538,
+"y": 0.63846,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "snowpoint",
+"name": "Snowpoint City",
+"kind": "town",
+"location_ids": [],
+"x": 0.44231,
+"y": 0.06154,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "sunyshore",
+"name": "Sunyshore City",
+"kind": "town",
+"location_ids": [
+"sinnoh:150"
+],
+"x": 0.86538,
+"y": 0.79231,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "league",
+"name": "Pokémon League",
+"kind": "town",
+"location_ids": [
+"sinnoh:172"
+],
+"x": 0.90385,
+"y": 0.6,
+"w": 0.03846,
+"h": 0.03077
+},
+{
+"id": "r201",
+"name": "Route 201",
+"kind": "route",
+"location_ids": [
+"sinnoh:342"
+],
+"lines": [
+[
+[
+0.21154,
+0.88462
+],
+[
+0.28846,
+0.88462
+],
+[
+0.32692,
+0.84615
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r202",
+"name": "Route 202",
+"kind": "route",
+"location_ids": [
+"sinnoh:343"
+],
+"lines": [
+[
+[
+0.32692,
+0.84615
+],
+[
+0.32692,
+0.69231
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r203",
+"name": "Route 203",
+"kind": "route",
+"location_ids": [
+"sinnoh:344"
+],
+"lines": [
+[
+[
+0.32692,
+0.69231
+],
+[
+0.42308,
+0.68269
+],
+[
+0.48077,
+0.67308
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r204s",
+"name": "Route 204 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:345"
+],
+"lines": [
+[
+[
+0.32692,
+0.69231
+],
+[
+0.31731,
+0.59615
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r204n",
+"name": "Route 204 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:346"
+],
+"lines": [
+[
+[
+0.31731,
+0.59615
+],
+[
+0.28846,
+0.53846
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r205s",
+"name": "Route 205 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:347"
+],
+"lines": [
+[
+[
+0.28846,
+0.53846
+],
+[
+0.30769,
+0.48077
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r205n",
+"name": "Route 205 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:349"
+],
+"lines": [
+[
+[
+0.30769,
+0.46154
+],
+[
+0.32692,
+0.38462
+],
+[
+0.38462,
+0.36538
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r206",
+"name": "Route 206",
+"kind": "route",
+"location_ids": [
+"sinnoh:350"
+],
+"lines": [
+[
+[
+0.38462,
+0.36538
+],
+[
+0.40385,
+0.44231
+],
+[
+0.42308,
+0.57692
+],
+[
+0.46154,
+0.63462
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r207",
+"name": "Route 207",
+"kind": "route",
+"location_ids": [
+"sinnoh:353"
+],
+"lines": [
+[
+[
+0.48077,
+0.67308
+],
+[
+0.51923,
+0.59615
+],
+[
+0.53846,
+0.55769
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r208",
+"name": "Route 208",
+"kind": "route",
+"location_ids": [
+"sinnoh:354"
+],
+"lines": [
+[
+[
+0.53846,
+0.55769
+],
+[
+0.59615,
+0.51923
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r209",
+"name": "Route 209",
+"kind": "route",
+"location_ids": [
+"sinnoh:356"
+],
+"lines": [
+[
+[
+0.59615,
+0.51923
+],
+[
+0.63462,
+0.57692
+],
+[
+0.65385,
+0.63462
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r210s",
+"name": "Route 210 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:362"
+],
+"lines": [
+[
+[
+0.65385,
+0.63462
+],
+[
+0.67308,
+0.51923
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r210n",
+"name": "Route 210 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:363"
+],
+"lines": [
+[
+[
+0.67308,
+0.51923
+],
+[
+0.61538,
+0.42308
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r211w",
+"name": "Route 211 (West)",
+"kind": "route",
+"location_ids": [
+"sinnoh:365"
+],
+"lines": [
+[
+[
+0.38462,
+0.36538
+],
+[
+0.5,
+0.34615
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r211e",
+"name": "Route 211 (East)",
+"kind": "route",
+"location_ids": [
+"sinnoh:366"
+],
+"lines": [
+[
+[
+0.57692,
+0.36538
+],
+[
+0.61538,
+0.42308
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r212n",
+"name": "Route 212 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:367"
+],
+"lines": [
+[
+[
+0.59615,
+0.51923
+],
+[
+0.59615,
+0.69231
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r212s",
+"name": "Route 212 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:371"
+],
+"lines": [
+[
+[
+0.59615,
+0.69231
+],
+[
+0.69231,
+0.78846
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r213",
+"name": "Route 213",
+"kind": "route",
+"location_ids": [
+"sinnoh:373"
+],
+"lines": [
+[
+[
+0.69231,
+0.78846
+],
+[
+0.84615,
+0.82692
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r214",
+"name": "Route 214",
+"kind": "route",
+"location_ids": [
+"sinnoh:380"
+],
+"lines": [
+[
+[
+0.82692,
+0.5
+],
+[
+0.82692,
+0.69231
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r215",
+"name": "Route 215",
+"kind": "route",
+"location_ids": [
+"sinnoh:382"
+],
+"lines": [
+[
+[
+0.67308,
+0.51923
+],
+[
+0.82692,
+0.5
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r216",
+"name": "Route 216",
+"kind": "route",
+"location_ids": [
+"sinnoh:383"
+],
+"lines": [
+[
+[
+0.51923,
+0.23077
+],
+[
+0.40385,
+0.21154
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r217",
+"name": "Route 217",
+"kind": "route",
+"location_ids": [
+"sinnoh:385"
+],
+"lines": [
+[
+[
+0.40385,
+0.21154
+],
+[
+0.42308,
+0.11538
+],
+[
+0.46154,
+0.07692
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r218",
+"name": "Route 218",
+"kind": "sea",
+"location_ids": [
+"sinnoh:388"
+],
+"lines": [
+[
+[
+0.32692,
+0.69231
+],
+[
+0.19231,
+0.69231
+],
+[
+0.13462,
+0.65385
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r219",
+"name": "Route 219",
+"kind": "sea",
+"location_ids": [
+"sinnoh:391"
+],
+"lines": [
+[
+[
+0.32692,
+0.84615
+],
+[
+0.32692,
+0.95192
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r220",
+"name": "Route 220",
+"kind": "sea",
+"location_ids": [
+"sinnoh:467"
+],
+"lines": [
+[
+[
+0.32692,
+0.95192
+],
+[
+0.53846,
+0.95192
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r221",
+"name": "Route 221",
+"kind": "route",
+"location_ids": [
+"sinnoh:392"
+],
+"lines": [
+[
+[
+0.53846,
+0.95192
+],
+[
+0.61538,
+0.92308
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r222",
+"name": "Route 222",
+"kind": "route",
+"location_ids": [
+"sinnoh:395"
+],
+"lines": [
+[
+[
+0.84615,
+0.82692
+],
+[
+0.88462,
+0.80769
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r223",
+"name": "Route 223",
+"kind": "sea",
+"location_ids": [
+"sinnoh:468"
+],
+"lines": [
+[
+[
+0.88462,
+0.80769
+],
+[
+0.92308,
+0.61538
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r224",
+"name": "Route 224",
+"kind": "route",
+"location_ids": [
+"sinnoh:399"
+],
+"lines": [
+[
+[
+0.92308,
+0.61538
+],
+[
+0.94231,
+0.51923
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r225",
+"name": "Route 225",
+"kind": "route",
+"location_ids": [
+"sinnoh:400"
+],
+"lines": [
+[
+[
+0.82692,
+0.17308
+],
+[
+0.82692,
+0.05769
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r226",
+"name": "Route 226",
+"kind": "route",
+"location_ids": [
+"sinnoh:469"
+],
+"lines": [
+[
+[
+0.82692,
+0.05769
+],
+[
+0.92308,
+0.05769
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r227",
+"name": "Route 227",
+"kind": "route",
+"location_ids": [
+"sinnoh:403"
+],
+"lines": [
+[
+[
+0.82692,
+0.17308
+],
+[
+0.90385,
+0.21154
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r228",
+"name": "Route 228",
+"kind": "route",
+"location_ids": [
+"sinnoh:406"
+],
+"lines": [
+[
+[
+0.90385,
+0.21154
+],
+[
+0.90385,
+0.34615
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r229",
+"name": "Route 229",
+"kind": "route",
+"location_ids": [
+"sinnoh:407"
+],
+"lines": [
+[
+[
+0.90385,
+0.34615
+],
+[
+0.82692,
+0.32692
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r230",
+"name": "Route 230",
+"kind": "sea",
+"location_ids": [
+"sinnoh:471"
+],
+"lines": [
+[
+[
+0.82692,
+0.32692
+],
+[
+0.76923,
+0.25
+],
+[
+0.82692,
+0.17308
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "lake-verity",
+"name": "Lake Verity",
+"kind": "area",
+"location_ids": [
+"sinnoh:311",
+"sinnoh:312"
+],
+"x": 0.13462,
+"y": 0.86538
+},
+{
+"id": "oreburgh-gate",
+"name": "Oreburgh Gate",
+"kind": "cave",
+"location_ids": [
+"sinnoh:258",
+"sinnoh:259"
+],
+"x": 0.42308,
+"y": 0.69231
+},
+{
+"id": "oreburgh-mine",
+"name": "Oreburgh Mine",
+"kind": "cave",
+"location_ids": [
+"sinnoh:198",
+"sinnoh:199"
+],
+"x": 0.5,
+"y": 0.71154
+},
+{
+"id": "ravaged-path",
+"name": "Ravaged Path",
+"kind": "cave",
+"location_ids": [
+"sinnoh:254"
+],
+"x": 0.31731,
+"y": 0.61538
+},
+{
+"id": "valley-windworks",
+"name": "Valley Windworks",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:200"
+],
+"x": 0.36538,
+"y": 0.5
+},
+{
+"id": "fuego",
+"name": "Fuego Ironworks",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:204"
+],
+"x": 0.21154,
+"y": 0.5
+},
+{
+"id": "eterna-forest",
+"name": "Eterna Forest",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:203"
+],
+"x": 0.26923,
+"y": 0.42308
+},
+{
+"id": "old-chateau",
+"name": "Old Chateau",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:295",
+"sinnoh:296",
+"sinnoh:297",
+"sinnoh:298",
+"sinnoh:299",
+"sinnoh:300",
+"sinnoh:301",
+"sinnoh:302",
+"sinnoh:303"
+],
+"x": 0.23077,
+"y": 0.40385
+},
+{
+"id": "wayward-cave",
+"name": "Wayward Cave",
+"kind": "cave",
+"location_ids": [
+"sinnoh:284",
+"sinnoh:285"
+],
+"x": 0.38462,
+"y": 0.53846
+},
+{
+"id": "mt-coronet",
+"name": "Mt. Coronet",
+"kind": "cave",
+"location_ids": [
+"sinnoh:207",
+"sinnoh:208",
+"sinnoh:209",
+"sinnoh:210",
+"sinnoh:211",
+"sinnoh:212",
+"sinnoh:213",
+"sinnoh:214",
+"sinnoh:215",
+"sinnoh:216",
+"sinnoh:217",
+"sinnoh:218",
+"sinnoh:219"
+],
+"x": 0.53846,
+"y": 0.28846
+},
+{
+"id": "lost-tower",
+"name": "Lost Tower",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:357",
+"sinnoh:358",
+"sinnoh:359",
+"sinnoh:360",
+"sinnoh:361"
+],
+"x": 0.61538,
+"y": 0.57692
+},
+{
+"id": "solaceon-ruins",
+"name": "Solaceon Ruins",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:225",
+"sinnoh:227",
+"sinnoh:228",
+"sinnoh:229",
+"sinnoh:230",
+"sinnoh:231",
+"sinnoh:232",
+"sinnoh:233",
+"sinnoh:234",
+"sinnoh:235",
+"sinnoh:236",
+"sinnoh:237",
+"sinnoh:238",
+"sinnoh:239",
+"sinnoh:240",
+"sinnoh:241",
+"sinnoh:242",
+"sinnoh:515"
+],
+"x": 0.69231,
+"y": 0.59615
+},
+{
+"id": "great-marsh",
+"name": "Great Marsh",
+"kind": "area",
+"location_ids": [
+"sinnoh:504",
+"sinnoh:505",
+"sinnoh:506",
+"sinnoh:507",
+"sinnoh:508",
+"sinnoh:509"
+],
+"x": 0.71154,
+"y": 0.75
+},
+{
+"id": "trophy-garden",
+"name": "Trophy Garden",
+"kind": "area",
+"location_ids": [
+"sinnoh:287"
+],
+"x": 0.57692,
+"y": 0.65385
+},
+{
+"id": "valor",
+"name": "Lake Valor",
+"kind": "area",
+"location_ids": [
+"sinnoh:315",
+"sinnoh:336"
+],
+"x": 0.78846,
+"y": 0.71154
+},
+{
+"id": "ruin-maniac",
+"name": "Ruin Maniac Cave",
+"kind": "cave",
+"location_ids": [
+"sinnoh:286",
+"sinnoh:512",
+"sinnoh:513"
+],
+"x": 0.85577,
+"y": 0.61538
+},
+{
+"id": "sendoff-spring",
+"name": "Sendoff Spring",
+"kind": "area",
+"location_ids": [
+"sinnoh:267"
+],
+"x": 0.76923,
+"y": 0.65385
+},
+{
+"id": "turnback-cave",
+"name": "Turnback Cave",
+"kind": "cave",
+"location_ids": [
+"sinnoh:269",
+"sinnoh:270",
+"sinnoh:271",
+"sinnoh:272",
+"sinnoh:273",
+"sinnoh:518",
+"sinnoh:519",
+"sinnoh:520",
+"sinnoh:521",
+"sinnoh:522",
+"sinnoh:523",
+"sinnoh:524",
+"sinnoh:525",
+"sinnoh:526",
+"sinnoh:527",
+"sinnoh:528",
+"sinnoh:529",
+"sinnoh:530",
+"sinnoh:531",
+"sinnoh:532"
+],
+"x": 0.75,
+"y": 0.61538
+},
+{
+"id": "acuity",
+"name": "Lake Acuity",
+"kind": "area",
+"location_ids": [
+"sinnoh:318",
+"sinnoh:340"
+],
+"x": 0.38462,
+"y": 0.03846
+},
+{
+"id": "snowpoint-temple",
+"name": "Snowpoint Temple",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:278",
+"sinnoh:279",
+"sinnoh:280",
+"sinnoh:281",
+"sinnoh:282",
+"sinnoh:283"
+],
+"x": 0.51923,
+"y": 0.03846
+},
+{
+"id": "iron-island",
+"name": "Iron Island",
+"kind": "cave",
+"location_ids": [
+"sinnoh:288",
+"sinnoh:289",
+"sinnoh:290",
+"sinnoh:291",
+"sinnoh:292",
+"sinnoh:293",
+"sinnoh:294"
+],
+"x": 0.04808,
+"y": 0.55769
+},
+{
+"id": "victory-road-s",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"sinnoh:244",
+"sinnoh:245",
+"sinnoh:246",
+"sinnoh:247",
+"sinnoh:248",
+"sinnoh:249"
+],
+"x": 0.94231,
+"y": 0.57692
+},
+{
+"id": "stark-mountain",
+"name": "Stark Mountain",
+"kind": "cave",
+"location_ids": [
+"sinnoh:262",
+"sinnoh:263",
+"sinnoh:264",
+"sinnoh:593"
+],
+"x": 0.92308,
+"y": 0.21154
+},
+{
+"id": "resort-area",
+"name": "Resort Area",
+"kind": "area",
+"location_ids": [
+"sinnoh:457"
+],
+"x": 0.90385,
+"y": 0.36538
+},
+{
+"id": "honey-tree",
+"name": "Honey Trees",
+"kind": "list",
+"location_ids": [
+"sinnoh:-1"
+]
+}
+]
+},
+{
+"id": "unova",
+"region": "unova",
+"label": "Unova",
+"file": "unova.svg",
+"w": 1240,
+"h": 960,
+"parent": null,
+"submaps": [],
+"sha256": "493495a376f548e54ab875b0b53fc70925f5f9e0d9461487595162189d65d649",
+"features": [
+{
+"id": "nuvema",
+"name": "Nuvema Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.82258,
+"y": 0.85833,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "accumula",
+"name": "Accumula Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.82258,
+"y": 0.7125,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "striaton",
+"name": "Striaton City",
+"kind": "town",
+"location_ids": [
+"unova:6"
+],
+"x": 0.70968,
+"y": 0.65,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "nacrene",
+"name": "Nacrene City",
+"kind": "town",
+"location_ids": [],
+"x": 0.59677,
+"y": 0.65,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "castelia",
+"name": "Castelia City",
+"kind": "town",
+"location_ids": [],
+"x": 0.55968,
+"y": 0.85417,
+"w": 0.04194,
+"h": 0.04167
+},
+{
+"id": "nimbasa",
+"name": "Nimbasa City",
+"kind": "town",
+"location_ids": [],
+"x": 0.55968,
+"y": 0.4375,
+"w": 0.04194,
+"h": 0.04167
+},
+{
+"id": "driftveil",
+"name": "Driftveil City",
+"kind": "town",
+"location_ids": [
+"unova:96"
+],
+"x": 0.35,
+"y": 0.4375,
+"w": 0.04194,
+"h": 0.04167
+},
+{
+"id": "mistralton",
+"name": "Mistralton City",
+"kind": "town",
+"location_ids": [],
+"x": 0.22581,
+"y": 0.25417,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "icirrus",
+"name": "Icirrus City",
+"kind": "town",
+"location_ids": [
+"unova:113"
+],
+"x": 0.22581,
+"y": 0.0875,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "opelucid",
+"name": "Opelucid City",
+"kind": "town",
+"location_ids": [],
+"x": 0.54355,
+"y": 0.08333,
+"w": 0.04194,
+"h": 0.04167
+},
+{
+"id": "lacunosa",
+"name": "Lacunosa Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.72581,
+"y": 0.19167,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "undella",
+"name": "Undella Town",
+"kind": "town",
+"location_ids": [
+"unova:412"
+],
+"x": 0.87097,
+"y": 0.29583,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "black-city",
+"name": "Black City / White Forest",
+"kind": "town",
+"location_ids": [],
+"x": 0.79032,
+"y": 0.42083,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "league-u",
+"name": "Pokémon League",
+"kind": "town",
+"location_ids": [],
+"x": 0.69355,
+"y": 0.00417,
+"w": 0.03226,
+"h": 0.03333
+},
+{
+"id": "r1u",
+"name": "Route 1",
+"kind": "route",
+"location_ids": [
+"unova:317"
+],
+"lines": [
+[
+[
+0.83871,
+0.875
+],
+[
+0.83871,
+0.72917
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r17u",
+"name": "Route 17",
+"kind": "sea",
+"location_ids": [
+"unova:423"
+],
+"lines": [
+[
+[
+0.80645,
+0.91667
+],
+[
+0.74194,
+0.95833
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r18u",
+"name": "Route 18",
+"kind": "route",
+"location_ids": [
+"unova:387"
+],
+"lines": [
+[
+[
+0.74194,
+0.95833
+],
+[
+0.69355,
+0.91667
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r2u",
+"name": "Route 2",
+"kind": "route",
+"location_ids": [
+"unova:319"
+],
+"lines": [
+[
+[
+0.83871,
+0.72917
+],
+[
+0.79032,
+0.64583
+],
+[
+0.72581,
+0.66667
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r3u",
+"name": "Route 3",
+"kind": "route",
+"location_ids": [
+"unova:321"
+],
+"lines": [
+[
+[
+0.72581,
+0.66667
+],
+[
+0.6129,
+0.66667
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r4u",
+"name": "Route 4",
+"kind": "route",
+"location_ids": [
+"unova:326"
+],
+"lines": [
+[
+[
+0.58065,
+0.83333
+],
+[
+0.58065,
+0.66667
+],
+[
+0.58065,
+0.5
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r5u",
+"name": "Route 5",
+"kind": "route",
+"location_ids": [
+"unova:329"
+],
+"lines": [
+[
+[
+0.58065,
+0.45833
+],
+[
+0.48387,
+0.45833
+],
+[
+0.37097,
+0.45833
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r6u",
+"name": "Route 6",
+"kind": "route",
+"location_ids": [
+"unova:331"
+],
+"lines": [
+[
+[
+0.37097,
+0.45833
+],
+[
+0.32258,
+0.33333
+],
+[
+0.24194,
+0.27083
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r7u",
+"name": "Route 7",
+"kind": "route",
+"location_ids": [
+"unova:337"
+],
+"lines": [
+[
+[
+0.24194,
+0.27083
+],
+[
+0.27419,
+0.20833
+],
+[
+0.32258,
+0.16667
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r8u",
+"name": "Route 8",
+"kind": "route",
+"location_ids": [
+"unova:345"
+],
+"lines": [
+[
+[
+0.24194,
+0.10417
+],
+[
+0.32258,
+0.08333
+],
+[
+0.41935,
+0.08333
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r9u",
+"name": "Route 9",
+"kind": "route",
+"location_ids": [
+"unova:348"
+],
+"lines": [
+[
+[
+0.56452,
+0.10417
+],
+[
+0.66129,
+0.08333
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r10u",
+"name": "Route 10",
+"kind": "route",
+"location_ids": [
+"unova:355"
+],
+"lines": [
+[
+[
+0.66129,
+0.08333
+],
+[
+0.70968,
+0.02083
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r11u",
+"name": "Route 11",
+"kind": "route",
+"location_ids": [
+"unova:365"
+],
+"lines": [
+[
+[
+0.56452,
+0.10417
+],
+[
+0.62903,
+0.17708
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r12u",
+"name": "Route 12",
+"kind": "route",
+"location_ids": [
+"unova:368"
+],
+"lines": [
+[
+[
+0.66129,
+0.17708
+],
+[
+0.74194,
+0.20833
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r13u",
+"name": "Route 13",
+"kind": "route",
+"location_ids": [
+"unova:370"
+],
+"lines": [
+[
+[
+0.74194,
+0.20833
+],
+[
+0.83871,
+0.22917
+],
+[
+0.8871,
+0.3125
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r14u",
+"name": "Route 14",
+"kind": "route",
+"location_ids": [
+"unova:374"
+],
+"lines": [
+[
+[
+0.8871,
+0.3125
+],
+[
+0.90323,
+0.41667
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r15u",
+"name": "Route 15",
+"kind": "route",
+"location_ids": [
+"unova:378"
+],
+"lines": [
+[
+[
+0.80645,
+0.4375
+],
+[
+0.69355,
+0.45833
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "r16u",
+"name": "Route 16",
+"kind": "route",
+"location_ids": [
+"unova:383"
+],
+"lines": [
+[
+[
+0.66129,
+0.45833
+],
+[
+0.58065,
+0.45833
+]
+]
+],
+"width": 34.0
+},
+{
+"id": "p2-lab",
+"name": "P2 Laboratory",
+"kind": "landmark",
+"location_ids": [
+"unova:238"
+],
+"x": 0.69355,
+"y": 0.89583
+},
+{
+"id": "dreamyard",
+"name": "Dreamyard",
+"kind": "area",
+"location_ids": [
+"unova:152",
+"unova:153"
+],
+"x": 0.72581,
+"y": 0.60417
+},
+{
+"id": "wellspring",
+"name": "Wellspring Cave",
+"kind": "cave",
+"location_ids": [
+"unova:324",
+"unova:325"
+],
+"x": 0.66129,
+"y": 0.70833
+},
+{
+"id": "pinwheel",
+"name": "Pinwheel Forest",
+"kind": "landmark",
+"location_ids": [
+"unova:154",
+"unova:155"
+],
+"x": 0.53226,
+"y": 0.6875
+},
+{
+"id": "desert-resort",
+"name": "Desert Resort",
+"kind": "area",
+"location_ids": [
+"unova:157",
+"unova:158"
+],
+"x": 0.5,
+"y": 0.58333
+},
+{
+"id": "relic-castle",
+"name": "Relic Castle",
+"kind": "landmark",
+"location_ids": [
+"unova:160",
+"unova:161",
+"unova:162",
+"unova:163",
+"unova:164",
+"unova:165",
+"unova:166",
+"unova:167",
+"unova:168",
+"unova:169",
+"unova:170",
+"unova:171",
+"unova:172",
+"unova:173",
+"unova:174",
+"unova:175",
+"unova:176",
+"unova:177",
+"unova:178",
+"unova:179",
+"unova:180",
+"unova:181",
+"unova:182",
+"unova:183",
+"unova:184",
+"unova:185",
+"unova:186",
+"unova:187",
+"unova:188",
+"unova:189",
+"unova:190"
+],
+"x": 0.45161,
+"y": 0.54167
+},
+{
+"id": "drawbridge",
+"name": "Driftveil Drawbridge",
+"kind": "landmark",
+"location_ids": [
+"unova:253"
+],
+"x": 0.45161,
+"y": 0.4375
+},
+{
+"id": "cold-storage",
+"name": "Cold Storage",
+"kind": "landmark",
+"location_ids": [
+"unova:191"
+],
+"x": 0.35484,
+"y": 0.54167
+},
+{
+"id": "chargestone",
+"name": "Chargestone Cave",
+"kind": "cave",
+"location_ids": [
+"unova:194",
+"unova:195",
+"unova:196",
+"unova:197"
+],
+"x": 0.30645,
+"y": 0.35417
+},
+{
+"id": "mistralton-cave",
+"name": "Mistralton Cave",
+"kind": "cave",
+"location_ids": [
+"unova:333",
+"unova:334",
+"unova:335"
+],
+"x": 0.17742,
+"y": 0.3125
+},
+{
+"id": "celestial-tower",
+"name": "Celestial Tower",
+"kind": "landmark",
+"location_ids": [
+"unova:339",
+"unova:340",
+"unova:341",
+"unova:342"
+],
+"x": 0.20968,
+"y": 0.1875
+},
+{
+"id": "twist-mountain",
+"name": "Twist Mountain",
+"kind": "cave",
+"location_ids": [
+"unova:198",
+"unova:200",
+"unova:201",
+"unova:202",
+"unova:203"
+],
+"x": 0.32258,
+"y": 0.16667
+},
+{
+"id": "dragonspiral",
+"name": "Dragonspiral Tower",
+"kind": "landmark",
+"location_ids": [
+"unova:205",
+"unova:206",
+"unova:207",
+"unova:208",
+"unova:213"
+],
+"x": 0.20968,
+"y": 0.04167
+},
+{
+"id": "moor",
+"name": "Moor of Icirrus",
+"kind": "area",
+"location_ids": [
+"unova:346"
+],
+"x": 0.17742,
+"y": 0.125
+},
+{
+"id": "challengers-cave",
+"name": "Challenger's Cave",
+"kind": "cave",
+"location_ids": [
+"unova:352",
+"unova:353",
+"unova:354"
+],
+"x": 0.6129,
+"y": 0.04167
+},
+{
+"id": "victory-road-u",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"unova:214",
+"unova:215",
+"unova:216",
+"unova:217",
+"unova:218",
+"unova:219",
+"unova:220",
+"unova:221",
+"unova:222",
+"unova:223",
+"unova:224",
+"unova:225",
+"unova:226",
+"unova:227",
+"unova:228",
+"unova:229"
+],
+"x": 0.69355,
+"y": 0.0625
+},
+{
+"id": "route-10-gate",
+"name": "Route 10 Gate",
+"kind": "landmark",
+"location_ids": [
+"unova:358"
+],
+"x": 0.64516,
+"y": 0.04167
+},
+{
+"id": "village-bridge",
+"name": "Village Bridge",
+"kind": "landmark",
+"location_ids": [
+"unova:255"
+],
+"x": 0.64516,
+"y": 0.17708
+},
+{
+"id": "giant-chasm",
+"name": "Giant Chasm",
+"kind": "area",
+"location_ids": [
+"unova:230",
+"unova:231",
+"unova:232",
+"unova:234"
+],
+"x": 0.80645,
+"y": 0.125
+},
+{
+"id": "undella-bay",
+"name": "Undella Bay",
+"kind": "area",
+"location_ids": [
+"unova:240"
+],
+"x": 0.93548,
+"y": 0.22917
+},
+{
+"id": "abundant-shrine",
+"name": "Abundant Shrine",
+"kind": "landmark",
+"location_ids": [
+"unova:376"
+],
+"x": 0.91935,
+"y": 0.45833
+},
+{
+"id": "marvelous-bridge",
+"name": "Marvelous Bridge",
+"kind": "landmark",
+"location_ids": [
+"unova:263"
+],
+"x": 0.72581,
+"y": 0.45833
+},
+{
+"id": "lostlorn",
+"name": "Lostlorn Forest",
+"kind": "landmark",
+"location_ids": [
+"unova:385"
+],
+"x": 0.64516,
+"y": 0.39583
+}
+]
+},
+{
+"id": "game-kanto",
+"region": "kanto",
+"label": "Kanto",
+"file": "game/kanto.png",
+"w": 192,
+"h": 144,
+"style": "game",
+"source": "FireRed (BPRE rev 1)",
+"parent": null,
+"submaps": [],
+"sha256": "79ffb375532f93b349474988db5b1e091ba5104c655f8421fbda8374b8dab1e7",
+"features": [
+{
+"id": "indigo",
+"name": "Indigo Plateau",
+"kind": "town",
+"location_ids": [],
+"x": 0.125,
+"y": 0.27778,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "pewter",
+"name": "Pewter City",
+"kind": "town",
+"location_ids": [],
+"x": 0.20833,
+"y": 0.33333,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "viridian",
+"name": "Viridian City",
+"kind": "town",
+"location_ids": [
+"kanto:259"
+],
+"x": 0.20833,
+"y": 0.55556,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "pallet",
+"name": "Pallet Town",
+"kind": "town",
+"location_ids": [
+"kanto:3"
+],
+"x": 0.20833,
+"y": 0.72222,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "cinnabar",
+"name": "Cinnabar Island",
+"kind": "town",
+"location_ids": [
+"kanto:2051"
+],
+"x": 0.20833,
+"y": 0.88889,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "cerulean",
+"name": "Cerulean City",
+"kind": "town",
+"location_ids": [
+"kanto:771"
+],
+"x": 0.625,
+"y": 0.27778,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "celadon",
+"name": "Celadon City",
+"kind": "town",
+"location_ids": [
+"kanto:1539"
+],
+"x": 0.5,
+"y": 0.44444,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "saffron",
+"name": "Saffron City",
+"kind": "town",
+"location_ids": [],
+"x": 0.625,
+"y": 0.44444,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "lavender",
+"name": "Lavender Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.79167,
+"y": 0.44444,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "vermilion",
+"name": "Vermilion City",
+"kind": "town",
+"location_ids": [
+"kanto:1283"
+],
+"x": 0.625,
+"y": 0.61111,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "fuchsia",
+"name": "Fuchsia City",
+"kind": "town",
+"location_ids": [
+"kanto:1795"
+],
+"x": 0.54167,
+"y": 0.77778,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "r1",
+"name": "Route 1",
+"kind": "route",
+"location_ids": [
+"kanto:4867"
+],
+"lines": [
+[
+[
+0.22917,
+0.61111
+],
+[
+0.22917,
+0.72222
+]
+]
+],
+"width": 7
+},
+{
+"id": "r2",
+"name": "Route 2",
+"kind": "route",
+"location_ids": [
+"kanto:5123"
+],
+"lines": [
+[
+[
+0.22917,
+0.38889
+],
+[
+0.22917,
+0.55556
+]
+]
+],
+"width": 7
+},
+{
+"id": "r22",
+"name": "Route 22",
+"kind": "route",
+"location_ids": [
+"kanto:10499"
+],
+"lines": [
+[
+[
+0.14583,
+0.58333
+],
+[
+0.20833,
+0.58333
+]
+]
+],
+"width": 7
+},
+{
+"id": "r23",
+"name": "Route 23",
+"kind": "route",
+"location_ids": [
+"kanto:10755"
+],
+"lines": [
+[
+[
+0.14583,
+0.33333
+],
+[
+0.14583,
+0.57222
+]
+]
+],
+"width": 7
+},
+{
+"id": "r3",
+"name": "Route 3",
+"kind": "route",
+"location_ids": [
+"kanto:5379"
+],
+"lines": [
+[
+[
+0.25,
+0.36111
+],
+[
+0.35833,
+0.36111
+]
+]
+],
+"width": 7
+},
+{
+"id": "r4",
+"name": "Route 4",
+"kind": "route",
+"location_ids": [
+"kanto:5635"
+],
+"lines": [
+[
+[
+0.40833,
+0.30556
+],
+[
+0.625,
+0.30556
+]
+]
+],
+"width": 7
+},
+{
+"id": "r24",
+"name": "Route 24",
+"kind": "route",
+"location_ids": [
+"kanto:11011"
+],
+"lines": [
+[
+[
+0.64583,
+0.27778
+],
+[
+0.64583,
+0.19444
+]
+]
+],
+"width": 7
+},
+{
+"id": "r25",
+"name": "Route 25",
+"kind": "route",
+"location_ids": [
+"kanto:11267"
+],
+"lines": [
+[
+[
+0.65417,
+0.19444
+],
+[
+0.72917,
+0.19444
+]
+]
+],
+"width": 7
+},
+{
+"id": "r5",
+"name": "Route 5",
+"kind": "route",
+"location_ids": [
+"kanto:5891"
+],
+"lines": [
+[
+[
+0.64583,
+0.33333
+],
+[
+0.64583,
+0.44444
+]
+]
+],
+"width": 7
+},
+{
+"id": "r6",
+"name": "Route 6",
+"kind": "route",
+"location_ids": [
+"kanto:6147"
+],
+"lines": [
+[
+[
+0.64583,
+0.5
+],
+[
+0.64583,
+0.61111
+]
+]
+],
+"width": 7
+},
+{
+"id": "r7",
+"name": "Route 7",
+"kind": "route",
+"location_ids": [
+"kanto:6403"
+],
+"lines": [
+[
+[
+0.54167,
+0.47222
+],
+[
+0.625,
+0.47222
+]
+]
+],
+"width": 7
+},
+{
+"id": "r8",
+"name": "Route 8",
+"kind": "route",
+"location_ids": [
+"kanto:6659"
+],
+"lines": [
+[
+[
+0.66667,
+0.47222
+],
+[
+0.79167,
+0.47222
+]
+]
+],
+"width": 7
+},
+{
+"id": "r9",
+"name": "Route 9",
+"kind": "route",
+"location_ids": [
+"kanto:6915"
+],
+"lines": [
+[
+[
+0.66667,
+0.30556
+],
+[
+0.8125,
+0.30556
+]
+]
+],
+"width": 7
+},
+{
+"id": "r10",
+"name": "Route 10",
+"kind": "route",
+"location_ids": [
+"kanto:7171"
+],
+"lines": [
+[
+[
+0.8125,
+0.31667
+],
+[
+0.8125,
+0.44444
+]
+]
+],
+"width": 7
+},
+{
+"id": "r11",
+"name": "Route 11",
+"kind": "route",
+"location_ids": [
+"kanto:7427"
+],
+"lines": [
+[
+[
+0.66667,
+0.63889
+],
+[
+0.79167,
+0.63889
+]
+]
+],
+"width": 7
+},
+{
+"id": "r12",
+"name": "Route 12",
+"kind": "route",
+"location_ids": [
+"kanto:7683"
+],
+"lines": [
+[
+[
+0.8125,
+0.5
+],
+[
+0.8125,
+0.75
+]
+]
+],
+"width": 7
+},
+{
+"id": "r13",
+"name": "Route 13",
+"kind": "route",
+"location_ids": [
+"kanto:7939"
+],
+"lines": [
+[
+[
+0.80417,
+0.75
+],
+[
+0.6875,
+0.75
+]
+]
+],
+"width": 7
+},
+{
+"id": "r14",
+"name": "Route 14",
+"kind": "route",
+"location_ids": [
+"kanto:8195"
+],
+"lines": [
+[
+[
+0.6875,
+0.75556
+],
+[
+0.6875,
+0.80556
+]
+]
+],
+"width": 7
+},
+{
+"id": "r15",
+"name": "Route 15",
+"kind": "route",
+"location_ids": [
+"kanto:8451"
+],
+"lines": [
+[
+[
+0.67917,
+0.80556
+],
+[
+0.58333,
+0.80556
+]
+]
+],
+"width": 7
+},
+{
+"id": "r16",
+"name": "Route 16",
+"kind": "route",
+"location_ids": [
+"kanto:8707"
+],
+"lines": [
+[
+[
+0.35417,
+0.47222
+],
+[
+0.5,
+0.47222
+]
+]
+],
+"width": 7
+},
+{
+"id": "r17",
+"name": "Route 17",
+"kind": "route",
+"location_ids": [
+"kanto:8963"
+],
+"lines": [
+[
+[
+0.35417,
+0.5
+],
+[
+0.35417,
+0.77778
+]
+]
+],
+"width": 7
+},
+{
+"id": "r18",
+"name": "Route 18",
+"kind": "route",
+"location_ids": [
+"kanto:9219"
+],
+"lines": [
+[
+[
+0.35833,
+0.80556
+],
+[
+0.54167,
+0.80556
+]
+]
+],
+"width": 7
+},
+{
+"id": "r19",
+"name": "Route 19",
+"kind": "sea",
+"location_ids": [
+"kanto:9475"
+],
+"lines": [
+[
+[
+0.5625,
+0.83333
+],
+[
+0.5625,
+0.91667
+]
+]
+],
+"width": 7
+},
+{
+"id": "r20",
+"name": "Route 20",
+"kind": "sea",
+"location_ids": [
+"kanto:9731"
+],
+"lines": [
+[
+[
+0.55417,
+0.91667
+],
+[
+0.25,
+0.91667
+]
+]
+],
+"width": 7
+},
+{
+"id": "r21n",
+"name": "Route 21 (North)",
+"kind": "sea",
+"location_ids": [
+"kanto:9987"
+],
+"lines": [
+[
+[
+0.22917,
+0.77778
+],
+[
+0.22917,
+0.83333
+]
+]
+],
+"width": 7
+},
+{
+"id": "r21s",
+"name": "Route 21 (South)",
+"kind": "sea",
+"location_ids": [
+"kanto:10243"
+],
+"lines": [
+[
+[
+0.22917,
+0.83889
+],
+[
+0.22917,
+0.88889
+]
+]
+],
+"width": 7
+},
+{
+"id": "viridian-forest",
+"name": "Viridian Forest",
+"kind": "landmark",
+"location_ids": [
+"kanto:1"
+],
+"x": 0.22917,
+"y": 0.46111
+},
+{
+"id": "mt-moon",
+"name": "Mt. Moon",
+"kind": "cave",
+"location_ids": [
+"kanto:257",
+"kanto:513",
+"kanto:769"
+],
+"x": 0.375,
+"y": 0.31111
+},
+{
+"id": "cerulean-cave",
+"name": "Cerulean Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:18433",
+"kanto:18689",
+"kanto:18945"
+],
+"x": 0.59167,
+"y": 0.23889
+},
+{
+"id": "rock-tunnel",
+"name": "Rock Tunnel",
+"kind": "cave",
+"location_ids": [
+"kanto:20737",
+"kanto:20993"
+],
+"x": 0.8125,
+"y": 0.35
+},
+{
+"id": "power-plant",
+"name": "Power Plant",
+"kind": "landmark",
+"location_ids": [
+"kanto:24321"
+],
+"x": 0.84583,
+"y": 0.4
+},
+{
+"id": "pokemon-tower",
+"name": "Pokémon Tower",
+"kind": "landmark",
+"location_ids": [
+"kanto:23041",
+"kanto:23297",
+"kanto:23553",
+"kanto:23809",
+"kanto:24065"
+],
+"x": 0.84167,
+"y": 0.46667
+},
+{
+"id": "digletts-cave",
+"name": "Diglett's Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:9473"
+],
+"x": 0.74167,
+"y": 0.58889
+},
+{
+"id": "safari-zone",
+"name": "Safari Zone",
+"kind": "area",
+"location_ids": [
+"kanto:16129",
+"kanto:16385",
+"kanto:16641",
+"kanto:16897"
+],
+"x": 0.5625,
+"y": 0.73889
+},
+{
+"id": "seafoam",
+"name": "Seafoam Islands",
+"kind": "cave",
+"location_ids": [
+"kanto:21249",
+"kanto:21505",
+"kanto:21761",
+"kanto:22017",
+"kanto:22273"
+],
+"x": 0.375,
+"y": 0.91667
+},
+{
+"id": "pokemon-mansion",
+"name": "Pokémon Mansion",
+"kind": "landmark",
+"location_ids": [
+"kanto:15105",
+"kanto:15361",
+"kanto:15617",
+"kanto:15873"
+],
+"x": 0.18333,
+"y": 0.92222
+},
+{
+"id": "victory-road",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"kanto:10241",
+"kanto:10497",
+"kanto:9985"
+],
+"x": 0.14583,
+"y": 0.41667
+},
+{
+"id": "ss-anne",
+"name": "S.S. Anne",
+"kind": "landmark",
+"location_ids": [
+"kanto:1025"
+],
+"x": 0.64583,
+"y": 0.68889
+}
+]
+},
+{
+"id": "game-sevii-123",
+"region": "kanto",
+"label": "Sevii Islands 1–3",
+"file": "game/sevii-123.png",
+"w": 192,
+"h": 144,
+"style": "game",
+"source": "FireRed (BPRE rev 1)",
+"parent": null,
+"submaps": [],
+"sha256": "ac9159fe21cd3fc6190775f96403eb15ba6f4f82537a0c25de81da1f193bc6d7",
+"features": [
+{
+"id": "one-island",
+"name": "One Island",
+"kind": "town",
+"location_ids": [
+"kanto:3075"
+],
+"x": 0.08333,
+"y": 0.55556,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "two-island",
+"name": "Two Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.41667,
+"y": 0.61111,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "three-island",
+"name": "Three Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.79167,
+"y": 0.77778,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "kindle-road",
+"name": "Kindle Road",
+"kind": "route",
+"location_ids": [
+"kanto:11523"
+],
+"lines": [
+[
+[
+0.14583,
+0.54444
+],
+[
+0.14583,
+0.36111
+]
+]
+],
+"width": 7
+},
+{
+"id": "mt-ember",
+"name": "Mt. Ember",
+"kind": "cave",
+"location_ids": [
+"kanto:24833",
+"kanto:25089",
+"kanto:25345",
+"kanto:25601",
+"kanto:26369",
+"kanto:26625",
+"kanto:26881",
+"kanto:27137",
+"kanto:27393",
+"kanto:27649"
+],
+"x": 0.14583,
+"y": 0.3
+},
+{
+"id": "treasure-beach",
+"name": "Treasure Beach",
+"kind": "area",
+"location_ids": [
+"kanto:11779"
+],
+"x": 0.1,
+"y": 0.71111
+},
+{
+"id": "cape-brink",
+"name": "Cape Brink",
+"kind": "area",
+"location_ids": [
+"kanto:12035"
+],
+"x": 0.4375,
+"y": 0.53333
+},
+{
+"id": "bond-bridge",
+"name": "Bond Bridge",
+"kind": "route",
+"location_ids": [
+"kanto:12291"
+],
+"lines": [
+[
+[
+0.64583,
+0.80556
+],
+[
+0.78333,
+0.80556
+]
+]
+],
+"width": 7
+},
+{
+"id": "berry-forest",
+"name": "Berry Forest",
+"kind": "landmark",
+"location_ids": [
+"kanto:27905"
+],
+"x": 0.61667,
+"y": 0.78889
+},
+{
+"id": "three-isle-port",
+"name": "Three Isle Port",
+"kind": "area",
+"location_ids": [
+"kanto:12547"
+],
+"x": 0.83333,
+"y": 0.85556
+}
+]
+},
+{
+"id": "game-sevii-45",
+"region": "kanto",
+"label": "Sevii Islands 4–5",
+"file": "game/sevii-45.png",
+"w": 192,
+"h": 144,
+"style": "game",
+"source": "FireRed (BPRE rev 1)",
+"parent": null,
+"submaps": [],
+"sha256": "e9c8aeefb4d362bd8b09816d415de6d261b60b3af3eeccecfe5c53cc6e82a623",
+"features": [
+{
+"id": "four-island",
+"name": "Four Island",
+"kind": "town",
+"location_ids": [
+"kanto:3843"
+],
+"x": 0.16667,
+"y": 0.33333,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "icefall-cave",
+"name": "Icefall Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:28161",
+"kanto:28417",
+"kanto:28673",
+"kanto:28929"
+],
+"x": 0.17917,
+"y": 0.28889
+},
+{
+"id": "five-island",
+"name": "Five Island",
+"kind": "town",
+"location_ids": [
+"kanto:4099"
+],
+"x": 0.70833,
+"y": 0.72222,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "five-isle-meadow",
+"name": "Five Isle Meadow",
+"kind": "area",
+"location_ids": [
+"kanto:14339"
+],
+"x": 0.775,
+"y": 0.74444
+},
+{
+"id": "water-labyrinth",
+"name": "Water Labyrinth",
+"kind": "area",
+"location_ids": [
+"kanto:14083"
+],
+"x": 0.75,
+"y": 0.63333
+},
+{
+"id": "memorial-pillar",
+"name": "Memorial Pillar",
+"kind": "landmark",
+"location_ids": [
+"kanto:14595"
+],
+"x": 0.81667,
+"y": 0.91111
+},
+{
+"id": "resort-gorgeous",
+"name": "Resort Gorgeous",
+"kind": "area",
+"location_ids": [
+"kanto:13827"
+],
+"x": 0.65833,
+"y": 0.68889
+},
+{
+"id": "lost-cave",
+"name": "Lost Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:3330",
+"kanto:3586",
+"kanto:3842",
+"kanto:4098",
+"kanto:4354",
+"kanto:4610",
+"kanto:4866",
+"kanto:5122",
+"kanto:5378",
+"kanto:5634",
+"kanto:5890",
+"kanto:6146",
+"kanto:6402",
+"kanto:6658"
+],
+"x": 0.64167,
+"y": 0.66111
+}
+]
+},
+{
+"id": "game-sevii-67",
+"region": "kanto",
+"label": "Sevii Islands 6–7",
+"file": "game/sevii-67.png",
+"w": 192,
+"h": 144,
+"style": "game",
+"source": "FireRed (BPRE rev 1)",
+"parent": null,
+"submaps": [],
+"sha256": "f0ecc5e2934a86c81208a9283303044bcedc07c715815d6d678878b8c0e0e69c",
+"features": [
+{
+"id": "six-island",
+"name": "Six Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.75,
+"y": 0.38889,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "seven-island",
+"name": "Seven Island",
+"kind": "town",
+"location_ids": [],
+"x": 0.25,
+"y": 0.55556,
+"w": 0.04167,
+"h": 0.05556
+},
+{
+"id": "water-path",
+"name": "Water Path",
+"kind": "route",
+"location_ids": [
+"kanto:15363"
+],
+"lines": [
+[
+[
+0.8125,
+0.33333
+],
+[
+0.8125,
+0.46111
+]
+]
+],
+"width": 7
+},
+{
+"id": "ruin-valley",
+"name": "Ruin Valley",
+"kind": "area",
+"location_ids": [
+"kanto:15619"
+],
+"x": 0.775,
+"y": 0.54444
+},
+{
+"id": "green-path",
+"name": "Green Path",
+"kind": "route",
+"location_ids": [
+"kanto:15107"
+],
+"lines": [
+[
+[
+0.675,
+0.30556
+],
+[
+0.74167,
+0.30556
+]
+]
+],
+"width": 7
+},
+{
+"id": "pattern-bush",
+"name": "Pattern Bush",
+"kind": "area",
+"location_ids": [
+"kanto:30977"
+],
+"x": 0.775,
+"y": 0.29444
+},
+{
+"id": "outcast-island",
+"name": "Outcast Island",
+"kind": "area",
+"location_ids": [
+"kanto:14851"
+],
+"x": 0.67917,
+"y": 0.18333
+},
+{
+"id": "altering-cave",
+"name": "Altering Cave",
+"kind": "cave",
+"location_ids": [
+"kanto:31233"
+],
+"x": 0.69167,
+"y": 0.12778
+},
+{
+"id": "trainer-tower",
+"name": "Trainer Tower",
+"kind": "landmark",
+"location_ids": [
+"kanto:15875"
+],
+"x": 0.27083,
+"y": 0.47222
+},
+{
+"id": "canyon-entrance",
+"name": "Canyon Entrance",
+"kind": "area",
+"location_ids": [
+"kanto:16131"
+],
+"x": 0.3,
+"y": 0.64444
+},
+{
+"id": "sevault-canyon",
+"name": "Sevault Canyon",
+"kind": "area",
+"location_ids": [
+"kanto:16387"
+],
+"x": 0.30417,
+"y": 0.71667
+},
+{
+"id": "tanoby-ruins",
+"name": "Tanoby Ruins",
+"kind": "landmark",
+"location_ids": [
+"kanto:16643",
+"kanto:6914",
+"kanto:7170",
+"kanto:7426",
+"kanto:7682",
+"kanto:7938",
+"kanto:8194",
+"kanto:8450"
+],
+"x": 0.29167,
+"y": 0.8
+}
+]
+},
+{
+"id": "game-johto",
+"region": "johto",
+"label": "Johto",
+"file": "game/johto.png",
+"w": 240,
+"h": 160,
+"style": "game",
+"source": "HeartGold/SoulSilver (IPKE/IPGE)",
+"parent": null,
+"submaps": [],
+"sha256": "f7477d5895078c0a0412eff3d881ecd3bf41df1624d7aa6659b354621d66de25",
+"features": [
+{
+"id": "cianwood",
+"name": "Cianwood City",
+"kind": "town",
+"location_ids": [
+"johto:75"
+],
+"x": 0.16667,
+"y": 0.6,
+"w": 0.03333,
+"h": 0.1
+},
+{
+"id": "olivine",
+"name": "Olivine City",
+"kind": "town",
+"location_ids": [
+"johto:77"
+],
+"x": 0.26667,
+"y": 0.45,
+"w": 0.06667,
+"h": 0.1
+},
+{
+"id": "ecruteak",
+"name": "Ecruteak City",
+"kind": "town",
+"location_ids": [
+"johto:78"
+],
+"x": 0.36667,
+"y": 0.3,
+"w": 0.06667,
+"h": 0.1
+},
+{
+"id": "goldenrod",
+"name": "Goldenrod City",
+"kind": "town",
+"location_ids": [],
+"x": 0.3,
+"y": 0.6,
+"w": 0.1,
+"h": 0.1
+},
+{
+"id": "azalea",
+"name": "Azalea Town",
+"kind": "town",
+"location_ids": [
+"johto:74"
+],
+"x": 0.4,
+"y": 0.8,
+"w": 0.06667,
+"h": 0.05
+},
+{
+"id": "violet",
+"name": "Violet City",
+"kind": "town",
+"location_ids": [
+"johto:73"
+],
+"x": 0.46667,
+"y": 0.45,
+"w": 0.06667,
+"h": 0.1
+},
+{
+"id": "cherrygrove",
+"name": "Cherrygrove City",
+"kind": "town",
+"location_ids": [
+"johto:67"
+],
+"x": 0.53333,
+"y": 0.7,
+"w": 0.06667,
+"h": 0.05
+},
+{
+"id": "new-bark",
+"name": "New Bark Town",
+"kind": "town",
+"location_ids": [
+"johto:60"
+],
+"x": 0.7,
+"y": 0.7,
+"w": 0.03333,
+"h": 0.05
+},
+{
+"id": "mahogany",
+"name": "Mahogany Town",
+"kind": "town",
+"location_ids": [
+"johto:87"
+],
+"x": 0.53333,
+"y": 0.35,
+"w": 0.03333,
+"h": 0.05
+},
+{
+"id": "blackthorn",
+"name": "Blackthorn City",
+"kind": "town",
+"location_ids": [
+"johto:89"
+],
+"x": 0.66667,
+"y": 0.3,
+"w": 0.06667,
+"h": 0.1
+},
+{
+"id": "r29",
+"name": "Route 29",
+"kind": "route",
+"location_ids": [
+"johto:33"
+],
+"lines": [
+[
+[
+0.6,
+0.725
+],
+[
+0.69667,
+0.725
+]
+]
+],
+"width": 7
+},
+{
+"id": "r30",
+"name": "Route 30",
+"kind": "route",
+"location_ids": [
+"johto:34"
+],
+"lines": [
+[
+[
+0.58333,
+0.53
+],
+[
+0.58333,
+0.695
+]
+]
+],
+"width": 7
+},
+{
+"id": "r31",
+"name": "Route 31",
+"kind": "route",
+"location_ids": [
+"johto:35"
+],
+"lines": [
+[
+[
+0.53333,
+0.525
+],
+[
+0.58,
+0.525
+]
+]
+],
+"width": 7
+},
+{
+"id": "r32",
+"name": "Route 32",
+"kind": "route",
+"location_ids": [
+"johto:36"
+],
+"lines": [
+[
+[
+0.48333,
+0.55
+],
+[
+0.48333,
+0.765
+]
+]
+],
+"width": 7
+},
+{
+"id": "r33",
+"name": "Route 33",
+"kind": "route",
+"location_ids": [
+"johto:37"
+],
+"lines": [
+[
+[
+0.48,
+0.82
+],
+[
+0.46667,
+0.825
+]
+]
+],
+"width": 7
+},
+{
+"id": "r34",
+"name": "Route 34",
+"kind": "route",
+"location_ids": [
+"johto:38"
+],
+"lines": [
+[
+[
+0.38333,
+0.695
+],
+[
+0.38333,
+0.795
+]
+]
+],
+"width": 7
+},
+{
+"id": "r35",
+"name": "Route 35",
+"kind": "route",
+"location_ids": [
+"johto:39"
+],
+"lines": [
+[
+[
+0.38333,
+0.495
+],
+[
+0.38333,
+0.595
+]
+]
+],
+"width": 7
+},
+{
+"id": "r36",
+"name": "Route 36",
+"kind": "route",
+"location_ids": [
+"johto:40"
+],
+"lines": [
+[
+[
+0.4,
+0.475
+],
+[
+0.46333,
+0.475
+]
+]
+],
+"width": 7
+},
+{
+"id": "r37",
+"name": "Route 37",
+"kind": "route",
+"location_ids": [
+"johto:41"
+],
+"lines": [
+[
+[
+0.41667,
+0.4
+],
+[
+0.41667,
+0.445
+]
+]
+],
+"width": 7
+},
+{
+"id": "r38",
+"name": "Route 38",
+"kind": "route",
+"location_ids": [
+"johto:42"
+],
+"lines": [
+[
+[
+0.28333,
+0.375
+],
+[
+0.36333,
+0.375
+]
+]
+],
+"width": 7
+},
+{
+"id": "r39",
+"name": "Route 39",
+"kind": "route",
+"location_ids": [
+"johto:43"
+],
+"lines": [
+[
+[
+0.28333,
+0.38
+],
+[
+0.28333,
+0.445
+]
+]
+],
+"width": 7
+},
+{
+"id": "r40",
+"name": "Route 40",
+"kind": "sea",
+"location_ids": [
+"johto:94"
+],
+"lines": [
+[
+[
+0.25,
+0.5
+],
+[
+0.25,
+0.635
+]
+]
+],
+"width": 7
+},
+{
+"id": "r41",
+"name": "Route 41",
+"kind": "sea",
+"location_ids": [
+"johto:95"
+],
+"lines": [
+[
+[
+0.22333,
+0.645
+],
+[
+0.23,
+0.72
+]
+]
+],
+"width": 7
+},
+{
+"id": "r42",
+"name": "Route 42",
+"kind": "route",
+"location_ids": [
+"johto:44"
+],
+"lines": [
+[
+[
+0.43667,
+0.375
+],
+[
+0.53,
+0.375
+]
+]
+],
+"width": 7
+},
+{
+"id": "r43",
+"name": "Route 43",
+"kind": "route",
+"location_ids": [
+"johto:45"
+],
+"lines": [
+[
+[
+0.55,
+0.255
+],
+[
+0.55,
+0.345
+]
+]
+],
+"width": 7
+},
+{
+"id": "r44",
+"name": "Route 44",
+"kind": "route",
+"location_ids": [
+"johto:46"
+],
+"lines": [
+[
+[
+0.57,
+0.375
+],
+[
+0.66333,
+0.375
+]
+]
+],
+"width": 7
+},
+{
+"id": "r45",
+"name": "Route 45",
+"kind": "route",
+"location_ids": [
+"johto:47"
+],
+"lines": [
+[
+[
+0.68,
+0.405
+],
+[
+0.68,
+0.615
+],
+[
+0.65,
+0.62
+]
+]
+],
+"width": 7
+},
+{
+"id": "r46",
+"name": "Route 46",
+"kind": "route",
+"location_ids": [
+"johto:48"
+],
+"lines": [
+[
+[
+0.65,
+0.63
+],
+[
+0.65,
+0.69
+]
+]
+],
+"width": 7
+},
+{
+"id": "r27",
+"name": "Route 27",
+"kind": "route",
+"location_ids": [
+"johto:31"
+],
+"lines": [
+[
+[
+0.73333,
+0.725
+],
+[
+0.95,
+0.725
+]
+]
+],
+"width": 7
+},
+{
+"id": "r26",
+"name": "Route 26",
+"kind": "route",
+"location_ids": [
+"johto:30"
+],
+"lines": [
+[
+[
+0.95,
+0.715
+],
+[
+0.95,
+0.49
+]
+]
+],
+"width": 7
+},
+{
+"id": "r28",
+"name": "Route 28",
+"kind": "route",
+"location_ids": [
+"johto:32"
+],
+"lines": [
+[
+[
+0.85333,
+0.525
+],
+[
+0.93,
+0.525
+]
+]
+],
+"width": 7
+},
+{
+"id": "r47",
+"name": "Route 47",
+"kind": "route",
+"location_ids": [
+"johto:151"
+],
+"lines": [
+[
+[
+0.15333,
+0.68
+],
+[
+0.10667,
+0.69
+]
+]
+],
+"width": 7
+},
+{
+"id": "r48",
+"name": "Route 48",
+"kind": "route",
+"location_ids": [
+"johto:152"
+],
+"lines": [
+[
+[
+0.08333,
+0.62
+],
+[
+0.08333,
+0.56
+]
+]
+],
+"width": 7
+},
+{
+"id": "lake-of-rage",
+"name": "Lake of Rage",
+"kind": "area",
+"location_ids": [
+"johto:88"
+],
+"x": 0.55,
+"y": 0.19
+},
+{
+"id": "sprout-tower",
+"name": "Sprout Tower",
+"kind": "landmark",
+"location_ids": [
+"johto:155",
+"johto:156"
+],
+"x": 0.51667,
+"y": 0.47
+},
+{
+"id": "ruins-of-alph",
+"name": "Ruins of Alph",
+"kind": "landmark",
+"location_ids": [
+"johto:113",
+"johto:315",
+"johto:323",
+"johto:491"
+],
+"x": 0.45,
+"y": 0.545
+},
+{
+"id": "union-cave",
+"name": "Union Cave",
+"kind": "cave",
+"location_ids": [
+"johto:153",
+"johto:154",
+"johto:99"
+],
+"x": 0.48333,
+"y": 0.78
+},
+{
+"id": "slowpoke-well",
+"name": "Slowpoke Well",
+"kind": "cave",
+"location_ids": [
+"johto:177",
+"johto:181"
+],
+"x": 0.45,
+"y": 0.825
+},
+{
+"id": "ilex-forest",
+"name": "Ilex Forest",
+"kind": "landmark",
+"location_ids": [
+"johto:117"
+],
+"x": 0.38,
+"y": 0.75
+},
+{
+"id": "national-park",
+"name": "National Park",
+"kind": "area",
+"location_ids": [
+"johto:96"
+],
+"x": 0.36667,
+"y": 0.455
+},
+{
+"id": "pokeathlon",
+"name": "Pokéathlon Dome",
+"kind": "landmark",
+"location_ids": [
+"johto:280"
+],
+"x": 0.34667,
+"y": 0.53
+},
+{
+"id": "burned-tower",
+"name": "Burned Tower",
+"kind": "landmark",
+"location_ids": [
+"johto:217",
+"johto:7"
+],
+"x": 0.38333,
+"y": 0.32
+},
+{
+"id": "bell-tower",
+"name": "Bell Tower",
+"kind": "landmark",
+"location_ids": [
+"johto:332",
+"johto:333",
+"johto:334",
+"johto:335",
+"johto:336",
+"johto:337",
+"johto:338",
+"johto:339",
+"johto:341"
+],
+"x": 0.41667,
+"y": 0.32
+},
+{
+"id": "whirl-islands",
+"name": "Whirl Islands",
+"kind": "cave",
+"location_ids": [
+"johto:121",
+"johto:242",
+"johto:243",
+"johto:486"
+],
+"x": 0.24,
+"y": 0.72
+},
+{
+"id": "mt-mortar",
+"name": "Mt. Mortar",
+"kind": "cave",
+"location_ids": [
+"johto:119",
+"johto:250",
+"johto:251",
+"johto:252"
+],
+"x": 0.48333,
+"y": 0.325
+},
+{
+"id": "rocket-hq",
+"name": "Team Rocket HQ",
+"kind": "landmark",
+"location_ids": [
+"johto:247",
+"johto:248",
+"johto:249"
+],
+"x": 0.55333,
+"y": 0.41
+},
+{
+"id": "ice-path",
+"name": "Ice Path",
+"kind": "cave",
+"location_ids": [
+"johto:120",
+"johto:237",
+"johto:238",
+"johto:239"
+],
+"x": 0.65333,
+"y": 0.375
+},
+{
+"id": "dragons-den",
+"name": "Dragon's Den",
+"kind": "cave",
+"location_ids": [
+"johto:253"
+],
+"x": 0.72,
+"y": 0.26
+},
+{
+"id": "dark-cave",
+"name": "Dark Cave",
+"kind": "cave",
+"location_ids": [
+"johto:123",
+"johto:176"
+],
+"x": 0.63667,
+"y": 0.44
+},
+{
+"id": "tohjo-falls",
+"name": "Tohjo Falls",
+"kind": "cave",
+"location_ids": [
+"johto:126",
+"johto:298"
+],
+"x": 0.78333,
+"y": 0.725
+},
+{
+"id": "victory-road-j",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"johto:124",
+"johto:178",
+"johto:179"
+],
+"x": 0.95,
+"y": 0.47
+},
+{
+"id": "mt-silver",
+"name": "Mt. Silver",
+"kind": "cave",
+"location_ids": [
+"johto:90",
+"johto:122",
+"johto:459",
+"johto:460",
+"johto:461",
+"johto:462",
+"johto:463",
+"johto:464"
+],
+"x": 0.83333,
+"y": 0.505
+},
+{
+"id": "cliff-cave",
+"name": "Cliff Cave",
+"kind": "cave",
+"location_ids": [
+"johto:342"
+],
+"x": 0.15,
+"y": 0.645
+},
+{
+"id": "cliff-edge-gate",
+"name": "Cliff Edge Gate",
+"kind": "landmark",
+"location_ids": [
+"johto:279"
+],
+"x": 0.08333,
+"y": 0.675
+},
+{
+"id": "safari-zone-j",
+"name": "Safari Zone",
+"kind": "area",
+"location_ids": [
+"johto:343",
+"johto:344",
+"johto:345",
+"johto:346",
+"johto:347",
+"johto:348",
+"johto:349",
+"johto:350",
+"johto:351",
+"johto:352",
+"johto:353",
+"johto:354",
+"johto:174"
+],
+"x": 0.08667,
+"y": 0.525
+}
+]
+},
+{
+"id": "game-hoenn",
+"region": "hoenn",
+"label": "Hoenn",
+"file": "game/hoenn.png",
+"w": 248,
+"h": 152,
+"style": "game",
+"source": "Emerald (BPEE)",
+"parent": null,
+"submaps": [],
+"sha256": "08934a6d635509f402314b4e012646967432bfb9a248b38519b063af444b1dde",
+"features": [
+{
+"id": "fallarbor",
+"name": "Fallarbor Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.12903,
+"y": 0.10526,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "fortree",
+"name": "Fortree City",
+"kind": "town",
+"location_ids": [],
+"x": 0.41935,
+"y": 0.10526,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "lavaridge",
+"name": "Lavaridge Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.19355,
+"y": 0.26316,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "lilycove",
+"name": "Lilycove City",
+"kind": "town",
+"location_ids": [
+"hoenn:1330"
+],
+"x": 0.6129,
+"y": 0.26316,
+"w": 0.06452,
+"h": 0.05263
+},
+{
+"id": "rustboro",
+"name": "Rustboro City",
+"kind": "town",
+"location_ids": [
+"hoenn:818"
+],
+"x": 0.03226,
+"y": 0.36842,
+"w": 0.03226,
+"h": 0.10526
+},
+{
+"id": "verdanturf",
+"name": "Verdanturf Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.16129,
+"y": 0.42105,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "mauville",
+"name": "Mauville City",
+"kind": "town",
+"location_ids": [],
+"x": 0.29032,
+"y": 0.42105,
+"w": 0.06452,
+"h": 0.05263
+},
+{
+"id": "mossdeep",
+"name": "Mossdeep City",
+"kind": "town",
+"location_ids": [
+"hoenn:1586"
+],
+"x": 0.80645,
+"y": 0.36842,
+"w": 0.06452,
+"h": 0.05263
+},
+{
+"id": "sootopolis",
+"name": "Sootopolis City",
+"kind": "town",
+"location_ids": [
+"hoenn:1842"
+],
+"x": 0.70968,
+"y": 0.47368,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "ever-grande",
+"name": "Ever Grande City",
+"kind": "town",
+"location_ids": [
+"hoenn:2098"
+],
+"x": 0.90323,
+"y": 0.52632,
+"w": 0.03226,
+"h": 0.10526
+},
+{
+"id": "petalburg",
+"name": "Petalburg City",
+"kind": "town",
+"location_ids": [
+"hoenn:50"
+],
+"x": 0.06452,
+"y": 0.57895,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "oldale",
+"name": "Oldale Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.16129,
+"y": 0.57895,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "littleroot",
+"name": "Littleroot Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.16129,
+"y": 0.68421,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "slateport",
+"name": "Slateport City",
+"kind": "town",
+"location_ids": [
+"hoenn:306"
+],
+"x": 0.29032,
+"y": 0.63158,
+"w": 0.03226,
+"h": 0.10526
+},
+{
+"id": "pacifidlog",
+"name": "Pacifidlog Town",
+"kind": "town",
+"location_ids": [
+"hoenn:3890"
+],
+"x": 0.58065,
+"y": 0.63158,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "dewford",
+"name": "Dewford Town",
+"kind": "town",
+"location_ids": [
+"hoenn:2866"
+],
+"x": 0.09677,
+"y": 0.84211,
+"w": 0.03226,
+"h": 0.05263
+},
+{
+"id": "r101",
+"name": "Route 101",
+"kind": "route",
+"location_ids": [
+"hoenn:4146"
+],
+"lines": [
+[
+[
+0.17742,
+0.63158
+],
+[
+0.17742,
+0.68421
+]
+]
+],
+"width": 7
+},
+{
+"id": "r102",
+"name": "Route 102",
+"kind": "route",
+"location_ids": [
+"hoenn:4402"
+],
+"lines": [
+[
+[
+0.09677,
+0.60526
+],
+[
+0.16129,
+0.60526
+]
+]
+],
+"width": 7
+},
+{
+"id": "r103",
+"name": "Route 103",
+"kind": "route",
+"location_ids": [
+"hoenn:4658"
+],
+"lines": [
+[
+[
+0.17742,
+0.57895
+],
+[
+0.17742,
+0.55263
+],
+[
+0.29032,
+0.55263
+]
+]
+],
+"width": 7
+},
+{
+"id": "r104",
+"name": "Route 104",
+"kind": "route",
+"location_ids": [
+"hoenn:4914"
+],
+"lines": [
+[
+[
+0.06452,
+0.60526
+],
+[
+0.04839,
+0.60526
+],
+[
+0.04839,
+0.47368
+]
+]
+],
+"width": 7
+},
+{
+"id": "r105",
+"name": "Route 105",
+"kind": "sea",
+"location_ids": [
+"hoenn:5170"
+],
+"lines": [
+[
+[
+0.04839,
+0.63158
+],
+[
+0.04839,
+0.78947
+]
+]
+],
+"width": 7
+},
+{
+"id": "r106",
+"name": "Route 106",
+"kind": "sea",
+"location_ids": [
+"hoenn:5426"
+],
+"lines": [
+[
+[
+0.05161,
+0.81579
+],
+[
+0.09677,
+0.83158
+]
+]
+],
+"width": 7
+},
+{
+"id": "r107",
+"name": "Route 107",
+"kind": "sea",
+"location_ids": [
+"hoenn:5682"
+],
+"lines": [
+[
+[
+0.12903,
+0.86842
+],
+[
+0.20968,
+0.86842
+]
+]
+],
+"width": 7
+},
+{
+"id": "r108",
+"name": "Route 108",
+"kind": "sea",
+"location_ids": [
+"hoenn:5938"
+],
+"lines": [
+[
+[
+0.2129,
+0.86842
+],
+[
+0.27097,
+0.86842
+]
+]
+],
+"width": 7
+},
+{
+"id": "r109",
+"name": "Route 109",
+"kind": "sea",
+"location_ids": [
+"hoenn:6194"
+],
+"lines": [
+[
+[
+0.30645,
+0.86842
+],
+[
+0.30645,
+0.73684
+]
+]
+],
+"width": 7
+},
+{
+"id": "r110",
+"name": "Route 110",
+"kind": "route",
+"location_ids": [
+"hoenn:6450"
+],
+"lines": [
+[
+[
+0.30645,
+0.47368
+],
+[
+0.30645,
+0.63158
+]
+]
+],
+"width": 7
+},
+{
+"id": "r111",
+"name": "Route 111",
+"kind": "route",
+"location_ids": [
+"hoenn:6706"
+],
+"lines": [
+[
+[
+0.30645,
+0.42105
+],
+[
+0.30645,
+0.13684
+]
+]
+],
+"width": 7
+},
+{
+"id": "r112",
+"name": "Route 112",
+"kind": "route",
+"location_ids": [
+"hoenn:6962"
+],
+"lines": [
+[
+[
+0.22581,
+0.28947
+],
+[
+0.3,
+0.28947
+]
+]
+],
+"width": 7
+},
+{
+"id": "r113",
+"name": "Route 113",
+"kind": "route",
+"location_ids": [
+"hoenn:7218"
+],
+"lines": [
+[
+[
+0.16129,
+0.13158
+],
+[
+0.3,
+0.13158
+]
+]
+],
+"width": 7
+},
+{
+"id": "r114",
+"name": "Route 114",
+"kind": "route",
+"location_ids": [
+"hoenn:7474"
+],
+"lines": [
+[
+[
+0.12903,
+0.13158
+],
+[
+0.06452,
+0.13158
+],
+[
+0.06452,
+0.17895
+]
+]
+],
+"width": 7
+},
+{
+"id": "r115",
+"name": "Route 115",
+"kind": "route",
+"location_ids": [
+"hoenn:7730"
+],
+"lines": [
+[
+[
+0.03871,
+0.36842
+],
+[
+0.03871,
+0.23684
+]
+]
+],
+"width": 7
+},
+{
+"id": "r116",
+"name": "Route 116",
+"kind": "route",
+"location_ids": [
+"hoenn:7986"
+],
+"lines": [
+[
+[
+0.06452,
+0.39474
+],
+[
+0.14839,
+0.39474
+]
+]
+],
+"width": 7
+},
+{
+"id": "r117",
+"name": "Route 117",
+"kind": "route",
+"location_ids": [
+"hoenn:8242"
+],
+"lines": [
+[
+[
+0.19355,
+0.44737
+],
+[
+0.29032,
+0.44737
+]
+]
+],
+"width": 7
+},
+{
+"id": "r118",
+"name": "Route 118",
+"kind": "route",
+"location_ids": [
+"hoenn:8498"
+],
+"lines": [
+[
+[
+0.35484,
+0.44737
+],
+[
+0.41613,
+0.44737
+]
+]
+],
+"width": 7
+},
+{
+"id": "r119",
+"name": "Route 119",
+"kind": "route",
+"location_ids": [
+"hoenn:8754"
+],
+"lines": [
+[
+[
+0.43548,
+0.43158
+],
+[
+0.43548,
+0.15789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r120",
+"name": "Route 120",
+"kind": "route",
+"location_ids": [
+"hoenn:9010"
+],
+"lines": [
+[
+[
+0.45161,
+0.13158
+],
+[
+0.46774,
+0.13158
+],
+[
+0.46774,
+0.27895
+]
+]
+],
+"width": 7
+},
+{
+"id": "r121",
+"name": "Route 121",
+"kind": "route",
+"location_ids": [
+"hoenn:9266"
+],
+"lines": [
+[
+[
+0.47419,
+0.28947
+],
+[
+0.6129,
+0.28947
+]
+]
+],
+"width": 7
+},
+{
+"id": "r122",
+"name": "Route 122",
+"kind": "sea",
+"location_ids": [
+"hoenn:9522"
+],
+"lines": [
+[
+[
+0.56452,
+0.31579
+],
+[
+0.56452,
+0.35789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r123",
+"name": "Route 123",
+"kind": "route",
+"location_ids": [
+"hoenn:9778"
+],
+"lines": [
+[
+[
+0.42581,
+0.44737
+],
+[
+0.57419,
+0.44737
+]
+]
+],
+"width": 7
+},
+{
+"id": "r124",
+"name": "Route 124",
+"kind": "sea",
+"location_ids": [
+"hoenn:10034",
+"hoenn:12850"
+],
+"lines": [
+[
+[
+0.67742,
+0.28947
+],
+[
+0.77419,
+0.28947
+]
+]
+],
+"width": 7
+},
+{
+"id": "r125",
+"name": "Route 125",
+"kind": "sea",
+"location_ids": [
+"hoenn:10290"
+],
+"lines": [
+[
+[
+0.78387,
+0.28947
+],
+[
+0.85484,
+0.32632
+]
+]
+],
+"width": 7
+},
+{
+"id": "r126",
+"name": "Route 126",
+"kind": "sea",
+"location_ids": [
+"hoenn:10546",
+"hoenn:13106"
+],
+"lines": [
+[
+[
+0.6871,
+0.43684
+],
+[
+0.77419,
+0.43684
+]
+]
+],
+"width": 7
+},
+{
+"id": "r127",
+"name": "Route 127",
+"kind": "sea",
+"location_ids": [
+"hoenn:10802"
+],
+"lines": [
+[
+[
+0.79032,
+0.4
+],
+[
+0.79032,
+0.59474
+]
+]
+],
+"width": 7
+},
+{
+"id": "r128",
+"name": "Route 128",
+"kind": "sea",
+"location_ids": [
+"hoenn:11058"
+],
+"lines": [
+[
+[
+0.8,
+0.60526
+],
+[
+0.89677,
+0.60526
+]
+]
+],
+"width": 7
+},
+{
+"id": "r129",
+"name": "Route 129",
+"kind": "sea",
+"location_ids": [
+"hoenn:11314"
+],
+"lines": [
+[
+[
+0.85484,
+0.65789
+],
+[
+0.77419,
+0.65789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r130",
+"name": "Route 130",
+"kind": "sea",
+"location_ids": [
+"hoenn:11570"
+],
+"lines": [
+[
+[
+0.76774,
+0.65789
+],
+[
+0.64516,
+0.65789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r131",
+"name": "Route 131",
+"kind": "sea",
+"location_ids": [
+"hoenn:11826"
+],
+"lines": [
+[
+[
+0.63871,
+0.65789
+],
+[
+0.6129,
+0.65789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r132",
+"name": "Route 132",
+"kind": "sea",
+"location_ids": [
+"hoenn:12082"
+],
+"lines": [
+[
+[
+0.57419,
+0.65789
+],
+[
+0.48387,
+0.65789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r133",
+"name": "Route 133",
+"kind": "sea",
+"location_ids": [
+"hoenn:12338"
+],
+"lines": [
+[
+[
+0.47742,
+0.65789
+],
+[
+0.40323,
+0.65789
+]
+]
+],
+"width": 7
+},
+{
+"id": "r134",
+"name": "Route 134",
+"kind": "sea",
+"location_ids": [
+"hoenn:12594"
+],
+"lines": [
+[
+[
+0.39677,
+0.65789
+],
+[
+0.32258,
+0.65789
+]
+]
+],
+"width": 7
+},
+{
+"id": "petalburg-woods",
+"name": "Petalburg Woods",
+"kind": "landmark",
+"location_ids": [
+"hoenn:2890"
+],
+"x": 0.04839,
+"y": 0.50526
+},
+{
+"id": "rusturf-tunnel",
+"name": "Rusturf Tunnel",
+"kind": "cave",
+"location_ids": [
+"hoenn:1098"
+],
+"x": 0.16774,
+"y": 0.38421
+},
+{
+"id": "granite-cave",
+"name": "Granite Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:1866",
+"hoenn:2122",
+"hoenn:2378",
+"hoenn:2634"
+],
+"x": 0.07419,
+"y": 0.87895
+},
+{
+"id": "abandoned-ship",
+"name": "Abandoned Ship",
+"kind": "landmark",
+"location_ids": [
+"hoenn:14922",
+"hoenn:16714"
+],
+"x": 0.24194,
+"y": 0.86842
+},
+{
+"id": "new-mauville",
+"name": "New Mauville",
+"kind": "landmark",
+"location_ids": [
+"hoenn:13386",
+"hoenn:13642"
+],
+"x": 0.34194,
+"y": 0.51053
+},
+{
+"id": "mirage-tower",
+"name": "Mirage Tower",
+"kind": "landmark",
+"location_ids": [
+"hoenn:24138",
+"hoenn:24394",
+"hoenn:24650",
+"hoenn:24906"
+],
+"x": 0.28387,
+"y": 0.18947
+},
+{
+"id": "desert-underpass",
+"name": "Desert Underpass",
+"kind": "cave",
+"location_ids": [
+"hoenn:25162"
+],
+"x": 0.27097,
+"y": 0.15263
+},
+{
+"id": "fiery-path",
+"name": "Fiery Path",
+"kind": "cave",
+"location_ids": [
+"hoenn:3658"
+],
+"x": 0.26452,
+"y": 0.28421
+},
+{
+"id": "jagged-pass",
+"name": "Jagged Pass",
+"kind": "area",
+"location_ids": [
+"hoenn:3402"
+],
+"x": 0.21613,
+"y": 0.24211
+},
+{
+"id": "magma-hideout",
+"name": "Magma Hideout",
+"kind": "landmark",
+"location_ids": [
+"hoenn:22090",
+"hoenn:22346",
+"hoenn:22602",
+"hoenn:22858",
+"hoenn:23114",
+"hoenn:23370",
+"hoenn:23626",
+"hoenn:23882"
+],
+"x": 0.22903,
+"y": 0.21053
+},
+{
+"id": "meteor-falls",
+"name": "Meteor Falls",
+"kind": "cave",
+"location_ids": [
+"hoenn:27466",
+"hoenn:330",
+"hoenn:586",
+"hoenn:74",
+"hoenn:842"
+],
+"x": 0.06452,
+"y": 0.2
+},
+{
+"id": "scorched-slab",
+"name": "Scorched Slab",
+"kind": "cave",
+"location_ids": [
+"hoenn:18762"
+],
+"x": 0.48387,
+"y": 0.2
+},
+{
+"id": "mt-pyre",
+"name": "Mt. Pyre",
+"kind": "cave",
+"location_ids": [
+"hoenn:3914",
+"hoenn:4170",
+"hoenn:4426",
+"hoenn:4682",
+"hoenn:4938",
+"hoenn:5194",
+"hoenn:5450",
+"hoenn:5706"
+],
+"x": 0.56452,
+"y": 0.37368
+},
+{
+"id": "safari-zone-h",
+"name": "Safari Zone",
+"kind": "area",
+"location_ids": [
+"hoenn:3148",
+"hoenn:332",
+"hoenn:3404",
+"hoenn:588",
+"hoenn:76",
+"hoenn:844"
+],
+"x": 0.53226,
+"y": 0.25263
+},
+{
+"id": "aqua-hideout",
+"name": "Aqua Hideout",
+"kind": "landmark",
+"location_ids": [
+"hoenn:19530",
+"hoenn:5962",
+"hoenn:6474"
+],
+"x": 0.67097,
+"y": 0.25263
+},
+{
+"id": "shoal-cave",
+"name": "Shoal Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:11850",
+"hoenn:12106",
+"hoenn:12362",
+"hoenn:12618",
+"hoenn:12874",
+"hoenn:13130",
+"hoenn:21322"
+],
+"x": 0.87097,
+"y": 0.35789
+},
+{
+"id": "cave-of-origin",
+"name": "Cave Of Origin",
+"kind": "cave",
+"location_ids": [
+"hoenn:10058",
+"hoenn:10314",
+"hoenn:10570",
+"hoenn:9546",
+"hoenn:9802"
+],
+"x": 0.74194,
+"y": 0.50526
+},
+{
+"id": "seafloor-cavern",
+"name": "Seafloor Cavern",
+"kind": "cave",
+"location_ids": [
+"hoenn:6986",
+"hoenn:7242",
+"hoenn:7498",
+"hoenn:7754",
+"hoenn:8010",
+"hoenn:8266",
+"hoenn:8522",
+"hoenn:8778",
+"hoenn:9034"
+],
+"x": 0.83226,
+"y": 0.58421
+},
+{
+"id": "sky-pillar",
+"name": "Sky Pillar",
+"kind": "landmark",
+"location_ids": [
+"hoenn:20298",
+"hoenn:20554",
+"hoenn:20810",
+"hoenn:21066",
+"hoenn:21578"
+],
+"x": 0.9129,
+"y": 0.86316
+},
+{
+"id": "victory-road-h",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"hoenn:11082",
+"hoenn:11338",
+"hoenn:11594"
+],
+"x": 0.91935,
+"y": 0.49474
+},
+{
+"id": "altering-cave-h",
+"name": "Altering Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:27210"
+],
+"x": 0.20968,
+"y": 0.51579
+},
+{
+"id": "sealed-chamber",
+"name": "Sealed Chamber",
+"kind": "landmark",
+"location_ids": [
+"hoenn:18250"
+],
+"x": 0.37097,
+"y": 0.69474
+},
+{
+"id": "battle-frontier",
+"name": "Battle Frontier",
+"kind": "area",
+"location_ids": [
+"hoenn:3660"
+],
+"x": 0.31613,
+"y": 0.92105
+},
+{
+"id": "artisan-cave",
+"name": "Artisan Cave",
+"kind": "cave",
+"location_ids": [
+"hoenn:25418",
+"hoenn:25674"
+],
+"x": 0.33548,
+"y": 0.90526
+}
+]
+},
+{
+"id": "game-sinnoh",
+"region": "sinnoh",
+"label": "Sinnoh",
+"file": "game/sinnoh.png",
+"w": 512,
+"h": 408,
+"style": "game",
+"source": "Platinum (CPUE), bottom-screen map, brightened",
+"parent": null,
+"submaps": [],
+"sha256": "c4c91faf72b1a5fdb2644216f98f3dee9b45e80d0ac12953287fde49546e4eba",
+"features": [
+{
+"id": "snowpoint",
+"name": "Snowpoint City",
+"kind": "town",
+"location_ids": [],
+"x": 0.375,
+"y": 0.05882,
+"w": 0.03125,
+"h": 0.05882
+},
+{
+"id": "acuity",
+"name": "Lake Acuity",
+"kind": "area",
+"location_ids": [
+"sinnoh:318",
+"sinnoh:340"
+],
+"x": 0.33594,
+"y": 0.08235
+},
+{
+"id": "snowpoint-temple",
+"name": "Snowpoint Temple",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:278",
+"sinnoh:279",
+"sinnoh:280",
+"sinnoh:281",
+"sinnoh:282",
+"sinnoh:283"
+],
+"x": 0.4,
+"y": 0.06667
+},
+{
+"id": "r217",
+"name": "Route 217",
+"kind": "route",
+"location_ids": [
+"sinnoh:385"
+],
+"lines": [
+[
+[
+0.32031,
+0.13725
+],
+[
+0.32031,
+0.28431
+]
+]
+],
+"width": 7
+},
+{
+"id": "r216",
+"name": "Route 216",
+"kind": "route",
+"location_ids": [
+"sinnoh:383"
+],
+"lines": [
+[
+[
+0.32188,
+0.30392
+],
+[
+0.39844,
+0.30392
+]
+]
+],
+"width": 7
+},
+{
+"id": "mt-coronet",
+"name": "Mt. Coronet",
+"kind": "cave",
+"location_ids": [
+"sinnoh:207",
+"sinnoh:208",
+"sinnoh:209",
+"sinnoh:210",
+"sinnoh:211",
+"sinnoh:212",
+"sinnoh:213",
+"sinnoh:214",
+"sinnoh:215",
+"sinnoh:216",
+"sinnoh:217",
+"sinnoh:218",
+"sinnoh:219"
+],
+"x": 0.41406,
+"y": 0.39216
+},
+{
+"id": "eterna",
+"name": "Eterna City",
+"kind": "town",
+"location_ids": [
+"sinnoh:65"
+],
+"x": 0.3125,
+"y": 0.45098,
+"w": 0.04688,
+"h": 0.03922
+},
+{
+"id": "r211w",
+"name": "Route 211 (West)",
+"kind": "route",
+"location_ids": [
+"sinnoh:365"
+],
+"lines": [
+[
+[
+0.3625,
+0.46078
+],
+[
+0.40313,
+0.46078
+]
+]
+],
+"width": 7
+},
+{
+"id": "r211e",
+"name": "Route 211 (East)",
+"kind": "route",
+"location_ids": [
+"sinnoh:366"
+],
+"lines": [
+[
+[
+0.425,
+0.46078
+],
+[
+0.46563,
+0.46078
+]
+]
+],
+"width": 7
+},
+{
+"id": "celestic",
+"name": "Celestic Town",
+"kind": "town",
+"location_ids": [
+"sinnoh:442"
+],
+"x": 0.46875,
+"y": 0.45098,
+"w": 0.01562,
+"h": 0.01961
+},
+{
+"id": "r210n",
+"name": "Route 210 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:363"
+],
+"lines": [
+[
+[
+0.5,
+0.46078
+],
+[
+0.57812,
+0.46078
+],
+[
+0.57031,
+0.4902
+]
+]
+],
+"width": 7
+},
+{
+"id": "r210s",
+"name": "Route 210 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:362"
+],
+"lines": [
+[
+[
+0.57031,
+0.49412
+],
+[
+0.57031,
+0.61765
+]
+]
+],
+"width": 7
+},
+{
+"id": "eterna-forest",
+"name": "Eterna Forest",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:203"
+],
+"x": 0.24219,
+"y": 0.49412
+},
+{
+"id": "old-chateau",
+"name": "Old Chateau",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:295",
+"sinnoh:296",
+"sinnoh:297",
+"sinnoh:298",
+"sinnoh:299",
+"sinnoh:300",
+"sinnoh:301",
+"sinnoh:302",
+"sinnoh:303"
+],
+"x": 0.23125,
+"y": 0.47843
+},
+{
+"id": "r205n",
+"name": "Route 205 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:349"
+],
+"lines": [
+[
+[
+0.28437,
+0.46275
+],
+[
+0.31094,
+0.46275
+]
+]
+],
+"width": 7
+},
+{
+"id": "r205s",
+"name": "Route 205 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:347"
+],
+"lines": [
+[
+[
+0.2,
+0.57843
+],
+[
+0.22656,
+0.57843
+],
+[
+0.22656,
+0.52941
+]
+]
+],
+"width": 7
+},
+{
+"id": "floaroma",
+"name": "Floaroma Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.1875,
+"y": 0.56863,
+"w": 0.01562,
+"h": 0.05882
+},
+{
+"id": "fuego",
+"name": "Fuego Ironworks",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:204"
+],
+"x": 0.19687,
+"y": 0.54118
+},
+{
+"id": "valley-windworks",
+"name": "Valley Windworks",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:200"
+],
+"x": 0.25938,
+"y": 0.61961
+},
+{
+"id": "r204n",
+"name": "Route 204 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:346"
+],
+"lines": [
+[
+[
+0.19531,
+0.63137
+],
+[
+0.19531,
+0.67059
+]
+]
+],
+"width": 7
+},
+{
+"id": "ravaged-path",
+"name": "Ravaged Path",
+"kind": "cave",
+"location_ids": [
+"sinnoh:254"
+],
+"x": 0.19531,
+"y": 0.68039
+},
+{
+"id": "r204s",
+"name": "Route 204 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:345"
+],
+"lines": [
+[
+[
+0.19531,
+0.6902
+],
+[
+0.19531,
+0.72157
+]
+]
+],
+"width": 7
+},
+{
+"id": "jubilife",
+"name": "Jubilife City",
+"kind": "town",
+"location_ids": [],
+"x": 0.15625,
+"y": 0.72549,
+"w": 0.0625,
+"h": 0.05882
+},
+{
+"id": "canalave",
+"name": "Canalave City",
+"kind": "town",
+"location_ids": [
+"sinnoh:33"
+],
+"x": 0.0625,
+"y": 0.68627,
+"w": 0.03125,
+"h": 0.05882
+},
+{
+"id": "r218",
+"name": "Route 218",
+"kind": "sea",
+"location_ids": [
+"sinnoh:388"
+],
+"lines": [
+[
+[
+0.09375,
+0.73529
+],
+[
+0.15313,
+0.73529
+]
+]
+],
+"width": 7
+},
+{
+"id": "iron-island",
+"name": "Iron Island",
+"kind": "cave",
+"location_ids": [
+"sinnoh:288",
+"sinnoh:289",
+"sinnoh:290",
+"sinnoh:291",
+"sinnoh:292",
+"sinnoh:293",
+"sinnoh:294"
+],
+"x": 0.13281,
+"y": 0.42157
+},
+{
+"id": "r203",
+"name": "Route 203",
+"kind": "route",
+"location_ids": [
+"sinnoh:344"
+],
+"lines": [
+[
+[
+0.22031,
+0.73529
+],
+[
+0.275,
+0.73529
+]
+]
+],
+"width": 7
+},
+{
+"id": "oreburgh-gate",
+"name": "Oreburgh Gate",
+"kind": "cave",
+"location_ids": [
+"sinnoh:258",
+"sinnoh:259"
+],
+"x": 0.275,
+"y": 0.73725
+},
+{
+"id": "oreburgh",
+"name": "Oreburgh City",
+"kind": "town",
+"location_ids": [],
+"x": 0.28125,
+"y": 0.72549,
+"w": 0.0625,
+"h": 0.05882
+},
+{
+"id": "oreburgh-mine",
+"name": "Oreburgh Mine",
+"kind": "cave",
+"location_ids": [
+"sinnoh:198",
+"sinnoh:199"
+],
+"x": 0.32188,
+"y": 0.79608
+},
+{
+"id": "r207",
+"name": "Route 207",
+"kind": "route",
+"location_ids": [
+"sinnoh:353"
+],
+"lines": [
+[
+[
+0.32188,
+0.71765
+],
+[
+0.32188,
+0.69608
+],
+[
+0.37188,
+0.69608
+]
+]
+],
+"width": 7
+},
+{
+"id": "r206",
+"name": "Route 206",
+"kind": "route",
+"location_ids": [
+"sinnoh:350"
+],
+"lines": [
+[
+[
+0.32031,
+0.51373
+],
+[
+0.32031,
+0.67647
+]
+]
+],
+"width": 7
+},
+{
+"id": "wayward-cave",
+"name": "Wayward Cave",
+"kind": "cave",
+"location_ids": [
+"sinnoh:284",
+"sinnoh:285"
+],
+"x": 0.35156,
+"y": 0.60784
+},
+{
+"id": "r208",
+"name": "Route 208",
+"kind": "route",
+"location_ids": [
+"sinnoh:354"
+],
+"lines": [
+[
+[
+0.40625,
+0.69608
+],
+[
+0.46563,
+0.69608
+]
+]
+],
+"width": 7
+},
+{
+"id": "hearthome",
+"name": "Hearthome City",
+"kind": "town",
+"location_ids": [],
+"x": 0.46875,
+"y": 0.64706,
+"w": 0.0625,
+"h": 0.07843
+},
+{
+"id": "r209",
+"name": "Route 209",
+"kind": "route",
+"location_ids": [
+"sinnoh:356"
+],
+"lines": [
+[
+[
+0.53438,
+0.69608
+],
+[
+0.57031,
+0.69608
+],
+[
+0.57031,
+0.64706
+]
+]
+],
+"width": 7
+},
+{
+"id": "lost-tower",
+"name": "Lost Tower",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:357",
+"sinnoh:358",
+"sinnoh:359",
+"sinnoh:360",
+"sinnoh:361"
+],
+"x": 0.55312,
+"y": 0.67451
+},
+{
+"id": "solaceon",
+"name": "Solaceon Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.5625,
+"y": 0.62745,
+"w": 0.0625,
+"h": 0.01961
+},
+{
+"id": "solaceon-ruins",
+"name": "Solaceon Ruins",
+"kind": "landmark",
+"location_ids": [
+"sinnoh:225",
+"sinnoh:227",
+"sinnoh:228",
+"sinnoh:229",
+"sinnoh:230",
+"sinnoh:231",
+"sinnoh:232",
+"sinnoh:233",
+"sinnoh:234",
+"sinnoh:235",
+"sinnoh:236",
+"sinnoh:237",
+"sinnoh:238",
+"sinnoh:239",
+"sinnoh:240",
+"sinnoh:241",
+"sinnoh:242",
+"sinnoh:515"
+],
+"x": 0.60313,
+"y": 0.64902
+},
+{
+"id": "r215",
+"name": "Route 215",
+"kind": "route",
+"location_ids": [
+"sinnoh:382"
+],
+"lines": [
+[
+[
+0.59688,
+0.53922
+],
+[
+0.68437,
+0.53922
+]
+]
+],
+"width": 7
+},
+{
+"id": "veilstone",
+"name": "Veilstone City",
+"kind": "town",
+"location_ids": [],
+"x": 0.6875,
+"y": 0.52941,
+"w": 0.0625,
+"h": 0.05882
+},
+{
+"id": "r214",
+"name": "Route 214",
+"kind": "route",
+"location_ids": [
+"sinnoh:380"
+],
+"lines": [
+[
+[
+0.72656,
+0.59216
+],
+[
+0.72656,
+0.71569
+]
+]
+],
+"width": 7
+},
+{
+"id": "ruin-maniac",
+"name": "Ruin Maniac Cave",
+"kind": "cave",
+"location_ids": [
+"sinnoh:286",
+"sinnoh:512",
+"sinnoh:513"
+],
+"x": 0.74375,
+"y": 0.66667
+},
+{
+"id": "sendoff-spring",
+"name": "Sendoff Spring",
+"kind": "area",
+"location_ids": [
+"sinnoh:267"
+],
+"x": 0.79063,
+"y": 0.66275
+},
+{
+"id": "turnback-cave",
+"name": "Turnback Cave",
+"kind": "cave",
+"location_ids": [
+"sinnoh:269",
+"sinnoh:270",
+"sinnoh:271",
+"sinnoh:272",
+"sinnoh:273",
+"sinnoh:518",
+"sinnoh:519",
+"sinnoh:520",
+"sinnoh:521",
+"sinnoh:522",
+"sinnoh:523",
+"sinnoh:524",
+"sinnoh:525",
+"sinnoh:526",
+"sinnoh:527",
+"sinnoh:528",
+"sinnoh:529",
+"sinnoh:530",
+"sinnoh:531",
+"sinnoh:532"
+],
+"x": 0.79063,
+"y": 0.68824
+},
+{
+"id": "valor",
+"name": "Lake Valor",
+"kind": "area",
+"location_ids": [
+"sinnoh:315",
+"sinnoh:336"
+],
+"x": 0.71094,
+"y": 0.76471
+},
+{
+"id": "r222",
+"name": "Route 222",
+"kind": "route",
+"location_ids": [
+"sinnoh:395"
+],
+"lines": [
+[
+[
+0.75313,
+0.77451
+],
+[
+0.84062,
+0.77451
+]
+]
+],
+"width": 7
+},
+{
+"id": "sunyshore",
+"name": "Sunyshore City",
+"kind": "town",
+"location_ids": [
+"sinnoh:150"
+],
+"x": 0.84375,
+"y": 0.7451,
+"w": 0.0625,
+"h": 0.05882
+},
+{
+"id": "r213",
+"name": "Route 213",
+"kind": "route",
+"location_ids": [
+"sinnoh:373"
+],
+"lines": [
+[
+[
+0.65625,
+0.83333
+],
+[
+0.74219,
+0.83333
+],
+[
+0.74219,
+0.86863
+],
+[
+0.65625,
+0.86863
+]
+]
+],
+"width": 7
+},
+{
+"id": "pastoria",
+"name": "Pastoria City",
+"kind": "town",
+"location_ids": [
+"sinnoh:120"
+],
+"x": 0.59375,
+"y": 0.80392,
+"w": 0.0625,
+"h": 0.07843
+},
+{
+"id": "great-marsh",
+"name": "Great Marsh",
+"kind": "area",
+"location_ids": [
+"sinnoh:504",
+"sinnoh:505",
+"sinnoh:506",
+"sinnoh:507",
+"sinnoh:508",
+"sinnoh:509"
+],
+"x": 0.625,
+"y": 0.78824
+},
+{
+"id": "r212n",
+"name": "Route 212 (North)",
+"kind": "route",
+"location_ids": [
+"sinnoh:367"
+],
+"lines": [
+[
+[
+0.47656,
+0.72549
+],
+[
+0.47656,
+0.83922
+]
+]
+],
+"width": 7
+},
+{
+"id": "r212s",
+"name": "Route 212 (South)",
+"kind": "route",
+"location_ids": [
+"sinnoh:371"
+],
+"lines": [
+[
+[
+0.47813,
+0.85294
+],
+[
+0.5875,
+0.85294
+]
+]
+],
+"width": 7
+},
+{
+"id": "trophy-garden",
+"name": "Trophy Garden",
+"kind": "area",
+"location_ids": [
+"sinnoh:287"
+],
+"x": 0.50938,
+"y": 0.77647
+},
+{
+"id": "r223",
+"name": "Route 223",
+"kind": "sea",
+"location_ids": [
+"sinnoh:468"
+],
+"lines": [
+[
+[
+0.85156,
+0.56863
+],
+[
+0.85156,
+0.71765
+]
+]
+],
+"width": 7
+},
+{
+"id": "league",
+"name": "Pokémon League",
+"kind": "town",
+"location_ids": [
+"sinnoh:172"
+],
+"x": 0.84375,
+"y": 0.4902,
+"w": 0.01562,
+"h": 0.03922
+},
+{
+"id": "victory-road-s",
+"name": "Victory Road",
+"kind": "cave",
+"location_ids": [
+"sinnoh:244",
+"sinnoh:245",
+"sinnoh:246",
+"sinnoh:247",
+"sinnoh:248",
+"sinnoh:249"
+],
+"x": 0.85156,
+"y": 0.54118
+},
+{
+"id": "r224",
+"name": "Route 224",
+"kind": "route",
+"location_ids": [
+"sinnoh:399"
+],
+"lines": [
+[
+[
+0.86719,
+0.50588
+],
+[
+0.89844,
+0.46078
+],
+[
+0.91875,
+0.42157
+]
+]
+],
+"width": 7
+},
+{
+"id": "twinleaf",
+"name": "Twinleaf Town",
+"kind": "town",
+"location_ids": [
+"sinnoh:411"
+],
+"x": 0.125,
+"y": 0.88235,
+"w": 0.01562,
+"h": 0.03922
+},
+{
+"id": "sandgem",
+"name": "Sandgem Town",
+"kind": "town",
+"location_ids": [],
+"x": 0.1875,
+"y": 0.84314,
+"w": 0.01562,
+"h": 0.01961
+},
+{
+"id": "lake-verity",
+"name": "Lake Verity",
+"kind": "area",
+"location_ids": [
+"sinnoh:311",
+"sinnoh:312"
+],
+"x": 0.08594,
+"y": 0.83333
+},
+{
+"id": "r201",
+"name": "Route 201",
+"kind": "route",
+"location_ids": [
+"sinnoh:342"
+],
+"lines": [
+[
+[
+0.13281,
+0.88235
+],
+[
+0.13281,
+0.85294
+],
+[
+0.18438,
+0.85294
+]
+]
+],
+"width": 7
+},
+{
+"id": "r202",
+"name": "Route 202",
+"kind": "route",
+"location_ids": [
+"sinnoh:343"
+],
+"lines": [
+[
+[
+0.19531,
+0.83922
+],
+[
+0.19531,
+0.78431
+]
+]
+],
+"width": 7
+},
+{
+"id": "r219",
+"name": "Route 219",
+"kind": "sea",
+"location_ids": [
+"sinnoh:391"
+],
+"lines": [
+[
+[
+0.19531,
+0.86667
+],
+[
+0.19531,
+0.93137
+],
+[
+0.24063,
+0.93137
+]
+]
+],
+"width": 7
+},
+{
+"id": "r220",
+"name": "Route 220",
+"kind": "sea",
+"location_ids": [
+"sinnoh:467"
+],
+"lines": [
+[
+[
+0.25,
+0.93137
+],
+[
+0.3,
+0.93137
+]
+]
+],
+"width": 7
+},
+{
+"id": "r221",
+"name": "Route 221",
+"kind": "route",
+"location_ids": [
+"sinnoh:392"
+],
+"lines": [
+[
+[
+0.30312,
+0.93137
+],
+[
+0.34063,
+0.93137
+]
+]
+],
+"width": 7
+},
+{
+"id": "stark-mountain",
+"name": "Stark Mountain",
+"kind": "cave",
+"location_ids": [
+"sinnoh:262",
+"sinnoh:263",
+"sinnoh:264",
+"sinnoh:593"
+],
+"x": 0.75781,
+"y": 0.1098
+},
+{
+"id": "r227",
+"name": "Route 227",
+"kind": "route",
+"location_ids": [
+"sinnoh:403"
+],
+"lines": [
+[
+[
+0.75781,
+0.12941
+],
+[
+0.75781,
+0.21569
+]
+]
+],
+"width": 7
+},
+{
+"id": "r225",
+"name": "Route 225",
+"kind": "route",
+"location_ids": [
+"sinnoh:400"
+],
+"lines": [
+[
+[
+0.63281,
+0.21569
+],
+[
+0.63281,
+0.33333
+]
+]
+],
+"width": 7
+},
+{
+"id": "r226",
+"name": "Route 226",
+"kind": "route",
+"location_ids": [
+"sinnoh:469"
+],
+"lines": [
+[
+[
+0.67969,
+0.22549
+],
+[
+0.77812,
+0.22549
+]
+]
+],
+"width": 7
+},
+{
+"id": "r228",
+"name": "Route 228",
+"kind": "route",
+"location_ids": [
+"sinnoh:406"
+],
+"lines": [
+[
+[
+0.78906,
+0.21961
+],
+[
+0.78906,
+0.34118
+]
+]
+],
+"width": 7
+},
+{
+"id": "r229",
+"name": "Route 229",
+"kind": "route",
+"location_ids": [
+"sinnoh:407"
+],
+"lines": [
+[
+[
+0.79063,
+0.3451
+],
+[
+0.8375,
+0.3451
+]
+]
+],
+"width": 7
+},
+{
+"id": "r230",
+"name": "Route 230",
+"kind": "sea",
+"location_ids": [
+"sinnoh:471"
+],
+"lines": [
+[
+[
+0.67969,
+0.3451
+],
+[
+0.77812,
+0.3451
+]
+]
+],
+"width": 7
+},
+{
+"id": "resort-area",
+"name": "Resort Area",
+"kind": "area",
+"location_ids": [
+"sinnoh:457"
+],
+"x": 0.82188,
+"y": 0.38627
+},
+{
+"id": "honey-tree",
+"name": "Honey Trees",
+"kind": "list",
+"location_ids": [
+"sinnoh:-1"
+]
+}
+]
+}
+],
+"coverage": {
+"hoenn": {
+"locations": 127,
+"linked": 127,
+"click_targets": 74,
+"not_on_map": [],
+"game": {
+"linked": 127,
+"not_on_map": [],
+"click_targets": 74
+}
+},
+"johto": {
+"locations": 104,
+"linked": 104,
+"click_targets": 55,
+"not_on_map": [],
+"game": {
+"linked": 104,
+"not_on_map": [],
+"click_targets": 55
+}
+},
+"kanto": {
+"locations": 124,
+"linked": 124,
+"click_targets": 79,
+"not_on_map": [],
+"game": {
+"linked": 124,
+"not_on_map": [],
+"click_targets": 79
+}
+},
+"sinnoh": {
+"locations": 159,
+"linked": 159,
+"click_targets": 74,
+"not_on_map": [],
+"game": {
+"linked": 159,
+"not_on_map": [],
+"click_targets": 74
+}
+},
+"unova": {
+"locations": 115,
+"linked": 115,
+"click_targets": 55,
+"not_on_map": [],
+"game": null
+}
+},
+"rights": {
+"artwork": "Original artwork drawn for the PokeMMO Companion from hand-made layouts (tools/mapgen/regions.py). No game graphics, ROM extracts or third-party map images are used.",
+"geometry": "Click targets generated from the same layouts; linked to location ids of the bundled PokeMMO reference data.",
+"license": "Same license as the Companion source code.",
+"game_artwork": "In-game Town Map / Pokégear artwork (© Nintendo / Creatures / GAME FREAK) decoded from the maintainer's own ROMs and shipped by OWNER DECISION 2026-11-23 (the owner takes the legal decision). Unova: in-game art not located; the original Companion map is used."
+}
+}

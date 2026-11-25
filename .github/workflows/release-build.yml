@@ -1,0 +1,97 @@
+name: Build official release packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Approved exact release tag, for example v0.8.0'
+        required: true
+        type: string
+
+      source_sha:
+        description: Approved full release snapshot SHA resolved by the tag on main
+        required: true
+        type: string
+      retain_artifacts:
+        description: Retain packages in Actions after approval for this repository's artifact visibility
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            target: windows
+            suffix: windows-x86_64.zip
+          - runner: ubuntu-22.04
+            target: linux
+            suffix: x86_64.AppImage
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Validate release inputs
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ inputs.source_sha }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v(0\.(8|9)|[1-9][0-9]*\.(0|[1-9][0-9]*))\.(0|[1-9][0-9]*)$ ]]
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          printf 'version=%s\n' "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the approved tag on main
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ inputs.source_sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13.14'
+          architecture: x64
+      - name: Install Linux dependencies and download pinned AppImage tools
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils libegl1 libgl1 libnss3 libpulse0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xinput0 libxcb-xfixes0
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/runtime-x86_64" \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          {
+            printf 'COMPANION_APPIMAGETOOL=%s\n' "$RUNNER_TEMP/appimagetool"
+            printf 'COMPANION_APPIMAGE_RUNTIME=%s\n' "$RUNNER_TEMP/runtime-x86_64"
+          } >> "$GITHUB_ENV"
+      - name: Build and verify native package
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: python packaging/package_release.py build --tag "$RELEASE_TAG"
+      - name: Retain approved package and build evidence
+        if: inputs.retain_artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: companion-${{ inputs.tag }}-${{ matrix.target }}-${{ inputs.source_sha }}-${{ github.run_attempt }}
+          path: |
+            dist/PokeMMO-Companion-${{ steps.release.outputs.version }}-${{ matrix.suffix }}
+            dist/SHA256SUMS
+            dist/${{ matrix.target }}-build.json
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0

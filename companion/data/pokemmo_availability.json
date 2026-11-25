@@ -1,0 +1,1336 @@
+{
+ "format": 3,
+ "registry_version": "2026-11-22.2",
+ "checked_at": "2026-11-22",
+ "about": "Authored, source-backed PokeMMO availability registry. Separate axes per species: (1) membership in the in-game National Pokédex, (2) acquisition methods (several may apply, each with confidence, sources and verification date), (3) eligibility per Pokédex counter, and (4) the player’s own manual marks (stored per character run, never here). No axis is inferred from another. Species not listed get wild/evolution methods derived from the user’s locally installed dump, labelled DUMP_ONLY. Nothing here is per-account progress.",
+ "membership_states": [
+  "yes",
+  "no",
+  "unknown",
+  "conditional"
+ ],
+ "methods": {
+  "wild": "Wild",
+  "roamer": "Roaming",
+  "perma_raid": "Permanent raid",
+  "seasonal_raid": "Seasonal raid",
+  "temporary_koth": "Temporary / contested",
+  "storyline_temporary": "Story (temporary)",
+  "event": "Event",
+  "gift": "Gift",
+  "fossil": "Fossil",
+  "breeding": "Breeding",
+  "evolution": "Evolution",
+  "trade": "Trade / GTL",
+  "unavailable": "Unavailable",
+  "unknown": "Unverified"
+ },
+ "permanent_methods": [
+  "wild",
+  "roamer",
+  "perma_raid",
+  "gift",
+  "fossil",
+  "breeding",
+  "evolution"
+ ],
+ "eligibility_metrics": [
+  "seen",
+  "owned",
+  "caught_ot",
+  "caught_alpha",
+  "owned_shiny",
+  "costume"
+ ],
+ "evidence_levels": {
+  "OFFICIAL": "Official PokeMMO changelog or support article",
+  "CORROBORATED": "Two independent sources, or PokeMMO-specific source plus in-game observation",
+  "REPORTED": "One PokeMMO-specific community source or owner report; may lag patches",
+  "WALKTHROUGH": "Mentioned in the owner's own walkthrough files (private)",
+  "UNVERIFIED": "No PokeMMO-specific evidence collected yet",
+  "DUMP_ONLY": "Derived from your locally installed client dump"
+ },
+ "sources": {
+  "pikammo-raids": {
+   "title": "PikaMMO — Legendary raids in PokeMMO (community guide; mechanics \"as of March 2026\")",
+   "url": "https://www.pikammo.fr/Pokemmo/en/guide/raids",
+   "kind": "community",
+   "checked": "2026-11-22"
+  },
+  "mmobreeder-virizion": {
+   "title": "MMOBreeder — Virizion (raid at Rumination Field, Pinwheel Forest; \"available all year\")",
+   "url": "https://mmobreeder.com/pokemon/virizion",
+   "kind": "community",
+   "checked": "2026-11-22"
+  },
+  "forum-legendary-guide": {
+   "title": "Official forum — The Ultimate Legendary Guide (community; raids section edited 21 Feb 2026, per phase-4 research)",
+   "url": "https://forums.pokemmo.com/index.php?/topic/187603-the-ultimate-legendary-guide/",
+   "kind": "community",
+   "checked": "2026-11-22 (via docs/research/phase-4; page not reachable from the build workspace)"
+  },
+  "forum-perfect-dex": {
+   "title": "Official forum — Perfect Your Pokédex: everything you can register (community; says Cobalion, Terrakion and Virizion were added as permanent raids in February 2026)",
+   "url": "https://forums.pokemmo.com/index.php?/topic/185042-perfect-your-pok%C3%A9dex-everything-you-can-register/",
+   "kind": "community",
+   "checked": "2026-11-22 (via docs/research/phase-4)"
+  },
+  "changelog-lny-2026": {
+   "title": "Official changelog — Lunar New Year 2026 (announces new permanent raid dens)",
+   "url": "https://forums.pokemmo.com/index.php?/topic/196308-changelog-lunar-new-year-2026/",
+   "kind": "official",
+   "checked": "2026-11-22 (via docs/research/phase-4)"
+  },
+  "changelog-xmas-2025": {
+   "title": "Official changelog — Xmas 2025 (permanent legendary raid den in Anville Town, requires Mt. Silver), as quoted on r/pokemmo",
+   "url": "https://forums.pokemmo.com/index.php?/topic/194932-changelog-xmas-2025/",
+   "kind": "official",
+   "checked": "2026-11-22"
+  },
+  "wiki-legendary": {
+   "title": "PokeMMO Wiki — Legendary Pokémon (roaming, permanent raids, temporary challenge/story encounters: Rayquaza Hoenn, Arceus Sinnoh, Keldeo Unova, Zekrom Unova story)",
+   "url": "https://pokemmo.shoutwiki.com/wiki/Legendary_Pok%C3%A9mon",
+   "kind": "community",
+   "checked": "2026-11-22"
+  },
+  "wiki-lny": {
+   "title": "PokeMMO Wiki — Lunar New Year (defeat all 12 Zodiac raids to catch Shaymin)",
+   "url": "https://pokemmo.shoutwiki.com/wiki/Lunar_New_Year",
+   "kind": "community",
+   "checked": "2026-11-22"
+  },
+  "forum-completing-legendaries": {
+   "title": "Official forum — Completing the Pokédex: Legendary Pokémon (community, ~2024; Keldeo listed as KOTH in Moor of Icirrus)",
+   "url": "https://forums.pokemmo.com/index.php?/topic/133673-completing-the-pok%C3%A9dex-legendary-pok%C3%A9mon/",
+   "kind": "community",
+   "checked": "2026-11-22"
+  },
+  "support-zekrom": {
+   "title": "PokeMMO support — Catching Zekrom",
+   "url": "https://support.pokemmo.com/knowledgebase/article/catching-zekrom",
+   "kind": "official",
+   "checked": "2026-11-22"
+  },
+  "forum-roaming-faq": {
+   "title": "Official forum — Roaming Legendaries FAQ (community)",
+   "url": "https://forums.pokemmo.com/index.php?/topic/160729-roaming-legendaries-faq/",
+   "kind": "community",
+   "checked": "2026-11-22"
+  },
+  "owner-walkthroughs": {
+   "title": "Owner's private region walkthroughs (not redistributed)",
+   "url": null,
+   "kind": "owner",
+   "checked": "2026-11-22"
+  },
+  "research-phase4": {
+   "title": "Project research: docs/research/phase-4/00-POKEDEX-ACCURACY-CORRECTIONS.md",
+   "url": "docs/research/phase-4/00-POKEDEX-ACCURACY-CORRECTIONS.md",
+   "kind": "project",
+   "checked": "2026-11-22"
+  },
+  "pokemoncoders-legendary": {
+   "title": "PokemonCoders — PokeMMO Legendary Hunting (community; Shaymin outside the event only via the GTL)",
+   "url": "https://www.pokemoncoders.com/pokemmo-legendary-hunting/",
+   "kind": "community",
+   "checked": "2026-11-22"
+  }
+ },
+ "patches": [
+  {
+   "id": "lny-2026",
+   "title": "Lunar New Year 2026",
+   "date": "2026-02",
+   "affects": [
+    "perma_raid",
+    "seasonal_raid"
+   ],
+   "url": "https://forums.pokemmo.com/index.php?/topic/196308-changelog-lunar-new-year-2026/"
+  },
+  {
+   "id": "shiny-wars-2026",
+   "title": "Shiny Wars 2026 encounter overhaul (dated 29 Jul 2026 by PikaMMO)",
+   "date": "2026-07-29",
+   "affects": [
+    "wild"
+   ],
+   "url": "https://forums.pokemmo.com/index.php?/topic/199536-changelog-shiny-wars-2026/"
+  }
+ ],
+ "observations": [
+  {
+   "observed_at": "2026-11-22",
+   "source": "Owner's in-game National Pokédex screenshots/video (private)",
+   "counters": {
+    "seen": 604,
+    "owned": 603,
+    "caught_ot": 603,
+    "caught_alpha": 362,
+    "owned_shiny": 603,
+    "costume": 12
+   },
+   "note": "Denominators shown by one client for one character on one date. Different counters use different eligibility rules and a 2026 community guide quotes higher maxima, so these are observations — never a roster rule, and never used to compute “missing” species."
+  }
+ ],
+ "regressions": {
+  "640": "Must not be marked unavailable while a verified permanent raid exists"
+ },
+ "species": {
+  "137": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "gift",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Sinnoh walkthrough: gift Porygon from an NPC"
+    }
+   ]
+  },
+  "138": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Kanto walkthrough: Helix/Dome Fossil choice at Mt. Moon"
+    }
+   ]
+  },
+  "139": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Kanto fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Kanto fossil Pokémon"
+    }
+   ]
+  },
+  "140": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Kanto walkthrough: Helix/Dome Fossil choice at Mt. Moon"
+    }
+   ]
+  },
+  "141": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Kanto fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Kanto fossil Pokémon"
+    }
+   ]
+  },
+  "142": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Old Amber fossil in the original game; not yet confirmed for PokeMMO"
+    }
+   ]
+  },
+  "144": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "roamer",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "forum-roaming-faq",
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "kanto",
+     "detail": "Monthly roaming legendary: one per calendar month until captured"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Which roamer is active rotates monthly; rules are community-documented."
+  },
+  "145": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "roamer",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "forum-roaming-faq",
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "kanto",
+     "detail": "Monthly roaming legendary: one per calendar month until captured"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Which roamer is active rotates monthly; rules are community-documented."
+  },
+  "146": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "roamer",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "forum-roaming-faq",
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "kanto",
+     "detail": "Monthly roaming legendary: one per calendar month until captured"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Which roamer is active rotates monthly; rules are community-documented."
+  },
+  "150": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Contested or temporary modes reported; icons appearing in the client do not imply permanent ownership"
+    }
+   ]
+  },
+  "151": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "243": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "roamer",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "forum-roaming-faq",
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "johto",
+     "detail": "Monthly roaming legendary: one per calendar month until captured"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Which roamer is active rotates monthly; rules are community-documented."
+  },
+  "244": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "roamer",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "forum-roaming-faq",
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "johto",
+     "detail": "Monthly roaming legendary: one per calendar month until captured"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Which roamer is active rotates monthly; rules are community-documented."
+  },
+  "245": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "roamer",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "forum-roaming-faq",
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "johto",
+     "detail": "Monthly roaming legendary: one per calendar month until captured"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Which roamer is active rotates monthly; rules are community-documented."
+  },
+  "249": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Contested or temporary modes reported; icons appearing in the client do not imply permanent ownership"
+    }
+   ]
+  },
+  "250": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "251": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "345": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Hoenn walkthrough: Root/Claw Fossil choice"
+    }
+   ]
+  },
+  "346": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Hoenn fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Hoenn fossil Pokémon"
+    }
+   ]
+  },
+  "347": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Hoenn walkthrough: Root/Claw Fossil choice"
+    }
+   ]
+  },
+  "348": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Hoenn fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Hoenn fossil Pokémon"
+    }
+   ]
+  },
+  "377": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "378": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "379": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "380": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "381": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "382": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "383": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "384": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "temporary_koth",
+     "confidence": "REPORTED",
+     "sources": [
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Temporary/contested encounter (Hoenn challenge); not a permanent catch"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "unknown",
+    "caught_ot": "unknown"
+   },
+   "note": "Contested or temporary modes can register a species without permanent ownership. Current status of this mode is not verified."
+  },
+  "385": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ],
+   "note": "Event or raid access may vary by season; needs a dated source."
+  },
+  "386": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "408": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Sinnoh fossil in the original game; not yet confirmed for PokeMMO"
+    }
+   ]
+  },
+  "409": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Sinnoh fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Sinnoh fossil Pokémon"
+    }
+   ]
+  },
+  "410": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Sinnoh fossil in the original game; not yet confirmed for PokeMMO"
+    }
+   ]
+  },
+  "411": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Sinnoh fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Sinnoh fossil Pokémon"
+    }
+   ]
+  },
+  "480": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "481": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "482": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "483": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "event",
+     "confidence": "REPORTED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Reportedly can register Owned during restricted event PvP, without permanent ownership"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "conditional",
+    "caught_ot": "unknown"
+   },
+   "note": "Event-registration rules need a dated source."
+  },
+  "484": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "event",
+     "confidence": "REPORTED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Reportedly can register Owned during restricted event PvP, without permanent ownership"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "conditional",
+    "caught_ot": "unknown"
+   },
+   "note": "Event-registration rules need a dated source."
+  },
+  "485": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "perma_raid",
+     "confidence": "REPORTED",
+     "sources": [
+      "pikammo-raids"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "sinnoh",
+     "location": "Stark Mountain",
+     "detail": "5★ permanent raid",
+     "prerequisites": "Completed OT Pokédex and 4 OT Pokémon in the party; locks for roughly 3 months after a win"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "One community source; validate the den and lockout in game."
+  },
+  "486": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "487": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "event",
+     "confidence": "REPORTED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Reportedly can register Owned during restricted event PvP, without permanent ownership"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "conditional",
+    "caught_ot": "unknown"
+   },
+   "note": "Event-registration rules need a dated source."
+  },
+  "488": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "perma_raid",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "pikammo-raids",
+      "changelog-xmas-2025"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "unova",
+     "location": "Anville Town",
+     "detail": "6★ permanent raid",
+     "prerequisites": "Mt. Silver unlocked"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   }
+  },
+  "489": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "490": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "491": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ],
+   "note": "Event or raid access may vary by season; needs a dated source."
+  },
+  "492": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "seasonal_raid",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "wiki-lny"
+     ],
+     "verified_at": "2026-11-22",
+     "active_window": "Lunar New Year event (annual)",
+     "detail": "Defeat all 12 Zodiac raids during the event to catch Shaymin"
+    },
+    {
+     "method": "trade",
+     "confidence": "REPORTED",
+     "sources": [
+      "pokemoncoders-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Can be bought/traded outside the event (GTL)"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "conditional"
+   },
+   "note": "Only catchable during the Lunar New Year event window; owned outside it via trade/GTL. Your walkthroughs also use Shaymin as a party lead for one item pickup."
+  },
+  "493": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "temporary_koth",
+     "confidence": "REPORTED",
+     "sources": [
+      "wiki-legendary"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Temporary/contested encounter (Sinnoh challenge); not a permanent catch"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "unknown",
+    "caught_ot": "unknown"
+   },
+   "note": "Contested or temporary modes can register a species without permanent ownership. Current status of this mode is not verified."
+  },
+  "494": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "564": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Unova walkthrough: Cover/Plume Fossil from a backpacker"
+    }
+   ]
+  },
+  "565": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Unova fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Unova fossil Pokémon"
+    }
+   ]
+  },
+  "566": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Owner's Unova walkthrough: Cover/Plume Fossil from a backpacker"
+    }
+   ]
+  },
+  "567": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "fossil",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Unova fossil Pokémon"
+    },
+    {
+     "method": "evolution",
+     "confidence": "WALKTHROUGH",
+     "sources": [
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Evolves from a Unova fossil Pokémon"
+    }
+   ]
+  },
+  "638": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "perma_raid",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "pikammo-raids",
+      "forum-perfect-dex",
+      "changelog-lny-2026"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "unova",
+     "location": "Guidance Chamber",
+     "detail": "6★ permanent raid den, 4 players",
+     "prerequisites": "Mt. Silver unlocked (completed OT Pokédex)",
+     "since": "Feb 2026 (Lunar New Year 2026 permanent raid dens)"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Catchable from a permanent raid, so it is NOT unavailable. Whether the in-game National Pokédex lists it in every view has not been checked in your client yet — mark it with “It’s listed / Not listed”."
+  },
+  "639": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "perma_raid",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "pikammo-raids",
+      "forum-perfect-dex",
+      "changelog-lny-2026"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "unova",
+     "location": "Victory Road",
+     "detail": "6★ permanent raid den, 4 players",
+     "prerequisites": "Mt. Silver unlocked (completed OT Pokédex)",
+     "since": "Feb 2026 (Lunar New Year 2026 permanent raid dens)"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Catchable from a permanent raid, so it is NOT unavailable. Whether the in-game National Pokédex lists it in every view has not been checked in your client yet — mark it with “It’s listed / Not listed”."
+  },
+  "640": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "perma_raid",
+     "confidence": "CORROBORATED",
+     "sources": [
+      "pikammo-raids",
+      "forum-perfect-dex",
+      "changelog-lny-2026",
+      "mmobreeder-virizion",
+      "forum-legendary-guide"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "unova",
+     "location": "Pinwheel Forest (Rumination Field)",
+     "detail": "6★ permanent raid den, 4 players",
+     "prerequisites": "Mt. Silver unlocked (completed OT Pokédex) · MMOBreeder also lists 4 OT Pokémon in the team",
+     "since": "Feb 2026 (Lunar New Year 2026 permanent raid dens)"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Catchable from a permanent raid, so it is NOT unavailable. Whether the in-game National Pokédex lists it in every view has not been checked in your client yet — mark it with “It’s listed / Not listed”."
+  },
+  "641": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ],
+   "note": "Older community pages say there is no regular acquisition; no 2026 evidence either way. Not marked “unavailable” until checked."
+  },
+  "642": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ],
+   "note": "Older community pages say there is no regular acquisition; no 2026 evidence either way. Not marked “unavailable” until checked."
+  },
+  "643": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "644": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "storyline_temporary",
+     "confidence": "OFFICIAL",
+     "sources": [
+      "support-zekrom",
+      "owner-walkthroughs"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "unova",
+     "detail": "Temporarily joins your party during the Unova story; you do not keep it"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "unknown",
+    "caught_ot": "no"
+   },
+   "note": "Appearing in your party during the story is not a persistent catch."
+  },
+  "645": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ],
+   "note": "Older community pages say there is no regular acquisition; no 2026 evidence either way. Not marked “unavailable” until checked."
+  },
+  "646": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "unknown",
+     "confidence": "UNVERIFIED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22"
+    }
+   ]
+  },
+  "647": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "temporary_koth",
+     "confidence": "REPORTED",
+     "sources": [
+      "wiki-legendary",
+      "forum-completing-legendaries"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Temporary/contested encounter (Unova challenge); not a permanent catch — formerly King of the Hill in Moor of Icirrus"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "unknown",
+    "caught_ot": "unknown"
+   },
+   "note": "Contested or temporary modes can register a species without permanent ownership. Current status of this mode is not verified."
+  },
+  "648": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "perma_raid",
+     "confidence": "REPORTED",
+     "sources": [
+      "pikammo-raids"
+     ],
+     "verified_at": "2026-11-22",
+     "region": "unova",
+     "location": "Anville Town",
+     "detail": "6★ raid, released 27 Dec 2025 per PikaMMO",
+     "prerequisites": "Not stated"
+    }
+   ],
+   "eligibility": {
+    "seen": "yes",
+    "owned": "yes",
+    "caught_ot": "yes"
+   },
+   "note": "Single community source; check whether the den is permanent in your client."
+  },
+  "649": {
+   "membership": "unknown",
+   "methods": [
+    {
+     "method": "event",
+     "confidence": "REPORTED",
+     "sources": [
+      "research-phase4"
+     ],
+     "verified_at": "2026-11-22",
+     "detail": "Reportedly can register Owned during restricted event PvP, without permanent ownership"
+    }
+   ],
+   "eligibility": {
+    "seen": "conditional",
+    "owned": "conditional",
+    "caught_ot": "unknown"
+   },
+   "note": "Event-registration rules need a dated source."
+  }
+ }
+}
