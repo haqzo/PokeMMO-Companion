@@ -1,6 +1,6 @@
 # Friends-only closed alpha
 
-The current build identifies itself as **0.1.0**. Check the commit or checksum the owner sends with your copy. The owner-confirmed version target for the actual friends-only closed alpha is **0.8.0**. Development and translation-review builds remain 0.1.0 until the final alpha is ready; distribution still requires the final release gates and owner approval.
+The current build identifies itself as **0.1.0**. Check the commit or checksum the owner sends with your copy. The owner-confirmed version target for the actual friends-only closed alpha is **0.8.0**. Internal development remains 0.1.0 until the alpha is ready; MaToRiuKo and the Spanish-speaking reviewer join the same 0.8.0 friends-only alpha as the owner and invited friends. Distribution still requires applicable release gates and owner approval.
 
 ## Install and start
 
@@ -23,13 +23,13 @@ Use **Settings → Backup & recovery** to make a complete ZIP before replacing a
 
 ## Release gates
 
-Localization is a closed-alpha development requirement: complete Spanish and Simplified Chinese interface and walkthrough coverage, review terminology and gameplay instructions, run the full rendered-interface and regression audit, and verify native glyph rendering. Coverage counts alone do not establish language quality. Target approximately 99% of application-owned user-facing text before translation review, then review with MaToRiuKo (Simplified Chinese) and a Spanish-speaking reviewer, followed by owner-wide functional testing, fixes and final verification. See the [active development checkpoint](roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md) and [translation review checklist](build/30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md).
+Localization is a closed-alpha development requirement: complete Spanish and Simplified Chinese interface and walkthrough coverage, review terminology and gameplay instructions, run the full rendered-interface and regression audit, and verify native glyph rendering. Coverage counts alone do not establish language quality. Target 100% of application-owned user-facing text, then verify, perform a quick CPU/RAM and performance smoke check, fix material issues and stabilize. Language review with MaToRiuKo (Simplified Chinese) and a Spanish-speaking reviewer, and normal owner/friend testing, take place during the 0.8.0 closed alpha. See the [active development checkpoint](roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md) and [translation review checklist](build/30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md).
 
 | Stage | Open items |
 |---|---|
 | Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. The 0.8.0 target is agreed; confirm final build readiness and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. |
 | Public beta | Close all applicable alpha gates for a public audience. Verify the target Linux compatibility baseline and Windows distribution. Configure and verify Ed25519 application signing and the release checksums. Verify reference signing and index hosting if enabling automatic reference updates, and confirm the existing Discord announcement workflow with the owner before publication. |
-| During alpha | Collect feedback on the Unova reference, compact-window readability and the handoff to Discord. |
+| During alpha | Collect owner/friend functional feedback, Simplified Chinese and Spanish language review, and feedback on the Unova reference, compact-window readability and the handoff to Discord. |
 
 ## Update and signing status
 

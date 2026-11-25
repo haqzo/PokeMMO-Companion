@@ -118,7 +118,7 @@ Offline, everything except these checks and the optional Alpha/Swarm feed keeps 
 
 ## Closed alpha
 
-The development version remains 0.1.0 while Spanish and Simplified Chinese coverage, translation review, functional testing and verification are completed. The agreed target for the actual friends-only alpha is 0.8.0; distribution is not yet approved. [Review and alpha readiness checklist](docs/build/30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md).
+The development version remains 0.1.0 while localization is completed, verification and a quick performance check are run, and material issues are stabilized. The agreed friends-only alpha is 0.8.0, including the owner, invited friends and Spanish/Simplified Chinese translation reviewers; distribution is not yet approved. [Review and alpha readiness checklist](docs/build/30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md).
 
 **Live → Phenomena** is an offline Unova encounter reference. Find current callouts and location pictures in `#phenomenon-callouts`. [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
 
