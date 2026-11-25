@@ -145,10 +145,10 @@ function openTextPopover(btn) {
       h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': translateUI('ui.pop_sprite_size_window'),
         onchange: (e) => saveSettings({ [`window.${POPOUT}.sprite_scale`]: Number(e.target.value) }).then(() => document.dispatchEvent(new CustomEvent('settings-changed', { detail: { [`window.${POPOUT}.sprite_scale`]: 1 } }))) },
         [70, 85, 100, 125, 150].map((p) => h('option', { value: p, selected: (setting(`window.${POPOUT}.sprite_scale`) || 100) === p ? 'selected' : null }, p + '%')))),
-    h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, 'Sprite animation'),
-      h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': 'Sprite animation in this window',
+    h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, translateUI('ui.floating_sprite_animation')),
+      h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': translateUI('ui.floating_sprite_animation_window'),
         onchange: (e) => saveSettings({ [`window.${POPOUT}.sprite_motion`]: e.target.value }).then(() => document.dispatchEvent(new CustomEvent('settings-changed', { detail: { [`window.${POPOUT}.sprite_motion`]: 1 } }))) },
-        [['inherit', 'As in Settings'], ['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]].map(([v, l]) => h('option', { value: v, selected: (setting(`window.${POPOUT}.sprite_motion`) || 'inherit') === v ? 'selected' : null }, l)))));
+        [['inherit', translateUI('ui.floating_inherit_animation')], ['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]].map(([v, l]) => h('option', { value: v, selected: (setting(`window.${POPOUT}.sprite_motion`) || 'inherit') === v ? 'selected' : null }, l)))));
   document.body.append(pop);
   place();
   btn.setAttribute('aria-expanded', 'true');
@@ -173,7 +173,7 @@ async function renderBody() {
       customguide: (el) => renderCustomGuidePopout(el, mode), locations: (el) => renderLocationsPopout(el, mode), box: (el) => renderBoxPopout(el, mode),
       calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })),
       timers: (el) => import('./pages/timers.js').then((m) => m.renderTimers(el, { variant: mode })) }[POPOUT];
-    if (!fn) { mount(bodyEl, notice('bad', 'Unknown popout: ' + POPOUT)); return; }
+    if (!fn) { mount(bodyEl, notice('bad', translateUI('ui.floating_unknown', { tool: POPOUT }))); return; }
     await fn(bodyEl);
   } catch (e) { mount(bodyEl, notice('bad', e.message)); }
   bodyEl.scrollTop = keep;
@@ -217,7 +217,7 @@ async function storyline(el) {
     steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) }, { open: mode === 'expanded' });
   const stepLabel = (s, big) => h('label', { class: 'step' + (done.has(s.id) ? ' done' : '') + (s.id === cur.id ? ' current' : ''), style: { gridTemplateColumns: 'auto 1fr', cursor: 'pointer', padding: big ? '10px' : '7px 9px' } },
     h('input', { type: 'checkbox', class: 'check', checked: done.has(s.id), onchange: (e) => toggle(s, e.target.checked) }),
-    h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, st.source === 'walkthrough' ? walkthroughStep(s, lang()) : s.text), big ? h('div', { class: 'tiny muted' }, displayChapter(s.chapter)) : null));
+    h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, st.source === 'imported' ? s.text : walkthroughStep(s, lang())), big ? h('div', { class: 'tiny muted' }, displayChapter(s.chapter)) : null));
   const stepEl = (s, big) => h('div', { class: 'pop-step' }, stepLabel(s, big), h('div', { style: { marginLeft: '30px' } }, gx.stepTimers(s.id)));
   const header = h('div', { class: 'stack tight', style: { marginBottom: '8px' } },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow', style: { minWidth: 0 } },
@@ -270,11 +270,11 @@ async function pokedex(el) {
     count.textContent = `${list.length} of ${scopeSize}`;
     results.replaceChildren(catalogFragment(list, { density, tracking, grouped: currentFilters().sort === 'num' && mode !== 'compact',
       onOpen: (s) => { location.hash = '#/species/' + s.id + (s.form_key ? '/' + s.form_key : ''); } }));
-    if (!list.length) results.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, 'No Pokémon match this search and the Pokédex filters.'));
+    if (!list.length) results.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, translateUI('ui.floating_no_dex_matches')));
   };
   mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.search_pokemon'), value: miniQuery,
     'aria-label': translateUI('ui.search_pokemon'), oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), count),
-  h('div', { class: 'tiny muted' }, setting('pokedex.catalog') === 'species' ? 'Species only' : 'Pokémon & forms', ' · filters from the main Pokédex apply'), results));
+  h('div', { class: 'tiny muted' }, setting('pokedex.catalog') === 'species' ? 'Species only' : 'Pokémon & forms', translateUI('ui.floating_dex_filters')), results));
   drawList();
 }
 
@@ -284,7 +284,7 @@ async function reports(el) {
   const list = mode === 'compact' ? r.reports.slice(0, 1) : r.reports;  // compact = latest only; others show full history
   const link = (x) => { const row = reportRow(x, false, mode !== 'expanded'); row.onclick = null; row.addEventListener('click', () => openInMain('#/live/reports/' + x.id)); return row; };
   mount(el, h('div', { class: 'stack tight' }, sourceBar(r.source, { compact: true }),
-    mode === 'compact' && r.reports.length > 1 ? h('div', { class: 'tiny muted' }, `+${r.reports.length - 1} more in history`) : null,
+    mode === 'compact' && r.reports.length > 1 ? h('div', { class: 'tiny muted' }, translateUI('ui.floating_report_count', { count: r.reports.length - 1 })) : null,
     list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? translateUI('ui.live_popout_no_reports') : translateUI('ui.live_popout_off'))));
 }
 

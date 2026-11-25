@@ -93,7 +93,7 @@ function globalKeys(e) {
 function navButton(n, active) {
   const label = t('nav.' + n.id);
   return h('button', { class: 'nav-item' + (active ? ' active' : ''), 'aria-current': active ? 'page' : null, dataset: { nav: n.id },
-    title: `${label} (Alt+${NAV.indexOf(n) + 1})`, onclick: () => go(navRoute(n)) },
+    title: translateUI('ui.shell_nav_shortcut', { label, shortcut: NAV.indexOf(n) + 1 }), onclick: () => go(navRoute(n)) },
   icon(n.icon), h('span', { class: 'label' }, label));
 }
 
@@ -112,7 +112,7 @@ function languageMenu(anchor) {
     LANGS.map((l) => h('button', { role: 'menuitemradio', 'aria-checked': String(l.id === lang()), class: l.id === lang() ? 'on' : null,
       onclick: async () => { menu.remove(); if (l.id === lang()) return; await saveSettings({ 'app.language': l.id }); } },
     h('span', { class: 'grow' }, l.native, l.native !== l.label ? h('span', { class: 'tiny muted' }, ' · ' + l.label) : null),
-    l.status === 'beta' ? h('span', { class: 'badge unknown', title: t('lang.beta') }, 'beta') : null)),
+    l.status === 'beta' ? h('span', { class: 'badge unknown', title: t('lang.beta') }, translateUI('ui.shell_beta')) : null)),
     h('div', { class: 'sep' }), h('div', { class: 'tiny muted', style: { padding: '4px 10px', maxWidth: '260px' } }, t('lang.game_names')),
     h('button', { onclick: () => { menu.remove(); go('#/settings/language'); } }, '⋯ ' + t('nav.settings')));
   document.body.append(menu);
@@ -137,7 +137,7 @@ export function renderChrome() {
   const vertical = setting('appearance.nav') !== 'horizontal';
   const r = parseRoute();
   const activeId = navIdFor(r);
-  const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: 'Settings (Ctrl+,)', 'aria-label': translateUI('ui.settings'), dataset: { action: 'settings' },
+  const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: translateUI('ui.shell_settings_shortcut'), 'aria-label': translateUI('ui.settings'), dataset: { action: 'settings' },
     onclick: () => go('#/settings') }, icon('gear'));
   const brand = h('div', { class: 'brand' }, logo(28), h('div', { class: 'text' },
     h('div', { class: 'name' }, 'PokeMMO Companion')),
@@ -147,17 +147,17 @@ export function renderChrome() {
   quickEl = h('div', { class: vertical ? 'quick' : 'quick-strip', role: 'list', 'aria-label': translateUI('ui.quick_access') });
   if (vertical) {
     shell = h('div', { class: 'app nav-vertical' },
-      h('aside', { class: 'sidebar' }, brand, h('nav', { 'aria-label': 'Main' }, NAV.map((n) => navButton(n, n.id === activeId))),
+      h('aside', { class: 'sidebar' }, brand, h('nav', { 'aria-label': translateUI('ui.shell_main_navigation') }, NAV.map((n) => navButton(n, n.id === activeId))),
         h('div', { class: 'quick-head' }, h('span', { class: 'label-text' }, t('nav.quick')),
-          h('button', { class: 'icon-btn sm', title: 'Add tools to Quick access (Tools page: drag a tool here, or use “Pin to sidebar”)',
-            'aria-label': 'Add to Quick access', onclick: () => go('#/tools') }, icon('plus'))),
+          h('button', { class: 'icon-btn sm', title: translateUI('ui.shell_add_pin_hint'),
+            'aria-label': translateUI('ui.shell_add_pin'), onclick: () => go('#/tools') }, icon('plus'))),
         quickEl,
-        h('button', { class: 'nav-item' + (r.page === 'settings' ? ' active' : ''), dataset: { nav: 'settings' }, onclick: () => go('#/settings'), title: 'Settings (Ctrl+,)' },
+        h('button', { class: 'nav-item' + (r.page === 'settings' ? ' active' : ''), dataset: { nav: 'settings' }, onclick: () => go('#/settings'), title: translateUI('ui.shell_settings_shortcut') },
           icon('gear'), h('span', { class: 'label' }, t('nav.settings')))),
       mainEl);
   } else {
     shell = h('div', { class: 'app nav-horizontal' },
-      h('header', { class: 'topbar' }, brand, h('nav', { 'aria-label': 'Main' }, NAV.map((n) => navButton(n, n.id === activeId))),
+      h('header', { class: 'topbar' }, brand, h('nav', { 'aria-label': translateUI('ui.shell_main_navigation') }, NAV.map((n) => navButton(n, n.id === activeId))),
         h('span', { class: 'grow' }), quickEl, toolbarExtras(false), gear),
       mainEl);
   }
@@ -198,7 +198,7 @@ function renderRoute() {
 
 // --------------------------------------------------------------- popouts
 export const POPOUT_TOOLS = {
-  storyline: { title: 'Storyline', w: 380, h: 460 }, pokedex: { title: 'Pokédex', w: 420, h: 560 },
+  storyline: { title: 'Storyline', w: 380, h: 460 }, pokedex: { title: 'Pokédex', i18n: 'nav.pokedex', w: 420, h: 560 },
   reports: { title: 'Alpha & Swarm reports', w: 380, h: 480 }, phenomena: { title: 'Phenomena', w: 420, h: 520 }, typechart: { title: 'Type matchups', w: 420, h: 520 },
   breeding: { title: 'Breeding', w: 460, h: 600 }, legendaries: { title: 'Legendaries', w: 360, h: 380 },
   cave: { title: 'Altering Cave', w: 360, h: 380 }, natures: { title: 'Natures', w: 380, h: 520 },
@@ -224,11 +224,11 @@ export async function openPopout(tool, extraHash = '') {
   const [w, h_] = popoutSize(tool, mode);
   const url = `/?token=${encodeURIComponent(TOKEN)}&popout=${tool}&mode=${mode}&shell=browser${extraHash}`;
   const win = window.open(url, 'pmc-' + tool, `popup=yes,width=${w},height=${h_}`);
-  if (!win) toast('Your browser blocked the popout window. Allow popups for this page.', { kind: 'warn' });
-  else toast(`${def.i18n ? t(def.i18n) : uiLabel(def.title)} opened as a browser window. Pin / always-on-top needs the native shell.`, { timeout: 3200 });
+  if (!win) toast(translateUI('ui.shell_popup_blocked'), { kind: 'warn' });
+  else toast(translateUI('ui.shell_browser_window', { label: def.i18n ? t(def.i18n) : uiLabel(def.title) }), { timeout: 3200 });
 }
 export function popoutButton(tool, extraHash = '') {
-  return h('button', { class: 'btn ghost small', title: 'Open as a separate window', onclick: () => openPopout(tool, extraHash) },
+  return h('button', { class: 'btn ghost small', title: translateUI('ui.shell_open_window'), onclick: () => openPopout(tool, extraHash) },
     icon('popout'), translateUI('ui.popout'));
 }
 
@@ -275,13 +275,13 @@ const qaKey = (i) => i.kind + ':' + i.id;
 export function isPinned(item) { return (setting('nav.quick_access') || []).some((x) => qaKey(x) === qaKey(item)); }
 export async function pinToSidebar(item) {
   const list = [...(setting('nav.quick_access') || [])];
-  if (list.some((x) => qaKey(x) === qaKey(item))) { toast('Already in Quick access'); return; }
+  if (list.some((x) => qaKey(x) === qaKey(item))) { toast(translateUI('ui.shell_already_pinned')); return; }
   const info = qaInfo(item);
   if (info && info.disabled) { toast(info.disabled, { kind: 'warn' }); return; }
   list.push({ kind: item.kind, id: item.id });
   await saveSettings({ 'nav.quick_access': list });
   renderQuick();
-  toast(`Pinned “${info ? info.label : item.id}” to Quick access`);
+  toast(translateUI('ui.shell_pinned', { label: info?.label || item.id }));
 }
 export async function unpin(item) {
   await saveSettings({ 'nav.quick_access': (setting('nav.quick_access') || []).filter((x) => qaKey(x) !== qaKey(item)) });
@@ -297,9 +297,9 @@ async function moveQuick(from, to) {
 }
 export function pinButton(item, small = true) {
   const pinned = isPinned(item);
-  return h('button', { class: 'btn ghost' + (small ? ' small' : ''), title: pinned ? 'Remove from sidebar Quick access' : 'Pin to sidebar Quick access',
+  return h('button', { class: 'btn ghost' + (small ? ' small' : ''), title: pinned ? translateUI('ui.shell_remove_pin_hint') : translateUI('ui.shell_pin_hint'),
     onclick: async (e) => { const btn = e.currentTarget; if (isPinned(item)) await unpin(item); else await pinToSidebar(item);
-      if (btn && btn.isConnected) btn.replaceWith(pinButton(item, small)); } }, icon('pin'), pinned ? 'Unpin' : 'Pin to sidebar');
+      if (btn && btn.isConnected) btn.replaceWith(pinButton(item, small)); } }, icon('pin'), pinned ? translateUI('ui.shell_unpin') : translateUI('ui.shell_pin'));
 }
 
 function qaMenu(item, idx, anchor) {
@@ -308,10 +308,10 @@ function qaMenu(item, idx, anchor) {
   const r = anchor.getBoundingClientRect();
   const btn = (label, fn) => h('button', { onclick: () => { menu.remove(); fn(); } }, label);
   const menu = h('div', { class: 'menu', role: 'menu', style: { top: r.bottom + 2 + 'px', left: Math.min(r.left, innerWidth - 220) + 'px' } },
-    btn('Open', () => go(info.route)),
-    info.popout ? btn('Open as popout window', () => openPopout(info.popout, info.popoutHash || '')) : null,
-    h('div', { class: 'sep' }), btn('Move up', () => moveQuick(idx, idx - 1)), btn('Move down', () => moveQuick(idx, idx + 1)),
-    h('div', { class: 'sep' }), btn('Remove from Quick access', () => unpin(item)));
+    btn(t('common.open'), () => go(info.route)),
+    info.popout ? btn(translateUI('ui.shell_qa_popup'), () => openPopout(info.popout, info.popoutHash || '')) : null,
+    h('div', { class: 'sep' }), btn(translateUI('ui.move_up'), () => moveQuick(idx, idx - 1)), btn(translateUI('ui.move_down'), () => moveQuick(idx, idx + 1)),
+    h('div', { class: 'sep' }), btn(translateUI('ui.shell_remove_pin'), () => unpin(item)));
   document.body.append(menu);
   const close = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', close); } };
   setTimeout(() => document.addEventListener('click', close), 0);
@@ -326,7 +326,7 @@ export function renderQuick() {
   const items = list.map((it, idx) => {
     const info = qaInfo(it);
     if (!info) return null;
-    const main = h('button', { class: 'qa-item' + (info.disabled ? ' disabled' : ''), title: info.disabled || `${info.label} (drag to reorder · right-click for options · Alt+↑/↓ to move)`,
+    const main = h('button', { class: 'qa-item' + (info.disabled ? ' disabled' : ''), title: info.disabled || translateUI('ui.shell_qa_controls', { label: info.label }),
       'aria-disabled': info.disabled ? 'true' : null, draggable: 'true',
       onclick: () => { if (info.disabled) { toast(info.disabled, { kind: 'warn' }); return; } go(info.route); },
       oncontextmenu: (e) => { e.preventDefault(); qaMenu(it, idx, e.currentTarget); },
@@ -339,9 +339,9 @@ export function renderQuick() {
     info.sprite ? h('img', { class: 'pixel qa-sprite', src: info.sprite, alt: '' }) : icon(info.icon), vertical ? h('span', { class: 'label ellipsis' }, info.label) : null);
     main.addEventListener('dragstart', (e) => { e.dataTransfer.setData('application/x-pmc-qa', String(idx)); e.dataTransfer.effectAllowed = 'move'; });
     const row = h('div', { class: 'qa-row', role: 'listitem', dataset: { idx } }, main,
-      vertical && info.popout && !info.disabled ? h('button', { class: 'icon-btn sm qa-pop', title: `Open ${info.label} as a popout window`, 'aria-label': `Pop out ${info.label}`,
+      vertical && info.popout && !info.disabled ? h('button', { class: 'icon-btn sm qa-pop', title: translateUI('ui.shell_open_popout', { label: info.label }), 'aria-label': translateUI('ui.shell_popout_aria', { label: info.label }),
         onclick: () => openPopout(info.popout, info.popoutHash || '') }, icon('popout')) : null,
-      vertical ? h('button', { class: 'icon-btn sm qa-more', title: 'Options', 'aria-label': `Options for ${info.label}`, onclick: (e) => qaMenu(it, idx, e.currentTarget) }, icon('dots')) : null);
+      vertical ? h('button', { class: 'icon-btn sm qa-more', title: translateUI('ui.shell_options'), 'aria-label': translateUI('ui.shell_options_aria', { label: info.label }), onclick: (e) => qaMenu(it, idx, e.currentTarget) }, icon('dots')) : null);
     return row;
   });
   mount(quickEl, items.length ? items : (vertical ? h('div', { class: 'qa-empty' }, t('nav.quick_empty')) : null));

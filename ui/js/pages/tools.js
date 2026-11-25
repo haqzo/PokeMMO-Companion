@@ -345,21 +345,26 @@ async function renderEv(el) {
   const draw = () => {
     const cands = idx.filter((s) => s.ev && s.ev[stat] && (horde === 1 || (horde === 5 ? s.horde5 : s.horde)) && (!region || (s.regions || []).includes(region)))
       .sort((a, b) => (b.ev[stat] - a.ev[stat]) || a.id - b.id).slice(0, 40);
-    mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${cands.length ? 'Top' : 'No'} species yielding ${STATS.find((x) => x[0] === stat)[1]} EVs${horde === 5 ? ' that appear in ×5 hordes' : ''}${region ? ' in ' + cap(region) : ''}.`),
-      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.pokemon'), 'Yield', `EVs per ${horde > 1 ? 'horde' : 'battle'}`, `Battles ${current}→${target}`, ''].map((c) => h('th', null, c)))),
+    mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, translateUI(cands.length ? 'ui.planner_top' : 'ui.planner_no_results', {
+      stat: uiLabel(STATS.find((x) => x[0] === stat)[1]), horde: horde === 5 ? translateUI('ui.planner_horde_only') : '',
+      region: region ? translateUI('ui.planner_region_filter', { region: gameTerm('region', cap(region)) }) : '',
+    })),
+      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.pokemon'), translateUI('ui.planner_yield'),
+        translateUI(horde > 1 ? 'ui.planner_ev_horde' : 'ui.planner_ev_battle'),
+        translateUI('ui.planner_ev_battles', { current: number(current), target: number(target) }), ''].map((c) => h('th', null, c)))),
         h('tbody', null, cands.map((s) => { const per = s.ev[stat] * (macho ? 2 : 1) * horde; const rem = Math.max(0, target - current);
           return h('tr', null, h('td', null, speciesLabel(s.id, s.name), ' ', typeChips(s.types, true)), h('td', null, `+${s.ev[stat]}`),
           h('td', null, per), h('td', { style: { fontWeight: 700 } }, rem ? Math.ceil(rem / per) : 0),
           h('td', null, h('button', { class: 'btn small ghost', onclick: () => go(`#/pokedex/${s.id}?tab=locations`) }, translateUI('ui.locations')))); }))),
-      h('div', { class: 'tiny muted' }, 'Yield × Pokémon per encounter' + (macho ? ' × 2 (Macho Brace)' : '') + '. Power items and Pokérus are not applied (no PokeMMO-specific evidence collected). Horde rows come from the built-in game data (client snapshot 16 Nov 2026).')));
+      h('div', { class: 'tiny muted' }, translateUI('ui.planner_ev_formula', { macho: macho ? translateUI('ui.planner_ev_macho') : '' }))));
   };
   el.append(h('div', { class: 'stack' }, h('div', { class: 'card row wrap' },
-    h('div', { class: 'field' }, h('label', null, 'Stat'), seg(STATS.map(([k, l]) => [k, l]), stat, (v) => { stat = v; draw(); })),
-    h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Current EVs'), h('input', { class: 'input', type: 'number', min: 0, max: 252, value: current, oninput: (e) => { current = Math.max(0, Math.min(252, Number(e.target.value || 0))); draw(); } })),
-    h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Target EVs'), h('input', { class: 'input', type: 'number', min: 1, max: 252, value: target, oninput: (e) => { target = Math.max(1, Math.min(252, Number(e.target.value || 1))); draw(); } })),
-    h('div', { class: 'field' }, h('label', null, 'Encounter'), seg([[5, 'Horde ×5'], [3, 'Horde ×3'], [1, 'Single']], horde, (v) => { horde = v; draw(); })),
-    h('label', { class: 'row small', style: { alignSelf: 'end' } }, h('input', { type: 'checkbox', class: 'check', onchange: (e) => { macho = e.target.checked; draw(); } }), 'Macho Brace (×2, mainline effect — not confirmed for PokeMMO)'),
-    h('div', { class: 'field' }, h('label', null, translateUI('ui.region')), h('select', { class: 'input', onchange: (e) => { region = e.target.value; draw(); } }, h('option', { value: '' }, 'Any'),
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.planner_stat')), seg(STATS.map(([k, l]) => [k, l]), stat, (v) => { stat = v; draw(); })),
+    h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.planner_current_evs')), h('input', { class: 'input', type: 'number', min: 0, max: 252, value: current, oninput: (e) => { current = Math.max(0, Math.min(252, Number(e.target.value || 0))); draw(); } })),
+    h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.planner_target_evs')), h('input', { class: 'input', type: 'number', min: 1, max: 252, value: target, oninput: (e) => { target = Math.max(1, Math.min(252, Number(e.target.value || 1))); draw(); } })),
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.planner_encounter')), seg([5, 3, 1].map(count => [count, count === 1 ? translateUI('ui.live_method_single') : translateUI('ui.loc_horde_count', { count })]), horde, (v) => { horde = v; draw(); })),
+    h('label', { class: 'row small', style: { alignSelf: 'end' } }, h('input', { type: 'checkbox', class: 'check', onchange: (e) => { macho = e.target.checked; draw(); } }), translateUI('ui.planner_macho')),
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.region')), h('select', { class: 'input', onchange: (e) => { region = e.target.value; draw(); } }, h('option', { value: '' }, translateUI('ui.planner_any')),
       ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r }, gameTerm('region', cap(r))))))), out));
   draw();
 }
@@ -371,14 +376,14 @@ async function renderTeam(el, route) {
   const doc = teams.find((x) => x.id === want) || null;
   const used = doc ? (await get(`/api/teams/${doc.id}/guides`)).guides : [];
   const picker = h('div', { class: 'card row wrap' },
-    h('div', { class: 'field' }, h('label', null, 'Saved teams'), h('select', { class: 'input', onchange: (e) => go(e.target.value ? `#/tools/team?team=${e.target.value}` : '#/tools/team') },
-      h('option', { value: '' }, '— New team —'), teams.map((x) => h('option', { value: x.id, selected: doc && x.id === doc.id ? 'selected' : null }, x.name + (x.data && x.data.purpose ? ` · ${purposeLabel(x.data.purpose)}` : ''))))),
-    used.length ? h('span', { class: 'small muted' }, `Used in ${used.length} guide(s) — changes show there too.`) : null);
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.planner_saved_teams')), h('select', { class: 'input', onchange: (e) => go(e.target.value ? `#/tools/team?team=${e.target.value}` : '#/tools/team') },
+      h('option', { value: '' }, translateUI('ui.planner_new_team')), teams.map((x) => h('option', { value: x.id, selected: doc && x.id === doc.id ? 'selected' : null }, x.name + (x.data && x.data.purpose ? ` · ${purposeLabel(x.data.purpose)}` : ''))))),
+    used.length ? h('span', { class: 'small muted' }, translateUI('ui.planner_team_links', { count: number(used.length) })) : null);
   const editor = await teamEditor(doc, { onSaved: (res) => go('#/tools/team?team=' + res.id), onDeleted: () => go('#/tools/team') });
   mount(el, h('div', { class: 'stack' }, picker, editor));
 }
 
 function needsImport() {
-  return h('div', { class: 'content-narrow stack' }, notice('warn', h('strong', null, 'The PokeMMO data could not be loaded. '), 'This tool needs the built-in base stats, catch rates and EV yields. Restart Companion; if this stays, open Settings › About & diagnostics.'),
-    h('div', null, h('button', { class: 'btn', onclick: () => go('#/settings/about') }, 'About & diagnostics')));
+  return h('div', { class: 'content-narrow stack' }, notice('warn', h('strong', null, translateUI('ui.planner_data_failed')), translateUI('ui.planner_data_required')),
+    h('div', null, h('button', { class: 'btn', onclick: () => go('#/settings/about') }, translateUI('ui.planner_diagnostics'))));
 }

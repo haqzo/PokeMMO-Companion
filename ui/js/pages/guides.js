@@ -88,7 +88,7 @@ export async function render(el, route) {
   }), region, async (r) => { await api('PATCH', `/api/guides/runs/${run.id}`, { region: r }); go(`#/guides/storyline?region=${r}`); }, translateUI('ui.guide_regions'))));
 
   const steps = st.steps;
-  const displayStep = st.source === 'walkthrough' ? stepLabel : (step) => step.text;
+  const displayStep = st.source === 'imported' ? (step) => step.text : stepLabel;
   const displayChapter = st.source === 'imported' ? (name) => name : walkthroughChapter;
   const done = new Set(st.done);
   const src = st.sources.find((s) => s.id === st.source);

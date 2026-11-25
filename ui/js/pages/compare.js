@@ -114,7 +114,7 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
   const matchup = () => {
     const [a, b] = memo.sides;
     const row = (att, def) => h('div', { class: 'cmp-dir' }, h('div', { class: 'small' }, h('strong', null, compareSpecies(att)), translateUI('ui.b272_cmp_attacking'), h('strong', null, compareSpecies(def)), h('span', { class: 'tiny muted' }, translateUI('ui.b272_cmp_stab_types'))),
-      h('div', { class: 'row wrap tight' }, att.types.map((t) => { const m = eff(t, def.types); return h('span', { class: 'row tight cmp-eff' }, chip(t), m == null ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_type_missing') }, 'unknown') : h('span', { class: 'mult ' + multCls(m) }, mult(m))); })));
+      h('div', { class: 'row wrap tight' }, att.types.map((t) => { const m = eff(t, def.types); return h('span', { class: 'row tight cmp-eff' }, chip(t), m == null ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_type_missing') }, translateUI('dex.compare_unknown')) : h('span', { class: 'mult ' + multCls(m) }, mult(m))); })));
     const weak = (s) => T.map((t) => [t, eff(t, s.types)]).filter(([, m]) => m != null && m >= 2);
     return h('div', { class: 'stack tight cmp-matchup' }, row(a, b), row(b, a),
       h('div', { class: 'tiny muted' }, [a, b].map(s => translateUI('ui.b272_cmp_weak_to', { name: compareSpecies(s), types: weak(s).map(([t, m]) => `${gameTerm('type', cap(t))} ${mult(m)}`).join(', ') || translateUI('ui.b272_cmp_nothing') })).join(' · ')));
@@ -152,7 +152,7 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
       me.formMovesShared ? h('div', { class: 'tiny muted' }, translateUI('ui.b272_cmp_form_moves')) : null,
       chosen.length ? h('div', { class: 'cmp-chosen' }, h('div', { class: 'tiny muted' }, translateUI('ui.b272_cmp_chosen', { count: chosen.length, max: MAX_PICKS })),
         h('div', { class: 'row wrap tight' }, chosen.map((m) => h('span', { class: 'chip' }, chip(m.type), ' ', gameTerm('move', m.name), ' ',
-          m.vs == null ? h('span', { class: 'tiny muted' }, m.unverified ? translateUI('ui.b272_cmp_wait') : 'status') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs)), m.stab ? h('span', { class: 'tiny', title: translateUI('ui.b272_cmp_stab') }, ' STAB') : null)))) : null,
+          m.vs == null ? h('span', { class: 'tiny muted' }, m.unverified ? translateUI('ui.b272_cmp_wait') : translateUI('dex.compare_status')) : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs)), m.stab ? h('span', { class: 'tiny', title: translateUI('ui.b272_cmp_stab') }, ' STAB') : null)))) : null,
       h('div', { class: 'row wrap tight cmp-filters' },
         h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.move_prompt'), value: f.q || '', style: { width: '120px' }, 'aria-label': translateUI('ui.move_search'),
           onchange: (e) => setF('q', e.target.value.trim().toLowerCase()) }),
@@ -165,20 +165,20 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
         h('label', { class: 'row tight small' }, h('input', { type: 'checkbox', class: 'check', checked: !!f.hitting, onchange: (e) => setF('hitting', e.target.checked) }), translateUI('ui.b272_cmp_super'))),
       h('div', { class: 'cmp-table-wrap' }, h('table', { class: 'table cmp-table' },
         h('colgroup', null, ['c-pick', 'c-move', 'c-type', 'c-vs', 'c-num', 'c-num', 'c-num', 'c-cat', 'c-how'].map((c) => h('col', { class: c }))),
-        h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr-only' }, translateUI('ui.b272_cmp_choose'))), th('name', translateUI('ui.move')), th('type', translateUI('ui.type')), th('vs', 'vs ' + compareSpecies(foe), 'num'),
-          th('power', translateUI('ui.power'), 'num'), th('acc', 'Acc.', 'num'), th('pp', 'PP', 'num'), h('th', null, translateUI('ui.category')), h('th', null, translateUI('ui.b272_cmp_learned')))),
+        h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr-only' }, translateUI('ui.b272_cmp_choose'))), th('name', translateUI('ui.move')), th('type', translateUI('ui.type')), th('vs', translateUI('dex.compare_vs', { pokemon: compareSpecies(foe) }), 'num'),
+          th('power', translateUI('ui.power'), 'num'), th('acc', translateUI('dex.move_accuracy_short'), 'num'), th('pp', 'PP', 'num'), h('th', null, translateUI('ui.category')), h('th', null, translateUI('ui.b272_cmp_learned')))),
         h('tbody', null, shown.map((m) => {
           const on = picks.includes(m.id);
           return h('tr', { class: on ? 'picked' : null },
             h('td', null, h('input', { type: 'checkbox', class: 'check', checked: on, disabled: !on && picks.length >= MAX_PICKS ? 'disabled' : null, 'aria-label': translateUI('ui.b272_cmp_choose_move', { move: gameTerm('move', m.name) }),
               onchange: (e) => { memo.picks[i] = e.target.checked ? [...picks, m.id].slice(0, MAX_PICKS) : picks.filter((x) => x !== m.id); drawAll(); } })),
-            h('td', { class: 'mv-name', title: m.name }, gameTerm('move', m.name), m.unverified ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_move_missing') }, translateUI('ui.b272_cmp_wait_suffix')) : null, m.stab ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_stab') }, ' STAB') : null),
+            h('td', { class: 'mv-name', title: gameTerm('move', m.name) }, gameTerm('move', m.name), m.unverified ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_move_missing') }, translateUI('ui.b272_cmp_wait_suffix')) : null, m.stab ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_stab') }, ' STAB') : null),
             h('td', null, chip(m.type)),
             h('td', { class: 'num' }, m.vs == null ? h('span', { class: 'tiny muted', title: m.unverified ? translateUI('ui.b272_cmp_no_eff') : translateUI('ui.b272_cmp_status_move') }, m.unverified ? '?' : '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
-            h('td', { class: 'num' }, m.power === 1 ? h('span', { class: 'muted', title: translateUI('ui.b272_cmp_variable') }, 'var.') : m.power || '—'),
+            h('td', { class: 'num' }, m.power === 1 ? h('span', { class: 'muted', title: translateUI('ui.b272_cmp_variable') }, translateUI('dex.move_var_short')) : m.power || '—'),
             h('td', { class: 'num' }, m.accuracy > 100 ? h('span', { class: 'muted', title: translateUI('ui.b272_cmp_never_miss') }, '—') : m.accuracy ? m.accuracy + '%' : '—'),
             h('td', { class: 'num' }, m.pp ?? '—'),
-            h('td', { class: 'small', title: m.unverified ? translateUI('ui.b272_cmp_details_wait') : m.category }, m.unverified && !m.category ? '?' : gameTerm('category_move', m.category)),
+            h('td', { class: 'small', title: m.unverified ? translateUI('ui.b272_cmp_details_wait') : gameTerm('category_move', m.category) }, m.unverified && !m.category ? '?' : gameTerm('category_move', m.category)),
             h('td', { class: 'small muted mv-how' }, m.methods.map(method => method.startsWith('Lv ') ? translateUI('ui.b272_cmp_method_display', { level: method.slice(3) }) : uiLabel(method)).join(', ')));
         })))),
       h('div', { class: 'tiny muted' }, translateUI('ui.b272_cmp_count', { shown: shown.length, total: rows.length })));

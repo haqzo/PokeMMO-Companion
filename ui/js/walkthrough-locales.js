@@ -1,4 +1,5 @@
 // Manually translated walkthrough steps. ID and original hash both must match.
+import { MILESTONE_STRINGS } from './milestone-strings.js';
 import { GENERATED_WALKTHROUGH_TEXT } from './walkthrough-generated.js';
 export const WALKTHROUGH_TEXT = {
   "hoenn:imp:001:00": ["fc401c753e0c", "Sal del camión. Sube las escaleras y examina el reloj. Baja, sal de la casa y entra en la casa del este.", "走出卡车。上楼调查时钟，再下楼。出门后进入东边的房子。"],
@@ -2120,6 +2121,8 @@ export const WALKTHROUGH_TEXT = {
 
 export function walkthroughStep(step, language) {
   const entry = WALKTHROUGH_TEXT[step.id] || GENERATED_WALKTHROUGH_TEXT[step.id];
-  if (entry?.[0] === step.text_hash) return entry[{ es: 1, zh: 2 }[language]] ?? step.text;
-  return step.text;
+  const index = { es: 1, zh: 2 }[language];
+  if (entry && entry[0] === step.text_hash) return entry[index] ?? step.text;
+  const milestone = MILESTONE_STRINGS[step.id];
+  return milestone?.[0] === step.text ? milestone[index] ?? step.text : step.text;
 }

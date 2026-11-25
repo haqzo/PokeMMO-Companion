@@ -78,3 +78,16 @@ def test_johto_ice_puzzle_preserves_direction_and_step_order():
     assert re.findall(r"向([北东西])走 (\d+) 步", zh) == [
         ("西", "4"), ("西", "1"), ("北", "5"), ("东", "1"),
     ]
+
+
+
+def test_milestone_translations_cover_the_companion_outline():
+    from companion.data.guide_milestones import milestone_steps
+
+    catalog = _catalog("milestone-strings.js", "MILESTONE_STRINGS")
+    canonical = {step["id"]: step["text"] for region in COUNTS for step in milestone_steps(region)}
+    assert catalog.keys() == canonical.keys()
+    for step_id, (english, es, zh) in catalog.items():
+        assert english == canonical[step_id]
+        assert es.strip() and es != english
+        assert re.search(r"[\u3400-\u9fff]", zh)
