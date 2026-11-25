@@ -471,3 +471,29 @@ def test_shortcut_labels_and_guide_feedback(clean, pg, language, label, custom):
     }""")
     assert result == [label, custom]
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "field", "expected"), [
+    ("en", "IV attack", "IV attack must be between 0 and 31"),
+    ("es", "IV de Ataque", "IV de Ataque debe estar entre 0 y 31"),
+    ("zh", "攻击个体值", "攻击个体值必须介于 0 和 31 之间"),
+])
+def test_dynamic_service_field_validation(clean, pg, language, field, expected):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { apiErrorText, ApiError, validationField } = await import('/js/core.js');
+      const raw = 'IV attack must be between 0 and 31';
+      const e = new ApiError(raw);
+      return [validationField('IV attack'), e.message, e.rawMessage,
+        apiErrorText('held item must be between -1 and 99999'),
+        apiErrorText('title is too long (max 120 characters)'),
+        apiErrorText('Unexpected provider message 123'),
+        validationField('unrecognized_field')];
+    }""")
+    assert result[:3] == [field, expected, "IV attack must be between 0 and 31"]
+    assert "-1" in result[3] and "99999" in result[3]
+    assert "120" in result[4]
+    assert result[5:] == ["Unexpected provider message 123", "unrecognized_field"]
+    assert not pg.errors

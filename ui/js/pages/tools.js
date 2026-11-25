@@ -43,7 +43,9 @@ const CALC_MESSAGE_KEYS = {
   "EV must be 0–252": "toolui.ev_error",
   "Level must be 1–100": "toolui.level_error",
   "Import data and choose a species": "toolui.choose_error",
-  "Unknown form": "toolui.unknown_form"
+  "Unknown form": "toolui.unknown_form",
+  "Encounter size must be 1, 3 or 5": "errorui.horde_size",
+  "EVs must be 0–252": "errorui.ev_range_plural"
 };
 export function calcMessage(value) {
   if (Object.hasOwn(CALC_MESSAGE_KEYS, value)) return translateUI(CALC_MESSAGE_KEYS[value]);

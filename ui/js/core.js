@@ -13,6 +13,31 @@ export const WINDOW_ID = (POPOUT ? 'popout-' + POPOUT : 'main') + '-' + Math.ran
 export const state = { boot: null, settings: {}, caps: {}, dexCache: null };
 
 const API_ERROR_KEYS = {
+  "Character name: 1–24 letters, digits, spaces, . ' or -": "errorui.character_name",
+  "Run label: up to 24 letters, digits, spaces, . ' or -": "errorui.run_label",
+  "A run with that character name and label already exists — add a different run label.": "errorui.run_duplicate",
+  "Unknown guide source": "errorui.guide_source",
+  "Unknown guide action": "errorui.guide_action",
+  "Step not in this guide": "errorui.guide_step",
+  "Invalid team slot": "errorui.team_slot",
+  "Invalid Pokémon": "errorui.team_species",
+  "Invalid team": "errorui.team",
+  "Unknown team purpose": "errorui.team_purpose",
+  "Invalid IVS": "errorui.team_ivs",
+  "Invalid EVS": "errorui.team_evs",
+  "IVS must be numbers": "errorui.team_iv_numbers",
+  "EVS must be numbers": "errorui.team_ev_numbers",
+  "IVS must be 0–31": "errorui.team_iv_range",
+  "EVS must be 0–252": "errorui.team_ev_range",
+  "EVs add up to more than 510": "errorui.team_ev_total",
+  "Encounter size must be 1, 3 or 5": "errorui.horde_size",
+  "EVs must be 0–252": "errorui.ev_range_plural",
+  "status must be one of ('unregistered', 'seen', 'owned', 'caught_ot')": "errorui.progress_status",
+  "catch rate must be 1–255": "toolui.catch_rate_error",
+  "HP must be 1 ≤ current ≤ max": "toolui.hp_error",
+  "IV must be 0–31": "toolui.iv_error",
+  "EV must be 0–252": "toolui.ev_error",
+  "Level must be 1–100": "toolui.level_error",
   "Not found": "errorui.not_found",
   "Unknown form": "errorui.form",
   "Unknown region": "errorui.region",
@@ -121,9 +146,36 @@ const API_ERROR_KEYS = {
 const shortcutConflict = (message) => /^([^\n]+) is already used by “([^”]+)”(\. Choose another key or replace it\.)?$/.exec(message);
 export const isShortcutConflict = (error) => Boolean(shortcutConflict(error?.rawMessage ?? error?.message ?? ''));
 
+// Field names are known service identifiers, not arbitrary user-entered content.
+const VALIDATION_FIELDS = {"title":"title","body":"body","link label":"link_label","species":"species","nickname":"nickname","form":"form","level":"level","nature":"nature","ability":"ability","held item":"held_item","move":"move","OT":"ot","location":"location","encounter count":"encounter_count","notes":"notes","name":"name","background opacity":"background_opacity","cycle seconds":"cycle_seconds","columns":"columns","description":"description","source":"source","indent":"indent","step text":"step_text","note":"note","filename":"filename","label":"label","seen":"seen","owned":"owned","caught_ot":"caught_ot","caught_alpha":"caught_alpha","owned_shiny":"owned_shiny","costume":"costume"};
+const VALIDATION_STATS = {"hp":"stat_hp","attack":"stat_attack","defense":"stat_defense","sp_attack":"stat_sp_attack","sp_defense":"stat_sp_defense","speed":"stat_speed"};
+const OBSERVATION_FIELDS = new Set(['seen', 'owned', 'caught_ot', 'caught_alpha', 'owned_shiny', 'costume']);
+export function validationField(field) {
+  if (lang() === 'en') return field;
+  if (Object.hasOwn(VALIDATION_FIELDS, field)) return translateUI('fieldlia.' + VALIDATION_FIELDS[field]);
+  const stat = /^(IV|EV) (\w+)$/.exec(field);
+  if (stat && Object.hasOwn(VALIDATION_STATS, stat[2])) return translateUI('fieldlia.' + stat[1].toLowerCase(),
+    { stat: translateUI('fieldlia.' + VALIDATION_STATS[stat[2]]) });
+  const counter = /^(\w+) (value|maximum)$/.exec(field);
+  if (counter && OBSERVATION_FIELDS.has(counter[1])) return translateUI('fieldlia.' + counter[2],
+    { counter: translateUI('fieldlia.' + VALIDATION_FIELDS[counter[1]]) });
+  return field;
+}
+
 export function apiErrorText(message) {
   if (Object.hasOwn(API_ERROR_KEYS, message)) return translateUI(API_ERROR_KEYS[message]);
-  if (typeof message !== 'string') return message;
+  if (typeof message !== 'string' || lang() === 'en') return message;
+  let match;
+  if ((match = /^(.+) is required$/.exec(message))) return translateUI('errorui.required', { field: validationField(match[1]) });
+  if ((match = /^(.+) is too long \(max (\d+) characters\)$/.exec(message))) return translateUI('errorui.text_max', { field: validationField(match[1]), max: match[2] });
+  if ((match = /^(.+) must be a whole number$/.exec(message))) return translateUI('errorui.whole_number', { field: validationField(match[1]) });
+  if ((match = /^(.+) must be between (-?\d+) and (-?\d+)$/.exec(message))) return translateUI('errorui.field_range', { field: validationField(match[1]), min: match[2], max: match[3] });
+  if ((match = /^(\w+): value cannot exceed the maximum shown$/.exec(message)) && OBSERVATION_FIELDS.has(match[1])) return translateUI('errorui.counter_max', { field: validationField(match[1]) });
+  if ((match = /^Unknown nature: (.+)$/.exec(message))) return translateUI('errorui.unknown_nature', { value: match[1] });
+  if ((match = /^Unknown link kind: (.+)$/.exec(message))) return translateUI('errorui.unknown_link', { value: match[1] });
+  if ((match = /^Invalid step id (.+)$/.exec(message))) return translateUI('errorui.invalid_step_id', { value: match[1] });
+  if ((match = /^Unexpected file in backup archive: (.+)$/.exec(message))) return translateUI('errorui.backup_extra_file', { value: match[1] });
+  if ((match = /^EV total (\d+) is over 510$/.exec(message))) return translateUI('toolui.total_error', { total: match[1] });
   const conflict = shortcutConflict(message);
   if (conflict) return translateUI(conflict[3] ? 'errorui.shortcut_conflict' : 'errorui.shortcut_conflict_short',
     { combo: conflict[1], action: shortcutLabel(conflict[2]) });
@@ -136,7 +188,7 @@ export function apiErrorText(message) {
   const limit = /^You can keep up to (\d+) (timers|presets)$/.exec(message);
   if (limit) return translateUI(limit[2] === 'timers' ? 'errorui.timer_limit' : 'errorui.preset_limit', { count: limit[1] });
   const numeric = /^([a-zA-Z_]+) must be a number$/.exec(message);
-  if (numeric) return translateUI('errorui.number', { field: numeric[1] });
+  if (numeric) return translateUI('errorui.number', { field: validationField(numeric[1]) });
   return message;
 }
 export class ApiError extends Error {

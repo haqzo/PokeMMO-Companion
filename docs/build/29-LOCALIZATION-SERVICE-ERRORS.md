@@ -12,3 +12,7 @@ Remaining: dynamic field validation, additional reference/service prose, rendere
 ## Follow-up: shortcut registry and storyline feedback
 
 23 additional entries: all 13 registered shortcut action labels, group labels, global shortcut explanation, and storyline keyboard feedback. The guide action API now returns additive message metadata with original step ID/hash/text and position; original messages and progress behavior are preserved. Imported objectives remain original-language text. Actual assembled catalog and guide/shortcut helpers were evaluated in three languages: 2824 supplemental keys, 2914 merged keys, no missing or mismatched placeholders, all 13 action labels localized, original custom text retained, and a hash-matched bundled step localized. Python/browser execution remains pending. Browser regression cases added.
+
+## Follow-up: dynamic service-field validation
+
+Added 71 catalog entries for guide and team validation, EV planning, dynamic validation wrappers and known field/stat/counter display names. Reused five existing calculator error translations centrally. Preserved source English, unknown values, numeric limits, raw error messages and canonical identifiers. The actual merged catalog contains 2985 keys (2895 supplemental); syntax, duplicate-key and placeholder checks passed, as did 102 isolated error cases across en/es/zh. Browser regression cases added; full application execution remains outstanding.
