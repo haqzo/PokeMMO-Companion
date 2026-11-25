@@ -12,6 +12,50 @@ import { speciesPicker, speciesIndex, natureSelect } from '../components.js';
 import * as breeding from './breeding.js';
 
 const STATS = [['hp', 'HP'], ['attack', 'Atk'], ['defense', 'Def'], ['sp_attack', 'SpA'], ['sp_defense', 'SpD'], ['speed', 'Spe']];
+// Only translate application-authored calculator messages; leave calculations and API values intact.
+const CALC_MESSAGE_KEYS = {
+  "Generation II–V chart with 17 types (no Fairy), matching PokeMMO's dump and the in-game type chart. Steel resists Ghost and Dark.": "toolui.chart_note",
+  "Gen III+ formula with integer rounding (same core formula as the PokeMMO Showdown and PokéStats calculators). Base stats from your installed data.": "toolui.stat_note",
+  "Gen III+ formula with integer rounding (same core formula as the PokeMMO Showdown and PokéStats calculators). Base stats from your installed data (form-specific).": "toolui.stat_form_note",
+  "Your installed dump": "toolui.dump",
+  "Official changelog 30 Oct 2026: Lickitung base catch rate 45 → 75": "toolui.lickitung",
+  "Gen III/IV capture formula with four shake checks, as used by public PokeMMO catch calculators.": "toolui.catch_formula",
+  "Percentages are per ball thrown. Balls marked “condition not confirmed” use mainline values whose PokeMMO behaviour has not been confirmed.": "toolui.catch_unconfirmed",
+  "Alpha, raid and legendary capture rules are not modelled.": "toolui.catch_excluded",
+  "Always catches": "toolui.master",
+  "Water/Bug target ×3": "toolui.net_yes",
+  "Not Water/Bug ×1": "toolui.net_no",
+  "Night or cave ×3.5": "toolui.dusk_yes",
+  "Daytime outside caves ×1": "toolui.dusk_no",
+  "First turn ×5": "toolui.quick_yes",
+  "After turn 1 ×1": "toolui.quick_no",
+  "Already registered as caught ×3": "toolui.repeat_yes",
+  "Not caught before ×1": "toolui.repeat_no",
+  "Surfing/fishing ×3.5": "toolui.dive_yes",
+  "On land ×1": "toolui.dive_no",
+  "Sleeping target ×4": "toolui.dream_yes",
+  "Target awake ×1": "toolui.dream_no",
+  "×1 (raises friendship only)": "toolui.luxury",
+  "catch rate must be 1–255": "toolui.catch_rate_error",
+  "HP must be 1 ≤ current ≤ max": "toolui.hp_error",
+  "Unknown status": "toolui.status_error",
+  "IV must be 0–31": "toolui.iv_error",
+  "EV must be 0–252": "toolui.ev_error",
+  "Level must be 1–100": "toolui.level_error",
+  "Import data and choose a species": "toolui.choose_error",
+  "Unknown form": "toolui.unknown_form"
+};
+export function calcMessage(value) {
+  if (Object.hasOwn(CALC_MESSAGE_KEYS, value)) return translateUI(CALC_MESSAGE_KEYS[value]);
+  if (typeof value !== 'string') return value;
+  let m;
+  if ((m = /^\(41 − level (\d+)\) ÷ 10, minimum ×1$/.exec(value))) return translateUI('toolui.nest', { level: m[1] });
+  if ((m = /^1 \+ turns passed × 0\.3, max ×4 \(turn (\d+)\)$/.exec(value))) return translateUI('toolui.timer', { turn: m[1] });
+  if ((m = /^EV total (\d+) is over 510$/.exec(value))) return translateUI('toolui.total_error', { total: m[1] });
+  return value;
+}
+const statShort = (label) => translateUI('boxui.stat_' + label.toLowerCase());
+
 let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose(); calcPage.dispose();  if (typeof ownMod !== 'undefined' && ownMod && ownMod.dispose) ownMod.dispose(); }
 
@@ -105,13 +149,13 @@ async function renderHub(el) {
     h('aside', { class: 'stack' },
       h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.b272_continue'))),
         recent.length ? h('div', { class: 'stack tight' }, recent.map((d) => h('button', { class: 'tool-link', onclick: () => go(d.k === 'breeding' ? `#/tools/breeding?tab=plan&plan=${d.id}` : `#/tools/team?team=${d.id}`) },
-          icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, (d.k === 'breeding' ? 'Breeding plan' : 'Team') + ' · saved ' + relTimeShort(d.updated_at)))))) :
+          icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, translateUI('toolui.recent', { kind: translateUI(d.k === 'breeding' ? 'ui.breeding_plan' : 'ui.team'), age: relTimeShort(d.updated_at) })))))) :
           h('div', { class: 'small muted' }, translateUI('ui.b272_tools_continue_empty'))),
       h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, translateUI('ui.b272_tools_numbers')),
         h('div', { class: 'small' }, translateUI('ui.b272_tools_numbers_desc')),
         h('p', { class: 'small muted', style: { margin: 0 } }, translateUI('ui.b272_tools_scope'))))));
 }
-function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'today' : `${Math.floor(d)} d ago`; }
+function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? translateUI('toolui.today') : translateUI('toolui.days_ago', { days: number(Math.floor(d)) }); }
 
 // ------------------------------------------------------------ type chart
 // Attacker = row (Y), defender = column (X). Hover/focus highlights the whole row AND column;
@@ -244,7 +288,7 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     mount(out, h('div', { class: 'row wrap' }, viewSwitch, h('span', { class: 'grow' }), legend),
       focusView ? focusPanel() : h('div', { class: 'stack tight' }, readout, h('div', { class: 'tc-scroll' }, buildMatrix())),
       h('div', { class: compact ? 'stack' : 'grid-2' }, defensive(), offensive()),
-      h('p', { class: 'small muted', style: { margin: 0 } }, tc.note));
+      h('p', { class: 'small muted', style: { margin: 0 } }, calcMessage(tc.note)));
     setReadout(null);
   };
   draw();
@@ -278,21 +322,21 @@ async function renderStats(el) {
     try {
       const r = await post('/api/tools/stats', s);
       const rowOf = (label, vals, strong) => h('tr', null, h('th', { class: 'small' }, label), STATS.map(([k]) => h('td', { style: strong ? { fontWeight: 700, fontSize: '1.15rem' } : null }, vals[k])));
-      mount(out, h('div', { class: 'stack tight' }, h('table', { class: 'table' }, h('thead', null, h('tr', null, h('th'), STATS.map(([, l]) => h('th', null, l)))),
+      mount(out, h('div', { class: 'stack tight' }, h('table', { class: 'table' }, h('thead', null, h('tr', null, h('th'), STATS.map(([, l]) => h('th', null, statShort(l))))),
         h('tbody', null, rowOf(translateUI('ui.b272_stats_level', { level: number(r.level) }), r.stats, true), r.level !== 50 ? rowOf(translateUI('ui.b272_stats_level', { level: 50 }), r.at_50) : null, r.level !== 100 ? rowOf(translateUI('ui.b272_stats_level', { level: 100 }), r.at_100) : null, rowOf(translateUI('ui.b272_stats_base'), r.base))),
-      h('div', { class: 'small muted' }, translateUI('ui.b272_stats_ev_total', { count: number(r.ev_total) })), h('div', { class: 'tiny muted' }, r.note)));
-    } catch (e) { mount(out, notice('bad', e.message)); }
+      h('div', { class: 'small muted' }, translateUI('ui.b272_stats_ev_total', { count: number(r.ev_total) })), h('div', { class: 'tiny muted' }, calcMessage(r.note))));
+    } catch (e) { mount(out, notice('bad', calcMessage(e.message))); }
   };
   const evSum = h('span', { class: 'tiny muted' });
-  const numRow = (key, max) => h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span', { class: 'label' }, key === 'ivs' ? 'IVs' : 'EVs'),
-    STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max, value: s[key][k], 'aria-label': `${l} ${key}`,
+  const numRow = (key, max) => h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span', { class: 'label' }, translateUI(key === 'ivs' ? 'ui.team_ivs' : 'ui.team_evs')),
+    STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max, value: s[key][k], 'aria-label': translateUI('toolui.stat_input', { stat: statShort(l), kind: translateUI(key === 'ivs' ? 'ui.team_ivs' : 'ui.team_evs') }),
       oninput: (e) => { s[key][k] = Math.max(0, Math.min(max, Number(e.target.value || 0))); evSum.textContent = translateUI('ui.b272_stats_ev_total', { count: number(STATS.reduce((a, [x]) => a + (s.evs[x] || 0), 0)) }); run(); } })));
   el.append(h('div', { class: 'grid-2', style: { alignItems: 'start' } },
     h('div', { class: 'card stack' }, speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
       h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.level')),
         h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 50, oninput: (e) => { s.level = Math.max(1, Math.min(100, Number(e.target.value || 1))); run(); } })),
       h('div', { class: 'field grow' }, h('label', null, translateUI('ui.nature')), natureSelect(null, (v) => { s.nature = v; run(); }))),
-      h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, l))),
+      h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, statShort(l)))),
       numRow('ivs', 31), numRow('evs', 252), evSum, h('div', { class: 'tiny muted' }, translateUI('ui.b272_stats_limits'))),
     h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, translateUI('ui.b272_stats_result'))), out)));
   run();
@@ -309,14 +353,14 @@ async function renderCatch(el) {
       const r = await post('/api/tools/catch', s);
       mount(out, h('div', { class: 'stack tight' },
         h('div', { class: 'small' }, translateUI('ui.catch_result', { species: speciesLabel(s.species, r.name), rate: number(r.catch_rate),
-          source: r.rate_source, current: number(r.cur_hp), maximum: number(r.max_hp),
+          source: calcMessage(r.rate_source), current: number(r.cur_hp), maximum: number(r.max_hp),
           status: ['sleep', 'freeze', 'paralysis', 'poison', 'burn', 'none'].includes(r.status) ? translateUI('ui.catch_' + r.status) : r.status })),
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.catch_ball'), translateUI('ui.catch_condition'), translateUI('ui.catch_per_ball'), translateUI('ui.catch_90'), translateUI('ui.catch_99')].map((c) => h('th', null, c)))),
-          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, gameTerm('item', x.label)), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: translateUI('ui.b272_catch_confirm') }, translateUI('ui.catch_unconfirmed'))),
+          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, gameTerm('item', x.label)), h('td', { class: 'small' }, calcMessage(x.condition), x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: translateUI('ui.b272_catch_confirm') }, translateUI('ui.catch_unconfirmed'))),
             h('td', { style: { fontWeight: 700 } }, x.guaranteed ? translateUI('ui.catch_guaranteed') : (x.percent >= 99.995 ? '>99.99%' : x.percent + '%')),
             h('td', null, x.balls_for_90 ? plural('ui.catch_count', x.balls_for_90) : '—'), h('td', null, x.balls_for_99 ? plural('ui.catch_count', x.balls_for_99) : '—'))))),
-        h('ul', { class: 'tiny muted', style: { margin: 0 } }, r.notes.map((w) => h('li', null, w)))));
-    } catch (e) { mount(out, notice('bad', e.message)); }
+        h('ul', { class: 'tiny muted', style: { margin: 0 } }, r.notes.map((w) => h('li', null, calcMessage(w))))));
+    } catch (e) { mount(out, notice('bad', calcMessage(e.message))); }
   };
   const hpLabel = h('span', { class: 'small' }, '100%');
   const sel = (label, key, opts, conv = (v) => v) => h('div', { class: 'field grow' }, h('label', null, label), h('select', { class: 'input', onchange: (e) => { s[key] = conv(e.target.value); run(); } },
@@ -328,7 +372,7 @@ async function renderCatch(el) {
       h('div', { class: 'field' }, h('label', null, translateUI('ui.catch_hp')), h('div', { class: 'row' }, h('input', { type: 'range', min: 1, max: 100, value: 100, 'aria-label': translateUI('ui.catch_hp_label'),
         oninput: (e) => { s.hp_percent = Number(e.target.value); hpLabel.textContent = e.target.value + '%'; run(); } }), hpLabel)),
       h('div', { class: 'row' }, sel(translateUI('ui.catch_status'), 'status', [['none', translateUI('ui.none')], ['sleep', (translateUI('ui.catch_sleep') + ' ×' + number(2))], ['freeze', (translateUI('ui.catch_freeze') + ' ×' + number(2))], ['paralysis', (translateUI('ui.catch_paralysis') + ' ×' + number(1.5))], ['poison', (translateUI('ui.catch_poison') + ' ×' + number(1.5))], ['burn', (translateUI('ui.catch_burn') + ' ×' + number(1.5))]]),
-        sel('Time', 'time', [['day', translateUI('ui.catch_morning')], ['night', translateUI('ui.night')]])),
+        sel(translateUI('ui.time'), 'time', [['day', translateUI('ui.catch_morning')], ['night', translateUI('ui.night')]])),
       h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.catch_turn')), h('input', { class: 'input', type: 'number', min: 1, max: 99, value: 1, oninput: (e) => { s.turn = Number(e.target.value || 1); run(); } })),
         h('div', { class: 'field', style: { width: '120px' } }, h('label', null, translateUI('ui.catch_wild_level')), h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 30, oninput: (e) => { s.level = Number(e.target.value || 1); run(); } }))),
       h('div', { class: 'row wrap' }, chk(translateUI('ui.catch_cave'), 'cave'), chk(translateUI('ui.catch_water'), 'water'), chk(translateUI('ui.catch_caught'), 'caught_before')),
@@ -346,7 +390,7 @@ async function renderEv(el) {
     const cands = idx.filter((s) => s.ev && s.ev[stat] && (horde === 1 || (horde === 5 ? s.horde5 : s.horde)) && (!region || (s.regions || []).includes(region)))
       .sort((a, b) => (b.ev[stat] - a.ev[stat]) || a.id - b.id).slice(0, 40);
     mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, translateUI(cands.length ? 'ui.planner_top' : 'ui.planner_no_results', {
-      stat: uiLabel(STATS.find((x) => x[0] === stat)[1]), horde: horde === 5 ? translateUI('ui.planner_horde_only') : '',
+      stat: statShort(STATS.find((x) => x[0] === stat)[1]), horde: horde === 5 ? translateUI('ui.planner_horde_only') : '',
       region: region ? translateUI('ui.planner_region_filter', { region: gameTerm('region', cap(region)) }) : '',
     })),
       h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.pokemon'), translateUI('ui.planner_yield'),
@@ -359,7 +403,7 @@ async function renderEv(el) {
       h('div', { class: 'tiny muted' }, translateUI('ui.planner_ev_formula', { macho: macho ? translateUI('ui.planner_ev_macho') : '' }))));
   };
   el.append(h('div', { class: 'stack' }, h('div', { class: 'card row wrap' },
-    h('div', { class: 'field' }, h('label', null, translateUI('ui.planner_stat')), seg(STATS.map(([k, l]) => [k, l]), stat, (v) => { stat = v; draw(); })),
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.planner_stat')), seg(STATS.map(([k, l]) => [k, statShort(l)]), stat, (v) => { stat = v; draw(); })),
     h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.planner_current_evs')), h('input', { class: 'input', type: 'number', min: 0, max: 252, value: current, oninput: (e) => { current = Math.max(0, Math.min(252, Number(e.target.value || 0))); draw(); } })),
     h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.planner_target_evs')), h('input', { class: 'input', type: 'number', min: 1, max: 252, value: target, oninput: (e) => { target = Math.max(1, Math.min(252, Number(e.target.value || 1))); draw(); } })),
     h('div', { class: 'field' }, h('label', null, translateUI('ui.planner_encounter')), seg([5, 3, 1].map(count => [count, count === 1 ? translateUI('ui.live_method_single') : translateUI('ui.loc_horde_count', { count })]), horde, (v) => { horde = v; draw(); })),

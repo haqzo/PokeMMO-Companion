@@ -24,10 +24,10 @@ function marks(e) {
 }
 export function boxCard(e, onOpen, selected) {
   return h('button', { class: 'box-card' + (selected ? ' selected' : '') + (e.status !== 'kept' ? ' faded' : ''), dataset: { id: e.id }, onclick: () => onOpen(e),
-    'aria-label': `${e.nickname || speciesLabel(e.species_id, e.species_name)}${e.shiny ? ', shiny' : ''}${e.alpha ? ', alpha' : ''}` },
+    'aria-label': `${e.nickname || speciesLabel(e.species_id, e.species_name)}${e.shiny ? translateUI('boxui.shiny_suffix') : ''}${e.alpha ? translateUI('boxui.alpha_suffix') : ''}` },
   h('div', { class: 'bc-sprite' }, spriteOrFallback(e.icon, { id: e.species_id, name: e.species_name, types: [] }, 48)),
   h('div', { class: 'bc-name ellipsis' }, e.nickname || speciesLabel(e.species_id, e.species_name)), h('div', { class: 'tiny muted ellipsis' }, e.nickname ? speciesLabel(e.species_id, e.species_name) : `#${pad3(e.species_id)}`),
-  h('div', { class: 'bc-marks' }, marks(e), e.iv_total != null ? h('span', { class: 'tiny muted' }, `IV ${e.iv_total}`) : null));
+  h('div', { class: 'bc-marks' }, marks(e), e.iv_total != null ? h('span', { class: 'tiny muted' }, translateUI('boxui.iv_total', { total: e.iv_total })) : null));
 }
 
 /** Collection = My Pokémon (your manually recorded entries; nothing is imported from the Pokédex) + Showcases.
@@ -129,7 +129,7 @@ async function boxEditor(pane, e, { runs, species, onSaved, onClose }) {
       field(translateUI('ui.nature'), sel('nature', [['', '—'], ...natures.map((n) => [n.name, gameTerm('nature', n.name) + (n.up ? ` (+${n.up} −${n.down})` : '')])]))),
     h('div', { class: 'grid-2' }, field(translateUI('ui.ability'), txt('ability', '', 40)), field(translateUI('ui.form'), txt('form', translateUI('ui.b272_collection_016'), 40))),
     h('div', { class: 'stack tight' }, h('span', { class: 'label' }, translateUI('ui.b272_collection_017')),
-      h('div', { class: 'iv-grid', style: { gridTemplateColumns: '44px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'tiny muted', style: { textAlign: 'center' } }, l)),
+      h('div', { class: 'iv-grid', style: { gridTemplateColumns: '44px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'tiny muted', style: { textAlign: 'center' } }, translateUI('boxui.stat_' + l.toLowerCase()))),
         h('span', { class: 'tiny' }, 'IV'), STATS.map(([k]) => num(v.ivs, k, 0, 31, '100%')), h('span', { class: 'tiny' }, 'EV'), STATS.map(([k]) => num(v.evs, k, 0, 252, '100%'))), evTot),
     h('div', { class: 'stack tight' }, h('span', { class: 'label' }, translateUI('ui.b272_collection_018')), h('div', { class: 'grid-2' }, [0, 1, 2, 3].map((i) =>
       h('input', { class: 'input', value: v.moves[i] || '', maxlength: 40, placeholder: translateUI('ui.b272_collection_095', { index: i + 1 }), oninput: (ev) => { v.moves[i] = ev.target.value; } })))),
@@ -144,7 +144,7 @@ async function boxEditor(pane, e, { runs, species, onSaved, onClose }) {
     err,
     h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: save }, t('common.save')), h('button', { class: 'btn ghost', onclick: onClose }, t('common.cancel')), h('span', { class: 'grow' }),
       e.id ? h('button', { class: 'btn ghost', title: translateUI('ui.b272_collection_025'), onclick: () => syncDialog(e, runs) }, translateUI('ui.b272_collection_026')) : null,
-      e.id ? h('button', { class: 'btn danger ghost', onclick: async () => { if (!(await confirmDialog(translateUI('ui.b272_collection_027'), translateUI('ui.b272_collection_028'), 'Remove', true))) return;
+      e.id ? h('button', { class: 'btn danger ghost', onclick: async () => { if (!(await confirmDialog(translateUI('ui.b272_collection_027'), translateUI('ui.b272_collection_028'), t('common.remove'), true))) return;
         await api('DELETE', '/api/box/' + e.id); toast(translateUI('ui.entry_removed'), { action: { label: t('common.restore'), fn: async () => { await post(`/api/box/${e.id}/restore`); onSaved(e); } } }); onClose(); } }, icon('trash'), t('common.remove')) : null),
     e.id ? linkedNotes('owned', e.id, e.nickname || speciesLabel(e.species_id, e.species_name)) : null));
   evTotal();
@@ -158,10 +158,10 @@ async function syncDialog(e, runs) {
   const ok = await modal({ title: translateUI('ui.b272_collection_030'), body: h('div', { class: 'stack tight' }, h('p', { class: 'small', style: { margin: 0 } },
     translateUI('ui.b272_collection_096', { species: speciesLabel(e.species_id, e.species_name) })),
   h('label', { class: 'label' }, translateUI('ui.select_character')), runSel, h('label', { class: 'label' }, translateUI('ui.status')), stSel),
-  actions: [{ label: t('common.cancel'), kind: 'ghost', value: false }, { label: 'Copy', kind: 'primary', value: true }] });
+  actions: [{ label: t('common.cancel'), kind: 'ghost', value: false }, { label: translateUI('boxui.copy'), kind: 'primary', value: true }] });
   if (!ok) return;
   const r = await post(`/api/box/${e.id}/sync-dex`, { run_id: runSel.value, status: stSel.value });
-  toast(translateUI('ui.b272_collection_031'), { action: { label: 'Undo', fn: async () => {
+  toast(translateUI('ui.b272_collection_031'), { action: { label: translateUI('ui.b274_guides_003'), fn: async () => {
     await api('PUT', `/api/dex/progress/${runSel.value}/${r.species_id}`, r.previous || { status: 'unregistered' }); toast(translateUI('ui.b272_collection_032')); } } });
 }
 
@@ -175,8 +175,8 @@ export async function renderBoxPopout(el, mode) {
     mount(el, h('button', { class: 'btn ghost small', onclick: () => { location.hash = '#/'; } }, icon('back'), t('common.back')),
       h('div', { class: 'stack tight', style: { marginTop: '6px' } }, h('div', { class: 'row' }, h('img', { class: 'pixel', src: e.front || e.icon, width: 96, height: 96, alt: '' }),
         h('div', null, h('h2', { style: { margin: 0 } }, e.nickname || speciesLabel(e.species_id, e.species_name)), h('div', { class: 'small muted' }, speciesLabel(e.species_id, e.species_name), ' ', marks(e)))),
-      h('div', { class: 'small' }, [e.level ? `Lv ${e.level}` : null, gameTerm('nature', e.nature), gameTerm('ability', e.ability)].filter(Boolean).join(' · ') || '—'),
-      e.iv_total != null ? h('div', { class: 'small' }, 'IVs ', STATS.map(([k, l]) => `${l} ${e.ivs[k] ?? '—'}`).join(' · ')) : null,
+      h('div', { class: 'small' }, [e.level ? translateUI('boxui.level', { level: e.level }) : null, gameTerm('nature', e.nature), gameTerm('ability', e.ability)].filter(Boolean).join(' · ') || '—'),
+      e.iv_total != null ? h('div', { class: 'small' }, translateUI('ui.team_ivs') + ' ', STATS.map(([k, l]) => `${translateUI('boxui.stat_' + l.toLowerCase())} ${e.ivs[k] ?? '—'}`).join(' · ')) : null,
       (e.moves || []).length ? h('div', { class: 'small' }, translateUI('ui.moves') + ': ', e.moves.map(move => gameTerm('move', move)).join(', ')) : null,
       e.location ? h('div', { class: 'small muted' }, [e.location, e.region && gameTerm('region', cap(e.region)), e.obtained_date].filter(Boolean).join(' · ')) : null,
       h('button', { class: 'btn small', onclick: () => openRoute('#/collection/pokemon/' + e.id) }, t('common.open_main'))));
@@ -243,7 +243,7 @@ export async function renderShowcasePage(el, route) {
       h('div', { class: 'row wrap' }, h('label', { class: 'label' }, translateUI('ui.b272_collection_067')), h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => { v.options.motion = e.target.value; save(); } },
         [['none', translateUI('ui.none')], ['float', translateUI('ui.b272_collection_044')], ['sheen', translateUI('ui.b272_collection_045')]].map(([a, b]) => h('option', { value: a, selected: v.options.motion === a ? 'selected' : null }, b))),
       h('label', { class: 'chip btnlike' + (v.options.big_sprites ? ' active' : '') }, h('input', { type: 'checkbox', class: 'check', checked: v.options.big_sprites, onchange: (e) => { v.options.big_sprites = e.target.checked; save(); } }), translateUI('ui.b272_collection_046'))),
-      h('span', { class: 'label' }, translateUI('ui.b272_collection_047')), h('div', { class: 'row wrap' }, sw('nickname', translateUI('ui.b272_collection_069')), sw('level', translateUI('ui.level')), sw('nature', translateUI('ui.nature')), sw('ivs', 'IVs'),
+      h('span', { class: 'label' }, translateUI('ui.b272_collection_047')), h('div', { class: 'row wrap' }, sw('nickname', translateUI('ui.b272_collection_069')), sw('level', translateUI('ui.level')), sw('nature', translateUI('ui.nature')), sw('ivs', translateUI('ui.team_ivs')),
         sw('encounter_count', translateUI('ui.b272_collection_092')), sw('method', translateUI('ui.method')), sw('location', translateUI('ui.location')), sw('date', translateUI('ui.b272_collection_093')), sw('ot', 'OT')),
       h('span', { class: 'label' }, translateUI('ui.b272_collection_098', { count: number(v.entries.length) })),
       eligible.length ? h('div', { class: 'stack tight sc-pick', style: { maxHeight: '260px', overflow: 'auto' } }, eligible.map((e) => h('label', { class: 'row' },

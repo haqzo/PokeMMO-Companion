@@ -93,7 +93,7 @@ export async function teamEditor(doc, { onSaved, onDeleted, compact = false } = 
       if (s) {
         const field = (label, el) => h('label', { class: 'field' }, h('span', { class: 'label' }, label), el);
         const txt = (k, n, ph, list) => h('input', { class: 'input', value: s[k] || '', maxlength: n, placeholder: ph || '', list: list || null, oninput: (e) => { s[k] = e.target.value; } });
-        const num = (obj, k, hi) => h('input', { class: 'input tm-num', type: 'number', min: '0', max: String(hi), value: (s[obj] || {})[k] ?? '', 'aria-label': `${obj.toUpperCase()} ${k}`,
+        const num = (obj, k, hi) => h('input', { class: 'input tm-num', type: 'number', min: '0', max: String(hi), value: (s[obj] || {})[k] ?? '', 'aria-label': translateUI('toolui.stat_input', { stat: translateUI('boxui.stat_' + STATS.find(([key]) => key === k)[1].toLowerCase()), kind: translateUI(obj === 'ivs' ? 'ui.team_ivs' : 'ui.team_evs') }),
           oninput: (e) => { s[obj] = { ...(s[obj] || {}) }; if (e.target.value === '') delete s[obj][k]; else s[obj][k] = Number(e.target.value); } });
         const moves = [0, 1, 2, 3].map((m) => h('input', { class: 'input', list: 'team-moves-dl', value: gameTerm('move', (s.moves || [])[m]) || '', placeholder: translateUI('ui.team_move', { count: number(m + 1) }), maxlength: 40,
           oninput: (e) => { const mv = [...(s.moves || [])]; mv[m] = moveAliases.get(searchText(e.target.value)) || e.target.value; s.moves = mv.filter((x, k) => x || k < 4); redraw(); } }));
@@ -102,8 +102,8 @@ export async function teamEditor(doc, { onSaved, onDeleted, compact = false } = 
           field(uiLabel('Nature'), h('select', { class: 'input', onchange: (e) => { s.nature = e.target.value || undefined; } }, h('option', { value: '' }, '—'), NATURES.map((n) => h('option', { value: n, selected: s.nature === n ? 'selected' : null }, gameTerm('nature', n))))),
           field(uiLabel('Ability'), txt('ability', 40)), field(uiLabel('Held item'), txt('item', 60))),
         h('div', { class: 'team-moves' }, moves),
-        h('div', { class: 'team-stats' }, h('span', { class: 'label' }, translateUI('ui.team_ivs')), STATS.map(([k, l]) => h('label', { class: 'tiny' }, l, num('ivs', k, 31)))),
-        h('div', { class: 'team-stats' }, h('span', { class: 'label' }, translateUI('ui.team_evs')), STATS.map(([k, l]) => h('label', { class: 'tiny' }, l, num('evs', k, 252)))),
+        h('div', { class: 'team-stats' }, h('span', { class: 'label' }, translateUI('ui.team_ivs')), STATS.map(([k, l]) => h('label', { class: 'tiny' }, translateUI('boxui.stat_' + l.toLowerCase()), num('ivs', k, 31)))),
+        h('div', { class: 'team-stats' }, h('span', { class: 'label' }, translateUI('ui.team_evs')), STATS.map(([k, l]) => h('label', { class: 'tiny' }, translateUI('boxui.stat_' + l.toLowerCase()), num('evs', k, 252)))),
         field(uiLabel('Notes'), h('textarea', { class: 'input', rows: '2', maxlength: '1000', oninput: (e) => { s.notes = e.target.value; } }, s.notes || '')));
       }
       mount(box, speciesPicker({ label: translateUI('ui.team_slot', { count: number(i + 1) }), value: s ? s.species : null, onChange: (sid) => {
