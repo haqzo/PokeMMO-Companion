@@ -63,6 +63,16 @@ def source_revision(tag):
     return sha
 
 
+def development_source():
+    marker = ROOT / "RELEASE-SOURCE"
+    if not marker.is_file():
+        return None
+    sha = marker.read_text(encoding="ascii").strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("RELEASE-SOURCE must contain the full reviewed development commit SHA.")
+    return sha
+
+
 def verify_linux_dependencies(appimage, extracted, internal):
     required = set()
     search_path = os.pathsep.join(map(str, (internal, internal / "PySide6/Qt/lib")))
@@ -139,6 +149,7 @@ def smoke(artifact, target, release=False):
 
 def build(tag):
     sha = source_revision(tag)
+    develop = development_source()
     target = {"win32": "windows", "linux": "linux"}.get(sys.platform)
     if not target:
         raise ValueError("Use a native Linux or Windows build host.")
@@ -183,6 +194,8 @@ def build(tag):
                   "dependencies": output(str(python), "-m", "pip", "freeze", "--all").splitlines(),
                   "external_tools": tools, "max_required_glibc": glibc, "package": info,
                   "checks": checks}
+    if develop is not None:
+        provenance["develop_source"] = develop
     report.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     print(f"Verified {artifact.name}: {info['bytes']} bytes, SHA-256 {info['sha256']}")
     print(report.read_text(encoding="utf-8"), end="")
@@ -190,6 +203,7 @@ def build(tag):
 
 def assemble(tag, stage):
     sha = source_revision(tag)
+    develop = development_source()
     reports = {}
     checksums = []
     for target, name in package_names(__version__).items():
@@ -198,12 +212,15 @@ def assemble(tag, stage):
         if (report["commit"], report["tag"], report["version"], report["platform"], report["package"]) != (
                 sha, tag, __version__, target, actual):
             raise ValueError(f"The {target} package and report do not match this release source.")
+        if report.get("develop_source") != develop:
+            raise ValueError(f"The {target} report does not match the recorded development source.")
         reports[target] = report
         checksums.append(checksum_line(actual))
     (stage / "SHA256SUMS").write_bytes("".join(checksums).encode("ascii"))
-    (stage / "build-provenance.json").write_text(
-        json.dumps({"commit": sha, "tag": tag, "channel": release_channel(tag), "builds": reports}, indent=2) + "\n",
-        encoding="utf-8")
+    provenance = {"commit": sha, "tag": tag, "channel": release_channel(tag), "builds": reports}
+    if develop is not None:
+        provenance["develop_source"] = develop
+    (stage / "build-provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     print(f"Prepared {tag} ({release_channel(tag)}) at {sha} in {stage}")
 
 

@@ -1,8 +1,6 @@
 # Credits and sources
 
-PokeMMO Companion is an unofficial community project, not affiliated with PokeMMO, Nintendo, Creatures Inc.,
-GAME FREAK or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo.
-
+PokeMMO Companion is an unofficial community project, not affiliated with PokeMMO.
 ## Pokémon sprites — `companion/data/sprites/`
 Gen V Black/White battle sprites (static and animated, normal and shiny, forms and female variants) from the
 **PokeAPI/sprites** repository (https://github.com/PokeAPI/sprites, checkout of 13 Nov 2026). The repository is
@@ -36,10 +34,6 @@ preparation only), `cryptography` (optional, signature checks).
 * Alpha and Swarm reports use the opt-in ntfy topics from [Alphapedia](https://alpha.pokemmotools.org/). [Alphapedia Discord](https://discord.gg/Qeuc9k4yMw)
 * Unova Phenomenon reference examples draw on the [Alphapedia Pheno List](https://alpha.pokemmotools.org/pheno-list), [MightyBoxer’s Phenomenon Locations Guide](https://forums.pokemmo.com/index.php?/topic/77087-phenomenon-locations-guide/) and the owner’s verified callouts. Current callouts and location pictures are in [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) under `#phenomenon-callouts`.
 * Swarm duration estimate and roaming cycle: PokeMMO community wiki (pokemmo.shoutwiki.com).
-
-## Distribution note
-The project owner decides what is distributed. Permission to redistribute the sprite images and PokeMMO client
-assets (item icons, map images, reference data) has **not** been established; see docs/build/20.
 
 ## Offline language catalogs
 

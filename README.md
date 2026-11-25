@@ -1,158 +1,36 @@
 # PokeMMO Companion
 
-An unofficial desktop companion for PokeMMO on **Linux and Windows**: Pokédex, encounter locations, guides with
-timers and teams, calculators, Alpha/Swarm reports and floating tools you can keep next to the game.
+**0.8.0 Alpha · Windows and Linux x86-64**
 
-**Status.** The 0.8.0 Alpha release candidate is on `develop`. The first GitHub release is pending owner approval.
-Unofficial community project, not affiliated with PokeMMO.
+An unofficial desktop companion for PokeMMO. Look up Pokémon and encounters, follow a region’s walkthrough, and keep a calculator or timer open beside the game.
 
-## Install
+[GitHub Releases](https://github.com/haqzo/PokeMMO-Companion/releases) · [0.8.0 release notes](docs/releases/0.8.0.md) · [Community Discord](https://discord.gg/5Wbh28M3gu)
 
-After publication, use GitHub Releases to download the standalone package for your platform. [GitHub Releases](https://github.com/haqzo/PokeMMO-Companion/releases)
+The first official Alpha is in preparation. Official downloads will appear on GitHub Releases after approval and publication.
 
-* **Linux x86-64.** Download `PokeMMO-Companion-0.8.0-x86_64.AppImage`, make it executable and open it. If FUSE is unavailable, launch it with `--appimage-extract-and-run`.
-* **Windows x86-64.** Download and extract `PokeMMO-Companion-0.8.0-windows-x86_64.zip`, then run `pokemmo-companion.exe` inside the extracted `pokemmo-companion` folder.
+## What you can do
 
-Uninstall: delete the AppImage / the extracted folder. Your personal data is kept separately (below) and is only
-removed if you delete that folder yourself. Optional startup entries are removed in
-*Settings › Startup & game › Remove all startup entries* first.
+- Browse the Pokédex with animated normal and shiny sprites. Find encounters in Location Explorer and look up items, moves, and type matchups.
+- Follow walkthroughs for Kanto, Johto, Hoenn, Sinnoh, and Unova. Track progress separately for each character.
+- Plan teams and breeding projects, use calculators and timers, and keep Notes, My Pokémon, and your Shiny Showcase together.
+- Check legendary Pokémon, Unova Phenomena, and Altering Cave information. Community Alpha and Swarm reports are optional and require a connection.
+- Open supported tools in resizable floating windows. Choose English, Spanish, or Simplified Chinese and adjust themes, text size, layout, and performance profiles.
 
-> Earlier internal desktop QA passed on CachyOS KDE. The Windows package and Ubuntu 22.04 release build await their first verification runs. [Release notes](docs/releases/0.8.0.md)
+The Pokédex, encounter data, guides, and personal tools work offline with the bundled data. A clean install needs no ROMs or dumps.
 
-**Develop from source on Linux**
-```bash
-git clone -b develop https://github.com/haqzo/PokeMMO-Companion.git && cd PokeMMO-Companion
-./scripts/setup-venv.sh   # optional: PySide6 for native floating windows (else it runs in your browser)
-./run.sh
-```
-Updating a development checkout: close every Companion window (including floating tools) and quit it from the
-tray, then `git pull --ff-only` and `./run.sh`. For Windows source launches, see `run.ps1`.
+<!-- Add owner-approved showcase screenshots here when available. -->
 
-## First start
-Everything works immediately and offline. Built in, with nothing to import:
-* PokeMMO reference data — 649 species, 559 moves, 2,090 items, 629 locations, 33,405 encounter rows from the
-  client of 16 Nov 2026 (dataset counts, not a claim that everything is obtainable);
-* Pokémon artwork — Gen V sprites for all 649 species and 82 alternate forms, normal and shiny, static and
-  animated, plus 94 female variants (see *Assets and data*);
-* item icons — PokeMMO's own icons for 2,083 of the 2,090 item groups;
-* the complete Kanto, Johto, Hoenn, Sinnoh and Unova walkthroughs (by their original author, with permission).
+## Install from GitHub Releases
 
-A short, skippable *Welcome* on Home lets you pick a language, find PokeMMO, turn on Alpha/Swarm alerts, test a
-notification and try a floating tool. No ROMs, dumps, sprite packs or developer tools are needed. Importing your
-own PokeMMO client files or sprite library is optional (*Settings › Advanced*).
+| Platform | Download and launch |
+| --- | --- |
+| Windows x86-64 | Download the portable ZIP, choose **Extract All**, then open `pokemmo-companion.exe` inside the extracted `pokemmo-companion` folder. Keep the files together. |
+| Linux x86-64 | Download the AppImage, make it executable, then open it. If FUSE is unavailable, run the AppImage with `--appimage-extract-and-run`. |
 
-## Make it yours
-* **Themes** (*Settings › Appearance & themes*) — Catppuccin Mocha, Tokyo Night, Companion Default (the
-  default), Graphite, Arctic, Emerald, and Custom. Hover a theme to preview it, click to use it. Every colour
-  (backgrounds, sidebar, cards, dialogs, inputs, text, accent, links, buttons, hover/selected, borders, focus,
-  tables, progress bars, success/warning/error, notifications, popouts, scrollbars, optionally the 17 type
-  colours) has a colour picker, a hex field, opacity where it makes sense and a reset to the preset value.
-  Readability warnings appear when text gets hard to read; they never block a choice. Save as many personal
-  themes as you like (rename, duplicate, delete), export them as a small `.json` file to share, import theirs.
-  Theme files hold colours and numbers only — imports with anything else are cleaned or refused. Changes show
-  at once in every open window and floating tool.
-* **Layout & scaling** — text size (60–200 %, text only) and interface scale (75–150 %, everything in the main
-  window, applied once on top of your desktop scaling), font weight, density, card padding, gaps, table rows,
-  borders (on/off, thickness, opacity), corner radius 0–20, sidebar width and labels, scrollbars.
-* **Pokémon & sprites** — Static or Animated per place (Pokédex grid, summary, Roaming Legendaries, active and
-  expired Alpha/Swarm reports, report history, Location Explorer, teams, comparison) with sizes, and one
-  *Animations* switch (system / on / off) that overrides them all. Floating tools have their own sprite size
-  and animation choice in their text-size menu.
-* **Home** — show, hide and reorder sections; *Reset Home layout*.
+The packages bundle Python and Qt. Compare the package’s SHA-256 against `SHA256SUMS` on the release page. Back up your profile under **Settings → Backup & recovery** before replacing the application files. [Installation, updates, and recovery](docs/releases/0.8.0.md#install)
 
-## Pokédex, summaries and Type Matchups
-* The Pokédex has **Normal / Shiny** and **Static / Animated** switches: one click shows every Pokémon shiny.
-  It is display only — nothing is marked as caught or owned, and your search, filters and scroll position stay.
-* Summaries have the same two switches (plus ♂/♀ where a female sprite exists).
-* **Type Matchups › Compare two Pokémon** (main window, beside the chart; below it in narrow windows): search by
-  name or number, including battle forms; both Pokémon's types against each other, weaknesses, and each one's
-  learnable moves against the other with type, category, power, accuracy, PP, how it is learned, effectiveness
-  and STAB — filter, sort, and pick up to four per side. Abilities that change a matchup (Levitate, Volt Absorb,
-  …) are named, never applied silently. It is not a battle simulator: no damage, speed or winner.
+## Alpha testing and support
 
-## Using it with PokeMMO
-*Settings › Startup & game* (all optional, all removable):
-* **Launch PokeMMO** — detects the Flatpak (`com.pokemmo.PokeMMO`), standalone Linux launchers and Windows
-  installs, or use the launcher you choose. PokeMMO is never started twice and never closed by Companion.
-* **Start Companion at login**, optionally minimised to the tray; **reopen the floating tools** you had open.
-* **“PokeMMO + Companion” shortcut** that starts both.
-* **Open Companion automatically when you start PokeMMO** — the first option on the page. A tiny helper starts
-  with your login (and right away when you turn it on) and opens Companion when the PokeMMO process appears,
-  however you started the game. It only looks at the process list. Companion cannot open by itself if both it
-  and this helper are closed; turning the option off also stops the helper.
-* **When PokeMMO closes**: keep running (default), minimise or quit Companion.
+The first release targets Windows and Linux x86-64. Check the release notes for tested configurations. Please report your Companion version, OS and desktop, tool, reproduction steps, and what you expected to happen. Review any screenshots or diagnostics for personal information before sharing. [Tester and troubleshooting guide](docs/closed-alpha.md) · [Report a bug](https://github.com/haqzo/PokeMMO-Companion/issues) · [Community Discord](https://discord.gg/5Wbh28M3gu)
 
-Only one Companion runs at a time; starting it again brings the open window forward. Pressing *Launch PokeMMO*
-several times, or using the shortcut while Companion also launches the game, still starts only one client.
-
-## Guides
-*Guides › All guides* shows the five regional walkthroughs — browse them without a character run — and your own
-guides with category shortcuts (gym and Elite Four reruns, money-making, farming, shiny hunting, daily routines,
-…). A character run is only needed to tick steps; each run keeps its own progress, separate from the bundled
-text, so guide updates never erase it.
-
-## Floating tools, window sizes and displays
-Most tools can pop out into their own window (draggable, resizable, compact / standard / expanded). Every page
-adapts to the window: the sidebar turns into icons in narrow windows (or by preference), lists and tables
-scroll inside their own areas, dialogs keep their buttons visible. Layout follows the real window size, your OS
-display scaling and Companion's text size — no restart needed. Windows that end up off-screen after a monitor is
-unplugged or a resolution change are moved back automatically.
-
-**KDE Wayland:** native Wayland does not let applications pin windows on top or place them. Companion therefore
-starts through XWayland on KDE by default (*Settings › Windows & popouts › Window backend*). On native Wayland,
-pin and saved positions are unavailable.
-
-## Automatic updates (three separate things)
-* **Official PokeMMO news** — the official Updates forum is checked at start-up when stale and then every 3 h
-  (adjustable). New posts appear with their official title, date and link; summaries are never invented.
-* **PokeMMO reference data** — signed data packages can update the built-in data without a new app version,
-  with checks before activation and the previous data kept for rollback. *Not set up yet: no approved data
-  location exists; the built-in data is used.*
-* **Companion itself** — published GitHub releases are checked (stable or pre-release channel). Install updates
-  manually. Alpha and beta builds default to prerelease when no preference is saved. Explicit channel preferences are preserved.
-
-Offline, everything except these checks and the optional Alpha/Swarm feed keeps working.
-
-## Closed alpha
-
-Spanish and Simplified Chinese terminology review is planned for the 0.8.0 Alpha. The release series is 0.8.x Alpha, 0.9.x Beta, 1.0.0 first stable, then 1.x.x stable updates. Alpha and beta use GitHub prereleases. Ongoing development is on `develop`, with approved releases on `main`. [Release runbook](packaging/README.md#release-packages)
-
-**Live → Phenomena** is an offline Unova encounter reference. Find current callouts and location pictures in `#phenomenon-callouts`. [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
-
-[Tester guide](docs/closed-alpha.md) · [Standalone build instructions](packaging/README.md)
-
-## Backups
-*Settings › Backup & recovery*: complete backups (.zip with your pictures) of notes, collection, showcases, guides
-with cycles and history, character runs and storyline progress, teams, timers, presets, map marks, settings and
-window positions, themes and personal themes, sprite and layout preferences. Automatic daily backups (7 kept), restore preview, merge or replace, safety copy first.
-Personal data folder: `~/.local/share/pokemmo-companion` (Linux), `%APPDATA%\PokeMMO-Companion` (Windows).
-
-## Troubleshooting
-* **Nothing opens / blank window** — try `./run.sh --browser`; *Settings › About & credits › Save
-  diagnostics* writes versions and a log with private details removed (nothing is sent anywhere).
-* **Pin / position doesn't work on KDE** — use the XWayland window backend (default on KDE).
-* **“already running”** — Companion is open (maybe in the tray); the existing window was brought forward.
-* **Restore a backup** — *Settings › Backup & recovery*; your current data is saved before any restore.
-
-## What it never does
-No encounter counter (PokeMMO has one), no game memory reading, injection, packet interception, macros or
-automated input, no GTL scraping or account login, no telemetry.
-
-## Community
-Questions, beta testing, ideas and release news: the **PokeMMO Companion Discord** —
-https://discord.gg/5Wbh28M3gu. Joining is optional: Companion never needs a Discord account, and the small link on
-Home can be hidden in *Settings › Home*. New releases are announced there automatically.
-
-## Documentation
-Build reports and decisions: [`docs/build/`](docs/build/README.md) — latest:
-[29 — localization and verification](docs/build/29-LOCALIZATION-SERVICE-ERRORS.md). Current priorities and outstanding gates: [active development checkpoint](docs/roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md). Design: [`docs/design/`](docs/design/README.md).
-Research: [`docs/research/`](docs/research/README.md).
-
-## Branches
-`main` — approved releases only. `develop` — ongoing work.
-
-## Assets and data
-The repository contains reference data derived from the PokeMMO client, PokeMMO item icons, region map images,
-Gen V Pokémon sprites (PokeAPI/sprites) and the five regional walkthroughs, included by the owner's decision;
-redistribution permissions for the sprite images and client assets are not established (see
-[CREDITS](CREDITS.md) and docs/build/20). It contains no ROMs, personal dumps or proprietary string tables.
+[Changelog](CHANGELOG.md) · [Credits and software notices](CREDITS.md) · [Build instructions](packaging/README.md) · [Development workspace](https://github.com/haqzo/PokeMMO-Companion/blob/develop/DEVELOPMENT.md)

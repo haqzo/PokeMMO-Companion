@@ -1,0 +1,21 @@
+{
+  "include": {
+    "Runtime Python, bundled data, browser UI and notices": ["companion/", "ui/"],
+    "Source launch and packaging inputs": [".gitignore", "pyproject.toml", "requirements-native.txt", "run.sh", "run.ps1", "scripts/setup-venv.sh", "packaging/README.md", "packaging/bundle_assets.py", "packaging/companion.spec", "packaging/entry.py", "packaging/linux/build-appimage.sh", "packaging/package_release.py", "packaging/requirements-build.txt", "packaging/windows/build.ps1"],
+    "Official builds and release announcements": [".github/workflows/release-build.yml", ".github/workflows/discord-release.yml", ".github/scripts/discord_release.py"],
+    "Public documentation, tester instructions and credits": ["README.md", "CREDITS.md", "CHANGELOG.md", "docs/closed-alpha.md", "docs/releases/"]
+  },
+  "exclude": {
+    "Development documentation and snapshot policy": ["DEVELOPMENT.md", "docs/release-snapshots.md", "docs/build/", "docs/design/", "docs/research/", "docs/reviews/", "docs/roadmap/", "packaging/release-source.json"],
+    "Tests, development dependencies and maintenance tools": ["tests/", "tools/", "requirements-dev.txt", "scripts/test.sh"],
+    "Private development workflow and separate relay service": [".github/workflows/windows-development.yml", "relay/"]
+  },
+  "required": [
+    "companion/__main__.py", "companion/services/appupdate.py", "companion/data/reference/manifest.json",
+    "companion/data/item-icons/manifest.json", "companion/data/sprites/index.json", "companion/data/themes.json",
+    "companion/data/walkthroughs/kanto.json", "companion/data/walkthroughs/johto.json", "companion/data/walkthroughs/hoenn.json",
+    "companion/data/walkthroughs/sinnoh.json", "companion/data/walkthroughs/unova.json",
+    "ui/index.html", "ui/js/shell.js", "ui/fonts/companion-han.woff2", "ui/fonts/ofl.txt", "ui/licenses/pokeapi.txt",
+    "docs/releases/0.8.0.md"
+  ]
+}

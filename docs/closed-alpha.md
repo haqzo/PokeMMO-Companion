@@ -33,7 +33,7 @@ Send feedback in the project Discord. **Settings → About & credits** can save 
 
 ## Readiness and distribution
 
-The active checkpoint records technical verification and remaining platform tests. The owner handles invited testers, asset permissions and distribution. Report the specific OS version and desktop you tried, especially for Windows 10, Windows 11 or Linux AppImage launch. [Active development checkpoint](roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md)
+The active checkpoint records technical verification and remaining platform tests. The owner handles invited testers, asset permissions and distribution. Report the specific OS version and desktop you tried, especially for Windows 10, Windows 11 or Linux AppImage launch. [Active development checkpoint](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md)
 
 ## Update and signing status
 

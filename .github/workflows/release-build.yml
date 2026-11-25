@@ -9,7 +9,7 @@ on:
         type: string
 
       source_sha:
-        description: Approved full commit SHA resolved by the release tag on main
+        description: Approved full release snapshot SHA resolved by the tag on main
         required: true
         type: string
       retain_artifacts:
