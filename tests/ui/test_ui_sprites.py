@@ -349,3 +349,42 @@ def test_calculator_popout_does_not_load_unrelated_page_modules(app, browser):
             assert not any(f"/js/pages/{name}.js" in u for u in requests), name
     finally:
         context.close()
+
+
+def test_disposed_home_render_cannot_start_refresh_timer(app, page):
+    app.ctx.settings.update({"home.sections": ["live", "quick"], "app.onboarded": True})
+    go(page, app, "#/pokedex")
+    page.wait_for_selector(".dex-card")
+    result = page.evaluate("""async () => {
+        const home = await import('/js/pages/home.js');
+        const host = document.createElement('div');
+        document.body.append(host);
+        const originalFetch = window.fetch, originalInterval = window.setInterval;
+        let release, entered, intervals = 0;
+        const gate = new Promise(resolve => { release = resolve; });
+        const requested = new Promise(resolve => { entered = resolve; });
+        window.fetch = async (path, ...args) => {
+            if (path === '/api/live/current') { entered(); await gate; }
+            return originalFetch(path, ...args);
+        };
+        window.setInterval = (fn, delay, ...args) => {
+            if (delay === 60000 && fn.name === 'refresh') intervals++;
+            return originalInterval(fn, delay, ...args);
+        };
+        try {
+            const pending = home.render(host, {page: 'home', parts: []});
+            await requested;
+            home.dispose();
+            host.remove();
+            release();
+            await pending;
+            return {intervals, liveCards: host.querySelectorAll('.home-live').length};
+        } finally {
+            release();
+            home.dispose();
+            host.remove();
+            window.fetch = originalFetch;
+            window.setInterval = originalInterval;
+        }
+    }""")
+    assert result == {"intervals": 0, "liveCards": 0}

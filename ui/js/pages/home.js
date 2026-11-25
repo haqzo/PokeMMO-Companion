@@ -424,11 +424,12 @@ export function newsText(value) {
 }
 
 let unsub = [];
+let homeEpoch = 0;
 let newsCache = null;
 const KIND_LABEL = { changelog: 'ui.news_kind_changelog', hotfix: 'ui.news_kind_hotfix', announcement: 'ui.news_kind_announcement', event: 'ui.news_kind_event' };
 const kindLabel = (kind) => KIND_LABEL[kind] ? translateUI(KIND_LABEL[kind]) : (kind || translateUI('ui.news_kind_post'));
 
-export function dispose() { unsub.forEach((u) => u()); unsub = []; }
+export function dispose() { homeEpoch++; unsub.forEach((u) => u()); unsub = []; }
 
 export async function render(el, route) {
   dispose();
@@ -466,12 +467,15 @@ export function homeSections(saved = setting('home.sections')) {
 
 async function renderHome(el) {
   dispose();
+  const epoch = homeEpoch;
   const page = h('div', { class: 'page home-page' });
   mount(el, page);
+  const current = () => epoch === homeEpoch && page.isConnected;
   const sections = homeSections();
   const on_ = (k) => sections.includes(k);
   const [n, cur, leg, runs, data, species] = await Promise.all([news(), get('/api/live/current'), get('/api/live/legendaries'),
     get('/api/guides/runs'), get('/api/data/status'), on_('favourites') ? loadList().catch(() => []) : Promise.resolve([])]);
+  if (!current()) return;
   const active = cur.current.filter((g) => g.status.state === 'recent').length;
   const status = [
     !cur.source.enabled ? translateUI('ui.home_feed_off') : plural('ui.home_feed_active', active),
@@ -495,7 +499,12 @@ async function renderHome(el) {
   };
   const order = [...new Set(sections.map((k) => (k === 'events' || k === 'quick') ? 'side' : k))];
   const cards = [];
-  for (const k of order) { const c = await build[k]?.(); if (c) { c.dataset.section = k; cards.push([k, c]); } }
+  for (const k of order) {
+    if (!current()) return;
+    const c = await build[k]?.();
+    if (!current()) return;
+    if (c) { c.dataset.section = k; cards.push([k, c]); }
+  }
   packRows(cards).forEach(([c, span]) => { c.style.setProperty('--span', span); grid.append(c); });
 
   unsub.push(on('news', () => { if (location.hash.startsWith('#/home')) { newsCache = null; renderHome(el); } }));
@@ -572,6 +581,7 @@ function liveCard(cur) {
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, translateUI('ui.alpha_swarm')), h('span', { class: 'tiny muted' }, translateUI('ui.home_report_recent')),
       h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, homePhenomena());
   let stop = null, expiry = null, sprites = new Map();
+  let disposed = false, refreshing = false, queued = false;
   const draw = (c) => {
     const src = c.source;
     const last = src.last_success_at ? translateUI('ui.home_feed_last', { age: relTime(src.last_success_at) }) : '';
@@ -602,11 +612,32 @@ function liveCard(cur) {
     if (stop) stop();
     stop = startTimers(box, Date.parse(c.now) - Date.now(), () => refresh());
   };
-  const refresh = async () => { if (!card.isConnected || document.visibilityState === 'hidden') return; draw(await get('/api/live/current')); };
+  const refresh = async () => {
+    const visible = () => !disposed && card.isConnected && document.visibilityState !== 'hidden';
+    if (!visible()) return;
+    if (refreshing) { queued = true; return; }
+    refreshing = true;
+    try {
+      const data = await get('/api/live/current');
+      if (visible()) draw(data);
+    } catch (err) {
+      // A transient local-server error should not destroy the last valid report.
+      if (visible()) console.warn('Home live refresh failed', err);
+    } finally {
+      refreshing = false;
+      if (queued) { queued = false; if (visible()) void refresh(); }
+    }
+  };
   draw(cur);
   const every = setInterval(refresh, 60000);
   document.addEventListener('visibilitychange', refresh);
-  unsub.push(() => { clearInterval(every); clearTimeout(expiry); document.removeEventListener('visibilitychange', refresh); if (stop) stop(); });
+  unsub.push(() => {
+    disposed = true; queued = false;
+    clearInterval(every); clearTimeout(expiry);
+    document.removeEventListener('visibilitychange', refresh);
+    if (stop) stop();
+    sprites.clear();
+  });
   unsub.push(on('live.report', refresh));
   return card;
 }
