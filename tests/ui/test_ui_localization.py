@@ -330,3 +330,25 @@ def test_calculator_service_messages_and_bundled_news(clean, pg, language, expec
         assert set(result["untranslatedNews"]) <= unchanged
         assert set(result["untranslatedConditions"]) <= {"×1", "×1.5", "×2"}
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "missing", "retry", "test_title"), [
+    ("en", "Run not found", "TimeoutError: connection — retrying in 15s", "TEST — demo alpha notification"),
+    ("es", "Partida no encontrada", "TimeoutError: connection — reintento en 15 s", "PRUEBA — aviso de alfa simulado"),
+    ("zh", "未找到角色流程", "TimeoutError: connection — 15 秒后重试", "测试 — 模拟头目通知"),
+])
+def test_live_status_and_api_error_translation(clean, pg, language, missing, retry, test_title):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { ApiError, apiErrorText } = await import('/js/core.js');
+      const { liveText } = await import('/js/pages/live.js');
+      const err = new ApiError('Run not found');
+      return [err.message, err.rawMessage,
+        liveText('TimeoutError: connection — retrying in 15s'),
+        liveText('TEST — demo alpha notification'),
+        apiErrorText('Shortcut already used')];
+    }""")
+    assert result == [missing, "Run not found", retry, test_title, "Shortcut already used"]
+    assert not pg.errors

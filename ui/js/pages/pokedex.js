@@ -519,7 +519,7 @@ export async function rosterDialog() {
     h('h3', { style: { margin: '6px 0 0' } }, translateUI('dex.counter_readings')),
     r.registry_observations.map((o) => counterTable(o, false)), r.your_observations.map((o) => counterTable(o, true)), obsForm(),
     h('details', null, h('summary', { class: 'small' }, translateUI('dex.report_sources', { count: number(Object.keys(r.sources).length) })),
-      h('ul', { class: 'small' }, Object.entries(r.sources).map(([id, src]) => h('li', null, src.url && src.url.startsWith('http') ? extLink(src.url, src.title) : uiLabel(src.title),
+      h('ul', { class: 'small' }, Object.entries(r.sources).map(([id, src]) => h('li', null, src.url && src.url.startsWith('http') ? extLink(src.url, uiLabel(src.title)) : uiLabel(src.title),
         h('span', { class: 'tiny muted' }, translateUI('dex.source_checked', { kind: uiLabel(src.kind), date: src.checked })))))));
   draw(await get('/api/dex/roster'));
   await modal({ title: translateUI('ui.availability_report'), body, wide: true, actions: [
@@ -753,7 +753,7 @@ function availabilityBlock(d, compact) {
     m.since ? h('div', { class: 'small muted' }, translateUI('dex.method_since', { date: m.since })) : null,
     m.review ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, translateUI('dex.method_review', { patch: uiLabel(m.review.patch), date: m.review.date })) : null,
     !compact && m.sources.some((x) => x.url && x.url.startsWith('http')) ? h('div', { class: 'tiny muted' }, translateUI('dex.source_prefix'),
-      m.sources.filter((x) => x.url && x.url.startsWith('http')).map((src, i) => [i ? ' · ' : '', extLink(src.url, src.title)])) : null);
+      m.sources.filter((x) => x.url && x.url.startsWith('http')).map((src, i) => [i ? ' · ' : '', extLink(src.url, uiLabel(src.title))])) : null);
   const lines = [
     h('div', { class: 'label' }, translateUI('dex.obtain_heading')),
     av.methods.map(method),
