@@ -16,15 +16,15 @@ let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; breeding.dispose && breeding.dispose(); calcPage.dispose();  if (typeof ownMod !== 'undefined' && ownMod && ownMod.dispose) ownMod.dispose(); }
 
 const TOOLS = {
-  typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy), defensive checker and a two-Pokémon comparison', render: (el, route) => renderTypeChart(el, route, { compare: true }) },
-  natures: { title: 'Natures', icon: 'leaf', group: 'battle', status: 'CORROBORATED', desc: 'All 25 natures and their stat effects', render: renderNatures },
-  stats: { title: 'Stat calculator', icon: 'calc', group: 'battle', status: 'ESTIMATE', desc: 'Standard formula with PokeMMO base stats', render: renderStats },
-  breeding: { title: 'Breeding planner', icon: 'egg', group: 'breeding', status: 'PARTIAL', desc: 'Preview · Plan · Egg moves', render: (el, r) => breeding.render(el, r) },
-  team: { title: 'Team builder', icon: 'team', group: 'planning', status: 'CORROBORATED', desc: 'Type coverage and weaknesses for six slots', render: renderTeam },
-  ev: { title: 'EV & horde planner', icon: 'target', group: 'planning', status: 'DUMP_ONLY', desc: 'EV yields and horde arithmetic', render: renderEv },
-  catch: { title: 'Catch calculator', icon: 'target', group: 'planning', status: '', desc: 'Capture chance per ball with PokeMMO ball conditions', render: renderCatch },
-  calculator: { title: 'Calculator', icon: 'calc', group: 'planning', status: '', desc: 'Everyday arithmetic: + − × ÷, percent, keyboard input', render: (el) => calcPage.renderCalculator(el) },
-  timers: { title: 'Timers', icon: 'clock', group: 'planning', status: '', own: () => import('./timers.js'), desc: 'Several named countdowns with presets, repeat, sound and notifications', popout: 'timers' },
+  typechart: { title: 'Type matchups', icon: 'shield', group: 'battle', status: 'CORROBORATED', desc: '17-type chart (no Fairy), defensive checker and a two-Pokémon comparison', descKey: 'ui.b272_tool_desc_typechart', render: (el, route) => renderTypeChart(el, route, { compare: true }) },
+  natures: { title: 'Natures', icon: 'leaf', group: 'battle', status: 'CORROBORATED', desc: 'All 25 natures and their stat effects', descKey: 'ui.b272_tool_desc_natures', render: renderNatures },
+  stats: { title: 'Stat calculator', icon: 'calc', group: 'battle', status: 'ESTIMATE', desc: 'Standard formula with PokeMMO base stats', descKey: 'ui.b272_tool_desc_stats', render: renderStats },
+  breeding: { title: 'Breeding planner', icon: 'egg', group: 'breeding', status: 'PARTIAL', desc: 'Preview · Plan · Egg moves', descKey: 'ui.b272_tool_desc_breeding', render: (el, r) => breeding.render(el, r) },
+  team: { title: 'Team builder', icon: 'team', group: 'planning', status: 'CORROBORATED', desc: 'Type coverage and weaknesses for six slots', descKey: 'ui.b272_tool_desc_team', render: renderTeam },
+  ev: { title: 'EV & horde planner', icon: 'target', group: 'planning', status: 'DUMP_ONLY', desc: 'EV yields and horde arithmetic', descKey: 'ui.b272_tool_desc_ev', render: renderEv },
+  catch: { title: 'Catch calculator', icon: 'target', group: 'planning', status: '', desc: 'Capture chance per ball with PokeMMO ball conditions', descKey: 'ui.b272_tool_desc_catch', render: renderCatch },
+  calculator: { title: 'Calculator', icon: 'calc', group: 'planning', status: '', desc: 'Everyday arithmetic: + − × ÷, percent, keyboard input', descKey: 'ui.b272_tool_desc_calculator', render: (el) => calcPage.renderCalculator(el) },
+  timers: { title: 'Timers', icon: 'clock', group: 'planning', status: '', own: () => import('./timers.js'), desc: 'Several named countdowns with presets, repeat, sound and notifications', descKey: 'ui.b272_tool_desc_timers', popout: 'timers' },
   // Connected tools render their own full page (header, pin, popout).
   items: { title: 'Item Library', i18n: 'items.title', icon: 'bag', group: 'collection', status: '', own: () => import('./items.js'), descKey: 'items.desc', popout: 'items' },
   notes: { title: 'Notes', i18n: 'notes.title', icon: 'note', group: 'collection', status: '', own: () => import('./notes.js'), descKey: 'notes.desc', popout: 'notes' },
@@ -49,7 +49,7 @@ export async function render(el, route) {
   if (tool === 'box' || tool === 'showcase') {  // My Box and Showcase now live in Collection
     location.replace(legacyRoute(tool, route.parts.slice(1), route.query)); return;
   }
-  if (tool === 'damage') { toast('The Damage calculator was removed. Use Type matchups and the Stat calculator.', { kind: 'warn', timeout: 5000 }); go('#/tools'); return; }
+  if (tool === 'damage') { toast(translateUI('ui.b272_tools_removed'), { kind: 'warn', timeout: 5000 }); go('#/tools'); return; }
   if (tool && TOOLS[tool] && TOOLS[tool].own) {
     ownMod = await TOOLS[tool].own();
     await ownMod.render(el, route);
@@ -59,8 +59,8 @@ export async function render(el, route) {
     const t = TOOLS[tool];
     const page = h('div', { class: 'page' });
     mount(el, page);
-    page.append(h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), 'Tools'),
-      h('div', null, h('h1', null, t.title), h('div', { class: 'sub' }, t.desc)),
+    page.append(h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), translateUI('tools.title')),
+      h('div', null, h('h1', null, ttl(t)), h('div', { class: 'sub' }, tdesc(t))),
       h('div', { class: 'actions' }, statusBadge(t),
         pinButton({ kind: 'tool', id: tool }),
         ['typechart', 'natures', 'breeding', 'calculator'].includes(tool) ? popoutButton(tool) : null)));
@@ -75,8 +75,8 @@ export async function render(el, route) {
 async function renderHub(el) {
   const page = h('div', { class: 'page' });
   mount(el, page);
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Tools'),
-    h('div', { class: 'sub' }, 'Calculators, planners and your collection. Uncertain values are marked where they appear. Drag a tool onto the sidebar to pin it to Quick access.'))));
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('tools.title')),
+    h('div', { class: 'sub' }, translateUI('ui.b272_tools_intro')))));
   const [plans, teams] = await Promise.all([get('/api/docs/breeding_plan'), get('/api/docs/team')]);
   const recent = [...plans.items.map((p) => ({ ...p, k: 'breeding' })), ...teams.items.map((t) => ({ ...t, k: 'team' }))]
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 4);
@@ -88,8 +88,8 @@ async function renderHub(el) {
         h('span', { class: 'tool-ic' }, icon(t.icon)),
         h('span', { class: 'grow' }, h('span', { class: 'tl-title' }, ttl(t)), h('span', { class: 'small muted tl-desc' }, tdesc(t)))),
       h('div', { class: 'tool-foot' }, statusBadge(t), h('span', { class: 'grow' }),
-        pop ? h('button', { class: 'icon-btn sm', title: `Open ${ttl(t)} as a popout window`, 'aria-label': `Pop out ${ttl(t)}`, onclick: () => openPopout(pop) }, icon('popout')) : null,
-        h('button', { class: 'icon-btn sm' + (isPinned({ kind: 'tool', id: k }) ? ' on' : ''), title: 'Pin to sidebar Quick access', 'aria-label': `Pin ${ttl(t)} to sidebar`,
+        pop ? h('button', { class: 'icon-btn sm', title: translateUI('ui.b272_tool_open_popout', { tool: ttl(t) }), 'aria-label': translateUI('ui.b272_tool_popout', { tool: ttl(t) }), onclick: () => openPopout(pop) }, icon('popout')) : null,
+        h('button', { class: 'icon-btn sm' + (isPinned({ kind: 'tool', id: k }) ? ' on' : ''), title: translateUI('ui.b272_tools_pin'), 'aria-label': translateUI('ui.b272_tool_pin_aria', { tool: ttl(t) }),
           onclick: async (e) => { await pinToSidebar({ kind: 'tool', id: k }); e.currentTarget.classList.add('on'); } }, icon('pin'))));
     makePinDraggable(card, { kind: 'tool', id: k });
     return card;
@@ -98,18 +98,18 @@ async function renderHub(el) {
     h('div', { class: 'tool-cards' }, Object.entries(TOOLS).filter(([, t]) => t.group === id).map(([k, t]) => toolCard(k, t))));
   page.append(h('div', { class: 'tools-layout' },
     h('div', { class: 'stack' },
-      group('battle', 'Battle & Stats', 'Matchups, natures and stats'),
-      group('breeding', 'Breeding', 'Familiar Parent A | Offspring | Parent B workflow, plan tree and egg moves'),
-      group('planning', 'Planning & Hunting', 'Teams, EV training and catching'),
+      group('battle', translateUI('ui.b272_tools_battle'), translateUI('ui.b272_tools_battle_sub')),
+      group('breeding', translateUI('ui.b272_tools_breeding'), translateUI('ui.b272_tools_breeding_sub')),
+      group('planning', translateUI('ui.b272_tools_planning'), translateUI('ui.b272_tools_planning_sub')),
       group('collection', tr('tools.group.collection'), tr('tools.group.collection_sub'))),
     h('aside', { class: 'stack' },
-      h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Continue')),
+      h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.b272_continue'))),
         recent.length ? h('div', { class: 'stack tight' }, recent.map((d) => h('button', { class: 'tool-link', onclick: () => go(d.k === 'breeding' ? `#/tools/breeding?tab=plan&plan=${d.id}` : `#/tools/team?team=${d.id}`) },
           icon(d.k === 'breeding' ? 'egg' : 'team'), h('div', null, h('div', { class: 'tl-title' }, d.name), h('div', { class: 'small muted' }, (d.k === 'breeding' ? 'Breeding plan' : 'Team') + ' · saved ' + relTimeShort(d.updated_at)))))) :
-          h('div', { class: 'small muted' }, 'Saved breeding plans and teams appear here.')),
-      h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, 'About the numbers'),
-        h('div', { class: 'small' }, 'Formulas are checked against worked examples. Values come from the built-in PokeMMO data; where something is uncertain, an ⓘ next to it explains why.'),
-        h('p', { class: 'small muted', style: { margin: 0 } }, 'No encounter counter (PokeMMO has one) and no damage calculator. Nothing here reads the game, automates input or fetches GTL prices.')))));
+          h('div', { class: 'small muted' }, translateUI('ui.b272_tools_continue_empty'))),
+      h('section', { class: 'card stack tight' }, h('h2', { style: { margin: 0, fontSize: '1.05rem' } }, translateUI('ui.b272_tools_numbers')),
+        h('div', { class: 'small' }, translateUI('ui.b272_tools_numbers_desc')),
+        h('p', { class: 'small muted', style: { margin: 0 } }, translateUI('ui.b272_tools_scope'))))));
 }
 function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'today' : `${Math.floor(d)} d ago`; }
 
@@ -117,11 +117,11 @@ function relTimeShort(iso) { const d = (Date.now() - new Date(iso)) / 86400000; 
 // Attacker = row (Y), defender = column (X). Hover/focus highlights the whole row AND column;
 // click (or Enter) locks the selection; Esc clears. 17 types, Gen II–V rules, no Fairy.
 let tc = null;
-const MULT_TEXT = { 2: 'super effective', 0.5: 'not very effective', 0: 'no effect', 1: 'normal damage' };
+const MULT_TEXT = { 2: 'ui.b272_chart_super', 0.5: 'ui.b272_chart_weak', 0: 'ui.b272_chart_zero', 1: 'ui.b272_chart_normal' };
 const multLabel = (m) => (m === 0.5 ? '½×' : m === 0.25 ? '¼×' : `${m}×`);
 export function typeChartReadout(a, d) {
   const m = (tc.matrix[tc.types.indexOf(a)] || [])[tc.types.indexOf(d)];
-  return { m, text: `${gameTerm('type', cap(a))} attack → ${gameTerm('type', cap(d))} defender: ${multLabel(m)} (${MULT_TEXT[m]})` };
+  return { m, text: translateUI('ui.b272_chart_readout', { attack: gameTerm('type', cap(a)), defender: gameTerm('type', cap(d)), multiplier: multLabel(m), effect: translateUI(MULT_TEXT[m]) }) };
 }
 export async function renderTypeChart(el, route, { compact = false, compare = false } = {}) {
   tc = tc || await get('/api/tools/typechart');
@@ -136,15 +136,15 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     const side = h('div', { class: 'tc-compare-slot' });
     const movesSlot = h('div', { class: 'tc-moves-slot' });
     el.append(h('div', { class: 'tc-layout' }, out, side), movesSlot);
-    import('./compare.js').then((m) => m.comparePanel(tc, { movesSlot })).then((p) => side.append(p)).catch((e) => side.append(h('div', { class: 'notice warn small' }, 'Comparison unavailable: ' + e.message)));
+    import('./compare.js').then((m) => m.comparePanel(tc, { movesSlot })).then((p) => side.append(p)).catch((e) => side.append(h('div', { class: 'notice warn small' }, translateUI('ui.b272_chart_comparison_error', { error: e.message }))));
   } else el.append(out);
 
-  const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, 'Hover or focus a cell — rows attack, columns defend. Click to lock.');
+  const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, translateUI('ui.b272_chart_hover'));
   const setReadout = (r, c, locked) => {
-    if (r == null) { readout.replaceChildren('Hover or focus a cell — rows attack, columns defend. Click to lock.'); return; }
+    if (r == null) { readout.replaceChildren(translateUI('ui.b272_chart_hover')); return; }
     const { m, text } = typeChartReadout(T[r], T[c]);
     readout.replaceChildren(h('span', { class: 'mult ' + ({ 2: 'm2', 0.5: 'm05', 0: 'm0', 1: 'm1' }[m]) }, multLabel(m)), ' ', text,
-      locked ? h('button', { class: 'btn ghost small', style: { marginLeft: '8px' }, onclick: () => { lock = null; paint(null, null); setReadout(null); } }, 'Unlock (Esc)') : null);
+      locked ? h('button', { class: 'btn ghost small', style: { marginLeft: '8px' }, onclick: () => { lock = null; paint(null, null); setReadout(null); } }, translateUI('ui.b272_chart_unlock')) : null);
   };
   let table;
   const paint = (r, c) => {
@@ -156,8 +156,8 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     if (cell) cell.classList.add('hl-x');
   };
   const buildMatrix = () => {
-    table = h('table', { class: 'typechart', role: 'grid', 'aria-label': 'Type effectiveness. Rows: attacking type. Columns: defending type.' },
-      h('thead', null, h('tr', null, h('th', { class: 'corner', scope: 'col' }, h('div', null, 'DEFENDER →'), h('div', null, 'ATTACKER ↓')),
+    table = h('table', { class: 'typechart', role: 'grid', 'aria-label': translateUI('ui.b272_chart_aria') },
+      h('thead', null, h('tr', null, h('th', { class: 'corner', scope: 'col' }, h('div', null, translateUI('ui.b272_chart_defender')), h('div', null, translateUI('ui.b272_chart_attacker'))),
         T.map((t, j) => h('th', { scope: 'col', dataset: { c: j }, class: 'colhead' }, h('span', { class: 'tc' }, typeChip(t, true)))))),
       h('tbody', null, T.map((a, i) => h('tr', null, h('th', { scope: 'row', dataset: { r: i }, class: 'rowhead' }, typeChip(a, true)), T.map((d, j) => {
         const m = tc.matrix[i][j];
@@ -204,42 +204,42 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     });
     return table;
   };
-  const legend = h('div', { class: 'row wrap small' }, h('span', { class: 'mult m2' }, '2×'), 'super effective', h('span', { class: 'mult m05' }, '½×'), 'not very effective',
-    h('span', { class: 'mult m0' }, '0×'), 'no effect', h('span', { class: 'mult m1' }, ' '), 'blank = normal (1×)');
+  const legend = h('div', { class: 'row wrap small' }, h('span', { class: 'mult m2' }, '2×'), translateUI('ui.b272_chart_super'), h('span', { class: 'mult m05' }, '½×'), translateUI('ui.b272_chart_weak'),
+    h('span', { class: 'mult m0' }, '0×'), translateUI('ui.b272_chart_zero'), h('span', { class: 'mult m1' }, ' '), translateUI('ui.b272_chart_blank'));
 
   const focusPanel = () => {
     const idx = T.indexOf(focusType);
     const vals = T.map((o, k) => ({ t: o, m: focusAxis === 'attacker' ? tc.matrix[idx][k] : tc.matrix[k][idx] }));
     const group = (m) => vals.filter((v) => v.m === m).map((v) => typeChip(v.t, true));
     return h('div', { class: 'card stack tight' },
-      h('div', { class: 'row wrap' }, seg([['attacker', 'As attacker (row)'], ['defender', 'As defender (column)']], focusAxis, (v) => { focusAxis = v; draw(); }, 'Axis'),
+      h('div', { class: 'row wrap' }, seg([['attacker', translateUI('ui.b272_chart_as_attacker')], ['defender', translateUI('ui.b272_chart_as_defender')]], focusAxis, (v) => { focusAxis = v; draw(); }, translateUI('ui.b272_chart_axis')),
         h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.type'), onchange: (e) => { focusType = e.target.value; draw(); } },
           T.map((t) => h('option', { value: t, selected: t === focusType ? 'selected' : null }, gameTerm('type', cap(t)))))),
-      h('div', { class: 'small muted' }, focusAxis === 'attacker' ? `${gameTerm('type', cap(focusType))} attacking each defending type:` : `Each attacking type hitting a ${gameTerm('type', cap(focusType))} defender:`),
+      h('div', { class: 'small muted' }, focusAxis === 'attacker' ? translateUI('ui.b272_chart_attack_focus', { type: gameTerm('type', cap(focusType)) }) : translateUI('ui.b272_chart_defend_focus', { type: gameTerm('type', cap(focusType)) })),
       [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0'], [1, '1×', 'm1']].map(([m, l, cls]) => (group(m).length ? h('div', { class: 'row wrap' }, h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), group(m)) : null)));
   };
   const defensive = () => {
     const groups = { '4': [], '2': [], '0.5': [], '0.25': [], '0': [] };
     if (defTypes.length) T.forEach((a, i) => { const m = defTypes.reduce((acc, d) => acc * tc.matrix[i][T.indexOf(d)], 1); if (String(m) in groups) groups[String(m)].push(a); });
-    return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, 'Defensive check'), h('span', { class: 'small muted' }, 'Up to two defending types')),
+    return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, translateUI('ui.b272_chart_defensive')), h('span', { class: 'small muted' }, translateUI('ui.b272_chart_defensive_sub'))),
       h('div', { class: 'row wrap' }, T.map((t) => h('button', { class: 'chip btnlike' + (defTypes.includes(t) ? ' active' : ''), 'aria-pressed': String(defTypes.includes(t)),
         onclick: () => { defTypes = defTypes.includes(t) ? defTypes.filter((x) => x !== t) : [...defTypes, t].slice(-2); draw(); } }, typeChip(t, true)))),
-      defTypes.length ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, `Attacks against a ${defTypes.map(cap).join(' / ')} Pokémon:`),
+      defTypes.length ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, translateUI('ui.b272_chart_defending_types', { types: defTypes.map(x => gameTerm('type', cap(x))).join(' / ') })),
         [['4', '4×', 'm4'], ['2', '2×', 'm2'], ['0.5', '½×', 'm05'], ['0.25', '¼×', 'm025'], ['0', '0×', 'm0']].map(([k, l, cls]) => groups[k].length ? h('div', { class: 'row wrap' },
           h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), groups[k].map((t) => typeChip(t, true))) : null)) : null);
   };
   const offensive = () => {
     const i = offType ? T.indexOf(offType) : -1;
     const by = (m) => (i < 0 ? [] : T.filter((d, j) => tc.matrix[i][j] === m));
-    return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, 'Offensive check'), h('span', { class: 'small muted' }, 'One attacking move type')),
+    return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, translateUI('ui.b272_chart_offensive')), h('span', { class: 'small muted' }, translateUI('ui.b272_chart_offensive_sub'))),
       h('div', { class: 'row wrap' }, T.map((t) => h('button', { class: 'chip btnlike' + (offType === t ? ' active' : ''), 'aria-pressed': String(offType === t),
         onclick: () => { offType = offType === t ? null : t; draw(); } }, typeChip(t, true)))),
-      offType ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, `A ${gameTerm('type', cap(offType))} move against single-type defenders:`),
+      offType ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, translateUI('ui.b272_chart_attacking_type', { type: gameTerm('type', cap(offType)) })),
         [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0']].map(([m, l, cls]) => by(m).length ? h('div', { class: 'row wrap' },
           h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), by(m).map((t) => typeChip(t, true))) : null)) : null);
   };
   const draw = () => {
-    const viewSwitch = seg([['matrix', 'Full chart'], ['focus', 'Focus one type']], focusView ? 'focus' : 'matrix', (v) => { focusView = v === 'focus'; draw(); }, 'Chart view');
+    const viewSwitch = seg([['matrix', translateUI('ui.b272_chart_full')], ['focus', translateUI('ui.b272_chart_focus')]], focusView ? 'focus' : 'matrix', (v) => { focusView = v === 'focus'; draw(); }, translateUI('ui.b272_chart_view'));
     lock = null;
     mount(out, h('div', { class: 'row wrap' }, viewSwitch, h('span', { class: 'grow' }), legend),
       focusView ? focusPanel() : h('div', { class: 'stack tight' }, readout, h('div', { class: 'tc-scroll' }, buildMatrix())),
@@ -257,14 +257,14 @@ export async function renderNatures(el, route, { compact = false } = {}) {
   const holder = h('div');
   const draw = () => {
     const rows = n.natures.filter((x) => !filter || x.up === filter || x.down === filter);
-    mount(holder, h('table', { class: 'table compact' }, h('thead', null, h('tr', null, h('th', null, translateUI('ui.nature')), h('th', null, 'Raises (+10%)'), h('th', null, 'Lowers (−10%)'))),
+    mount(holder, h('table', { class: 'table compact' }, h('thead', null, h('tr', null, h('th', null, translateUI('ui.nature')), h('th', null, translateUI('ui.b272_nature_up')), h('th', null, translateUI('ui.b272_nature_down')))),
       h('tbody', null, rows.map((x) => h('tr', null, h('td', { style: { fontWeight: 600 } }, gameTerm('nature', x.name)),
-        h('td', { style: { color: x.up ? 'var(--good)' : 'var(--text-muted)' } }, x.up ? n.labels[x.up] : 'Neutral'),
-        h('td', { style: { color: x.down ? '#e07b77' : 'var(--text-muted)' } }, x.down ? n.labels[x.down] : '—'))))));
+        h('td', { style: { color: x.up ? 'var(--good)' : 'var(--text-muted)' } }, x.up ? uiLabel(n.labels[x.up]) : translateUI('ui.b272_nature_neutral')),
+        h('td', { style: { color: x.down ? '#e07b77' : 'var(--text-muted)' } }, x.down ? uiLabel(n.labels[x.down]) : '—'))))));
   };
   el.append(h('div', { class: 'stack', style: { maxWidth: '640px' } },
-    h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Involving stat'), seg([['', translateUI('ui.all')], ...Object.entries(n.labels).filter(([k]) => k !== 'hp')], filter, (v) => { filter = v; draw(); })),
-    holder, compact ? null : h('p', { class: 'small muted' }, 'Standard 25 natures; neutral natures change nothing. Everstone passes a parent’s nature when breeding (official rule).')));
+    h('div', { class: 'row wrap' }, h('span', { class: 'label' }, translateUI('ui.b272_nature_stat')), seg([['', translateUI('ui.all')], ...Object.entries(n.labels).filter(([k]) => k !== 'hp').map(([k, v]) => [k, uiLabel(v)])], filter, (v) => { filter = v; draw(); })),
+    holder, compact ? null : h('p', { class: 'small muted' }, translateUI('ui.b272_nature_note'))));
   draw();
 }
 
@@ -274,27 +274,27 @@ async function renderStats(el) {
   const s = { species: null, level: 50, nature: null, ivs: Object.fromEntries(STATS.map(([k]) => [k, 31])), evs: Object.fromEntries(STATS.map(([k]) => [k, 0])) };
   const out = h('div');
   const run = async () => {
-    if (!s.species) { mount(out, h('div', { class: 'muted' }, 'Choose a species.')); return; }
+    if (!s.species) { mount(out, h('div', { class: 'muted' }, translateUI('ui.choose_species'))); return; }
     try {
       const r = await post('/api/tools/stats', s);
       const rowOf = (label, vals, strong) => h('tr', null, h('th', { class: 'small' }, label), STATS.map(([k]) => h('td', { style: strong ? { fontWeight: 700, fontSize: '1.15rem' } : null }, vals[k])));
       mount(out, h('div', { class: 'stack tight' }, h('table', { class: 'table' }, h('thead', null, h('tr', null, h('th'), STATS.map(([, l]) => h('th', null, l)))),
-        h('tbody', null, rowOf(`Level ${r.level}`, r.stats, true), r.level !== 50 ? rowOf('Level 50', r.at_50) : null, r.level !== 100 ? rowOf('Level 100', r.at_100) : null, rowOf('Base', r.base))),
-      h('div', { class: 'small muted' }, `EV total ${r.ev_total} / 510`), h('div', { class: 'tiny muted' }, r.note)));
+        h('tbody', null, rowOf(translateUI('ui.b272_stats_level', { level: number(r.level) }), r.stats, true), r.level !== 50 ? rowOf(translateUI('ui.b272_stats_level', { level: 50 }), r.at_50) : null, r.level !== 100 ? rowOf(translateUI('ui.b272_stats_level', { level: 100 }), r.at_100) : null, rowOf(translateUI('ui.b272_stats_base'), r.base))),
+      h('div', { class: 'small muted' }, translateUI('ui.b272_stats_ev_total', { count: number(r.ev_total) })), h('div', { class: 'tiny muted' }, r.note)));
     } catch (e) { mount(out, notice('bad', e.message)); }
   };
   const evSum = h('span', { class: 'tiny muted' });
   const numRow = (key, max) => h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span', { class: 'label' }, key === 'ivs' ? 'IVs' : 'EVs'),
     STATS.map(([k, l]) => h('input', { class: 'input iv-input', type: 'number', min: 0, max, value: s[key][k], 'aria-label': `${l} ${key}`,
-      oninput: (e) => { s[key][k] = Math.max(0, Math.min(max, Number(e.target.value || 0))); evSum.textContent = `EV total ${STATS.reduce((a, [x]) => a + (s.evs[x] || 0), 0)} / 510`; run(); } })));
+      oninput: (e) => { s[key][k] = Math.max(0, Math.min(max, Number(e.target.value || 0))); evSum.textContent = translateUI('ui.b272_stats_ev_total', { count: number(STATS.reduce((a, [x]) => a + (s.evs[x] || 0), 0)) }); run(); } })));
   el.append(h('div', { class: 'grid-2', style: { alignItems: 'start' } },
     h('div', { class: 'card stack' }, speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
       h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.level')),
         h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 50, oninput: (e) => { s.level = Math.max(1, Math.min(100, Number(e.target.value || 1))); run(); } })),
       h('div', { class: 'field grow' }, h('label', null, translateUI('ui.nature')), natureSelect(null, (v) => { s.nature = v; run(); }))),
       h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, l))),
-      numRow('ivs', 31), numRow('evs', 252), evSum, h('div', { class: 'tiny muted' }, 'IVs 0–31 · EVs up to 252 per stat and 510 in total. Shedinja always has 1 HP.')),
-    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Calculated stats')), out)));
+      numRow('ivs', 31), numRow('evs', 252), evSum, h('div', { class: 'tiny muted' }, translateUI('ui.b272_stats_limits'))),
+    h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, translateUI('ui.b272_stats_result'))), out)));
   run();
 }
 
@@ -312,7 +312,7 @@ async function renderCatch(el) {
           source: r.rate_source, current: number(r.cur_hp), maximum: number(r.max_hp),
           status: ['sleep', 'freeze', 'paralysis', 'poison', 'burn', 'none'].includes(r.status) ? translateUI('ui.catch_' + r.status) : r.status })),
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.catch_ball'), translateUI('ui.catch_condition'), translateUI('ui.catch_per_ball'), translateUI('ui.catch_90'), translateUI('ui.catch_99')].map((c) => h('th', null, c)))),
-          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, gameTerm('item', x.label)), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: 'PokeMMO behaviour for this ball not confirmed' }, translateUI('ui.catch_unconfirmed'))),
+          h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, gameTerm('item', x.label)), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: translateUI('ui.b272_catch_confirm') }, translateUI('ui.catch_unconfirmed'))),
             h('td', { style: { fontWeight: 700 } }, x.guaranteed ? translateUI('ui.catch_guaranteed') : (x.percent >= 99.995 ? '>99.99%' : x.percent + '%')),
             h('td', null, x.balls_for_90 ? plural('ui.catch_count', x.balls_for_90) : '—'), h('td', null, x.balls_for_99 ? plural('ui.catch_count', x.balls_for_99) : '—'))))),
         h('ul', { class: 'tiny muted', style: { margin: 0 } }, r.notes.map((w) => h('li', null, w)))));

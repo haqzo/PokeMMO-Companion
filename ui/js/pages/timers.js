@@ -49,7 +49,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
     const compact = variant === 'compact';
     const timeEl = h('div', { class: 'tm-time', role: 'timer', 'aria-label': translateUI('ui.b272_timer_remaining') }, fmt(t.remaining));
     const rg = compact ? null : ring(t.progress, variant === 'expanded' || variant === 'page' ? 92 : 64);
-    const toggle = t.state === 'running' ? [translateUI('ui.b272_timer_pause'), 'pause'] : t.state === 'paused' ? [translateUI('ui.b272_timer_resume'), 'resume'] : [translateUI('ui.b272_timer_start'), 'start'];
+    const toggle = t.state === 'running' ? [translateUI('ui.pause'), 'pause'] : t.state === 'paused' ? [translateUI('ui.resume'), 'resume'] : [translateUI('ui.start'), 'start'];
     const name = h('div', { class: 'tm-name' }, t.name);
     const rename = async () => {
       const inp = h('input', { class: 'input', value: t.name, 'aria-label': translateUI('ui.b272_timer_name'), maxlength: '60' });
@@ -117,7 +117,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
   // ---- new timer form
   const nameIn = h('input', { class: 'input', placeholder: translateUI('ui.b272_timer_placeholder'), 'aria-label': translateUI('ui.b272_timer_new_name'), maxlength: '60' });
   const num = (label, max, val) => h('input', { class: 'input tm-num', type: 'number', min: '0', max: String(max), value: String(val), 'aria-label': label, inputmode: 'numeric' });
-  const hh = num(translateUI('ui.b272_timer_hours'), 99, 0), mm = num(translateUI('ui.b272_timer_minutes'), 59, 10), ss = num(translateUI('ui.b272_timer_seconds'), 59, 0);
+  const hh = num(translateUI('ui.b272_timer_hours'), 99, 0), mm = num(translateUI('ui.minutes'), 59, 10), ss = num(translateUI('ui.seconds'), 59, 0);
   const repeat = h('input', { type: 'checkbox', 'aria-label': translateUI('ui.repeat') });
   const sound = h('input', { type: 'checkbox', checked: true, 'aria-label': translateUI('ui.sound') });
   const add = async (start) => {

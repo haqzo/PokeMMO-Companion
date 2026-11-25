@@ -103,6 +103,9 @@ for (const [key, [en, es, zh]] of Object.entries(UI_STRINGS)) {
 
 const labelKeys = new Map(Object.entries(UI_STRINGS).map(([key, [source]]) => [source, key]));
 
+// The calculator uses a context-specific translation for Add; registry actions use the generic one.
+labelKeys.set('Add', 'ui.add');
+
 /** Render a controlled, application-authored label supplied by a registry or backend. */
 export function uiLabel(source) {
   return labelKeys.has(source) ? t(labelKeys.get(source)) : source;

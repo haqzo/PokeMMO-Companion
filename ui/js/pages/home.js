@@ -275,7 +275,7 @@ async function continueCard(runs, rerender) {
   return h('section', { class: 'card half home-run stack tight' },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow' },
       h('div', { class: 'eyebrow-text' }, translateUI('ui.b272_continue')), h('div', { style: { fontWeight: 700 } }, `${run.display} — ${gameTerm('region', cap(st.region))}`)),
-      h('button', { class: 'btn small', onclick: () => go('#/guides?jump=1') }, translateUI('ui.b272_open_guide')), h('button', { class: 'btn ghost small', title: translateUI('ui.b272_storyline_popout'), onclick: () => openPopout('storyline') }, icon('popout'))),
+      h('button', { class: 'btn small', onclick: () => go('#/guides?jump=1') }, translateUI('ui.b272_open_guide')), h('button', { class: 'btn ghost small', title: translateUI('ui.guide_storyline_window'), onclick: () => openPopout('storyline') }, icon('popout'))),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'small nowrap' }, `${c.done}/${c.total}`)),
     step ? h('div', { class: 'small' }, h('span', { class: 'muted' }, `${step.chapter} · `), step.text) : null);
 }
@@ -314,7 +314,7 @@ function getStarted(data, runs, rerender) {
       game && game.chosen ? h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/game/launch'); toast(r.already_running ? translateUI('ui.b272_game_running') : r.already_starting ? translateUI('ui.b272_game_starting') : translateUI('ui.b272_game_start')); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('play'), translateUI('ui.b272_game_launch')) : null,
       h('button', { class: 'btn small ghost', onclick: () => go('#/settings/startup') }, translateUI('ui.b272_startup_settings'))),
     step(!!live.enabled, translateUI('ui.b272_alpha_alerts'), translateUI('ui.b272_alpha_optional'),
-      h('button', { class: 'btn small', onclick: () => go('#/live') }, live.enabled ? translateUI('ui.b272_live_open') : translateUI('ui.b272_live_enable')),
+      h('button', { class: 'btn small', onclick: () => go('#/live') }, live.enabled ? translateUI('ui.open_live') : translateUI('ui.b272_live_enable')),
       h('button', { class: 'btn small ghost', onclick: async () => { try { await post('/api/live/test', { kind: 'alpha' }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.b272_test_notice'))),
     step(false, translateUI('ui.b272_floating_tools'), translateUI('ui.b272_floating_help'),
       h('button', { class: 'btn small', onclick: () => openPopout('timers') }, icon('popout'), translateUI('ui.b272_timer_try'))),
