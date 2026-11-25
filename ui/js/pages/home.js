@@ -4,11 +4,9 @@ import { gameTerm, speciesLabel } from '../game-locale.js';
 // Home + in-app official news / changelog / event reader (docs/design/03).
 import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
-import { createRun } from './guides.js';
 import { LANGS, lang } from '../i18n.js';
 import { walkthroughReader } from '../walkthrough-loader.js';
 import { animatedIn, scaled } from '../sprites.js';
-import { loadList } from './pokedex.js';
 import { currentCard, startTimers, likelyActive } from './live.js';
 import { homePhenomena } from './phenomena.js';
 
@@ -473,8 +471,12 @@ async function renderHome(el) {
   const current = () => epoch === homeEpoch && page.isConnected;
   const sections = homeSections();
   const on_ = (k) => sections.includes(k);
+  // Named runs are only needed for onboarding or the optional Storyline card.
+  const needsRuns = !setting('app.onboarded') || on_('run');
   const [n, cur, leg, runs, data, species] = await Promise.all([news(), get('/api/live/current'), get('/api/live/legendaries'),
-    get('/api/guides/runs'), get('/api/data/status'), on_('favourites') ? loadList().catch(() => []) : Promise.resolve([])]);
+    needsRuns ? get('/api/guides/runs') : Promise.resolve({ runs: [], active: null }),
+    get('/api/data/status'),
+    on_('favourites') ? import('./pokedex.js').then(m => m.loadList()).catch(() => []) : Promise.resolve([])]);
   if (!current()) return;
   const active = cur.current.filter((g) => g.status.state === 'recent').length;
   const status = [
@@ -708,7 +710,7 @@ async function continueCard(runs, rerender) {
   const run = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
   if (!run) {
     return h('section', { class: 'card half home-run row' }, icon('guides'), h('div', { class: 'grow small' }, h('strong', null, translateUI('ui.storyline_run')), h('div', { class: 'muted' }, translateUI('ui.b272_track_run'))),
-      h('button', { class: 'btn small', onclick: async () => { if (await createRun()) rerender(); } }, icon('plus'), translateUI('ui.b272_create_run')));
+      h('button', { class: 'btn small', onclick: async () => { const { createRun } = await import('./guides.js'); if (await createRun()) rerender(); } }, icon('plus'), translateUI('ui.b272_create_run')));
   }
   const st = await get(`/api/guides/runs/${run.id}/state?region=${run.last_region}`);
   const step = st.steps.find((x) => x.id === st.active_step_id);

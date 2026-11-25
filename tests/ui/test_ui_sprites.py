@@ -352,39 +352,61 @@ def test_calculator_popout_does_not_load_unrelated_page_modules(app, browser):
 
 
 def test_disposed_home_render_cannot_start_refresh_timer(app, page):
-    app.ctx.settings.update({"home.sections": ["live", "quick"], "app.onboarded": True})
-    go(page, app, "#/pokedex")
-    page.wait_for_selector(".dex-card")
-    result = page.evaluate("""async () => {
-        const home = await import('/js/pages/home.js');
-        const host = document.createElement('div');
-        document.body.append(host);
-        const originalFetch = window.fetch, originalInterval = window.setInterval;
-        let release, entered, intervals = 0;
-        const gate = new Promise(resolve => { release = resolve; });
-        const requested = new Promise(resolve => { entered = resolve; });
-        window.fetch = async (path, ...args) => {
-            if (path === '/api/live/current') { entered(); await gate; }
-            return originalFetch(path, ...args);
-        };
-        window.setInterval = (fn, delay, ...args) => {
-            if (delay === 60000 && fn.name === 'refresh') intervals++;
-            return originalInterval(fn, delay, ...args);
-        };
-        try {
-            const pending = home.render(host, {page: 'home', parts: []});
-            await requested;
-            home.dispose();
-            host.remove();
-            release();
-            await pending;
-            return {intervals, liveCards: host.querySelectorAll('.home-live').length};
-        } finally {
-            release();
-            home.dispose();
-            host.remove();
-            window.fetch = originalFetch;
-            window.setInterval = originalInterval;
-        }
-    }""")
-    assert result == {"intervals": 0, "liveCards": 0}
+    previous = app.ctx.settings.get("home.sections")
+    app.ctx.settings.update({"home.sections": ["live", "quick"]})
+    try:
+        go(page, app, "#/pokedex")
+        page.wait_for_selector(".dex-card")
+        result = page.evaluate("""async () => {
+            const home = await import('/js/pages/home.js');
+            const host = document.createElement('div');
+            document.body.append(host);
+            const originalFetch = window.fetch, originalInterval = window.setInterval;
+            let release, entered, intervals = 0;
+            const gate = new Promise(resolve => { release = resolve; });
+            const requested = new Promise(resolve => { entered = resolve; });
+            window.fetch = async (path, ...args) => {
+                if (path === '/api/live/current') { entered(); await gate; }
+                return originalFetch(path, ...args);
+            };
+            window.setInterval = (fn, delay, ...args) => {
+                if (delay === 60000 && fn.name === 'refresh') intervals++;
+                return originalInterval(fn, delay, ...args);
+            };
+            try {
+                const pending = home.render(host, {page: 'home', parts: []});
+                await requested;
+                home.dispose();
+                host.remove();
+                release();
+                await pending;
+                return {intervals, liveCards: host.querySelectorAll('.home-live').length};
+            } finally {
+                release();
+                home.dispose();
+                host.remove();
+                window.fetch = originalFetch;
+                window.setInterval = originalInterval;
+            }
+        }""")
+        assert result == {"intervals": 0, "liveCards": 0}
+    finally:
+        app.ctx.settings.update({"home.sections": previous})
+
+
+def test_default_home_defers_unused_catalog_and_guides(app, page):
+    old = {k: app.ctx.settings.get(k) for k in ("home.sections", "app.onboarded")}
+    app.ctx.settings.update({"home.sections": ["roamers", "live", "update", "news", "events", "quick"],
+                             "app.onboarded": True})
+    requests = []
+    page.on("request", lambda request: requests.append(request.url))
+    try:
+        go(page, app, "#/home")
+        page.wait_for_selector(".home-page .home-live")
+        for path in ("/js/pages/pokedex.js", "/js/pages/guides.js", "/api/guides/runs"):
+            assert not any(path in url for url in requests), path
+        page.evaluate("location.hash = '#/pokedex'")
+        page.wait_for_selector(".dex-card")
+        assert any("/js/pages/pokedex.js" in url for url in requests)
+    finally:
+        app.ctx.settings.update(old)
