@@ -229,3 +229,22 @@ def test_live_and_cave_localize_offline_without_changing_values(clean, pg, langu
     assert field.locator('option[value="Single"]').inner_text() == method
     assert field.input_value() == 'Single'
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "search", "method", "grass", "forest", "summary"), [
+    ("es", "Buscar un lugar o Pokémon", "Tipo de encuentro", "Hierba", "Bosque Verde", "registros de encuentro"),
+    ("zh", "搜索地点或宝可梦", "遭遇方式", "草丛", "常青森林", "条遭遇记录"),
+])
+def test_location_filters_and_direct_popout_localize_without_changing_values(clean, pg, language, search, method, grass, forest, summary):
+    clean.ctx.settings.update({"app.language": language})
+    pg.goto(clean.url("#/tools/locations?region=kanto"))
+    pg.get_by_placeholder(search).wait_for()
+    picker = pg.get_by_label(method, exact=True)
+    assert picker.locator('option[value="Grass"]').inner_text() == grass
+    pg.locator(".loc-card-name").get_by_text(forest, exact=True).click()
+    pg.locator(".loc-method[data-method=Grass] h3").get_by_text(grass, exact=False).wait_for()
+    location_id = next(loc["id"] for loc in clean.ctx.dex.locations() if loc["name"] == "Viridian Forest")
+    pg.goto(clean.srv.url(f"#/loc/{location_id}", popout="locations", mode="compact"))
+    pg.locator(".popout-body .detail-head").get_by_text(summary, exact=False).wait_for()
+    assert not pg.locator(".popout-body > .notice.bad").count()
+    assert not pg.errors
