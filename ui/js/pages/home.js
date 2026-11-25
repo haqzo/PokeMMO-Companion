@@ -12,6 +12,417 @@ import { loadList } from './pokedex.js';
 import { currentCard, startTimers, likelyActive } from './live.js';
 import { homePhenomena } from './phenomena.js';
 
+// The snapshot summaries are authored by Companion. Exact source matching prevents stale translations when a news item is revised.
+const SNAPSHOT_KEYS = new Map([
+  [
+    "Independently written summaries of official PokeMMO posts. Full forum posts are not reproduced. 'provenance' says how each summary was checked: 'official-direct' = read from the official post, 'official-via-research' = official URL recorded in the project's Phase 3 research (docs/research/phase-3), 'secondary-crosscheck' = official URL plus details confirmed through an independent community news site (PikaMMO). The official forum blocked automated access during this build, so no item is marked official-direct.",
+    "newsui.snapshot_000"
+  ],
+  [
+    "Changelog — November 19th, 2026",
+    "newsui.snapshot_001"
+  ],
+  [
+    "Latest stable patch found as of this snapshot. HM Defog can now be found as a field item in four more regions, newly created GTL listings start private to the seller as Pending with a countdown, and a batch of Android, UI-scaling, audio and battle fixes landed.",
+    "newsui.snapshot_002"
+  ],
+  [
+    "Items & exploration",
+    "newsui.snapshot_003"
+  ],
+  [
+    "HM Defog is now a field item in Kanto (Lavender Town's tower, 1F), Hoenn (Rusturf Tunnel), Johto (Route 28) and Unova (Celestial Tower rooftop). Sinnoh already had its own Defog acquisition.",
+    "newsui.snapshot_004"
+  ],
+  [
+    "GTL",
+    "newsui.snapshot_005"
+  ],
+  [
+    "New listings are first visible only to the seller and marked Pending with a countdown; the seller can cancel or reprice during that window.",
+    "newsui.snapshot_006"
+  ],
+  [
+    "Client & fixes",
+    "newsui.snapshot_007"
+  ],
+  [
+    "Android, UI scaling, import, audio and battle fixes.",
+    "newsui.snapshot_008"
+  ],
+  [
+    "Theming support for the new HUD has not been released yet, so custom themes cannot restyle those widgets.",
+    "newsui.snapshot_009"
+  ],
+  [
+    "Guides: the bundled milestone outline lists the four new Defog pickups as optional steps (placement in the route order still needs in-game verification).",
+    "newsui.snapshot_010"
+  ],
+  [
+    "Your imported walkthroughs for Kanto, Hoenn, Johto and Unova contain no Defog mention (Phase 3 research, file 10).",
+    "newsui.snapshot_011"
+  ],
+  [
+    "Changelog — November 13th, 2026",
+    "newsui.snapshot_012"
+  ],
+  [
+    "Audio and controls patch: a new GBA audio quality option, battle and DS sounds closer to the originals, safer key-binding conflict handling, a Dowsing MCHN fix and restored GTL over-valuation flags.",
+    "newsui.snapshot_013"
+  ],
+  [
+    "Audio",
+    "newsui.snapshot_014"
+  ],
+  [
+    "New GBA Audio Quality option: Auto, Fast, High, Ultra. Fast keeps the older sound and suits low-end machines.",
+    "newsui.snapshot_015"
+  ],
+  [
+    "Battle sound effects and DS audio are closer to the original games; ledge hops get their own sound.",
+    "newsui.snapshot_016"
+  ],
+  [
+    "Controls",
+    "newsui.snapshot_017"
+  ],
+  [
+    "If two actions share one button, both are reset at launch with a message naming the conflict.",
+    "newsui.snapshot_018"
+  ],
+  [
+    "Every action, including the GTL, can now be bound.",
+    "newsui.snapshot_019"
+  ],
+  [
+    "Fixes",
+    "newsui.snapshot_020"
+  ],
+  [
+    "Dowsing MCHN no longer points at hidden items on a neighbouring map.",
+    "newsui.snapshot_021"
+  ],
+  [
+    "Grouped GTL listings priced above an item's valuation are flagged again.",
+    "newsui.snapshot_022"
+  ],
+  [
+    "No Companion data changes required.",
+    "newsui.snapshot_023"
+  ],
+  [
+    "Mysterious Balls will not count towards scores in future Shiny Wars",
+    "newsui.snapshot_024"
+  ],
+  [
+    "The events team announced that shinies obtained from Mysterious Balls (for example the Halloween Mysterious Dusk Balls) will not earn team points in future Shiny Wars, to discourage stockpiling them. No specific edition or date is named; other rules may change with each edition's announcement.",
+    "newsui.snapshot_025"
+  ],
+  [
+    "Informational only.",
+    "newsui.snapshot_026"
+  ],
+  [
+    "Changelog — November 5th, 2026",
+    "newsui.snapshot_027"
+  ],
+  [
+    "Quality-of-life patch: money is shown on the HUD under the clock, the mobile battle interface was reworked, weather haze returned for sandstorm and hail, and two notable bugs were fixed.",
+    "newsui.snapshot_028"
+  ],
+  [
+    "Interface",
+    "newsui.snapshot_029"
+  ],
+  [
+    "Money now appears on the HUD beneath the clock.",
+    "newsui.snapshot_030"
+  ],
+  [
+    "'Search in GTL' from a costumed Pokémon enables the costume filter automatically.",
+    "newsui.snapshot_031"
+  ],
+  [
+    "Mobile battle interface reworked (mainly for PvP). Emoji limited to team and link chat.",
+    "newsui.snapshot_032"
+  ],
+  [
+    "Balance & visuals",
+    "newsui.snapshot_033"
+  ],
+  [
+    "Reaper's Wrath (Pumpking's signature move) gains +1 priority.",
+    "newsui.snapshot_034"
+  ],
+  [
+    "Painted Skull can be recoloured without a dye.",
+    "newsui.snapshot_035"
+  ],
+  [
+    "Sandstorm and hail visual haze shows again.",
+    "newsui.snapshot_036"
+  ],
+  [
+    "Fainting no longer sends Sinnoh/Johto players to Pallet Town instead of their healing spot.",
+    "newsui.snapshot_037"
+  ],
+  [
+    "Battles no longer freeze when a Pokémon has no usable moves left.",
+    "newsui.snapshot_038"
+  ],
+  [
+    "Changelog — 30/10/2026 (weather, new HUD, balance)",
+    "newsui.snapshot_039"
+  ],
+  [
+    "Large update: dynamic regional weather, a fully redesigned HUD (including the game's own Encounter Tracker), GTL search for breeding partners, Hail and Snowscape split again, Lickitung's catch rate raised, and some Altering Cave species temporarily removed.",
+    "newsui.snapshot_040"
+  ],
+  [
+    "Weather",
+    "newsui.snapshot_041"
+  ],
+  [
+    "Weather now varies across all five regions with seasonal, region-specific climates and gradual transitions; some areas have local weather (lake mist, Unova fog, Desert Resort sandstorms).",
+    "newsui.snapshot_042"
+  ],
+  [
+    "Current weather is shown next to the clock and season.",
+    "newsui.snapshot_043"
+  ],
+  [
+    "HUD fully redesigned (party, hotbar, Encounter Tracker, active effects, Esc menu); gamepad, HUD and chat positions were reset.",
+    "newsui.snapshot_044"
+  ],
+  [
+    "GTL: right-click 'Search in GTL' finds compatible breeding partners; advanced search can filter by costume.",
+    "newsui.snapshot_045"
+  ],
+  [
+    "Dowsing MCHN shows a radar of nearby hidden items; mailbox lets you choose what to claim.",
+    "newsui.snapshot_046"
+  ],
+  [
+    "Balance",
+    "newsui.snapshot_047"
+  ],
+  [
+    "Hail and Snowscape are separate moves again: Hail damages non-Ice Pokémon each turn, Snowscape summons snow. TM07 teaches Hail; a Snowscape TM is sold where TM07 is.",
+    "newsui.snapshot_048"
+  ],
+  [
+    "Abomasnow and Snover can have a second, hail-summoning ability. Snow Cloak lowers encounter rate in every kind of snow.",
+    "newsui.snapshot_049"
+  ],
+  [
+    "Lickitung's catch rate rises from 45 to 75.",
+    "newsui.snapshot_050"
+  ],
+  [
+    "Altering Cave: some species temporarily removed for rebalancing.",
+    "newsui.snapshot_051"
+  ],
+  [
+    "EV-lowering berries can raise happiness when that EV is already 0.",
+    "newsui.snapshot_052"
+  ],
+  [
+    "Other",
+    "newsui.snapshot_053"
+  ],
+  [
+    "Costumed Pokémon breed normally (fix). Black/White gym leaders and Elite Four speak in battle.",
+    "newsui.snapshot_054"
+  ],
+  [
+    "Name Change Contract; battle music toggle; Android client is now native; iOS needs 15+.",
+    "newsui.snapshot_055"
+  ],
+  [
+    "Companion never adds an encounter counter — the game now has its own.",
+    "newsui.snapshot_056"
+  ],
+  [
+    "Pokédex: imported dump shows Lickitung catch rate 75 (matches this patch). Snowscape learnset entries lack move metadata in the dump and are shown as 'details awaiting verification'.",
+    "newsui.snapshot_057"
+  ],
+  [
+    "Live › Altering Cave: older community species pools are treated as stale.",
+    "newsui.snapshot_058"
+  ],
+  [
+    "Black 2 / White 2 expansion — in development (Public Test Server)",
+    "newsui.snapshot_059"
+  ],
+  [
+    "The PokeMMO team confirmed a Black 2 / White 2 expansion in development. A 48-hour public preview ran on a separate test server (19–21 September, progress not saved) and a second PTS release followed on 27 October. No release date has been announced. PTS content is NOT part of the live game and is never mixed into Companion availability data.",
+    "newsui.snapshot_060"
+  ],
+  [
+    "PTS data is kept separate; nothing from the test client is treated as live.",
+    "newsui.snapshot_061"
+  ],
+  [
+    "Shiny Wars 2026 follow-up fixes (31 July)",
+    "newsui.snapshot_062"
+  ],
+  [
+    "Follow-up to the 29 July update: Zorua's wild encounter was restored and minor encounter-table corrections were made, so 29 July data alone is not sufficient.",
+    "newsui.snapshot_063"
+  ],
+  [
+    "Pokédex: Zorua (Lostlorn Forest) appears in the dump with rate '???', shown as Unknown rate — never 0% or 100%.",
+    "newsui.snapshot_064"
+  ],
+  [
+    "Changelog — Shiny Wars 2026 (29 July)",
+    "newsui.snapshot_065"
+  ],
+  [
+    "One of the largest updates in years: every encounter table in all five regions was rebuilt, the in-game Wild Locations Dex now shows exact percentages by time and season, Altering Cave began rotating daily, costumes were introduced and the desktop client became a native application.",
+    "newsui.snapshot_066"
+  ],
+  [
+    "Encounters",
+    "newsui.snapshot_067"
+  ],
+  [
+    "Encounter tables rebalanced in Kanto, Johto, Hoenn, Sinnoh and Unova; seasons now drive encounters in all regions.",
+    "newsui.snapshot_068"
+  ],
+  [
+    "Sweet Scent-exclusive hordes added in many areas; Trophy Garden and Great Marsh get semi-random daily spawns; Johto Safari Zone randomisation improved; wild encounters on Sky Pillar 2F/4F.",
+    "newsui.snapshot_069"
+  ],
+  [
+    "Altering Cave inhabitants and Pickup rewards rotate every in-game day.",
+    "newsui.snapshot_070"
+  ],
+  [
+    "Features",
+    "newsui.snapshot_071"
+  ],
+  [
+    "Costumed Pokémon introduced (cosmetic; inherited through breeding).",
+    "newsui.snapshot_072"
+  ],
+  [
+    "Gym puzzles can be skipped; the desktop client no longer needs Java.",
+    "newsui.snapshot_073"
+  ],
+  [
+    "Temporary (ended)",
+    "newsui.snapshot_074"
+  ],
+  [
+    "The +10% wild shiny bonus and 7-day season rotation applied only during the Shiny Wars event and are not current.",
+    "newsui.snapshot_075"
+  ],
+  [
+    "Pokédex locations come from your imported dump; its extraction date is unknown, so rates are labelled DUMP_ONLY until checked in game.",
+    "newsui.snapshot_076"
+  ],
+  [
+    "Live › Altering Cave never derives the current rotation from the dump (it holds only two static Unown rows).",
+    "newsui.snapshot_077"
+  ],
+  [
+    "Halloween 2026",
+    "newsui.snapshot_078"
+  ],
+  [
+    "End time 23:59 UTC as recorded in project research; start time not stated.",
+    "newsui.snapshot_079"
+  ],
+  [
+    "Seasonal world event: costumed kids and Spirits of Halloween gave candy to challenge Pumpking (including Hard Mode) near five towns, swarms were more frequent, Wisps unlocked seasonal alphas, and seven Halloween raids led to Newmoon Island. Leftover candy could be redeemed until 16 November.",
+    "newsui.snapshot_080"
+  ],
+  [
+    "Participation",
+    "newsui.snapshot_081"
+  ],
+  [
+    "Defeat costumed kids/Spirits of Halloween for candy; challenge Pumpking near Lavender Town, Fallarbor Town, Solaceon Town, Driftveil City and Ecruteak City.",
+    "newsui.snapshot_082"
+  ],
+  [
+    "Rewards",
+    "newsui.snapshot_083"
+  ],
+  [
+    "Goodie Bags (2026 cosmetics), exclusive bags and particle effect for Hard Mode, costumed Pokémon chance in swarms, Pumpcat cosmetic.",
+    "newsui.snapshot_084"
+  ],
+  [
+    "Permanence",
+    "newsui.snapshot_085"
+  ],
+  [
+    "Event spawns, boosts and raids are historical. The Reaper's Wrath balance change (5 Nov) is a normal patch item.",
+    "newsui.snapshot_086"
+  ],
+  [
+    "Black 2 / White 2 public preview weekend (PTS)",
+    "newsui.snapshot_087"
+  ],
+  [
+    "Times not recorded.",
+    "newsui.snapshot_088"
+  ],
+  [
+    "48-hour preview on a separate test server to test storyline balance; progress was not saved. Test-server only — not live content.",
+    "newsui.snapshot_089"
+  ],
+  [
+    "Server",
+    "newsui.snapshot_090"
+  ],
+  [
+    "Public Test Server (separate from live)",
+    "newsui.snapshot_091"
+  ],
+  [
+    "Shiny Wars 2026",
+    "newsui.snapshot_092"
+  ],
+  [
+    "Times announced in UTC.",
+    "newsui.snapshot_093"
+  ],
+  [
+    "Third annual team shiny-hunting competition: teams of 25–30 players scored points for wild shinies caught during the month. Registration ran 23–29 July. Costume prizes introduced this year remain in the game as a permanent feature.",
+    "newsui.snapshot_094"
+  ],
+  [
+    "Format",
+    "newsui.snapshot_095"
+  ],
+  [
+    "Team competition, 25–30 players per team",
+    "newsui.snapshot_096"
+  ],
+  [
+    "Registration",
+    "newsui.snapshot_097"
+  ],
+  [
+    "23–29 July 2026 (official forum thread)",
+    "newsui.snapshot_098"
+  ],
+  [
+    "Temporary bonuses",
+    "newsui.snapshot_099"
+  ],
+  [
+    "+10% wild shiny bonus during the event only (ended)",
+    "newsui.snapshot_100"
+  ]
+]);
+export function newsText(value) {
+  return SNAPSHOT_KEYS.has(value) ? translateUI(SNAPSHOT_KEYS.get(value)) : value;
+}
+
 let unsub = [];
 let newsCache = null;
 const KIND_LABEL = { changelog: 'ui.news_kind_changelog', hotfix: 'ui.news_kind_hotfix', announcement: 'ui.news_kind_announcement', event: 'ui.news_kind_event' };
@@ -148,7 +559,7 @@ function roamersCard(leg) {
     h('div', { class: 'card-head' }, h('h2', { id: 'roam-h' }, translateUI('ui.roaming_legendaries')), h('span', { class: 'tiny muted' }, month(cur.month, cur.year)),
       h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/legendaries') }, translateUI('ui.calendar'), icon('chev')))),
     h('div', { class: 'roamer-row' }, tile('kanto', cur.kanto), tile('johto', cur.johto)),
-    h('div', { class: 'tiny muted roamer-foot', title: leg.status_note },
+    h('div', { class: 'tiny muted roamer-foot', title: uiLabel(leg.status_note) },
       nxt ? translateUI('ui.home_next_roam', { month: month(nxt.month, nxt.year), first: speciesLabel(nxt.kanto.id, nxt.kanto.name), second: speciesLabel(nxt.johto.id, nxt.johto.name) }) : '',
       sourceInfo('COMMUNITY-CYCLE', translateUI('ui.home_unchecked_roam')), extLink(leg.source_url, translateUI('ui.source'))));
 }
@@ -214,10 +625,10 @@ async function updateCard(n, rerender) {
     translateUI('ui.news_check_summary', { date: fmtDate(n.snapshot_checked_at) })].filter(Boolean).join(' ');
   return h('section', { class: 'card hero home-update', 'aria-labelledby': 'latest-h' },
     h('div', { class: 'hero-eyebrow' }, icon('book'), translateUI('ui.official_update'), h('span', { class: 'grow' }), provenanceLine(L)),
-    h('h2', { class: 'headline', id: 'latest-h' }, L.title),
+    h('h2', { class: 'headline', id: 'latest-h' }, L.discovered ? L.title : newsText(L.title)),
     L.has_summary === false || !L.summary ? h('p', { class: 'hero-summary muted' }, translateUI('ui.b272_news_no_summary'))
-      : h('p', { class: 'hero-summary' }, L.summary),
-    points.length ? h('ul', { class: 'hero-points' }, points.map((p) => h('li', null, p))) : null,
+      : h('p', { class: 'hero-summary' }, newsText(L.summary)),
+    points.length ? h('ul', { class: 'hero-points' }, points.map((p) => h('li', null, newsText(p)))) : null,
     L.edited_upstream ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, translateUI('ui.b272_news_edited_warning')) : null,
     h('div', { class: 'row wrap' }, L.discovered ? extLink(L.source_url, translateUI('ui.news_open_official'))
       : h('button', { class: 'btn primary small', onclick: () => go('#/news/' + L.id) }, translateUI('ui.read_details')),
@@ -243,7 +654,7 @@ function newsCard(n) {
     : p.is_new ? h('span', { class: 'chip tiny accent', title: translateUI('ui.b272_published_week') }, translateUI('ui.news_new'))
       : p.found_late ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_news_found_date', { found: fmtDate(p.first_seen_at), published: fmtDate(p.published) }) }, translateUI('ui.news_discovered_late')) : null;
   const rows = posts.map((p) => {
-    const inner = [label(p), h('span', { class: 'grow ellipsis', title: p.summary_status || p.title }, p.title), flag(p), h('span', { class: 'when' }, fmtDate(p.published))];
+    const inner = [label(p), h('span', { class: 'grow ellipsis', title: p.summary_status ? uiLabel(p.summary_status) : (p.discovered ? p.title : newsText(p.title)) }, p.discovered ? p.title : newsText(p.title)), flag(p), h('span', { class: 'when' }, fmtDate(p.published))];
     return p.has_summary === false || p.discovered
       ? h('div', { class: 'list-row compact new-post', dataset: { published: p.published } }, ...inner, extLink(p.source_url || p.link, translateUI('common.open')))
       : h('button', { class: 'list-row compact', dataset: { published: p.published }, onclick: () => go('#/news/' + p.id) }, ...inner);
@@ -356,7 +767,7 @@ function statusBadge(st) {
 }
 function eventRow(e) {
   return h('button', { class: 'list-row', onclick: () => go('#/events/' + e.id) },
-    icon('calendar'), h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, e.title),
+    icon('calendar'), h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, newsText(e.title)),
       h('div', { class: 'small muted' }, `${fmtDate(e.starts)} – ${fmtDate(e.ends)}`)), statusBadge(e.status));
 }
 
@@ -383,10 +794,10 @@ async function renderNewsList(el, route, initial) {
           h('div', { class: 'list-rows' }, n.events.map(eventRow))) : null,
         items.length ? h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.b272_posts'))),
           h('div', { class: 'list-rows' }, items.map((a) => h(a.discovered ? 'a' : 'button', a.discovered ? { class: 'list-row', href: a.source_url, target: '_blank', rel: 'noopener noreferrer' } : { class: 'list-row', onclick: () => go('#/news/' + a.id) },
-            h('div', { class: 'grow' }, h('div', { class: 'row wrap' }, h('span', { style: { fontWeight: 600 } }, a.title),
+            h('div', { class: 'grow' }, h('div', { class: 'row wrap' }, h('span', { style: { fontWeight: 600 } }, a.discovered ? a.title : newsText(a.title)),
               a.channel === 'pts' ? h('span', { class: 'badge bad' }, 'PTS') : h('span', { class: 'chip' }, kindLabel(a.kind))),
-            h('div', { class: 'small muted ellipsis' }, a.summary || translateUI('ui.b272_post_only'))), h('span', { class: 'when' }, fmtDate(a.published)))))) : null,
-        h('p', { class: 'small muted' }, n.about)));
+            h('div', { class: 'small muted ellipsis' }, newsText(a.summary) || translateUI('ui.b272_post_only'))), h('span', { class: 'when' }, fmtDate(a.published)))))) : null,
+        h('p', { class: 'small muted' }, newsText(n.about))));
   };
   draw();
 }
@@ -400,11 +811,11 @@ async function renderArticle(el, id) {
     h('div', { class: 'row', style: { marginBottom: '12px' } }, h('button', { class: 'btn ghost', onclick: () => history.length > 1 ? history.back() : go('#/news') }, icon('back'), translateUI('ui.back'))),
     h('article', { class: 'card article' },
       h('div', { class: 'band' }, h('div', { class: 'eyebrow card-head', style: { margin: 0 } }, a.channel === 'pts' ? translateUI('ui.b272_public_test') : (kindLabel(a.kind))),
-        h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, a.title), provenanceLine(a)),
+        h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, a.discovered ? a.title : newsText(a.title)), provenanceLine(a)),
       a.channel === 'pts' ? notice('warn', h('strong', null, translateUI('ui.b272_test_only')), translateUI('ui.b272_test_explain')) : null,
-      h('p', { style: { fontSize: '1.05rem', color: 'var(--text-secondary)' } }, a.summary),
-      (a.groups || []).map((g) => [h('h2', null, g.heading), h('ul', null, g.points.map((p) => h('li', null, p)))]),
-      a.companion_impact && a.companion_impact.length ? [h('h2', null, translateUI('ui.b272_companion_impact')), h('ul', null, a.companion_impact.map((p) => h('li', null, p)))] : null,
+      h('p', { style: { fontSize: '1.05rem', color: 'var(--text-secondary)' } }, newsText(a.summary)),
+      (a.groups || []).map((g) => [h('h2', null, newsText(g.heading)), h('ul', null, g.points.map((p) => h('li', null, newsText(p))))]),
+      a.companion_impact && a.companion_impact.length ? [h('h2', null, translateUI('ui.b272_companion_impact')), h('ul', null, a.companion_impact.map((p) => h('li', null, newsText(p))))] : null,
       h('hr'),
       h('div', { class: 'small muted stack tight' },
         h('div', null, translateUI('ui.b272_source_prefix'), extLink(a.source_url, translateUI('ui.news_official_source'))),
@@ -422,12 +833,12 @@ async function renderEvent(el, id) {
     h('div', { class: 'row', style: { marginBottom: '12px' } }, h('button', { class: 'btn ghost', onclick: () => history.length > 1 ? history.back() : go('#/events') }, icon('back'), translateUI('ui.back'))),
     h('article', { class: 'card article' },
       h('div', { class: 'band' }, h('div', { class: 'eyebrow card-head', style: { margin: 0 } }, kindLabel),
-        h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, e.title),
+        h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, newsText(e.title)),
         h('div', { class: 'row wrap' }, statusBadge(e.status), sourceInfo(e.provenance))),
       h('dl', { class: 'kv' }, h('dt', null, translateUI('ui.b272_event_starts')), h('dd', null, local(e.starts)), h('dt', null, translateUI('ui.b272_event_ends')), h('dd', null, local(e.ends)),
-        h('dt', null, translateUI('ui.b272_time_zone')), h('dd', null, e.timezone_note || '—'),
-        (e.details || []).map((d) => [h('dt', null, d.label), h('dd', null, d.value)])),
-      h('p', { style: { color: 'var(--text-secondary)' } }, e.summary),
+        h('dt', null, translateUI('ui.b272_time_zone')), h('dd', null, newsText(e.timezone_note) || '—'),
+        (e.details || []).map((d) => [h('dt', null, newsText(d.label)), h('dd', null, newsText(d.value))])),
+      h('p', { style: { color: 'var(--text-secondary)' } }, newsText(e.summary)),
       e.status.code === 'concluded' ? notice('info', translateUI('ui.b272_event_ended')) : null,
       h('hr'),
       h('div', { class: 'small muted' }, translateUI('ui.b272_source_prefix'), extLink(e.source_url, translateUI('ui.b272_event_source'))))));
