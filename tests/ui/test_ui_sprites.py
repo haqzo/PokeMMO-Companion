@@ -296,3 +296,17 @@ def test_grid_observers_release_detached_cards(app, page):
     page.get_by_role("radio", name="All", exact=True).click()
     _until(page, "window.__dexObserved.size === 649")
     page.wait_for_timeout(1200)
+
+
+def test_popout_settings_avoid_unrelated_body_redraws(app, page):
+    go(page, app, "#/home")
+    result = page.evaluate("""async () => {
+        const { popoutSettingsImpact: impact } = await import('/js/popouts.js');
+        return [impact('pokedex', ['pokedex.last_species']).body,
+            impact('pokedex', ['pokedex.filters']).filters,
+            impact('pokedex', ['pokedex.progress_run']).body,
+            impact('pokedex', ['sprites.motion']).body,
+            impact('timers', ['sprites.motion']).body,
+            impact('locations', ['sprites.motion']).body];
+    }""")
+    assert result == [False, True, True, True, False, True]

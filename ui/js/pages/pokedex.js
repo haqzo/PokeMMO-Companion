@@ -68,7 +68,7 @@ function formText() {
 // Anything that changes a card's content (favourite, registration, import) reloads the list, which empties this cache.
 const cardCache = { list: null, sig: '', cards: new Map() };
 const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': { ...F, q: '' } }).catch(() => {}), 700);
-export function currentFilters() { if (!F) F = { ...DEFAULT_F, ...(setting('pokedex.filters') || {}) }; return F; }
+export function currentFilters(refresh = false) { if (!F || refresh) F = { ...DEFAULT_F, ...(setting('pokedex.filters') || {}) }; return F; }
 
 export function applyFilters(all, f = currentFilters(), scope = setting('pokedex.scope')) {
   const q = searchText(f.q);

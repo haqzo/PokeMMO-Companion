@@ -32,6 +32,15 @@ function openInMain(route) {
   else toast(translateUI('ui.pop_main_missing'), { kind: 'warn' });
 }
 
+// These tools have no Pokémon artwork; changing sprite preferences cannot change their body.
+const NO_SPRITE_BODY = new Set(['calculator', 'timers', 'natures', 'typechart']);
+export function popoutSettingsImpact(tool, keys, detail = false) {
+  const dexKeys = tool === 'pokedex' && keys.some(k => k.startsWith('pokedex.') && k !== 'pokedex.last_species');
+  const sprites = !NO_SPRITE_BODY.has(tool) && keys.some(k => k.startsWith('sprites.') ||
+    k === `window.${tool}.sprite_scale` || k === `window.${tool}.sprite_motion`);
+  return { body: !!(dexKeys || sprites), filters: !!(dexKeys && !detail && keys.includes('pokedex.filters')) };
+}
+
 export function startPopout(el) {
   root = el;
   document.body.classList.add('popout', 'shell-' + SHELL);
@@ -44,11 +53,13 @@ export function startPopout(el) {
   document.addEventListener('settings-changed', (ev) => {
     const keys = Object.keys((ev && ev.detail) || {});
     if (lang() !== lastLanguage) { lastLanguage = lang(); draw(); return; }
-    if (POPOUT === 'pokedex' && keys.some((k) => k.startsWith('pokedex.'))) { state.dexCache = null; renderBody(); }
-    else if (keys.some((k) => k.startsWith('sprites.') || k === `window.${POPOUT}.sprite_scale` || k === `window.${POPOUT}.sprite_motion`)) renderBody();
+    const impact = popoutSettingsImpact(POPOUT, keys, location.hash.startsWith('#/species/'));
+    if (impact.filters) currentFilters(true);
     const m = setting(`window.${POPOUT}.mode`);
     applyAppearance();
-    if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); } else drawBar();
+    if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); return; }
+    if (impact.body) refresh();
+    if (keys.some(k => k === `window.${POPOUT}.bg_opacity` || k === `window.${POPOUT}.text_scale`)) drawBar();
   });
   const refresh = debounce(() => renderBody(), 120);
   for (const t of ({ notes: ['notes'], items: ['items'], showcase: ['showcase', 'box'], customguide: ['cguides'], box: ['box'], storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async (d, ev) => {
@@ -267,7 +278,7 @@ async function pokedex(el) {
   const drawList = () => {
     const list = applyFilters(all, { ...currentFilters(), q: miniQuery });
     const scopeSize = all.filter((s) => setting('pokedex.scope') !== 'pokemmo' || s.dex !== 'no').length;
-    count.textContent = `${list.length} of ${scopeSize}`;
+    count.textContent = translateUI('dex.catalog_count', { shown: list.length, total: scopeSize });
     results.replaceChildren(catalogFragment(list, { density, tracking, grouped: currentFilters().sort === 'num' && mode !== 'compact',
       onOpen: (s) => { location.hash = '#/species/' + s.id + (s.form_key ? '/' + s.form_key : ''); } }));
     if (!list.length) results.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, translateUI('ui.floating_no_dex_matches')));
