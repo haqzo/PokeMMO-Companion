@@ -1,4 +1,5 @@
 """Offline interface and terminology checks for Build 27."""
+import json
 import os
 from pathlib import Path
 
@@ -268,4 +269,64 @@ def test_context_specific_labels_and_breeding_messages(clean, pg, language, ligh
         breedMessage('Pikachu is genderless and can only breed with Ditto.')];
     }""")
     assert result == [light, item, species, stat, reason]
+    assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "expected"), [
+    ("en", ["Night or cave ×3.5", "(41 − level 25) ÷ 10, minimum ×1", "1 + turns passed × 0.3, max ×4 (turn 8)", "EV total 511 is over 510"]),
+    ("es", ["Noche o cueva ×3,5", "(41 − nivel 25) ÷ 10, mínimo ×1", "1 + turnos transcurridos × 0,3, máximo ×4 (turno 8)", "El total de EV (511) supera 510"]),
+    ("zh", ["夜间或洞窟 ×3.5", "（41 − 等级 25）÷ 10，最低 ×1", "1 + 已过回合数 × 0.3，最高 ×4（第 8 回合）", "努力值总计 511，超过 510"]),
+])
+def test_calculator_service_messages_and_bundled_news(clean, pg, language, expected):
+    from companion.services.calcs import catch_table
+
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    snapshot = json.loads((Path(__file__).resolve().parents[2] /
+                           "companion/data/news_snapshot.json").read_text(encoding="utf-8"))
+    source = [snapshot["about"]]
+    for article in snapshot["articles"]:
+        source.extend([article["title"], article["summary"]])
+        for group in article["groups"]:
+            source.extend([group["heading"], *group["points"]])
+        source.extend(article["companion_impact"])
+    for event in snapshot["events"]:
+        source.extend([event["title"], event["timezone_note"], event["summary"]])
+        for detail in event["details"]:
+            source.extend([detail["label"], detail["value"]])
+    source = list(dict.fromkeys(source))
+
+    # Exercise real service output, including both branches of conditional balls.
+    conditions = list(dict.fromkeys(row["condition"] for ctx in (
+        {"level": 25, "turn": 8, "time": "night", "cave": True, "water": True,
+         "caught_before": True, "status": "sleep", "types": ["water"]},
+        {"level": 30, "turn": 1, "time": "day", "types": ["normal"]},
+    ) for row in catch_table(45, ctx)["rows"]))
+    result = pg.evaluate("""async ({source, conditions}) => {
+      const { calcMessage } = await import('/js/pages/tools.js');
+      const { newsText } = await import('/js/pages/home.js');
+      return {
+        calculator: [
+          calcMessage('Night or cave ×3.5'),
+          calcMessage('(41 − level 25) ÷ 10, minimum ×1'),
+          calcMessage('1 + turns passed × 0.3, max ×4 (turn 8)'),
+          calcMessage('EV total 511 is over 510')
+        ],
+        untranslatedNews: source.filter(s => newsText(s) === s),
+        untranslatedConditions: conditions.filter(s => calcMessage(s) === s),
+        external: newsText('External title not in snapshot')
+      };
+    }""", {"source": source, "conditions": conditions})
+    assert result["calculator"] == expected
+    assert result["external"] == "External title not in snapshot"
+    if language == "en":
+        assert result["untranslatedNews"] == source
+        assert result["untranslatedConditions"] == conditions
+    else:
+        unchanged = {"GTL", "Shiny Wars 2026"}
+        if language == "es":
+            unchanged |= {"Audio", "Halloween 2026"}
+        assert set(result["untranslatedNews"]) <= unchanged
+        assert set(result["untranslatedConditions"]) <= {"×1", "×1.5", "×2"}
     assert not pg.errors
