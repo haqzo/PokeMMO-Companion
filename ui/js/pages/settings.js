@@ -399,42 +399,42 @@ async function startupSec(b) {
   const redraw = () => { b.innerHTML = ''; startupSec(b); };
   const native = SHELL === 'qt';
   const integ = (kind, extra = {}) => async (on_) => {
-    try { await post('/api/game/integration', { kind, enable: on_, ...extra }); toast(on_ ? 'Added' : 'Removed'); } catch (e) { toast(e.message, { kind: 'warn' }); }
+    try { await post('/api/game/integration', { kind, enable: on_, ...extra }); toast(on_ ? translateUI('system.added') : translateUI('system.removed')); } catch (e) { toast(e.message, { kind: 'warn' }); }
     redraw();
   };
   const pathIn = h('input', { class: 'input', value: g.manual || '', placeholder: g.platform.startsWith('win') ? 'C:\\…\\PokeMMO.exe' : '/home/you/PokeMMO/PokeMMO.sh', 'aria-label': translateUI('ui.b272_settings_081') });
-  const savePath = async (v) => { try { await api('PUT', '/api/game/launcher', { path: v }); toast(v ? 'Launcher saved' : 'Using the detected launcher'); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); };
+  const savePath = async (v) => { try { await api('PUT', '/api/game/launcher', { path: v }); toast(v ? translateUI('system.launcher_saved') : translateUI('system.detected_launcher')); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); };
   if (native) unsub.push(on('shell.file', (d) => { if (d && d.purpose === 'launcher' && d.path) savePath(d.path); }));
-  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Startup & game integration'),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Everything here is optional and can be switched off again. Companion never changes, closes or reads PokeMMO.'),
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('system.startup')),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('system.startup_help')),
     h('div', { class: 'card tight startup-hero', style: { margin: '4px 0 12px' } },
-      row('Open Companion automatically when you start PokeMMO', 'Start PokeMMO the way you always do (shortcut, menu, Steam-less launcher) and Companion opens with it. '
-        + 'This uses a tiny helper that starts with your login and only watches for the PokeMMO process — it never reads, changes or closes the game. '
-        + 'The helper has to be running: after turning this on, log out and in once (or restart). Turn it off here at any time.',
+      row(translateUI('system.auto_open'), translateUI('system.auto_open_intro')
+        + translateUI('system.auto_open_helper')
+        + translateUI('system.auto_open_restart'),
         switchEl(g.integrations.watcher, integ('watcher')))),
     row(translateUI('ui.b272_settings_079'), translateUI('ui.b272_settings_080'), switchEl(s['app.restore_last_page'], set('app.restore_last_page'))),
     h('h3', null, 'PokeMMO'),
-    row(translateUI('ui.b272_settings_081'), g.chosen ? g.chosen.label : 'Not found automatically. Choose PokeMMO.exe or PokeMMO.sh — or the Flatpak is used when installed.',
+    row(translateUI('ui.b272_settings_081'), g.chosen ? g.chosen.label : translateUI('system.launcher_missing'),
       h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', disabled: g.chosen ? null : 'disabled', onclick: async () => {
-        try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : r.already_starting ? 'PokeMMO is already starting' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? 'PokeMMO is running' : 'Launch PokeMMO'))),
+        try { const r = await post('/api/game/launch'); toast(r.already_running ? translateUI('system.already_running') : r.already_starting ? translateUI('system.already_starting') : translateUI('system.starting_game')); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? translateUI('system.running_game') : translateUI('system.launch')))),
     h('div', { class: 'row wrap', style: { margin: '4px 0 10px' } },
-      native ? h('button', { class: 'btn small', onclick: () => post('/api/shell/command', { action: 'pick_launcher', purpose: 'launcher' }) }, 'Choose launcher…')
+      native ? h('button', { class: 'btn small', onclick: () => post('/api/shell/command', { action: 'pick_launcher', purpose: 'launcher' }) }, translateUI('system.choose_launcher'))
         : [h('div', { class: 'grow', style: { minWidth: '220px' } }, pathIn), h('button', { class: 'btn small', onclick: () => savePath(pathIn.value.trim()) }, translateUI('ui.save'))],
-      g.manual ? h('button', { class: 'btn small ghost', onclick: () => savePath('') }, 'Use detected launcher') : null),
-    g.launchers.length > 1 ? h('div', { class: 'tiny muted' }, 'Also found: ', g.launchers.slice(1).map((l) => l.label).join(' · ')) : null,
+      g.manual ? h('button', { class: 'btn small ghost', onclick: () => savePath('') }, translateUI('system.use_detected')) : null),
+    g.launchers.length > 1 ? h('div', { class: 'tiny muted' }, translateUI('system.also_found'), g.launchers.slice(1).map((l) => l.label).join(' · ')) : null,
     row(translateUI('ui.b272_settings_082'), translateUI('ui.b272_settings_083'),
       h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.b272_settings_082'), onchange: (e) => saveSettings({ 'game.on_exit': e.target.value }) },
-        [['keep', 'Keep Companion running'], ['minimize', 'Minimise Companion'], ['quit', 'Quit Companion']].map(([v, l]) => h('option', { value: v, selected: s['game.on_exit'] === v ? 'selected' : null }, l)))),
-    h('h3', null, 'Starting Companion'),
-    row(translateUI('ui.b272_settings_084'), 'Adds a normal autostart entry you can see in your system settings.', switchEl(g.integrations.login, integ('login', { minimized: !!s['app.start_minimized'] }))),
-    row(translateUI('ui.b272_settings_085'), 'Companion starts in the background; open it from the tray icon.', switchEl(!!s['app.start_minimized'], async (v) => {
+        [['keep', translateUI('system.keep_running')], ['minimize', translateUI('system.minimise')], ['quit', translateUI('system.quit')]].map(([v, l]) => h('option', { value: v, selected: s['game.on_exit'] === v ? 'selected' : null }, l)))),
+    h('h3', null, translateUI('system.starting_companion')),
+    row(translateUI('ui.b272_settings_084'), translateUI('system.autostart_help'), switchEl(g.integrations.login, integ('login', { minimized: !!s['app.start_minimized'] }))),
+    row(translateUI('ui.b272_settings_085'), translateUI('system.tray_help'), switchEl(!!s['app.start_minimized'], async (v) => {
       await saveSettings({ 'app.start_minimized': v }); if (g.integrations.login) await post('/api/game/integration', { kind: 'login', enable: true, minimized: v }); })),
-    row(translateUI('ui.b272_settings_086'), 'Popouts that were open when Companion closed open again.', switchEl(!!s['app.restore_popouts'], (v) => saveSettings({ 'app.restore_popouts': v }))),
-    row('“PokeMMO + Companion” shortcut', 'A menu/desktop shortcut that starts both. PokeMMO is never started twice.', switchEl(g.integrations.shortcut, integ('shortcut'))),
-    h('div', { class: 'tiny muted' }, 'Opening Companion together with PokeMMO is the first option on this page.'),
+    row(translateUI('ui.b272_settings_086'), translateUI('system.restore_popouts'), switchEl(!!s['app.restore_popouts'], (v) => saveSettings({ 'app.restore_popouts': v }))),
+    row(translateUI('system.game_shortcut'), translateUI('system.game_shortcut_help'), switchEl(g.integrations.shortcut, integ('shortcut'))),
+    h('div', { class: 'tiny muted' }, translateUI('system.auto_first')),
     h('div', { class: 'row', style: { marginTop: '10px' } }, h('button', { class: 'btn ghost small', onclick: async () => {
-      if (!(await confirmDialog('Remove startup entries?', 'Removes the autostart entry, the shortcut and the helper that Companion created. Nothing else is touched.', 'Remove'))) return;
-      const r = await post('/api/game/integration/remove-all'); toast(`${r.removed.length} item(s) removed`); redraw(); } }, 'Remove all startup entries'))));
+      if (!(await confirmDialog(translateUI('system.remove_startup'), translateUI('system.remove_startup_help'), t('common.remove')))) return;
+      const r = await post('/api/game/integration/remove-all'); toast(translateUI('system.removed_count', { count: r.removed.length })); redraw(); } }, translateUI('system.remove_all')))));
 }
 
 // --------------------------------------------------------------- updates (news, reference data, Companion)
@@ -443,43 +443,43 @@ async function updatesSec(b) {
   const redraw = () => { b.innerHTML = ''; updatesSec(b); };
   const s = state.settings;
   const f = n.feed;
-  const refUsing = ref.using === 'downloaded' ? `Updated data from ${fmtDate(ref.downloaded.dump_date)} (revision ${ref.downloaded.revision})`
-    : `Built-in data from the PokeMMO client of ${fmtDate(ref.built_in.dump_date)}`;
+  const refUsing = ref.using === 'downloaded' ? translateUI('system.updated_data', { date: fmtDate(ref.downloaded.dump_date), revision: ref.downloaded.revision })
+    : translateUI('system.builtin_data', { date: fmtDate(ref.built_in.dump_date) });
   const latest = app.latest;
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.updates')),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Three separate things, each checked in the background. Nothing interrupts a game or a running timer.'),
-    h('h3', null, 'Official PokeMMO news'),
-    row(translateUI('ui.b272_settings_087'), f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('system.updates_intro')),
+    h('h3', null, translateUI('system.official_news')),
+    row(translateUI('ui.b272_settings_087'), f ? translateUI('system.last_success', { date: f.last_ok_at ? relTime(f.last_ok_at) : translateUI('system.never'), failure: f.ok === false ? translateUI('system.last_failure', { error: f.error }) : '' }) : translateUI('system.not_checked'),
       switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }))),
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? 'Official news checked' : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), translateUI('settings.check_now'))),
-    h('h3', null, 'PokeMMO reference data'),
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? translateUI('system.news_done') : translateUI('system.check_error', { error: r.error }), { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), translateUI('settings.check_now'))),
+    h('h3', null, translateUI('system.reference')),
     h('div', { class: 'small' }, refUsing, '.'),
-    ref.private_superseded ? notice('info', `Your own client import (${fmtDate(ref.private_superseded.private_date)}) is older than this data, so the newer data is used. Your sprites and icons are still shown.`) : null,
+    ref.private_superseded ? notice('info', translateUI('system.superseded', { date: fmtDate(ref.private_superseded.private_date) })) : null,
     ref.configured ? [
-      row(translateUI('ui.b272_settings_088'), ref.last_check_at ? `Last check ${relTime(ref.last_check_at)}.` : 'Not checked yet.', switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }))),
+      row(translateUI('ui.b272_settings_088'), ref.last_check_at ? translateUI('system.last_check', { date: relTime(ref.last_check_at) }) : translateUI('system.not_checked'), switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }))),
       ref.last_error ? notice('warn', ref.last_error) : null,
       h('div', { class: 'row wrap' },
-        h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? `Reference data updated (${fmtDate(r.dump_date)})` : r.reason); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), 'Check and update'),
-        ref.previous_available ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/rollback'); toast('Previous data restored'); redraw(); } }, 'Go back to the previous data') : null,
-        ref.downloaded ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/reset'); toast('Using the built-in data'); redraw(); } }, 'Use built-in data') : null)]
-      : h('div', { class: 'small muted' }, 'Data updates are not set up in this build yet; the built-in data works fully offline. When they are, approved and signed data packages install here automatically, and the previous data is kept so you can go back.'),
+        h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? translateUI('system.ref_updated', { date: fmtDate(r.dump_date) }) : r.reason); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), translateUI('system.check_update')),
+        ref.previous_available ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/rollback'); toast(translateUI('system.previous_restored')); redraw(); } }, translateUI('system.previous_data')) : null,
+        ref.downloaded ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/reset'); toast(translateUI('system.builtin_active')); redraw(); } }, translateUI('system.use_builtin')) : null)]
+      : h('div', { class: 'small muted' }, translateUI('system.no_data_updates')),
     h('h3', null, 'PokeMMO Companion'),
-    row(translateUI('ui.b272_settings_089'), `This is version ${app.current}.${app.checked_at ? ` Last check ${relTime(app.checked_at)}.` : ''} Companion never installs or restarts by itself.`,
+    row(translateUI('ui.b272_settings_089'), translateUI('system.app_version', { version: app.current, check: app.checked_at ? translateUI('system.last_check_suffix', { date: relTime(app.checked_at) }) : '' }),
       switchEl(!!s['app_updates.auto_check'], (v) => saveSettings({ 'app_updates.auto_check': v }))),
     row(translateUI('ui.b272_settings_090'), translateUI('ui.b272_settings_091'),
-      seg([['stable', 'Stable'], ['prerelease', 'Beta & pre-releases']], s['app_updates.channel'] || 'stable', async (v) => {
-        if (v === 'prerelease' && !await confirmDialog('Beta releases', 'Beta and pre-release versions are for testing: they can contain bugs. Make a backup first (Settings › Backup & recovery). You can switch back to Stable at any time; Companion will then offer the next stable release.', 'Use beta releases')) { redraw(); return; }
+      seg([['stable', translateUI('system.stable')], ['prerelease', translateUI('system.beta_pre')]], s['app_updates.channel'] || 'stable', async (v) => {
+        if (v === 'prerelease' && !await confirmDialog(translateUI('system.beta'), translateUI('system.beta_help'), translateUI('system.use_beta'))) { redraw(); return; }
         saveSettings({ 'app_updates.channel': v });
       }, translateUI('ui.b272_settings_090'))),
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), 'Check for updates')),
-    app.ok === false ? notice('warn', `Could not check: ${app.error}`) : null,
-    app.ok && !latest ? h('div', { class: 'small muted' }, 'No release has been published yet.') : null,
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), translateUI('system.check_updates'))),
+    app.ok === false ? notice('warn', translateUI('system.check_error', { error: app.error })) : null,
+    app.ok && !latest ? h('div', { class: 'small muted' }, translateUI('system.no_release')) : null,
     latest ? h('div', { class: 'card inset stack tight' },
-      h('div', null, h('strong', null, app.available ? `Version ${latest.version} is available` : `You have the latest ${latest.prerelease ? 'pre-release' : 'release'} (${latest.version})`),
+      h('div', null, h('strong', null, app.available ? translateUI('system.version_available', { version: latest.version }) : (latest.prerelease ? translateUI('system.latest_pre', { version: latest.version }) : translateUI('system.latest_release', { version: latest.version }))),
         h('span', { class: 'tiny muted' }, latest.published_at ? ` · ${fmtDate(latest.published_at)}` : '')),
-      app.available && latest.notes ? h('details', null, h('summary', { class: 'small' }, 'What’s new'), h('pre', { class: 'small', style: { whiteSpace: 'pre-wrap', margin: 0 } }, latest.notes)) : null,
-      app.available ? h('div', { class: 'row wrap' }, extLink(latest.url, 'Open release page'),
-        app.verified_downloads ? h('span', { class: 'tiny muted' }, 'Verified download: choose your file on the release page, or use the download button when it appears here.') : h('span', { class: 'tiny muted' }, 'Download it from the release page. Your personal data stays where it is.')) : null) : null));
+      app.available && latest.notes ? h('details', null, h('summary', { class: 'small' }, translateUI('system.whats_new')), h('pre', { class: 'small', style: { whiteSpace: 'pre-wrap', margin: 0 } }, latest.notes)) : null,
+      app.available ? h('div', { class: 'row wrap' }, extLink(latest.url, translateUI('system.release_page')),
+        app.verified_downloads ? h('span', { class: 'tiny muted' }, translateUI('system.verified_download')) : h('span', { class: 'tiny muted' }, translateUI('system.download'))) : null) : null));
 }
 
 // --------------------------------------------------------------- backup & recovery
@@ -490,18 +490,18 @@ async function backupSec(b) {
   const listEl = h('div', { class: 'list-rows' }, st.backups.length ? st.backups.map((x) => h('div', { class: 'list-row compact' },
     h('div', { class: 'grow' }, h('div', null, fmtDate(x.created_at, true), h('span', { class: 'tiny muted' }, ` · ${x.label}`)),
       h('div', { class: 'tiny muted mono ellipsis' }, `${x.name} · ${fmtSize(x.bytes)}`)),
-    x.kind === 'archive' ? h('button', { class: 'btn small', onclick: () => restoreFlow({ name: x.name }) }, 'Restore…')
-      : h('span', { class: 'tiny muted', title: 'A copy of the database file. Use a complete backup (.zip) to restore from inside the Companion.' }, 'database copy'))) :
+    x.kind === 'archive' ? h('button', { class: 'btn small', onclick: () => restoreFlow({ name: x.name }) }, translateUI('system.restore'))
+      : h('span', { class: 'tiny muted', title: translateUI('system.database_help') }, translateUI('system.database_copy')))) :
     h('div', { class: 'small muted' }, translateUI('ui.settings_backup_no')));
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.backup_recovery')),
-    st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? 'A restore was interrupted last time; it has been finished.' : `A restore was interrupted and could not be finished (${st.recovered.reason}). Your safety copy is in the backup folder.`) : null,
+    st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? translateUI('system.restore_finished') : translateUI('system.restore_interrupted', { reason: st.recovered.reason })) : null,
     h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('ui.settings_backup_full')),
-    row(translateUI('ui.settings_backup_auto'), auto ? `Last: ${fmtDate(auto.created_at, true)}. The newest 7 are kept.` : 'Made in the background; the newest 7 are kept.',
+    row(translateUI('ui.settings_backup_auto'), auto ? translateUI('system.backup_last', { date: fmtDate(auto.created_at, true) }) : translateUI('system.backup_auto'),
       h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.settings_backup_auto'), onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },
-        [[0, 'Off'], [6, 'Every 6 hours'], [12, 'Every 12 hours'], [24, 'Daily'], [72, 'Every 3 days'], [168, 'Weekly']].map(([v, l]) =>
+        [[0, translateUI('settings.off')], [6, translateUI('system.every6')], [12, translateUI('system.every12')], [24, translateUI('system.daily')], [72, translateUI('system.every3days')], [168, translateUI('system.weekly')]].map(([v, l]) =>
           h('option', { value: v, selected: Number(st.auto_hours) === v ? 'selected' : null }, l)))),
     h('div', { class: 'row wrap', style: { margin: '10px 0' } },
-      h('button', { class: 'btn primary', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/backup/archive'); toast(`Backup saved: ${r.name}`, { timeout: 6000 }); b.innerHTML = ''; backupSec(b); } }, icon('download'), translateUI('ui.settings_backup_now')),
+      h('button', { class: 'btn primary', onclick: async (e) => { e.currentTarget.disabled = true; const r = await post('/api/backup/archive'); toast(translateUI('system.backup_saved', { name: r.name }), { timeout: 6000 }); b.innerHTML = ''; backupSec(b); } }, icon('download'), translateUI('ui.settings_backup_now')),
       h('button', { class: 'btn', onclick: () => pickBackupFile() }, icon('upload'), translateUI('ui.settings_backup_restore')),
       h('button', { class: 'btn ghost', onclick: async () => downloadJson(`pokemmo-companion-data-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/backup/export')) }, translateUI('ui.settings_backup_export'))),
     h('div', { class: 'small' }, translateUI('ui.settings_backup_folder'), h('span', { class: 'mono' }, st.folder)),
@@ -513,7 +513,7 @@ async function backupSec(b) {
       const f = inp.files[0]; inp.remove(); if (!f) return;
       const r = new FileReader();
       if (f.name.toLowerCase().endsWith('.json')) {
-        r.onload = () => { try { restoreFlow({ payload: JSON.parse(r.result) }); } catch (e) { toast('That file is not a valid backup', { kind: 'warn' }); } };
+        r.onload = () => { try { restoreFlow({ payload: JSON.parse(r.result) }); } catch (e) { toast(translateUI('system.invalid_backup'), { kind: 'warn' }); } };
         r.readAsText(f);
       } else {
         r.onload = () => restoreFlow({ data_b64: String(r.result).split(',')[1] });
@@ -527,21 +527,21 @@ async function backupSec(b) {
     let pv;
     try { pv = await post('/api/backup/preview', src); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); return; }
     if (pv.name) { src = { name: pv.name }; }      // an uploaded archive was saved into the backup folder
-    const LABEL = { runs: 'character runs', step_status: 'storyline checkmarks', custom_guides: 'personal guides', guide_cycles: 'guide cycles',
-      lib_notes: 'notes', owned_pokemon: 'collection entries', showcases: 'showcases', media: 'pictures', documents: 'teams, timers and other items' };
+    const LABEL = { runs: translateUI('system.runs'), step_status: translateUI('system.checkmarks'), custom_guides: translateUI('system.personal_guides'), guide_cycles: translateUI('system.cycles'),
+      lib_notes: translateUI('system.notes'), owned_pokemon: translateUI('system.collection'), showcases: translateUI('system.showcases'), media: translateUI('system.pictures'), documents: translateUI('system.documents') };
     const lines = Object.entries(pv.counts).filter(([k]) => LABEL[k]).map(([k, n]) => h('li', null, `${n} ${LABEL[k]}`));
-    const mode = await modal({ title: 'Restore backup', body: h('div', { class: 'stack' },
-      h('div', { class: 'small' }, `Made ${pv.exported_at ? fmtDate(pv.exported_at, true) : 'at an unknown time'} by Companion ${pv.app_version || '?'}.`),
-      pv.newer ? notice('warn', 'This backup was made by a newer version of Companion and cannot be restored here.') : null,
+    const mode = await modal({ title: translateUI('system.restore_backup'), body: h('div', { class: 'stack' },
+      h('div', { class: 'small' }, translateUI('system.backup_made', { date: pv.exported_at ? fmtDate(pv.exported_at, true) : translateUI('system.unknown_date'), version: pv.app_version || '?' })),
+      pv.newer ? notice('warn', translateUI('system.newer_backup')) : null,
       h('ul', { class: 'small', style: { margin: 0 } }, lines),
-      pv.runs_conflicting || pv.documents_conflicting ? h('div', { class: 'small muted' }, `${pv.runs_conflicting} run(s) and ${pv.documents_conflicting} item(s) already exist here. Merge keeps yours and adds the backup’s versions as copies, with their links intact.`) : null,
-      h('div', { class: 'small muted' }, 'A safety copy of your current data is saved first.')),
-    actions: [{ label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: 'Replace my data', value: 'replace', kind: 'danger' }, { label: 'Merge', value: 'merge', kind: 'primary' }] });
+      pv.runs_conflicting || pv.documents_conflicting ? h('div', { class: 'small muted' }, translateUI('system.conflicts', { runs: pv.runs_conflicting, items: pv.documents_conflicting })) : null,
+      h('div', { class: 'small muted' }, translateUI('system.safety_copy'))),
+    actions: [{ label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: translateUI('system.replace_data'), value: 'replace', kind: 'danger' }, { label: translateUI('system.merge'), value: 'merge', kind: 'primary' }] });
     if (!mode || pv.newer) return;
-    if (mode === 'replace' && !(await confirmDialog('Replace all your data?', 'Everything you created in Companion is replaced by this backup. A safety copy is saved first, so this can be undone by restoring it.', 'Replace', true))) return;
+    if (mode === 'replace' && !(await confirmDialog(translateUI('system.replace_all'), translateUI('system.replace_all_help'), translateUI('settings.replace'), true))) return;
     try {
       const r = src.payload ? await post('/api/backup/import', { payload: src.payload, mode }) : await post('/api/backup/restore', { ...src, mode, confirm: mode === 'replace' });
-      toast(`Backup restored${r.runs_renamed ? ` — ${r.runs_renamed} run(s) added as copies` : ''}.`, { timeout: 7000 });
+      toast(translateUI('system.restored', { copies: r.runs_renamed ? translateUI('system.restored_copies', { count: r.runs_renamed }) : '' }), { timeout: 7000 });
       setTimeout(() => location.reload(), 900);
     } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); }
   }
@@ -551,40 +551,40 @@ async function about(b) {
   const boot = state.boot;
   const discord = boot.community && boot.community.discord;
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.about_credits')),
-    h('dl', { class: 'kv' }, h('dt', null, 'Version'), h('dd', null, `${boot.version} (development preview)`), h('dt', null, 'Window mode'), h('dd', null, boot.mode === 'qt' ? 'Native shell (PySide6)' : 'Browser'),
+    h('dl', { class: 'kv' }, h('dt', null, translateUI('system.version')), h('dd', null, translateUI('system.dev_preview', { version: boot.version })), h('dt', null, translateUI('system.window_mode')), h('dd', null, boot.mode === 'qt' ? translateUI('system.native') : translateUI('system.browser')),
       h('dt', null, translateUI('ui.settings_data_folder')), h('dd', { class: 'mono' }, boot.data_dir)),
     discord ? h('div', null, h('h3', null, translateUI('ui.community')),
-      h('p', { class: 'small', style: { marginTop: 0 } }, 'Questions, beta testing, ideas and release news are on the PokeMMO Companion Discord. Joining is optional — Companion never needs a Discord account. ',
+      h('p', { class: 'small', style: { marginTop: 0 } }, translateUI('system.community_help'),
         extLink(discord, translateUI('ui.discord_join')))) : null,
     h('section', null, h('h3', null, translateUI('ui.about_developer')),
       h('div', { class: 'stack tight small' },
-        h('strong', null, 'Haqzo — Creator & Developer'),
-        h('div', null, 'PokeMMO player and community creator developing tools, themes and mods.'),
-        h('div', null, 'PokeMMO Companion, Better Default, Better Items, and ROM Patch Manager (co-developed with MaToRiuKo).'),
+        h('strong', null, translateUI('system.creator')),
+        h('div', null, translateUI('system.creator_bio')),
+        h('div', null, translateUI('system.projects')),
         h('div', { class: 'row wrap' }, extLink('https://github.com/haqzo', 'GitHub'),
           discord ? extLink(discord, 'Discord') : null))),
     h('h3', null, translateUI('ui.credits')),
     h('ul', { class: 'small', style: { color: 'var(--text-secondary)', marginTop: 0 } },
-      h('li', null, 'Pokémon sprites: Gen V Black/White sprites from the PokeAPI/sprites repository (CC0 repository; images © Nintendo / Creatures Inc. / GAME FREAK / The Pokémon Company).'),
-      h('li', null, 'Item icons and reference data: from the PokeMMO client.'),
-      h('li', null, 'Regional walkthroughs: by their original author, included with permission.'),
-      h('li', null, 'Theme palettes: Catppuccin (MIT) and enkia’s Tokyo Night (MIT).'),
-      h('li', null, 'Alpha and Swarm reports and Phenomenon reference examples · ', extLink(boot.alphapedia.website, 'Alphapedia'),
+      h('li', null, translateUI('system.credit_sprites')),
+      h('li', null, translateUI('system.credit_items')),
+      h('li', null, translateUI('system.credit_guides')),
+      h('li', null, translateUI('system.credit_themes')),
+      h('li', null, translateUI('system.credit_live'), extLink(boot.alphapedia.website, 'Alphapedia'),
         ' · ', extLink(boot.alphapedia.discord, 'Alphapedia Discord'))),
     h('h3', null, translateUI('ui.diagnostics')),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'For troubleshooting: versions, window system and a log with private details removed (session tokens, your home folder and user name). Nothing is sent anywhere — you decide whether to share the file.'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('system.diagnostics_help')),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => {
       const d = await get('/api/diagnostics');
       const blob = new Blob([JSON.stringify(d.report, null, 1) + '\n\n----- log (sanitized) -----\n' + d.log], { type: 'text/plain' });
       const a = h('a', { href: URL.createObjectURL(blob), download: `pokemmo-companion-diagnostics-${new Date().toISOString().slice(0, 10)}.txt` });
       document.body.append(a); a.click(); a.remove(); } }, icon('download'), translateUI('ui.save_diagnostics'))),
-    h('h3', null, 'Keyboard'),
-    h('div', { class: 'small stack tight' }, h('div', null, h('span', { class: 'kbd' }, 'Alt+1…5'), ' switch sections · ', h('span', { class: 'kbd' }, 'Ctrl+,'), ' settings · ', h('span', { class: 'kbd' }, 'Ctrl+F'), ' search Pokédex · ',
-      h('span', { class: 'kbd' }, 'Esc'), ' close details/dialogs · arrows + Enter in the Pokédex grid')),
-    h('h3', null, 'What this app never does'),
-    h('ul', { class: 'small', style: { color: 'var(--text-secondary)' } }, h('li', null, 'No encounter counter (PokeMMO has one).'), h('li', null, 'No reading game memory, injecting code, automating input or OCR.'),
-      h('li', null, 'No GTL scraping or account login.'), h('li', null, 'No claims of live Alpha/Swarm/cave activity without a dated source.')),
-    h('p', { class: 'small muted' }, 'Unofficial community project, not affiliated with PokeMMO. Pokémon names are trademarks of their owners. The built-in reference data was produced from the PokeMMO client (snapshot 16 Nov 2026); client sprites and icons are only shown from your own optional import.'));
+    h('h3', null, translateUI('system.keyboard')),
+    h('div', { class: 'small stack tight' }, h('div', null, h('span', { class: 'kbd' }, 'Alt+1…5'), translateUI('system.switch_sections'), h('span', { class: 'kbd' }, 'Ctrl+,'), translateUI('system.settings_short'), h('span', { class: 'kbd' }, 'Ctrl+F'), translateUI('system.search_dex'),
+      h('span', { class: 'kbd' }, 'Esc'), translateUI('system.close_details'))),
+    h('h3', null, translateUI('system.never_does')),
+    h('ul', { class: 'small', style: { color: 'var(--text-secondary)' } }, h('li', null, translateUI('system.no_counter')), h('li', null, translateUI('system.no_memory')),
+      h('li', null, translateUI('system.no_gtl')), h('li', null, translateUI('system.no_claims'))),
+    h('p', { class: 'small muted' }, translateUI('system.disclaimer')));
 }
 
 // ----------------------------------------------------------- onboarding
@@ -592,14 +592,14 @@ export async function onboarding() {
   const s = state.settings;
   let nav = s['appearance.nav'];
   const body = h('div', { class: 'stack' },
-    h('p', { style: { margin: 0 } }, 'A normal desktop app for your second monitor, with optional pinned popouts over the game. A few quick choices:'),
-    h('div', { class: 'field' }, h('label', null, 'Navigation'), seg([['vertical', 'Vertical sidebar'], ['horizontal', 'Horizontal top bar']], nav, (v) => { nav = v; })),
-    h('div', { class: 'field' }, h('label', null, 'Your PokeMMO data (optional, recommended)'),
-      h('div', { class: 'small muted' }, 'Stats, locations, moves and sprites come from your own dump files. You can import them now in Settings › Data, or later.')),
-    h('div', { class: 'field' }, h('label', null, 'Guides'), h('div', { class: 'small muted' }, 'Create a named character run to track storyline progress per character.')),
-    h('div', { class: 'tiny muted' }, 'No encounter counter, no game memory access, no automation. Everything you enter stays on this computer.'));
-  const r = await modal({ title: 'Welcome to PokeMMO Companion 0.1.0', body, actions: [
-    { label: 'Skip', value: 'skip', kind: 'ghost' }, { label: translateUI('settings.create_run'), value: 'run' }, { label: 'Import data now', value: 'data', kind: 'primary' }] });
+    h('p', { style: { margin: 0 } }, translateUI('system.welcome_intro')),
+    h('div', { class: 'field' }, h('label', null, translateUI('system.navigation')), seg([['vertical', translateUI('system.vertical')], ['horizontal', translateUI('system.horizontal')]], nav, (v) => { nav = v; })),
+    h('div', { class: 'field' }, h('label', null, translateUI('system.your_data')),
+      h('div', { class: 'small muted' }, translateUI('system.your_data_help'))),
+    h('div', { class: 'field' }, h('label', null, translateUI('system.guides')), h('div', { class: 'small muted' }, translateUI('system.guide_help'))),
+    h('div', { class: 'tiny muted' }, translateUI('system.welcome_privacy')));
+  const r = await modal({ title: translateUI('system.welcome'), body, actions: [
+    { label: translateUI('system.skip'), value: 'skip', kind: 'ghost' }, { label: translateUI('settings.create_run'), value: 'run' }, { label: translateUI('system.import_now'), value: 'data', kind: 'primary' }] });
   await saveSettings({ 'app.onboarded': true, 'appearance.nav': nav });
   document.dispatchEvent(new CustomEvent('settings-changed'));
   if (r === 'data') go('#/settings/data');
