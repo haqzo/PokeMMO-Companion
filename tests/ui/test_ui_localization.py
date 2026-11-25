@@ -352,3 +352,31 @@ def test_live_status_and_api_error_translation(clean, pg, language, missing, ret
     }""")
     assert result == [missing, "Run not found", retry, test_title, "Shortcut already used"]
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "ocarina", "ball", "preset", "description"), [
+    ("en", "Cut Ocarina", "Mysterious Dusk Ball (2024)", "15 min", "Official website and downloads."),
+    ("es", "Ocarina de Corte", "Ocaso Ball Misteriosa (2024)", "15 min", "Sitio web oficial y descargas."),
+    ("zh", "居合劈陶笛", "神秘黑暗球 (2024)", "15 分钟", "官方网站及下载。"),
+])
+def test_item_references_timer_presets_and_bookmarks(clean, pg, language, ocarina, ball, preset, description):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { itemLabel } = await import('/js/game-locale.js');
+      const { GAME_TERMS } = await import('/js/game-terms.js');
+      const { builtinPresetLabel } = await import('/js/pages/timers.js');
+      const { bookmarkDescription } = await import('/js/pages/websites.js');
+      return [
+        itemLabel({name: 'Cut Ocarina', label: '{STRING_110015}'}),
+        itemLabel({name: 'Mysterious Dusk Ball (2024)', label: '{STRING_245013}'}),
+        builtinPresetLabel({label: '15 min', seconds: 900}),
+        bookmarkDescription({seed_key: 'official', description: 'Official website and downloads.'}),
+        bookmarkDescription({seed_key: 'official', description: 'My edited description'}),
+        Object.values(GAME_TERMS.es.item).concat(Object.values(GAME_TERMS.zh.item))
+          .filter(v => /\\{STRING_\\d+\\}/.test(v)).length,
+      ];
+    }""")
+    assert result == [ocarina, ball, preset, description, "My edited description", 0]
+    assert not pg.errors

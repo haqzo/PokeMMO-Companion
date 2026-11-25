@@ -188,4 +188,11 @@ export function matchesTerm(domain, value, query) {
   return [value, gameTerm(domain, value)].some((name) => searchText(name).includes(term));
 }
 
-export const itemLabel = (item) => item.label && item.label !== item.name ? item.label : gameTerm('item', item.name);
+// Client imports sometimes contain unresolved string references. Prefer the corrected offline catalog
+// over a raw placeholder label; retain valid imported translations and canonical names.
+export function itemLabel(item) {
+  const label = item.label;
+  if (label && label !== item.name && !/\{STRING_\d+\}/.test(label)) return label;
+  const resolved = gameTerm('item', item.name);
+  return /\{STRING_\d+\}/.test(resolved || '') ? item.name : resolved;
+}

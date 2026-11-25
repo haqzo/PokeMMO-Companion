@@ -6,6 +6,7 @@ PokéAPI source revision: de6760be38b60a3024f1d9054330ff265f0dc619.
 import csv
 import gzip
 import json
+import re
 import sys
 import unicodedata
 from collections import defaultdict
@@ -90,6 +91,14 @@ def build(path):
         for item in items:
             if name := item.get("names", {}).get(lang):
                 out[lang]["item"][normalize(item["name"])] = name
+    # Expand known client references without modifying the raw bundled data.
+    item_fixes = json.loads(Path('tools/localization/item-string-references.json').read_text(encoding='utf-8'))
+    for lang in ('es', 'zh'):
+        for key, value in out[lang]['item'].items():
+            out[lang]['item'][key] = re.sub(r'\{STRING_(\d+)\}',
+                lambda m: item_fixes['tokens'].get(m[1], {}).get(lang, m[0]), value)
+        for key, value in item_fixes['overrides'].get(lang, {}).items():
+            out[lang]['item'][key] = value
     # Match form names on both species and normalized English form labels.
     known_forms = defaultdict(dict)
     for fid, labels in form_names.items():

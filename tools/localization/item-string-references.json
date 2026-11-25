@@ -1,0 +1,147 @@
+{
+  "about": "Known client string references in the bundled item-name catalog. Expansions use existing game terminology where available; custom potion and Pokécube labels are descriptive translations, not verified client wording. Canonical item IDs and raw source data are unchanged.",
+  "tokens": {
+    "0": {
+      "es": "Pokémon",
+      "zh": "宝可梦"
+    },
+    "101116": {
+      "es": "Poción de Transformación",
+      "zh": "变身药水"
+    },
+    "101118": {
+      "es": "Poción de Transformación Infinita",
+      "zh": "无限变身药水"
+    },
+    "110015": {
+      "es": "Corte",
+      "zh": "居合劈"
+    },
+    "110019": {
+      "es": "Vuelo",
+      "zh": "飞翔"
+    },
+    "110029": {
+      "es": "Golpe Cabeza",
+      "zh": "头锤"
+    },
+    "110057": {
+      "es": "Surf",
+      "zh": "冲浪"
+    },
+    "110070": {
+      "es": "Fuerza",
+      "zh": "怪力"
+    },
+    "110091": {
+      "es": "Excavar",
+      "zh": "挖洞"
+    },
+    "110100": {
+      "es": "Teletransporte",
+      "zh": "瞬间移动"
+    },
+    "110127": {
+      "es": "Cascada",
+      "zh": "攀瀑"
+    },
+    "110148": {
+      "es": "Destello",
+      "zh": "闪光"
+    },
+    "110230": {
+      "es": "Dulce Aroma",
+      "zh": "甜甜香气"
+    },
+    "110249": {
+      "es": "Golpe Roca",
+      "zh": "碎岩"
+    },
+    "110250": {
+      "es": "Torbellino",
+      "zh": "潮旋"
+    },
+    "110291": {
+      "es": "Buceo",
+      "zh": "潜水"
+    },
+    "110431": {
+      "es": "Treparrocas",
+      "zh": "攀岩"
+    },
+    "110432": {
+      "es": "Despejar",
+      "zh": "清除浓雾"
+    },
+    "150491": {
+      "es": "Darkrai",
+      "zh": "达克莱伊"
+    },
+    "245002": {
+      "es": "Ultra Ball",
+      "zh": "高级球"
+    },
+    "245003": {
+      "es": "Super Ball",
+      "zh": "超级球"
+    },
+    "245004": {
+      "es": "Poké Ball",
+      "zh": "精灵球"
+    },
+    "245012": {
+      "es": "Honor Ball",
+      "zh": "纪念球"
+    },
+    "245013": {
+      "es": "Ocaso Ball",
+      "zh": "黑暗球"
+    },
+    "245016": {
+      "es": "Gloria Ball",
+      "zh": "贵重球"
+    },
+    "245231": {
+      "es": "Huevo Suerte",
+      "zh": "幸运蛋"
+    },
+    "250000": {
+      "es": "Kanto",
+      "zh": "关都"
+    },
+    "270600": {
+      "es": "Pokécubo Rojo",
+      "zh": "红色宝可方块"
+    },
+    "270601": {
+      "es": "Pokécubo Azul",
+      "zh": "蓝色宝可方块"
+    },
+    "270602": {
+      "es": "Pokécubo Rosa",
+      "zh": "粉色宝可方块"
+    },
+    "270603": {
+      "es": "Pokécubo Verde",
+      "zh": "绿色宝可方块"
+    },
+    "270604": {
+      "es": "Pokécubo Amarillo",
+      "zh": "黄色宝可方块"
+    },
+    "270612": {
+      "es": "Pokécubo Blanco",
+      "zh": "白色宝可方块"
+    }
+  },
+  "overrides": {
+    "es": {
+      "infinitetransformationpotionrobosanta": "Poción de Transformación Infinita (Papá Noel robótico)",
+      "transformationpotionrobosanta": "Poción de Transformación (Papá Noel robótico)"
+    },
+    "zh": {
+      "kantofriendsparticleeffect": "关都伙伴粒子特效 (Kanto Friends Particle Effect)",
+      "shinykantofriendsparticleeffect": "异色关都伙伴粒子特效 (Shiny Kanto Friends Particle Effect)"
+    }
+  }
+}
