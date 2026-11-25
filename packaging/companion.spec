@@ -31,6 +31,10 @@ hidden = ["companion.shell.qt_shell", "cryptography.hazmat.primitives.asymmetric
 excludes = ["tkinter", "pytest", "playwright"]
 a = Analysis([str(root / "packaging" / "entry.py")], pathex=[str(root)], datas=datas,
              hiddenimports=hidden, excludes=excludes)
+if sys.platform.startswith("linux"):
+    # The Qt wheel's TIFF plugin needs libtiff.so.5, which is absent on newer
+    # distros. Companion accepts PNG, JPEG, GIF and WebP for imported images.
+    a.binaries = [entry for entry in a.binaries if Path(entry[0]).name != "libqtiff.so"]
 pyz = PYZ(a.pure)
 # The repository has no Windows .ico file. PyInstaller supplies its default icon.
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="pokemmo-companion",
