@@ -1,14 +1,14 @@
 # Walkthrough translation continuation
 
-This batch preserves all original English steps and adds separate Spanish and Simplified Chinese draft translations for repetitive instructions. The generator only accepts complete, explicitly recognized imperative clauses, requires every source line in a step to be translated, verifies numeric tokens and attaches the original step hash. Existing manually authored entries take priority. This is **not** a native-speaker or gameplay verification. Review wording in context before distribution; complex steps remain English rather than being partially translated.
+Separate Spanish and Simplified Chinese draft translations preserve original English steps and progress identifiers. The build-time generator handles only completely recognized imperative clauses and an explicit manually translated phrase dictionary. Every generated entry retains the canonical hash; numeric tokens must match. Existing manual starter translations take priority. These are community-review drafts, not a full gameplay or native-speaker review. Unrecognized and complex steps remain English.
 
-| Region | Newly generated | Total translated per language (including first ten) | Remaining per language |
+| Region | Additional bilingual drafts | Total translated per language | Remaining per language |
 |---|---:|---:|---:|
-| kanto | 113 | 123 | 331 |
-| johto | 100 | 110 | 507 |
-| hoenn | 98 | 108 | 418 |
-| sinnoh | 153 | 163 | 587 |
-| unova | 46 | 56 | 442 |
-| Total | 510 | 560 | 2285 |
+| kanto | 228 | 238 | 216 |
+| johto | 121 | 131 | 486 |
+| hoenn | 127 | 137 | 389 |
+| sinnoh | 174 | 184 | 566 |
+| unova | 65 | 75 | 423 |
+| Total | 715 | 765 | 2080 |
 
-Regenerate from the repository root with `node tools/localization/build-walkthrough-phrases.mjs`. The generated table is offline and requires no runtime translation service. The original walkthrough text, progress IDs, hashes and credits are unchanged. Original guide permissions and derivative redistribution remain separate from language coverage. Further manual translation and review are required.
+Regenerate with `node tools/localization/build-walkthrough-phrases.mjs`. Preserve existing drafts when extending rules. Original guide content, credit, hashes and progress remain unchanged. Derivative redistribution and native-speaker review remain outstanding.

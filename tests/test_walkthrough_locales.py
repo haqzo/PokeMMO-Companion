@@ -26,4 +26,4 @@ def test_walkthrough_locales_preserve_ids_hashes_and_numbers():
             if filename == "walkthrough-generated.js":
                 assert re.findall(r"\d+", es) == re.findall(r"\d+", step["text"])
                 assert re.findall(r"\d+", zh) == re.findall(r"\d+", step["text"])
-    assert len(seen) >= 560
+    assert len(seen) >= 765
