@@ -345,8 +345,10 @@ def test_calculator_popout_does_not_load_unrelated_page_modules(app, browser):
         pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=calculator&mode=standard&shell=browser")
         pop.wait_for_selector(".popout-body button")
         assert any("/js/pages/calculator.js" in u for u in requests)
-        for name in ("home", "settings", "pokedex", "items", "locations", "live"):
+        for name in ("home", "settings", "pokedex", "items", "locations", "live", "timers"):
             assert not any(f"/js/pages/{name}.js" in u for u in requests), name
+        for name in ("guide-extras", "team-editor"):
+            assert not any(f"/js/{name}.js" in u for u in requests), name
     finally:
         context.close()
 

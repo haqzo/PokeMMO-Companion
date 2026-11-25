@@ -193,7 +193,8 @@ export async function renderCustomGuidePopout(el, mode) {
   if (!list.guides.some((g) => g.id === id)) id = list.guides[0] && list.guides[0].id;
   if (!id) { mount(el, h('div', { class: 'empty' }, t('personal.guide_empty_popout'), h('button', { class: 'btn small', onclick: () => openRoute('#/guides/mine') }, t('cguide.new')))); return; }
   let g = await get('/api/cguides/' + id);
-  const { popoutExtras } = await import('../popouts.js');
+  const { loadPopoutExtras } = await import('../popouts.js');
+  const popoutExtras = await loadPopoutExtras();
   const draw = () => {
     const { gx, box: extrasBox } = popoutExtras({ key: 'cg:' + g.id, title: g.title, steps: Object.fromEntries(g.steps.map((s) => [s.id, s.text.slice(0, 40)])),
       cycle: async (create) => { if (create && !g.cycle) g.cycle = await post(`/api/cguides/${g.id}/cycle`); return g.cycle ? g.cycle.id : null; } }, { open: mode === 'expanded' });

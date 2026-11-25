@@ -469,6 +469,7 @@ async function renderHome(el) {
   const page = h('div', { class: 'page home-page' });
   mount(el, page);
   const current = () => epoch === homeEpoch && page.isConnected;
+  const rerender = () => { if (current()) return renderHome(el); };
   const sections = homeSections();
   const on_ = (k) => sections.includes(k);
   // Named runs are only needed for onboarding or the optional Storyline card.
@@ -485,8 +486,8 @@ async function renderHome(el) {
     n.latest ? translateUI('ui.home_last_update', { date: fmtDate(n.latest.published) }) : null].filter(Boolean).join(' · ');
   page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()), h('div', { class: 'sub' }, status)),
     h('div', { class: 'actions' }, communityLink(), h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), translateUI('ui.customize_home')))));
-  if (!setting('app.onboarded')) page.append(getStarted(data, runs, () => renderHome(el)));
-  else if (data.update_available) page.append(installBanner(data, () => renderHome(el), true));
+  if (!setting('app.onboarded')) page.append(getStarted(data, runs, rerender));
+  else if (data.update_available) page.append(installBanner(data, rerender, true));
   const grid = h('div', { class: 'home-v3' });
   page.append(grid);
 
@@ -495,9 +496,9 @@ async function renderHome(el) {
   // is left, so no row ends in an empty gap. Cards in one row are the same height.
   const build = {
     roamers: () => roamersCard(leg), live: () => liveCard(cur),
-    update: async () => n.latest ? updateCard(n, () => { newsCache = null; renderHome(el); }) : null,
+    update: async () => n.latest ? updateCard(n, () => { newsCache = null; rerender(); }) : null,
     side: () => h('div', { class: 'home-side stack' }, on_('events') ? eventsCard(n) : null, on_('quick') ? quickCard() : null),
-    news: () => newsCard(n), run: () => continueCard(runs, () => renderHome(el)), favourites: () => favouritesCard(species),
+    news: () => newsCard(n), run: () => continueCard(runs, rerender), favourites: () => favouritesCard(species),
   };
   const order = [...new Set(sections.map((k) => (k === 'events' || k === 'quick') ? 'side' : k))];
   const cards = [];
@@ -509,7 +510,7 @@ async function renderHome(el) {
   }
   packRows(cards).forEach(([c, span]) => { c.style.setProperty('--span', span); grid.append(c); });
 
-  unsub.push(on('news', () => { if (location.hash.startsWith('#/home')) { newsCache = null; renderHome(el); } }));
+  unsub.push(on('news', () => { if (location.hash.startsWith('#/home')) { newsCache = null; rerender(); } }));
 }
 
 const HOME_SPAN = { roamers: 5, live: 7, update: 8, side: 4, news: 8, run: 6, favourites: 6 };

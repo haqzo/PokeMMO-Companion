@@ -7,10 +7,8 @@ import { t as translateUI } from './i18n.js';
 // (pin, mode, window opacity, lock, minimise, close); in browser mode we draw it.
 import { h, mount, clear, icon, get, post, api, state, setting, saveSettings, on, POPOUT, SHELL, toast, cap, relTime, typeChips, spriteOrFallback, pad3, badge, sourceInfo, notice, applyAppearance, debounce, WINDOW_ID } from './core.js';
 import { POPOUT_TOOLS, popoutSize } from './shell.js';
-import { speciesIndex } from './components.js';
 import { t } from './i18n.js';
 import { guideContext } from './shortcuts.js';
-import { guideExtras } from './guide-extras.js';
 import { installTimerSound } from './timer-sound.js';
 
 let root, bodyEl, mode, savedMode;
@@ -183,12 +181,16 @@ async function renderBody() {
 // ---------------------------------------------------------------- guide timers & team in popouts
 // Same TimerService timers and saved team ids as the main window (guide-extras.js) — nothing is copied.
 let popGx = null;
-export function popoutExtras(ctx, { open } = {}) {
-  if (popGx) popGx.dispose();
-  popGx = guideExtras({ ...ctx, nav: openInMain });
-  popGx.load().catch((e) => console.warn(e));
-  const box = h('details', { class: 'gx-pop', open: open ? '' : null }, h('summary', { class: 'small' }, icon('clock'), translateUI('ui.guide_popout_timer_team')), popGx.panel());
-  return { gx: popGx, box };
+export async function loadPopoutExtras() {
+  // Only guide windows need the team editor and timer panel modules.
+  const { guideExtras } = await import('./guide-extras.js');
+  return function popoutExtras(ctx, { open } = {}) {
+    if (popGx) popGx.dispose();
+    popGx = guideExtras({ ...ctx, nav: openInMain });
+    popGx.load().catch((e) => console.warn(e));
+    const box = h('details', { class: 'gx-pop', open: open ? '' : null }, h('summary', { class: 'small' }, icon('clock'), translateUI('ui.guide_popout_timer_team')), popGx.panel());
+    return { gx: popGx, box };
+  };
 }
 
 // ---------------------------------------------------------------- storyline
@@ -215,6 +217,7 @@ async function storyline(el) {
     await post(`/api/guides/runs/${run.id}/steps`, { step: s.id, done: val, region, advance: val && s.id === st.active_step_id, next_active: next && next.id });
     storyline(el);
   };
+  const popoutExtras = await loadPopoutExtras();
   const { gx, box: extrasBox } = popoutExtras({ key: `story:${run.id}:${region}`, title: `${cap(region)} storyline · ${run.display}`, run: run.id,
     steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) }, { open: mode === 'expanded' });
   const stepLabel = (s, big) => h('label', { class: 'step' + (done.has(s.id) ? ' done' : '') + (s.id === cur.id ? ' current' : ''), style: { gridTemplateColumns: 'auto 1fr', cursor: 'pointer', padding: big ? '10px' : '7px 9px' } },
