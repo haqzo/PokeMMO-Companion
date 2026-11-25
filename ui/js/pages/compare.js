@@ -1,4 +1,4 @@
-import { t as translateUI } from '../i18n.js';
+import { t as translateUI, uiLabel } from '../i18n.js';
 import { formLabel, gameTerm, matchesTerm, searchText, speciesLabel, speciesMatches } from '../game-locale.js';
 // Type Matchups › Compare two Pokémon (2026-11-24). Main Type Matchups page only — never in the popout.
 // Shows how each side's types and learnable moves fare against the other, from the 17-type chart (no Fairy) and
@@ -12,11 +12,11 @@ const METHOD = { level: 'Level', TUTOR: 'Tutor', 'TM??': 'TM/HM', 'EGG & ITEM': 
 const methodLabel = (m) => (m.method === 'level' ? `Lv ${m.level}` : METHOD[m.method] || cap(String(m.method || '').toLowerCase()));
 // Abilities that change what a type multiplier means. Named, never applied: the chart stays the chart.
 const ABILITY_NOTES = {
-  Levitate: 'Ground moves do not hit it', 'Wonder Guard': 'only super-effective moves hit it', 'Flash Fire': 'Fire moves power it up instead',
-  'Volt Absorb': 'Electric moves heal it', 'Water Absorb': 'Water moves heal it', 'Lightning Rod': 'draws Electric moves',
-  'Motor Drive': 'Electric moves raise its Speed', 'Storm Drain': 'draws Water moves', 'Dry Skin': 'Water heals it, Fire hurts more',
-  'Thick Fat': 'Fire and Ice hurt it less', Heatproof: 'Fire hurts it less', Filter: 'super-effective hits hurt it less',
-  'Solid Rock': 'super-effective hits hurt it less', 'Sap Sipper': 'Grass moves raise its Attack',
+  Levitate: 'ui.b272_cmp_levitate', 'Wonder Guard': 'ui.b272_cmp_wonder', 'Flash Fire': 'ui.b272_cmp_flash',
+  'Volt Absorb': 'ui.b272_cmp_volt', 'Water Absorb': 'ui.b272_cmp_water', 'Lightning Rod': 'ui.b272_cmp_rod',
+  'Motor Drive': 'ui.b272_cmp_motor', 'Storm Drain': 'ui.b272_cmp_drain', 'Dry Skin': 'ui.b272_cmp_skin',
+  'Thick Fat': 'ui.b272_cmp_fat', Heatproof: 'ui.b272_cmp_heat', Filter: 'ui.b272_cmp_filter',
+  'Solid Rock': 'ui.b272_cmp_filter', 'Sap Sipper': 'ui.b272_cmp_sap',
 };
 const MAX_PICKS = 4;
 const mult = (s) => (s === 0.5 ? '½×' : s === 0.25 ? '¼×' : `${s}×`);
@@ -48,7 +48,7 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
     return acc;
   };
   const known = (t) => T.includes(norm(t));
-  const chip = (t) => (known(t) ? typeChip(norm(t), true) : h('span', { class: 'chip tiny', title: 'Type not confirmed in the PokeMMO data' }, '?'));
+  const chip = (t) => (known(t) ? typeChip(norm(t), true) : h('span', { class: 'chip tiny', title: translateUI('ui.b272_cmp_type_unknown') }, '?'));
   const list = await loadList().catch(() => []);
   const options = [];
   for (const s of list) options.push({ key: String(s.id), id: s.id, name: s.name, types: s.types, still: s.still, abilities: s.abilities || [] });
@@ -58,12 +58,12 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
 
   const box = h('aside', { class: 'card compare-panel', 'aria-labelledby': 'cmp-h' });
   const draw = () => mount(box,
-    h('div', { class: 'card-head' }, h('h2', { id: 'cmp-h' }, 'Compare two Pokémon'),
-      h('div', { class: 'right row tight' }, h('button', { class: 'btn ghost small', title: 'Swap sides', 'aria-label': 'Swap sides', disabled: !memo.sides[0] && !memo.sides[1] ? 'disabled' : null,
-        onclick: () => { memo.sides.reverse(); memo.filters.reverse(); memo.sort.reverse(); memo.picks.reverse(); drawAll(); } }, '⇄ Swap'))),
-    h('p', { class: 'tiny muted', style: { margin: '0 0 8px' } }, 'Type effectiveness and learnable moves only — not a battle simulator: no damage, speed or winner.'),
+    h('div', { class: 'card-head' }, h('h2', { id: 'cmp-h' }, translateUI('ui.b272_cmp_heading')),
+      h('div', { class: 'right row tight' }, h('button', { class: 'btn ghost small', title: translateUI('ui.b272_cmp_swap'), 'aria-label': translateUI('ui.b272_cmp_swap'), disabled: !memo.sides[0] && !memo.sides[1] ? 'disabled' : null,
+        onclick: () => { memo.sides.reverse(); memo.filters.reverse(); memo.sort.reverse(); memo.picks.reverse(); drawAll(); } }, translateUI('ui.b272_cmp_swap_btn')))),
+    h('p', { class: 'tiny muted', style: { margin: '0 0 8px' } }, translateUI('ui.b272_cmp_scope')),
     h('div', { class: 'cmp-sides' }, [0, 1].map((i) => sideHead(i))),
-    memo.sides[0] && memo.sides[1] ? matchup() : h('div', { class: 'empty small' }, 'Pick a Pokémon on each side to compare them.'),
+    memo.sides[0] && memo.sides[1] ? matchup() : h('div', { class: 'empty small' }, translateUI('ui.b272_cmp_pick_both')),
     movesSlot ? null : movesRow());
   // The two move tables need width: on the main page they get their own full-width row under the chart and
   // this panel (side by side when wide, stacked when narrow) instead of scrolling sideways inside the panel.
@@ -78,14 +78,14 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
     return h('div', { class: 'cmp-side', dataset: { side: i } },
       h('div', { class: 'row tight' }, sizedSprite(s, scaled('compare', 96), { url: s.art_still, tier: 's', ani: animatedIn('compare') ? s.art_ani : null }),
         h('div', { class: 'grow', style: { minWidth: 0 } }, h('div', { class: 'cmp-name' }, compareSpecies(s)), typeChips(s.types, true),
-          h('div', { class: 'tiny muted' }, (s.abilities || []).join(' · ') || 'Abilities unknown'))),
-      notes.length ? h('div', { class: 'tiny warn-text' }, notes.map((a) => `${a}: ${ABILITY_NOTES[a]}`).join(' · ')) : null,
+          h('div', { class: 'tiny muted' }, (s.abilities || []).map(a => gameTerm('ability', a)).join(' · ') || translateUI('ui.b272_cmp_ability_unknown')))),
+      notes.length ? h('div', { class: 'tiny warn-text' }, notes.map((a) => `${gameTerm('ability', a)}: ${translateUI(ABILITY_NOTES[a])}`).join(' · ')) : null,
       h('div', { class: 'row tight' },
         h('button', { class: 'btn ghost small', onclick: () => go('#/pokedex/' + s.id + (s.form ? '/' + s.form : '')) }, translateUI('ui.summary')),
-        h('button', { class: 'btn ghost small', 'aria-label': `Clear ${s.name}`, onclick: () => { memo.sides[i] = null; memo.picks[i] = []; drawAll(); } }, translateUI('ui.clear'))));
+        h('button', { class: 'btn ghost small', 'aria-label': translateUI('ui.b272_cmp_clear', { name: compareSpecies(s) }), onclick: () => { memo.sides[i] = null; memo.picks[i] = []; drawAll(); } }, translateUI('ui.clear'))));
   };
   const picker = (i) => {
-    const input = h('input', { class: 'input', type: 'search', placeholder: i === 0 ? 'First Pokémon…' : 'Second Pokémon…', 'aria-label': `Pokémon ${i + 1}`, autocomplete: 'off' });
+    const input = h('input', { class: 'input', type: 'search', placeholder: i === 0 ? translateUI('ui.b272_cmp_first') : translateUI('ui.b272_cmp_second'), 'aria-label': translateUI('ui.b272_cmp_pokemon_index', { index: i + 1 }), autocomplete: 'off' });
     const results = h('div', { class: 'cmp-results', role: 'listbox' });
     const show = () => {
       const q = input.value.trim().toLowerCase();
@@ -113,12 +113,11 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
   // ---------------------------------------------------------------- types both ways
   const matchup = () => {
     const [a, b] = memo.sides;
-    const row = (att, def) => h('div', { class: 'cmp-dir' }, h('div', { class: 'small' }, h('strong', null, compareSpecies(att)), ' attacking ', h('strong', null, compareSpecies(def)), h('span', { class: 'tiny muted' }, ' — its own types (STAB)')),
-      h('div', { class: 'row wrap tight' }, att.types.map((t) => { const m = eff(t, def.types); return h('span', { class: 'row tight cmp-eff' }, chip(t), m == null ? h('span', { class: 'tiny muted', title: 'Type not in the 17-type chart' }, 'unknown') : h('span', { class: 'mult ' + multCls(m) }, mult(m))); })));
+    const row = (att, def) => h('div', { class: 'cmp-dir' }, h('div', { class: 'small' }, h('strong', null, compareSpecies(att)), translateUI('ui.b272_cmp_attacking'), h('strong', null, compareSpecies(def)), h('span', { class: 'tiny muted' }, translateUI('ui.b272_cmp_stab_types'))),
+      h('div', { class: 'row wrap tight' }, att.types.map((t) => { const m = eff(t, def.types); return h('span', { class: 'row tight cmp-eff' }, chip(t), m == null ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_type_missing') }, 'unknown') : h('span', { class: 'mult ' + multCls(m) }, mult(m))); })));
     const weak = (s) => T.map((t) => [t, eff(t, s.types)]).filter(([, m]) => m != null && m >= 2);
     return h('div', { class: 'stack tight cmp-matchup' }, row(a, b), row(b, a),
-      h('div', { class: 'tiny muted' }, `${a.name} is weak to `, weak(a).map(([t, m]) => `${cap(t)} ${mult(m)}`).join(', ') || 'nothing', ` · ${b.name} is weak to `,
-        weak(b).map(([t, m]) => `${cap(t)} ${mult(m)}`).join(', ') || 'nothing', '.'));
+      h('div', { class: 'tiny muted' }, [a, b].map(s => translateUI('ui.b272_cmp_weak_to', { name: compareSpecies(s), types: weak(s).map(([t, m]) => `${gameTerm('type', cap(t))} ${mult(m)}`).join(', ') || translateUI('ui.b272_cmp_nothing') })).join(' · ')));
   };
 
   // ---------------------------------------------------------------- moves
@@ -149,40 +148,40 @@ export async function comparePanel(tc, { movesSlot = null } = {}) {
       onclick: () => { memo.sort[i] = k; drawAll(); }, onkeydown: (e) => { if (e.key === 'Enter') { memo.sort[i] = k; drawAll(); } } }, label);
     const chosen = picks.map((id) => rows.find((m) => m.id === id)).filter(Boolean);
     return h('section', { class: 'cmp-moves', dataset: { side: i } },
-      h('h3', null, `${compareSpecies(me)}’s moves against ${compareSpecies(foe)}`),
-      me.formMovesShared ? h('div', { class: 'tiny muted' }, 'Forms share the species’ learnset here; form-only moves are not listed separately.') : null,
-      chosen.length ? h('div', { class: 'cmp-chosen' }, h('div', { class: 'tiny muted' }, `Chosen (${chosen.length}/${MAX_PICKS})`),
+      h('h3', null, translateUI('ui.b272_cmp_moves_against', { name: compareSpecies(me), foe: compareSpecies(foe) })),
+      me.formMovesShared ? h('div', { class: 'tiny muted' }, translateUI('ui.b272_cmp_form_moves')) : null,
+      chosen.length ? h('div', { class: 'cmp-chosen' }, h('div', { class: 'tiny muted' }, translateUI('ui.b272_cmp_chosen', { count: chosen.length, max: MAX_PICKS })),
         h('div', { class: 'row wrap tight' }, chosen.map((m) => h('span', { class: 'chip' }, chip(m.type), ' ', gameTerm('move', m.name), ' ',
-          m.vs == null ? h('span', { class: 'tiny muted' }, m.unverified ? 'details awaiting verification' : 'status') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs)), m.stab ? h('span', { class: 'tiny', title: 'Same-type attack bonus' }, ' STAB') : null)))) : null,
+          m.vs == null ? h('span', { class: 'tiny muted' }, m.unverified ? translateUI('ui.b272_cmp_wait') : 'status') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs)), m.stab ? h('span', { class: 'tiny', title: translateUI('ui.b272_cmp_stab') }, ' STAB') : null)))) : null,
       h('div', { class: 'row wrap tight cmp-filters' },
         h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.move_prompt'), value: f.q || '', style: { width: '120px' }, 'aria-label': translateUI('ui.move_search'),
           onchange: (e) => setF('q', e.target.value.trim().toLowerCase()) }),
-        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Move type', onchange: (e) => setF('type', e.target.value) },
-          h('option', { value: '' }, translateUI('ui.all_types')), T.map((t) => h('option', { value: t, selected: f.type === t ? 'selected' : null }, cap(t)))),
+        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.b272_cmp_move_type'), onchange: (e) => setF('type', e.target.value) },
+          h('option', { value: '' }, translateUI('ui.all_types')), T.map((t) => h('option', { value: t, selected: f.type === t ? 'selected' : null }, gameTerm('type', cap(t))))),
         h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.category'), onchange: (e) => setF('cat', e.target.value) },
-          [['', translateUI('ui.all_categories')], ['Physical', 'Physical'], ['Special', 'Special'], ['Status', translateUI('ui.status')]].map(([v, l]) => h('option', { value: v, selected: (f.cat || '') === v ? 'selected' : null }, l))),
-        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'How it is learned', onchange: (e) => setF('method', e.target.value) },
-          [['', 'Any method'], ['Lv', translateUI('ui.level')], ['TM/HM', 'TM/HM'], ['Tutor', 'Tutor'], ['Egg', 'Egg'], ['Evolution', 'Evolution'], ['Special', 'Special']].map(([v, l]) => h('option', { value: v, selected: (f.method || '') === v ? 'selected' : null }, l))),
-        h('label', { class: 'row tight small' }, h('input', { type: 'checkbox', class: 'check', checked: !!f.hitting, onchange: (e) => setF('hitting', e.target.checked) }), 'Super effective only')),
+          [['', translateUI('ui.all_categories')], ['Physical', gameTerm('category_move', 'Physical')], ['Special', gameTerm('category_move', 'Special')], ['Status', gameTerm('category_move', 'Status')]].map(([v, l]) => h('option', { value: v, selected: (f.cat || '') === v ? 'selected' : null }, l))),
+        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.b272_cmp_method'), onchange: (e) => setF('method', e.target.value) },
+          [['', translateUI('ui.b272_cmp_any_method')], ['Lv', translateUI('ui.level')], ['TM/HM', translateUI('ui.b272_cmp_method_tmhm')], ['Tutor', translateUI('ui.b272_cmp_method_tutor')], ['Egg', translateUI('ui.b272_cmp_method_egg')], ['Evolution', translateUI('ui.b272_cmp_method_evolution')], ['Special', translateUI('ui.b272_cmp_method_special')]].map(([v, l]) => h('option', { value: v, selected: (f.method || '') === v ? 'selected' : null }, l))),
+        h('label', { class: 'row tight small' }, h('input', { type: 'checkbox', class: 'check', checked: !!f.hitting, onchange: (e) => setF('hitting', e.target.checked) }), translateUI('ui.b272_cmp_super'))),
       h('div', { class: 'cmp-table-wrap' }, h('table', { class: 'table cmp-table' },
         h('colgroup', null, ['c-pick', 'c-move', 'c-type', 'c-vs', 'c-num', 'c-num', 'c-num', 'c-cat', 'c-how'].map((c) => h('col', { class: c }))),
-        h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr-only' }, 'Choose')), th('name', 'Move'), th('type', 'Type'), th('vs', 'vs ' + foe.name, 'num'),
-          th('power', 'Power', 'num'), th('acc', 'Acc.', 'num'), th('pp', 'PP', 'num'), h('th', null, translateUI('ui.category')), h('th', null, 'Learned'))),
+        h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr-only' }, translateUI('ui.b272_cmp_choose'))), th('name', translateUI('ui.move')), th('type', translateUI('ui.type')), th('vs', 'vs ' + compareSpecies(foe), 'num'),
+          th('power', translateUI('ui.power'), 'num'), th('acc', 'Acc.', 'num'), th('pp', 'PP', 'num'), h('th', null, translateUI('ui.category')), h('th', null, translateUI('ui.b272_cmp_learned')))),
         h('tbody', null, shown.map((m) => {
           const on = picks.includes(m.id);
           return h('tr', { class: on ? 'picked' : null },
-            h('td', null, h('input', { type: 'checkbox', class: 'check', checked: on, disabled: !on && picks.length >= MAX_PICKS ? 'disabled' : null, 'aria-label': 'Choose ' + m.name,
+            h('td', null, h('input', { type: 'checkbox', class: 'check', checked: on, disabled: !on && picks.length >= MAX_PICKS ? 'disabled' : null, 'aria-label': translateUI('ui.b272_cmp_choose_move', { move: gameTerm('move', m.name) }),
               onchange: (e) => { memo.picks[i] = e.target.checked ? [...picks, m.id].slice(0, MAX_PICKS) : picks.filter((x) => x !== m.id); drawAll(); } })),
-            h('td', { class: 'mv-name', title: m.name }, gameTerm('move', m.name), m.unverified ? h('span', { class: 'tiny muted', title: 'Type, category and power are not in the PokeMMO data yet' }, ' · awaiting verification') : null, m.stab ? h('span', { class: 'tiny muted', title: 'Same-type attack bonus' }, ' STAB') : null),
+            h('td', { class: 'mv-name', title: m.name }, gameTerm('move', m.name), m.unverified ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_move_missing') }, translateUI('ui.b272_cmp_wait_suffix')) : null, m.stab ? h('span', { class: 'tiny muted', title: translateUI('ui.b272_cmp_stab') }, ' STAB') : null),
             h('td', null, chip(m.type)),
-            h('td', { class: 'num' }, m.vs == null ? h('span', { class: 'tiny muted', title: m.unverified ? 'Details awaiting verification in the PokeMMO data — no effectiveness shown' : 'Status move' }, m.unverified ? '?' : '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
-            h('td', { class: 'num' }, m.power === 1 ? h('span', { class: 'muted', title: 'Variable power (depends on the target or the situation)' }, 'var.') : m.power || '—'),
-            h('td', { class: 'num' }, m.accuracy > 100 ? h('span', { class: 'muted', title: 'Never misses' }, '—') : m.accuracy ? m.accuracy + '%' : '—'),
+            h('td', { class: 'num' }, m.vs == null ? h('span', { class: 'tiny muted', title: m.unverified ? translateUI('ui.b272_cmp_no_eff') : translateUI('ui.b272_cmp_status_move') }, m.unverified ? '?' : '—') : h('span', { class: 'mult ' + multCls(m.vs) }, mult(m.vs))),
+            h('td', { class: 'num' }, m.power === 1 ? h('span', { class: 'muted', title: translateUI('ui.b272_cmp_variable') }, 'var.') : m.power || '—'),
+            h('td', { class: 'num' }, m.accuracy > 100 ? h('span', { class: 'muted', title: translateUI('ui.b272_cmp_never_miss') }, '—') : m.accuracy ? m.accuracy + '%' : '—'),
             h('td', { class: 'num' }, m.pp ?? '—'),
-            h('td', { class: 'small', title: m.unverified ? 'Details awaiting verification in the PokeMMO data' : m.category }, m.unverified && !m.category ? '?' : m.category),
-            h('td', { class: 'small muted mv-how' }, m.methods.join(', ')));
+            h('td', { class: 'small', title: m.unverified ? translateUI('ui.b272_cmp_details_wait') : m.category }, m.unverified && !m.category ? '?' : gameTerm('category_move', m.category)),
+            h('td', { class: 'small muted mv-how' }, m.methods.map(method => method.startsWith('Lv ') ? translateUI('ui.b272_cmp_method_display', { level: method.slice(3) }) : uiLabel(method)).join(', ')));
         })))),
-      h('div', { class: 'tiny muted' }, `${shown.length} of ${rows.length} moves`));
+      h('div', { class: 'tiny muted' }, translateUI('ui.b272_cmp_count', { shown: shown.length, total: rows.length })));
   };
 
   drawAll();

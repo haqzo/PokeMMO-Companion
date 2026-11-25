@@ -3,7 +3,7 @@
 // Per-species Pokédex notes stay a separate feature and are listed read-only here.
 import { h, mount, icon, get, api, post, setting, saveSettings, on, notice, debounce, toast, relTime, confirmDialog, WINDOW_ID, POPOUT } from '../core.js';
 import { go, popoutButton, pinButton, openPopout } from '../shell.js';
-import { t, lang } from '../i18n.js';
+import { t, t as translateUI, lang } from '../i18n.js';
 import { linkChip, pickLink, downloadText, openRoute } from '../links.js';
 
 const COLOURS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'grey'];
@@ -51,7 +51,7 @@ export function noteEditor(n, { onChange, compact, popout } = {}) {
   const queue = (patch) => { Object.assign(pending, patch); status.textContent = t('common.saving'); save(); };
   const title = h('input', { class: 'input note-title', value: n.title, placeholder: t('notes.title_ph'), maxlength: 200, 'aria-label': t('notes.title_ph'),
     disabled: trash ? 'disabled' : null, oninput: (e) => queue({ title: e.target.value }) });
-  const body = h('textarea', { class: 'input note-body', placeholder: t('notes.body_ph'), 'aria-label': 'Note text', disabled: trash ? 'disabled' : null,
+  const body = h('textarea', { class: 'input note-body', placeholder: t('notes.body_ph'), 'aria-label': translateUI('ui.b272_note_text'), disabled: trash ? 'disabled' : null,
     oninput: (e) => queue({ body: e.target.value }), onblur: flush,
     onkeydown: (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flush(); } } }, n.body);
   const preview = h('div', { class: 'note-preview', hidden: true });
@@ -66,23 +66,23 @@ export function noteEditor(n, { onChange, compact, popout } = {}) {
     trash ? null : h('button', { class: 'btn ghost small', onclick: async () => { const l = await pickLink(); if (!l) return; Object.assign(n, await post(`/api/notes/${n.id}/links`, l)); drawLinks(); onChange && onChange(n, 'links'); } }, icon('plus'), t('notes.link_add')));
   drawLinks();
   const act = async (a) => { await flush(); const r = await post(`/api/notes/${n.id}/${a}`); onChange && onChange(r, a); return r; };
-  const pin = h('button', { class: 'icon-btn' + (n.pinned ? ' on' : ''), title: n.pinned ? 'Unpin' : 'Pin to top', 'aria-pressed': String(n.pinned), disabled: trash ? 'disabled' : null,
+  const pin = h('button', { class: 'icon-btn' + (n.pinned ? ' on' : ''), title: n.pinned ? translateUI('ui.unpin') : translateUI('ui.b272_note_pin'), 'aria-pressed': String(n.pinned), disabled: trash ? 'disabled' : null,
     onclick: () => { n.pinned = !n.pinned; pin.classList.toggle('on', n.pinned); queue({ pinned: n.pinned }); } }, icon('pin'));
   const colours = h('div', { class: 'row', role: 'radiogroup', 'aria-label': 'Colour' }, [null, ...COLOURS].map((c) => h('button', {
-    class: 'swatch' + (n.colour === c ? ' on' : ''), dataset: { c: c || 'none' }, role: 'radio', 'aria-checked': String(n.colour === c), title: c || 'No colour', disabled: trash ? 'disabled' : null,
+    class: 'swatch' + (n.colour === c ? ' on' : ''), dataset: { c: c || 'none' }, role: 'radio', 'aria-checked': String(n.colour === c), title: c || translateUI('ui.b272_note_no_color'), disabled: trash ? 'disabled' : null,
     onclick: (e) => { n.colour = c; [...colours.children].forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-checked', 'false'); }); e.currentTarget.classList.add('on'); queue({ colour: c }); } })));
   const actions = trash ? [h('button', { class: 'btn', onclick: () => act('restore') }, icon('undo'), t('common.restore')),
-    h('button', { class: 'btn danger', onclick: async () => { if (!(await confirmDialog(t('notes.purge'), 'This note will be deleted permanently. This cannot be undone.', t('notes.purge'), true))) return;
+    h('button', { class: 'btn danger', onclick: async () => { if (!(await confirmDialog(t('notes.purge'), translateUI('ui.b272_note_delete_forever'), t('notes.purge'), true))) return;
       await api('DELETE', `/api/notes/${n.id}`); onChange && onChange(n, 'purge'); } }, icon('trash'), t('notes.purge'))] :
     [n.state === 'archived' ? h('button', { class: 'btn ghost small', onclick: () => act('unarchive') }, icon('archive'), t('common.unarchive')) :
       h('button', { class: 'btn ghost small', onclick: () => act('archive') }, icon('archive'), t('common.archive')),
     h('button', { class: 'btn ghost small', onclick: () => act('duplicate') }, t('common.duplicate')),
     h('button', { class: 'btn ghost small', onclick: async () => { await flush(); const r = await get(`/api/notes/export?ids=${n.id}`); downloadText(`${(n.title || 'note').replace(/[^\w-]+/g, '_')}.md`, r.markdown); } }, icon('download'), 'Markdown'),
-    !popout ? h('button', { class: 'btn ghost small', title: 'Open this note in its own floating window', onclick: async () => { await flush(); await saveSettings({ 'notes.popout_note': n.id }); openPopout('notes', '#/note/' + n.id); } }, icon('popout'), t('common.popout')) : null,
+    !popout ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_note_float'), onclick: async () => { await flush(); await saveSettings({ 'notes.popout_note': n.id }); openPopout('notes', '#/note/' + n.id); } }, icon('popout'), t('common.popout')) : null,
     h('button', { class: 'btn ghost small', onclick: async () => { await flush(); const r = await act('trash');
-      toast('Moved to the trash', { action: { label: t('common.restore'), fn: async () => { await post(`/api/notes/${n.id}/restore`); onChange && onChange(r, 'restore'); } } }); } }, icon('trash'), t('common.delete'))];
+      toast(translateUI('ui.b272_note_trash_moved'), { action: { label: t('common.restore'), fn: async () => { await post(`/api/notes/${n.id}/restore`); onChange && onChange(r, 'restore'); } } }); } }, icon('trash'), t('common.delete'))];
   return h('div', { class: 'note-editor stack tight' + (n.colour ? ' nc-' + n.colour : ''), dataset: { id: n.id } },
-    trash ? notice('warn', 'This note is in the trash. Restore it to edit.') : null,
+    trash ? notice('warn', translateUI('ui.b272_note_trash_edit')) : null,
     h('div', { class: 'row' }, title, pin),
     body, preview,
     compact ? null : h('div', { class: 'row wrap' }, h('span', { class: 'label' }, t('common.tags')), tags),
@@ -122,9 +122,9 @@ export async function render(el, route) {
       try { const n = await get('/api/notes/' + st.sel); if (n.state !== st.state && st.state !== 'all') { st.state = n.state; return draw(); } } catch (_) { st.sel = null; }
     }
     const list = h('div', { class: 'note-list', role: 'list' }, res.notes.length ? res.notes.map((n) => noteRow(n, st.sel, () => go('#/tools/notes/' + n.id))) :
-      h('div', { class: 'empty' }, st.q || st.tag ? 'No notes match.' : st.state === 'active' ? h('div', null, h('p', null, t('common.empty')), h('button', { class: 'btn small primary', onclick: async () => { const n = await newNote(); go('#/tools/notes/' + n.id); } }, t('notes.new'))) : t('common.empty')));
+      h('div', { class: 'empty' }, st.q || st.tag ? translateUI('ui.b272_note_no_match') : st.state === 'active' ? h('div', null, h('p', null, t('common.empty')), h('button', { class: 'btn small primary', onclick: async () => { const n = await newNote(); go('#/tools/notes/' + n.id); } }, t('notes.new'))) : t('common.empty')));
     mount(side,
-      h('div', { class: 'search' }, icon('search'), h('input', { class: 'input', type: 'search', id: 'notes-search', value: st.q, placeholder: t('common.search'), 'aria-label': 'Search notes',
+      h('div', { class: 'search' }, icon('search'), h('input', { class: 'input', type: 'search', id: 'notes-search', value: st.q, placeholder: t('common.search'), 'aria-label': translateUI('ui.b272_note_search'),
         oninput: debounce((e) => { st.q = e.target.value; draw().then(() => { const s = document.getElementById('notes-search'); if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }); }, 200) })),
       h('div', { class: 'seg', role: 'tablist' }, [['active', t('notes.active'), res.counts.active], ['archived', t('notes.archived'), res.counts.archived], ['trash', t('notes.trash'), res.counts.trash]].map(([k, l, c]) =>
         h('button', { class: st.state === k ? 'active' : '', role: 'tab', 'aria-selected': String(st.state === k), onclick: () => { st.state = k; draw(); } }, `${l} (${c})`))),
@@ -137,7 +137,7 @@ export async function render(el, route) {
       const box = e.target.querySelector('[data-lazy]');
       const sn = await get('/api/notes/species');
       mount(box, sn.notes.length ? sn.notes.map((x) => h('button', { class: 'note-row', onclick: () => go(`#/pokedex/${x.species_id}?tab=notes`) },
-        h('strong', null, x.name), h('div', { class: 'small muted ellipsis' }, x.body))) : h('div', { class: 'small muted' }, 'No per-species notes. They are written in each Pokémon’s “Notes & Box” tab.'));
+        h('strong', null, x.name), h('div', { class: 'small muted ellipsis' }, x.body))) : h('div', { class: 'small muted' }, translateUI('ui.b272_note_species_empty')));
     });
     if (st.sel) {
       try {
@@ -146,7 +146,7 @@ export async function render(el, route) {
           if (a === 'purge') st.sel = null; if (a === 'duplicate') { go('#/tools/notes/' + x.id); return; }
           if (a !== 'edit') draw(); else { const row = side.querySelector(`.note-row[data-id="${x.id}"]`); if (row) row.replaceWith(noteRow(x, st.sel, () => go('#/tools/notes/' + x.id))); } } } }));
       } catch (e) { st.sel = null; mount(pane, notice('bad', e.message)); }
-    } else mount(pane, h('div', { class: 'empty' }, h('h3', null, t('notes.title')), h('p', null, 'Pick a note on the left or create one. Notes can link to Pokémon, items, locations, your guides and Box entries.')));
+    } else mount(pane, h('div', { class: 'empty' }, h('h3', null, t('notes.title')), h('p', null, translateUI('ui.b272_note_choose'))));
   };
   await draw();
   unsub.push(on('notes', (d, ev) => { if (ev.origin !== WINDOW_ID) draw(); }));
