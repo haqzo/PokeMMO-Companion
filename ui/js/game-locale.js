@@ -158,6 +158,13 @@ export function speciesLabel(id, canonical = '') {
   return GAME_TERMS[lang()]?.species[id] || canonical || GAME_TERMS.en.species[id] || '';
 }
 
+// Some service explanations contain a canonical English species name instead of an ID.
+const SPECIES_ID_BY_NAME = new Map(Object.entries(GAME_TERMS.en.species).map(([id, name]) => [keyFor(name), id]));
+export function speciesNameLabel(name) {
+  const id = SPECIES_ID_BY_NAME.get(keyFor(name));
+  return id ? speciesLabel(id, name) : name;
+}
+
 export function speciesCategory(id) {
   return GAME_TERMS[lang()]?.category[id] || GAME_TERMS.en.category[id];
 }

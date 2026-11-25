@@ -2479,7 +2479,7 @@ export const UI_STRINGS = {
   'breedui.ditto_pair': ["Ditto can pair with any breedable species, including genderless ones.","Ditto puede criar con cualquier especie que pueda criar, incluso las que no tienen género.","百变怪可以与任何可培育的宝可梦配对，包括无性别宝可梦。"],
   'breedui.choose_gender': ["Choose a gender for both parents.","Elige el género de ambos progenitores.","请选择两个亲代的性别。"],
   'breedui.opposite': ["Parents must be one male and one female.","Los progenitores deben ser un macho y una hembra.","亲代必须为一雄一雌。"],
-  'breedui.special': ["Nidoran♀ / Volbeat / Illumise special offspring rules are not verified.","No se han verificado las reglas especiales de descendencia de Nidoran♀, Volbeat e Illumise.","尼多兰、Volbeat（电萤虫）和 Illumise（甜甜萤）的特殊子代规则尚未核实。"],
+  'breedui.special': ["Nidoran♀ / Volbeat / Illumise special offspring rules are not verified.","No se han verificado las reglas especiales de descendencia de Nidoran♀, Volbeat e Illumise.","尼多兰（雌性）、电萤虫和甜甜萤的特殊子代规则尚未核实。"],
   'breedui.compatible': ["Compatible pairing.","Pareja compatible.","配对兼容。"],
   'breedui.both_braced': ["One parent's value — both braced the same stat (selection rule not validated)","Valor de uno de los progenitores: ambos llevan el objeto para la misma estadística (regla de selección sin validar)","继承一个亲代的数值：两者均携带同一能力的力量道具（选择规则尚未验证）"],
   'breedui.from_a': ["From Parent A (brace — official rule)","Del progenitor A (objeto de poder; regla oficial)","来自亲代 A（力量道具，官方规则）"],

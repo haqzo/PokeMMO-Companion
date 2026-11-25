@@ -1,5 +1,5 @@
-import { t as translateUI } from '../i18n.js';
-import { speciesLabel, gameTerm } from '../game-locale.js';
+import { t as translateUI, lang } from '../i18n.js';
+import { speciesLabel, speciesNameLabel, gameTerm } from '../game-locale.js';
 // Breeding planner (docs/design/08): Preview (A | Offspring | B), Plan tree, Egg moves.
 import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, tabs, toast, confirmDialog, on, debounce, spriteOrFallback, extLink, pad3, modal, WINDOW_ID, sourceInfo } from '../core.js';
 import { go } from '../shell.js';
@@ -44,11 +44,11 @@ const itemName = (v) => gameTerm('item', v);
 const groupsName = (v) => v.split(', ').map(g => gameTerm('egg', g)).join(', ');
 const parentName = (v) => v === 'Parent A' ? translateUI('ui.b273_breeding_015') : v === 'Parent B' ? translateUI('ui.b273_breeding_016') : v;
 const genderName = (v) => ({ male: translateUI('breedui.male'), female: translateUI('breedui.female'), genderless: translateUI('breedui.no_gender') }[v] || v);
-const speciesName = (v) => gameTerm('species', v);
-const nodeName = (n) => n.traits.map(t => t.startsWith('nature:') ? gameTerm('nature', t.slice(7)) : gameTerm('stat', t) + ' 31').join(' + ');
-function breedMessage(v) {
-  if (typeof v !== 'string') return v;
-  if (BREED_MESSAGES[v]) return translateUI(BREED_MESSAGES[v]);
+const speciesName = speciesNameLabel;
+export const nodeName = (n) => lang() === 'en' ? n.label : n.traits.map(t => t.startsWith('nature:') ? gameTerm('nature', t.slice(7)) : gameTerm('stat', ({ sp_attack: 'special attack', sp_defense: 'special defense' })[t] || t) + ' 31').join(' + ');
+export function breedMessage(v) {
+  if (lang() === 'en' || typeof v !== 'string') return v;
+  if (Object.hasOwn(BREED_MESSAGES, v)) return translateUI(BREED_MESSAGES[v]);
   let m;
   if ((m = /^Shared egg group: (.+)\.$/.exec(v))) return translateUI('breedui.shared_group', { groups: groupsName(m[1]) });
   if ((m = /^(.+) is in the 'cannot breed' egg group\.$/.exec(v))) return translateUI('breedui.no_breed', { species: speciesName(m[1]) });

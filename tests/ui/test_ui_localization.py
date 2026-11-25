@@ -248,3 +248,24 @@ def test_location_filters_and_direct_popout_localize_without_changing_values(cle
     pg.locator(".popout-body .detail-head").get_by_text(summary, exact=False).wait_for()
     assert not pg.locator(".popout-body > .notice.bad").count()
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "light", "item", "species", "stat", "reason"), [
+    ("en", "Light", "Everstone", "Pikachu", "sp_attack 31", "Pikachu is genderless and can only breed with Ditto."),
+    ("es", "Claro", "Piedra Eterna", "Pikachu", "Ataque Especial 31", "Pikachu no tiene género y solo puede criar con Ditto."),
+    ("zh", "浅色", "不变之石", "皮卡丘", "特攻 31", "皮卡丘 无性别，只能与百变怪培育。"),
+])
+def test_context_specific_labels_and_breeding_messages(clean, pg, language, light, item, species, stat, reason):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { uiLabel } = await import('/js/i18n.js');
+      const { gameTerm, speciesNameLabel } = await import('/js/game-locale.js');
+      const { breedMessage, nodeName } = await import('/js/pages/breeding.js');
+      return [uiLabel('Light'), gameTerm('item', 'Everstone'), speciesNameLabel('Pikachu'),
+        nodeName({ traits: ['sp_attack'], label: 'sp_attack 31' }),
+        breedMessage('Pikachu is genderless and can only breed with Ditto.')];
+    }""")
+    assert result == [light, item, species, stat, reason]
+    assert not pg.errors
