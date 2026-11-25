@@ -1,11 +1,67 @@
-import { t as translateUI } from '../i18n.js';
+import { uiLabel, t as translateUI } from '../i18n.js';
 // Settings › Appearance & themes, Layout & scaling, Home (2026-11-24).
 import { h, mount, get, post, api, state, saveSettings, seg, switchEl, toast, confirmDialog, modal, debounce, applyAppearance, icon } from '../core.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { COLOR_GROUPS, OPACITY_KEYS, TYPES, HEX, catalog, resolve, applyTheme, contrastIssues, exportDoc, alphaOf, withAlpha, isPristineDefault } from '../themes.js';
+import { gameTerm } from '../game-locale.js';
 import { HOME_SECTIONS, HOME_DEFAULT, homeSections } from './home.js';
 
 const row = (label, desc, control) => h('div', { class: 'set-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, label), desc ? h('div', { class: 'desc' }, desc) : null), h('div', null, control));
+const THEME_LABEL_KEYS = {
+  "Surfaces": "theme.label_surfaces",
+  "App background": "theme.label_app_background",
+  "Sidebar": "theme.label_sidebar",
+  "Panels": "theme.label_panels",
+  "Headers": "theme.label_headers",
+  "Cards": "theme.label_cards",
+  "Raised controls": "theme.label_raised",
+  "Insets": "theme.label_insets",
+  "Dialogs": "theme.label_dialogs",
+  "Inputs": "theme.label_inputs",
+  "Popouts": "theme.label_popouts",
+  "Notifications": "theme.label_notifications",
+  "Text": "theme.label_text",
+  "Primary text": "theme.label_primary",
+  "Secondary text": "theme.label_secondary",
+  "Muted text": "theme.label_muted",
+  "Text on accent": "theme.label_on_accent",
+  "Links": "theme.label_links",
+  "Accent & states": "theme.label_accent_states",
+  "Accent": "theme.label_accent",
+  "Focus ring": "theme.label_focus",
+  "Selected": "theme.label_selected",
+  "Hover": "theme.label_hover",
+  "Success": "theme.label_success",
+  "Warning": "theme.label_warning",
+  "Error": "theme.label_error",
+  "Buttons": "theme.label_buttons",
+  "Button": "theme.label_button",
+  "Button text": "theme.label_button_text",
+  "Button hover": "theme.label_button_hover",
+  "Borders": "theme.label_borders",
+  "Border": "theme.label_border",
+  "Strong border": "theme.label_strong_border",
+  "Popout border": "theme.label_popout_border",
+  "Tables & progress": "theme.label_tables_progress",
+  "Table header": "theme.label_table_header",
+  "Table row": "theme.label_table_row",
+  "Alternate row": "theme.label_alternate_row",
+  "Row hover": "theme.label_row_hover",
+  "Progress track": "theme.label_progress_track",
+  "Progress fill": "theme.label_progress_fill",
+  "Scrollbars": "theme.label_scrollbars",
+  "Scrollbar track": "theme.label_scroll_track",
+  "Scrollbar thumb": "theme.label_scroll_thumb",
+  "Primary text on panels": "theme.label_primary_panels",
+  "Primary text on cards": "theme.label_primary_cards",
+  "Secondary text on panels": "theme.label_secondary_panels",
+  "Muted text on panels": "theme.label_muted_panels",
+  "Text on accent buttons": "theme.label_accent_buttons",
+  "Links on panels": "theme.label_links_panels",
+  "Text in inputs": "theme.label_text_inputs",
+  "Sidebar text": "theme.label_sidebar_text"
+};
+const themeLabel = (label) => THEME_LABEL_KEYS[label] ? translateUI(THEME_LABEL_KEYS[label]) : label;
 const changed = () => document.dispatchEvent(new CustomEvent('settings-changed'));
 
 // ------------------------------------------------------------------ theme state
@@ -64,10 +120,10 @@ export async function appearanceSec(b, { personal } = {}) {
     swatches(resolve(t).colors), h('div', { class: 'theme-name' }, label), h('div', { class: 'tiny muted' }, sub));
 
   const presetCards = cat.order.map((k) => card(k, { base: k, name: cat.presets[k].name }, cat.presets[k].name,
-    k === cat.default ? 'Default' : cat.sources[k] ? 'Built-in · ' + (k === 'catppuccin-mocha' ? 'Catppuccin' : 'enkia') : 'Built-in', id === k));
+    k === cat.default ? translateUI('theme.default') : cat.sources[k] ? translateUI('theme.builtin_source', { source: k === 'catppuccin-mocha' ? 'Catppuccin' : 'enkia' }) : translateUI('theme.builtin'), id === k));
   const customCard = h('button', { class: 'theme-card custom' + (modified && !mine ? ' active' : ''), onclick: () => b.querySelector('#theme-editor')?.scrollIntoView({ behavior: 'smooth' }) },
-    swatches(resolved.colors), h('div', { class: 'theme-name' }, 'Custom'), h('div', { class: 'tiny muted' }, translateUI('ui.b272_settings_094')));
-  const personalCards = personal.map((p) => card(p.id, p, p.name, 'Yours · from ' + (cat.presets[p.base]?.name || 'Default'), id === p.id));
+    swatches(resolved.colors), h('div', { class: 'theme-name' }, translateUI('theme.custom')), h('div', { class: 'tiny muted' }, translateUI('ui.b272_settings_094')));
+  const personalCards = personal.map((p) => card(p.id, p, p.name, translateUI('theme.yours', { name: cat.presets[p.base]?.name || translateUI('theme.default') }), id === p.id));
 
   // ---- actions
   const askName = async (title, value) => {
@@ -79,21 +135,21 @@ export async function appearanceSec(b, { personal } = {}) {
   const saveNew = async (t, name) => {
     try {
       const res = await post('/api/themes', { ...t, name });
-      commitTheme(res, res.id); toast(`Saved “${res.name}”`);
+      commitTheme(res, res.id); toast(translateUI('theme.saved', { name: res.name }));
       redraw((await get('/api/themes')).personal);
     } catch (e) { toast(e.message, { kind: 'warn' }); }
   };
   const actions = h('div', { class: 'row wrap tight' },
-    h('button', { class: 'btn small', onclick: async () => { const n = await askName(translateUI('ui.b272_settings_096'), modified ? activeName + ' (custom)' : activeName + ' copy'); if (n) saveNew(theme, n); } }, translateUI('ui.b272_settings_097')),
+    h('button', { class: 'btn small', onclick: async () => { const n = await askName(translateUI('ui.b272_settings_096'), modified ? translateUI('theme.custom_name', { name: activeName }) : translateUI('theme.copy_name', { name: activeName })); if (n) saveNew(theme, n); } }, translateUI('ui.b272_settings_097')),
     mine && modified ? h('button', { class: 'btn small primary', onclick: async () => {
       try { const res = await api('PUT', '/api/themes/' + mine.id, { ...theme, name: mine.name }); commitTheme(res, mine.id); toast(translateUI('ui.b272_settings_098')); redraw((await get('/api/themes')).personal); }
       catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.b272_settings_099')) : null,
     modified ? h('button', { class: 'btn small ghost', onclick: () => { commitTheme({ ...savedRef, shape: theme.shape, layout: theme.layout }, id); redraw(); } }, translateUI('ui.b272_settings_100')) : null,
     mine ? h('button', { class: 'btn small ghost', onclick: async () => { const n = await askName(translateUI('ui.b272_settings_101'), mine.name); if (!n) return;
       try { const res = await api('PUT', '/api/themes/' + mine.id, { ...mine, name: n }); commitTheme({ ...theme, name: res.name }, mine.id); redraw((await get('/api/themes')).personal); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.rename')) : null,
-    mine ? h('button', { class: 'btn small ghost', onclick: () => saveNew(mine, (mine.name + ' copy').slice(0, 40)) }, translateUI('ui.duplicate')) : null,
+    mine ? h('button', { class: 'btn small ghost', onclick: () => saveNew(mine, translateUI('theme.copy_name', { name: mine.name }).slice(0, 40)) }, translateUI('ui.duplicate')) : null,
     mine ? h('button', { class: 'btn small ghost', onclick: async () => {
-      if (!await confirmDialog(translateUI('ui.b272_settings_102'), `Delete “${mine.name}”? The built-in themes are not affected.`, 'Delete', true)) return;
+      if (!await confirmDialog(translateUI('ui.b272_settings_102'), translateUI('theme.delete_confirm', { name: mine.name }), translateUI('ui.delete'), true)) return;
       await api('DELETE', '/api/themes/' + mine.id); commitTheme({ ...theme }, mine.base); redraw((await get('/api/themes')).personal); } }, translateUI('ui.delete')) : null,
     h('span', { class: 'grow' }),
     h('button', { class: 'btn small ghost', onclick: async () => {
@@ -101,9 +157,9 @@ export async function appearanceSec(b, { personal } = {}) {
       if (!raw) return;
       try {
         const v = await post('/api/themes/validate', raw);
-        if (v.dropped.length) toast(`Imported; ignored ${v.dropped.length} unknown or invalid value${v.dropped.length === 1 ? '' : 's'}: ${v.dropped.slice(0, 4).join(', ')}${v.dropped.length > 4 ? '…' : ''}`, { kind: 'warn', timeout: 7000 });
+        if (v.dropped.length) toast(translateUI('theme.import_skipped', { count: v.dropped.length, values: v.dropped.slice(0, 4).join(', ') + (v.dropped.length > 4 ? '…' : '') }), { kind: 'warn', timeout: 7000 });
         await saveNew(v.theme, v.theme.name);
-      } catch (e) { toast('Not imported: ' + e.message, { kind: 'warn', timeout: 6000 }); }
+      } catch (e) { toast(translateUI('theme.import_error', { error: e.message }), { kind: 'warn', timeout: 6000 }); }
     } }, icon('upload'), translateUI('ui.import_more')),
     h('button', { class: 'btn small ghost', onclick: () => downloadJson(`companion-theme-${(activeName || 'theme').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, exportDoc({ ...theme, name: activeName })) }, icon('download'), translateUI('ui.export')),
     id !== cat.default || !isPristineDefault(theme) ? h('button', { class: 'btn small ghost', onclick: async () => {
@@ -113,23 +169,23 @@ export async function appearanceSec(b, { personal } = {}) {
   // ---- colour editor
   const issues = contrastIssues(resolved);
   const colorRow = (key, label, value, baseValue, onSet) => {
-    const hex = h('input', { class: 'input mono hex-in', value, maxlength: 9, 'aria-label': label + ' colour (hex)', spellcheck: 'false' });
-    const pickEl = h('input', { type: 'color', value: value.slice(0, 7), 'aria-label': label + ' colour' });
-    const op = OPACITY_KEYS.has(key) ? h('input', { type: 'range', min: 0, max: 100, step: 5, value: alphaOf(value), 'aria-label': label + ' opacity', title: translateUI('ui.opacity') }) : null;
+    const hex = h('input', { class: 'input mono hex-in', value, maxlength: 9, 'aria-label': translateUI('theme.hex_label', { label }), spellcheck: 'false' });
+    const pickEl = h('input', { type: 'color', value: value.slice(0, 7), 'aria-label': translateUI('theme.colour_label', { label }) });
+    const op = OPACITY_KEYS.has(key) ? h('input', { type: 'range', min: 0, max: 100, step: 5, value: alphaOf(value), 'aria-label': translateUI('theme.opacity_label', { label }), title: translateUI('ui.opacity') }) : null;
     const err = h('span', { class: 'tiny bad-text', role: 'alert' });
     const put = (v) => { err.textContent = ''; hex.classList.remove('invalid'); onSet(v); };
     pickEl.addEventListener('input', () => { const v = op ? withAlpha(pickEl.value, Number(op.value)) : pickEl.value; hex.value = v; put(v); });
     hex.addEventListener('input', () => {
       const v = hex.value.trim().toLowerCase();
       if (HEX.test(v)) { pickEl.value = v.slice(0, 7); if (op) op.value = alphaOf(v); put(v); }
-      else { hex.classList.add('invalid'); err.textContent = 'Use #rrggbb'; }
+      else { hex.classList.add('invalid'); err.textContent = translateUI('theme.use_hex'); }
     });
     op && op.addEventListener('input', () => { const v = withAlpha(pickEl.value, Number(op.value)); hex.value = v; put(v); });
     const bad = issues.filter((i) => i.fg === key || i.bg === key);
     return h('div', { class: 'color-row', dataset: { key } },
-      h('span', { class: 'cr-label' }, label, value !== baseValue ? h('span', { class: 'tiny muted' }, ' · changed') : null),
+      h('span', { class: 'cr-label' }, label, value !== baseValue ? h('span', { class: 'tiny muted' }, translateUI('theme.changed')) : null),
       h('div', { class: 'row tight' }, pickEl, hex, op, value !== baseValue ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_105'), onclick: () => onSet(null, true) }, translateUI('ui.reset')) : null),
-      bad.length ? h('span', { class: 'tiny warn-text', title: bad.map((i) => `${i.label}: ${i.ratio}:1 (needs ${i.min}:1)`).join('\n') }, '⚠ low contrast') : null, err);
+      bad.length ? h('span', { class: 'tiny warn-text', title: bad.map((i) => translateUI('theme.contrast_needs', { label: themeLabel(i.label), ratio: i.ratio, min: i.min })).join('\n') }, translateUI('theme.contrast_low')) : null, err);
   };
   const editColors = (section, key) => (v, reset) => {
     const t = current();
@@ -141,34 +197,34 @@ export async function appearanceSec(b, { personal } = {}) {
   const issueBox = h('div', { class: 'small', role: 'status' });
   const refreshIssues = (resolvedTheme) => {
     const list = contrastIssues(resolvedTheme);
-    mount(issueBox, list.length ? h('div', { class: 'notice warn small' }, h('strong', null, 'Readability: '),
-      list.map((i) => `${i.label} ${i.ratio}:1 (aim for ${i.min}:1)`).join(' · ')) : h('span', { class: 'muted' }, translateUI('ui.b272_settings_106')));
+    mount(issueBox, list.length ? h('div', { class: 'notice warn small' }, h('strong', null, translateUI('theme.readability')),
+      list.map((i) => translateUI('theme.contrast_aim', { label: themeLabel(i.label), ratio: i.ratio, min: i.min })).join(' · ')) : h('span', { class: 'muted' }, translateUI('ui.b272_settings_106')));
   };
   refreshIssues(resolved);
   const p = cat.presets[theme.base].colors;
   const editor = h('div', { id: 'theme-editor', class: 'stack tight' },
     h('h3', null, translateUI('ui.customize_colours')),
-    h('p', { class: 'small muted', style: { margin: 0 } }, `Starting point: ${cat.presets[theme.base].name}. Changes apply at once to every window; save them as a theme to keep several looks.`,
-      s['appearance.high_contrast'] ? ' High contrast is on, so theme colours are paused until you turn it off.' : ''),
+    h('p', { class: 'small muted', style: { margin: 0 } }, translateUI('theme.starting_point', { name: cat.presets[theme.base].name }),
+      s['appearance.high_contrast'] ? translateUI('theme.high_contrast') : ''),
     issueBox,
     COLOR_GROUPS.map(([title, keys], gi) => h('details', { class: 'color-group', open: gi === 0 ? '' : null },
-      h('summary', null, title, h('span', { class: 'tiny muted' }, ` · ${keys.filter(([k]) => theme.colors[k]).length || 'none'} changed`)),
-      h('div', { class: 'color-grid' }, keys.map(([k, l]) => colorRow(k, l, resolved.colors[k], p[k], editColors('colors', k)))))),
-    h('details', { class: 'color-group' }, h('summary', null, translateUI('ui.b272_settings_107'), h('span', { class: 'tiny muted' }, ` · ${Object.keys(theme.types).length || 'none'} changed`)),
+      h('summary', null, themeLabel(title), h('span', { class: 'tiny muted' }, translateUI('theme.changed_count', { count: keys.filter(([k]) => theme.colors[k]).length }))),
+      h('div', { class: 'color-grid' }, keys.map(([k, l]) => colorRow(k, themeLabel(l), resolved.colors[k], p[k], editColors('colors', k)))))),
+    h('details', { class: 'color-group' }, h('summary', null, translateUI('ui.b272_settings_107'), h('span', { class: 'tiny muted' }, translateUI('theme.changed_count', { count: Object.keys(theme.types).length }))),
       h('p', { class: 'tiny muted' }, translateUI('ui.b272_settings_108')),
-      h('div', { class: 'color-grid' }, TYPES.map((t) => colorRow('type_' + t, t[0].toUpperCase() + t.slice(1), resolved.types[t], cat.type_colors[t], editColors('types', t))))));
+      h('div', { class: 'color-grid' }, TYPES.map((t) => colorRow('type_' + t, gameTerm('type', t[0].toUpperCase() + t.slice(1)), resolved.types[t], cat.type_colors[t], editColors('types', t))))));
 
   mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.appearance_themes')),
-    h('div', { class: 'row wrap tight theme-status' }, h('strong', null, activeName), modified ? h('span', { class: 'chip' }, `${changeCount(theme)} change${changeCount(theme) === 1 ? '' : 's'}`) : null),
+    h('div', { class: 'row wrap tight theme-status' }, h('strong', null, activeName), modified ? h('span', { class: 'chip' }, (changeCount(theme) === 1 ? translateUI('theme.changes_one', { count: changeCount(theme) }) : translateUI('theme.changes', { count: changeCount(theme) }))) : null),
     h('div', { class: 'theme-grid', role: 'group', 'aria-label': translateUI('ui.themes') }, presetCards, customCard),
     personalCards.length ? h('div', null, h('h3', null, translateUI('ui.b272_settings_109')), h('div', { class: 'theme-grid' }, personalCards)) : null,
     actions,
     editor,
     h('h3', null, translateUI('ui.accessibility')),
     row(translateUI('ui.b272_settings_110'), translateUI('ui.b272_settings_111'), switchEl(s['appearance.high_contrast'], async (v) => { await saveSettings({ 'appearance.high_contrast': v }); redraw(); })),
-    row(translateUI('ui.b272_settings_112'), 'Turns off transitions and shimmer. Sprite animation has its own switch in Pokémon & sprites.', switchEl(s['appearance.reduced_motion'], (v) => saveSettings({ 'appearance.reduced_motion': v }))),
+    row(translateUI('ui.b272_settings_112'), translateUI('theme.motion_help'), switchEl(s['appearance.reduced_motion'], (v) => saveSettings({ 'appearance.reduced_motion': v }))),
     row(translateUI('ui.b272_settings_113'), translateUI('ui.b272_settings_114'), seg([['soft', translateUI('ui.b272_settings_115')], ['accent', translateUI('ui.b272_settings_116')]], s['appearance.stat_bars'], (v) => saveSettings({ 'appearance.stat_bars': v }))),
-    h('p', { class: 'tiny muted' }, 'Catppuccin Mocha uses the Catppuccin palette (MIT); Tokyo Night uses enkia’s Tokyo Night palette (MIT). Theme files hold colours and numbers only — no scripts, styles, web addresses or file paths.'));
+    h('p', { class: 'tiny muted' }, translateUI('theme.license')));
 }
 
 // ------------------------------------------------------------ layout & scaling
@@ -192,32 +248,32 @@ export function layoutSec(b) {
       (s[key] || 100) !== 100 ? h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ [key]: 100 }); redraw(); } }, translateUI('ui.reset')) : null));
   };
   mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.layout_scaling')),
-    h('h3', { style: { marginTop: 0 } }, 'Size'),
-    pct('Text size', 'Text only (60–200%). Layout, icons and sprites keep their size. Popouts have their own text size.', 'appearance.text_scale', 60, 200, true),
-    pct(translateUI('ui.b272_settings_117'), 'Everything in the main window — text, controls, spacing and sprites — together (75–150%). Applied once on top of your desktop’s own display scaling.', 'appearance.ui_scale', 75, 150, false),
-    row(translateUI('ui.b272_settings_118'), translateUI('ui.b272_settings_119'), seg([['light', 'Light'], ['normal', translateUI('ui.normal')], ['medium', translateUI('ui.medium')]], r.layout.font_weight, (v) => setPart('layout', { font_weight: v }), translateUI('ui.b272_settings_118'))),
-    h('h3', null, 'Spacing'),
+    h('h3', { style: { marginTop: 0 } }, translateUI('theme.size')),
+    pct(translateUI('ui.text_size'), translateUI('theme.text_only'), 'appearance.text_scale', 60, 200, true),
+    pct(translateUI('ui.b272_settings_117'), translateUI('theme.scale_help'), 'appearance.ui_scale', 75, 150, false),
+    row(translateUI('ui.b272_settings_118'), translateUI('ui.b272_settings_119'), seg([['light', translateUI('theme.light_weight')], ['normal', translateUI('ui.normal')], ['medium', translateUI('ui.medium')]], r.layout.font_weight, (v) => setPart('layout', { font_weight: v }), translateUI('ui.b272_settings_118'))),
+    h('h3', null, translateUI('theme.spacing')),
     row(translateUI('ui.b272_settings_120'), translateUI('ui.b272_settings_121'),
       seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', translateUI('ui.b272_settings_127')]], r.layout.density, (v) => setPart('layout', { density: v, ...DENSITY_PRESET[v] }, true), translateUI('ui.b272_settings_120'))),
     slider(translateUI('ui.b272_settings_122'), null, 'layout', 'card_padding', 6, 28, 1),
     slider(translateUI('ui.b272_settings_123'), translateUI('ui.b272_settings_124'), 'layout', 'grid_gap', 4, 24, 1),
     slider(translateUI('ui.b272_settings_125'), null, 'layout', 'section_gap', 6, 32, 1),
     row(translateUI('ui.b272_settings_126'), null, seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', translateUI('ui.b272_settings_127')]], r.layout.table_density, (v) => setPart('layout', { table_density: v }), translateUI('ui.b272_settings_128'))),
-    h('h3', null, 'Borders & corners'),
+    h('h3', null, translateUI('theme.borders_corners')),
     row(translateUI('ui.b272_settings_129'), null, switchEl(r.shape.border_visible, (v) => setPart('shape', { border_visible: v }, true), translateUI('ui.b272_settings_130'))),
-    r.shape.border_visible ? slider('Border thickness', null, 'shape', 'border_width', 1, 3, 1) : null,
-    r.shape.border_visible ? slider('Border opacity', 'Border colours are in Appearance & themes › Borders.', 'shape', 'border_opacity', 0, 100, 5, '%') : null,
+    r.shape.border_visible ? slider(translateUI('theme.border_thickness'), null, 'shape', 'border_width', 1, 3, 1) : null,
+    r.shape.border_visible ? slider(translateUI('theme.border_opacity'), translateUI('theme.border_help'), 'shape', 'border_opacity', 0, 100, 5, '%') : null,
     slider(translateUI('ui.b272_settings_131'), translateUI('ui.b272_settings_132'), 'shape', 'radius', 0, 20, 1),
-    h('h3', null, 'Navigation & scrollbars'),
+    h('h3', null, translateUI('theme.navigation_scroll')),
     row(translateUI('ui.b272_settings_133'), translateUI('ui.b272_settings_134'), seg([['vertical', translateUI('ui.b272_settings_135')], ['horizontal', translateUI('ui.b272_settings_136')]], s['appearance.nav'], (v) => saveSettings({ 'appearance.nav': v }).then(changed), translateUI('ui.b272_settings_133'))),
-    row(translateUI('ui.b272_settings_137'), translateUI('ui.b272_settings_138'), seg([['auto', 'Automatic'], ['icons', translateUI('ui.b272_settings_139')], ['full', translateUI('ui.b272_settings_140')]], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(changed), translateUI('ui.b272_settings_137'))),
+    row(translateUI('ui.b272_settings_137'), translateUI('ui.b272_settings_138'), seg([['auto', translateUI('theme.automatic')], ['icons', translateUI('ui.b272_settings_139')], ['full', translateUI('ui.b272_settings_140')]], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(changed), translateUI('ui.b272_settings_137'))),
     slider(translateUI('ui.b272_settings_141'), null, 'layout', 'sidebar_width', 150, 300, 2),
     row(translateUI('ui.b272_settings_142'), null, seg([['hidden', translateUI('ui.b272_settings_143')], ['thin', translateUI('ui.b272_settings_144')], ['standard', translateUI('ui.standard')], ['wide', translateUI('ui.b272_settings_145')]], r.layout.scrollbar, (v) => setPart('layout', { scrollbar: v }), translateUI('ui.b272_settings_142'))),
-    h('p', { class: 'tiny muted' }, 'Pokédex grid density and sprite sizes are in Pokémon & sprites. Popout size, opacity and scale are per window in Windows & popouts.'),
+    h('p', { class: 'tiny muted' }, translateUI('theme.layout_help')),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
-      if (!await confirmDialog('Reset layout', 'Reset spacing, borders, corners, scrollbars, text size and interface scale? Colours and themes are not changed.')) return;
+      if (!await confirmDialog(translateUI('theme.reset_layout'), translateUI('theme.reset_layout_help'))) return;
       const t = current(); t.shape = {}; t.layout = {}; commitTheme(t, id);
-      await saveSettings({ 'appearance.text_scale': 100, 'appearance.ui_scale': 100 }); redraw(); } }, 'Reset layout')),
+      await saveSettings({ 'appearance.text_scale': 100, 'appearance.ui_scale': 100 }); redraw(); } }, translateUI('theme.reset_layout'))),
     );
 }
 
@@ -230,19 +286,19 @@ export function homeSec(b) {
   const redraw = () => { mount(b); homeSec(b); };
   const save = async (list) => { await saveSettings({ 'home.sections': list }); redraw(); };
   mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.home')),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Choose and order the sections on Home. On wide windows sections sit side by side in this order; cards in a row share one height. Hidden sections keep their data.'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('theme.home_help')),
     h('ol', { class: 'home-order' }, all.map((k) => {
       const on_ = enabled.includes(k), i = enabled.indexOf(k);
       return h('li', { class: 'home-order-row' + (on_ ? '' : ' off'), dataset: { section: k } },
-        h('label', { class: 'row tight grow' }, h('input', { type: 'checkbox', class: 'check', checked: on_, 'aria-label': 'Show ' + label[k],
-          onchange: (e) => save(e.target.checked ? [...enabled, k] : enabled.filter((x) => x !== k)) }), label[k]),
-        h('button', { class: 'icon-btn', 'aria-label': `Move ${label[k]} up`, disabled: !on_ || i === 0 ? 'disabled' : null,
+        h('label', { class: 'row tight grow' }, h('input', { type: 'checkbox', class: 'check', checked: on_, 'aria-label': translateUI('theme.show_section', { label: uiLabel(label[k]) }),
+          onchange: (e) => save(e.target.checked ? [...enabled, k] : enabled.filter((x) => x !== k)) }), uiLabel(label[k])),
+        h('button', { class: 'icon-btn', 'aria-label': translateUI('theme.move_up', { label: uiLabel(label[k]) }), disabled: !on_ || i === 0 ? 'disabled' : null,
           onclick: () => { const l = [...enabled]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; save(l); } }, '▲'),
-        h('button', { class: 'icon-btn', 'aria-label': `Move ${label[k]} down`, disabled: !on_ || i === enabled.length - 1 ? 'disabled' : null,
+        h('button', { class: 'icon-btn', 'aria-label': translateUI('theme.move_down', { label: uiLabel(label[k]) }), disabled: !on_ || i === enabled.length - 1 ? 'disabled' : null,
           onclick: () => { const l = [...enabled]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; save(l); } }, '▼'));
     })),
-    h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: () => save([...HOME_DEFAULT]) }, 'Reset Home layout')),
+    h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: () => save([...HOME_DEFAULT]) }, translateUI('theme.reset_home'))),
     state.boot && state.boot.community && state.boot.community.discord
-      ? row('Community Discord link', 'A small optional link in the Home header. Companion works fully without Discord.',
-        switchEl(s['home.community_link'] !== false, (v) => saveSettings({ 'home.community_link': v }), 'Show the community Discord link')) : null);
+      ? row(translateUI('theme.discord'), translateUI('theme.discord_help'),
+        switchEl(s['home.community_link'] !== false, (v) => saveSettings({ 'home.community_link': v }), translateUI('theme.discord_show'))) : null);
 }
