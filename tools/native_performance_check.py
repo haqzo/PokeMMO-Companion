@@ -21,6 +21,13 @@ import psutil
 from performance_smoke import sample
 
 
+def renderer_alive(process):
+    try:
+        return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
@@ -40,9 +47,10 @@ def main():
     os.environ.pop("POKEMMO_DUMPS_DIR", None)
     sys.path.insert(0, str(repo))
 
-    from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer, QUrl, Qt
+    from PySide6.QtCore import QCoreApplication, QTimer, QUrl, Qt
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtWidgets import QApplication
+    from shiboken6 import isValid
     from companion.app import AppContext
     from companion.server import CompanionServer
     from companion.settings import DEFAULTS
@@ -74,39 +82,28 @@ def main():
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
-    def wait(ms):
-        loop = QEventLoop()
-        QTimer.singleShot(ms, loop.quit)
-        loop.exec()
-
+    # Each yielded delay returns control to QApplication.exec(). DeferredDelete
+    # events posted by WA_DeleteOnClose then run at the level that posted them.
     def js(view, expression):
-        loop = QEventLoop()
-        timer = QTimer()
-        timer.setSingleShot(True)
         result = []
-        def done(value):
-            result.append(value)
-            loop.quit()
-        timer.timeout.connect(loop.quit)
-        view.page().runJavaScript(expression, done)
-        timer.start(3000)
-        if not result:
-            loop.exec()
-        timer.stop()
-        if not result:
-            raise RuntimeError("native JavaScript probe timed out")
+        view.page().runJavaScript(expression, result.append)
+        deadline = time.monotonic() + 3
+        while not result:
+            if time.monotonic() >= deadline:
+                raise RuntimeError("native JavaScript probe timed out")
+            yield 25
         return result[0]
 
     def ready(view, predicate, label):
         deadline = time.monotonic() + 25
         while time.monotonic() < deadline:
-            if js(view, "Boolean(" + predicate + ")") is True:
+            if (yield from js(view, "Boolean(" + predicate + ")")) is True:
                 return
-            wait(150)
+            yield 150
         raise RuntimeError("rendered content not ready: " + label)
 
     def measure(name, extra=None):
-        wait(int(args.settle * 1000))
+        yield int(args.settle * 1000)
         result, errors = [], []
         def collect():
             try:
@@ -116,7 +113,7 @@ def main():
         thread = threading.Thread(target=collect, daemon=True)
         thread.start()
         while thread.is_alive():
-            wait(100)
+            yield 100
         thread.join()
         if errors:
             raise errors[0]
@@ -125,9 +122,9 @@ def main():
         print(name, json.dumps(report["samples"][name]), flush=True)
 
     def images(view):
-        return json.loads(js(view, """JSON.stringify([...document.querySelectorAll('.home-page img')]
+        return json.loads((yield from js(view, """JSON.stringify([...document.querySelectorAll('.home-page img')]
             .filter(i => i.complete && i.naturalWidth > 0)
-            .map(i => ({gif: /\\.gif(?:[?#]|$)/i.test(i.currentSrc || i.src)})))"""))
+            .map(i => ({gif: /\\.gif(?:[?#]|$)/i.test(i.currentSrc || i.src)})))""")))
 
     with tempfile.TemporaryDirectory(prefix="companion-native-qa-", ignore_cleanup_errors=True) as temp:
         started = time.monotonic()
@@ -147,11 +144,11 @@ def main():
         view = shell.main.view
 
         def home_ready():
-            ready(view, "location.hash === '#/home' && document.querySelector('.home-roamers img') && [...document.querySelectorAll('.home-roamers img')].every(i => i.complete && i.naturalWidth > 0)", "Home artwork")
+            yield from ready(view, "location.hash === '#/home' && document.querySelector('.home-roamers img') && [...document.querySelectorAll('.home-roamers img')].every(i => i.complete && i.naturalWidth > 0)", "Home artwork")
 
         def navigate(route, predicate):
-            js(view, "location.hash = " + json.dumps(route) + "; true")
-            ready(view, "location.hash === " + json.dumps(route) + " && (" + predicate + ")", route)
+            yield from js(view, "location.hash = " + json.dumps(route) + "; true")
+            yield from ready(view, "location.hash === " + json.dumps(route) + " && (" + predicate + ")", route)
 
         def reload_home(motion):
             ctx.settings.update({"sprites.motion": motion})
@@ -159,50 +156,91 @@ def main():
             url = server.url("#/home")
             url = url.replace("#/home", "&qa_motion=" + motion + "#/home")
             view.load(QUrl(url))
-            ready(view, "location.search.includes('qa_motion=" + motion + "') && document.querySelector('.home-roamers img') && [...document.querySelectorAll('.home-roamers img')].every(i => i.complete && i.naturalWidth > 0)", motion + " Home")
-            return sum(i["gif"] for i in images(view))
+            yield from ready(view, "location.search.includes('qa_motion=" + motion + "') && document.querySelector('.home-roamers img') && [...document.querySelectorAll('.home-roamers img')].every(i => i.complete && i.naturalWidth > 0)", motion + " Home")
+            return sum(i["gif"] for i in (yield from images(view)))
 
-        def run():
+        def close_popouts():
+            objects = {}
+            renderers = {}
+            for tool, pop in list(shell.popouts.items()):
+                pop_view = pop.view
+                page = pop_view.page()
+                objects[tool] = (pop, pop_view, page)
+                pid = page.renderProcessPid()
+                if pid > 0 and pid != view.page().renderProcessPid():
+                    try:
+                        renderers[pid] = psutil.Process(pid)
+                    except psutil.NoSuchProcess:
+                        pass
+                if not pop.close():
+                    raise RuntimeError("native window refused to close: " + tool)
+            if shell.popouts:
+                raise RuntimeError("closed popouts remain in shell registry")
+            deadline = time.monotonic() + 5
+            while any(isValid(obj) for group in objects.values() for obj in group):
+                if time.monotonic() >= deadline:
+                    pending = [f"{tool}/{kind}" for tool, group in objects.items()
+                               for kind, obj in zip(("window", "view", "page"), group) if isValid(obj)]
+                    raise RuntimeError("closed native objects still alive: " + ", ".join(pending))
+                yield 25
+            return sorted(objects), renderers
+
+        def workload():
+            yield from home_ready()
+            report["startup_to_home_ready_seconds"] = round(time.monotonic() - started, 3)
+            normal_gifs = sum(i["gif"] for i in (yield from images(view)))
+            if not normal_gifs:
+                raise RuntimeError("normal Home did not show loaded GIF artwork")
+            yield from measure("home_normal", {"loaded_gifs": normal_gifs})
+            static_gifs = yield from reload_home("off")
+            if static_gifs:
+                raise RuntimeError("static Home still contains loaded GIF artwork")
+            yield from measure("home_static", {"loaded_gifs": static_gifs})
+            normal_gifs = yield from reload_home("on")
+            if not normal_gifs:
+                raise RuntimeError("normal Home GIF artwork did not return")
+            yield from measure("home_normal_again", {"loaded_gifs": normal_gifs})
+            yield from navigate("#/pokedex", "document.querySelectorAll('.dex-card').length === 649")
+            yield from measure("pokedex", {"cards": 649})
+            yield from navigate("#/tools/items", "document.querySelectorAll('.item-tile').length > 0")
+            tiles = yield from js(view, "document.querySelectorAll('.item-tile').length")
+            yield from measure("items", {"initial_tiles": tiles})
+            yield from navigate("#/home", "document.querySelector('.home-live')")
+            for cycle in (1, 2):
+                for tool, selector in (("calculator", ".calc-key"), ("items", ".item-tile"), ("pokedex", ".dex-card")):
+                    pop = shell.open_popout(tool, "standard", "")
+                    yield from ready(pop.view, "document.querySelector(" + json.dumps(selector) + ")", tool)
+                yield from measure(f"popouts_{cycle}", {"open_tools": sorted(shell.popouts)})
+                destroyed, renderers = yield from close_popouts()
+                recovery = f"recovery_{cycle}"
+                yield from measure(recovery, {"destroyed_windows_views_pages": destroyed})
+                report["samples"][recovery]["popout_renderer_pids"] = sorted(renderers)
+                report["samples"][recovery]["popout_renderers_alive"] = sorted(
+                    pid for pid, proc in renderers.items()
+                    if renderer_alive(proc)
+                )
+                save()
+
+        steps = workload()
+
+        def advance():
             try:
-                home_ready()
-                report["startup_to_home_ready_seconds"] = round(time.monotonic() - started, 3)
-                normal_gifs = sum(i["gif"] for i in images(view))
-                if not normal_gifs:
-                    raise RuntimeError("normal Home did not show loaded GIF artwork")
-                measure("home_normal", {"loaded_gifs": normal_gifs})
-                static_gifs = reload_home("off")
-                if static_gifs:
-                    raise RuntimeError("static Home still contains loaded GIF artwork")
-                measure("home_static", {"loaded_gifs": static_gifs})
-                normal_gifs = reload_home("on")
-                if not normal_gifs:
-                    raise RuntimeError("normal Home GIF artwork did not return")
-                measure("home_normal_again", {"loaded_gifs": normal_gifs})
-                navigate("#/pokedex", "document.querySelectorAll('.dex-card').length === 649")
-                measure("pokedex", {"cards": 649})
-                navigate("#/tools/items", "document.querySelectorAll('.item-tile').length > 0")
-                measure("items", {"initial_tiles": js(view, "document.querySelectorAll('.item-tile').length")})
-                navigate("#/home", "document.querySelector('.home-live')")
-                for cycle in (1, 2):
-                    for tool, selector in (("calculator", ".calc-key"), ("items", ".item-tile"), ("pokedex", ".dex-card")):
-                        pop = shell.open_popout(tool, "standard", "")
-                        ready(pop.view, "document.querySelector(" + json.dumps(selector) + ")", tool)
-                    measure("popouts_" + str(cycle), {"open_tools": sorted(shell.popouts)})
-                    for pop in list(shell.popouts.values()):
-                        pop.close()
-                    if shell.popouts:
-                        raise RuntimeError("closed popouts remain in shell registry")
-                    measure("recovery_" + str(cycle))
+                delay = next(steps)
+            except StopIteration:
                 report["status"] = "passed"
             except Exception as exc:
                 report["status"] = "failed"
                 report["error"] = str(exc)
                 print("Native workload failed:", exc, file=sys.stderr, flush=True)
-            finally:
+            else:
+                QTimer.singleShot(delay, advance)
+                return
+            try:
                 save()
+            finally:
                 shell.quit()
 
-        QTimer.singleShot(0, run)
+        QTimer.singleShot(0, advance)
         app.exec()
         server.stop()
         ctx.shutdown()
