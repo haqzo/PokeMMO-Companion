@@ -1,4 +1,5 @@
-// Localized starter walkthrough steps. ID and original hash both must match.
+// Manually translated walkthrough steps. ID and original hash both must match.
+import { GENERATED_WALKTHROUGH_TEXT } from './walkthrough-generated.js';
 export const WALKTHROUGH_TEXT = {
   "hoenn:imp:001:00": ["fc401c753e0c", "Sal del camión. Sube las escaleras y examina el reloj. Baja, sal de la casa y entra en la casa del este.", "走出卡车。上楼调查时钟，再下楼。出门后进入东边的房子。"],
   "hoenn:imp:001:01": ["26259e42539c", "Sube las escaleras y examina la Poké Ball. Baja y sal de la casa. Ve al norte hacia la Ruta 101.", "上楼调查精灵球。下楼出门，向北前往 101 号道路。"],
@@ -53,7 +54,7 @@ export const WALKTHROUGH_TEXT = {
 };
 
 export function walkthroughStep(step, language) {
-  const entry = WALKTHROUGH_TEXT[step.id];
+  const entry = WALKTHROUGH_TEXT[step.id] || GENERATED_WALKTHROUGH_TEXT[step.id];
   if (entry?.[0] === step.text_hash) return entry[{ es: 1, zh: 2 }[language]] ?? step.text;
   return step.text;
 }
