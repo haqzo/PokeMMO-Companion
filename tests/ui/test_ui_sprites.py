@@ -275,7 +275,10 @@ def test_listed_checks_drive_the_pokemmo_view(app, page):
 
 
 def test_grid_observers_release_detached_cards(app, page):
-    page.add_init_script("""() => {
+    # Init scripts are evaluated as source, not called as page.evaluate functions.
+    # Invoke explicitly, and establish a known roster/filter independent of previous tests.
+    app.ctx.settings.update({"pokedex.filters": {}, "pokedex.scope": "reference", "app.language": "en"})
+    page.add_init_script("""(() => {
         const Native = window.IntersectionObserver;
         const targets = new Set();
         window.__dexObserved = targets;
@@ -283,9 +286,11 @@ def test_grid_observers_release_detached_cards(app, page):
             observe(el) { if (el.matches('.dex-card')) targets.add(el); super.observe(el); }
             unobserve(el) { targets.delete(el); super.unobserve(el); }
         };
-    }""")
+    })();""")
     go(page, app, "#/pokedex")
-    _until(page, "window.__dexObserved && window.__dexObserved.size === document.querySelectorAll('.dex-card').length && window.__dexObserved.size === 649")
+    assert page.evaluate("window.__dexObserved instanceof Set"), "Observer instrumentation did not run"
+    _until(page, "document.querySelectorAll('.dex-card').length === 649")
+    _until(page, "window.__dexObserved.size === 649 && [...window.__dexObserved].every(e => e.isConnected)")
     page.get_by_role("radio", name="II", exact=True).click()
     _until(page, "window.__dexObserved.size === 100 && [...window.__dexObserved].every(e => e.isConnected)")
     page.evaluate("location.hash = '#/home'")
