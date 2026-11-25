@@ -497,3 +497,25 @@ def test_dynamic_service_field_validation(clean, pg, language, field, expected):
     assert "120" in result[4]
     assert result[5:] == ["Unexpected provider message 123", "unrecognized_field"]
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "arceus", "castform", "genesect", "artwork"), [
+    ("en", "Fighting", "Normal Form", "Genesect", "Animated shiny"),
+    ("es", "Lucha", "Forma Normal", "Genesect", "Animado variocolor"),
+    ("zh", "格斗", "普通的样子", "盖诺赛克特", "异色动画"),
+])
+def test_catalog_form_names_and_artwork_report(clean, pg, language, arceus, castform, genesect, artwork):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True})
+    pg.goto(clean.url("#/home"))
+    pg.locator("#main .page").first.wait_for()
+    result = pg.evaluate("""async () => {
+      const { formLabel } = await import('/js/game-locale.js');
+      const { artworkReportLabel, artworkVariantLabel } = await import('/js/pages/settings.js');
+      return [formLabel(201, '!'), formLabel(201, '?'), formLabel(493, 'Fighting'),
+        formLabel(351, 'Normal Form'), formLabel(649, 'Genesect'),
+        artworkVariantLabel('ani_shiny'),
+        artworkReportLabel({key: '493:fighting', species: 'Arceus', name: 'Fighting'})];
+    }""")
+    assert result[:6] == ["!", "?", arceus, castform, genesect, artwork]
+    assert result[6].endswith(" — " + arceus)
+    assert not pg.errors

@@ -1,5 +1,5 @@
 // Display-only terminology. Canonical values and IDs are kept in API responses and saved documents.
-import { lang, locale } from './i18n.js';
+import { lang, locale, t } from './i18n.js';
 import { GAME_TERMS } from './game-terms.js';
 
 const glossary = {
@@ -150,6 +150,13 @@ export function walkthroughChapter(name) {
 
 export function formLabel(id, canonical) {
   if (!canonical || lang() === 'en') return canonical;
+  const sid = Number(id);
+  // Unown letters and punctuation identify distinct forms. Normalization otherwise merges ! and ?.
+  if (sid === 201 && /^[A-Z!?]$/.test(canonical)) return canonical;
+  // The catalog uses the canonical type names for Arceus, not PokéAPI form names.
+  if (sid === 493 && Object.hasOwn(GAME_TERMS.en.type, keyFor(canonical))) return gameTerm('type', canonical);
+  if (sid === 351 && canonical === 'Normal Form') return t('dex.form_castform_normal');
+  if (sid === 649 && canonical === 'Genesect') return speciesLabel(sid, canonical);
   return GAME_TERMS[lang()]?.form[`${id}:${keyFor(canonical)}`] || canonical;
 }
 

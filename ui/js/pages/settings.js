@@ -1,4 +1,4 @@
-import { gameTerm } from '../game-locale.js';
+import { formLabel, gameTerm, speciesLabel } from '../game-locale.js';
 import { uiLabel, shortcutLabel } from '../i18n.js';
 import { t as translateUI } from '../i18n.js';
 // Settings (docs/design/16) + data import + first-run onboarding.
@@ -352,14 +352,23 @@ async function spriteLibrarySection(browse) {
     h('details', null, h('summary', { class: 'small' }, translateUI('advanced.art_report')), await formArtReport()));
   return box;
 }
+export function artworkReportLabel(row) {
+  const sid = Number(String(row.key || '').split(':')[0]);
+  return [speciesLabel(sid, row.species), formLabel(sid, row.name)].filter(Boolean).join(' — ');
+}
+export function artworkVariantLabel(kind) {
+  const labels = { ani: 'advanced.art_animation', ani_shiny: 'advanced.art_animation_shiny',
+    static: 'advanced.art_static', static_shiny: 'advanced.art_static_shiny' };
+  return Object.hasOwn(labels, kind) ? translateUI(labels[kind]) : kind;
+}
 async function formArtReport() {
   const r = await get('/api/dex/art');
   const label = { verified: translateUI('advanced.client_verified'), unverified: translateUI('advanced.client_changed_art'), 'same-as-base': translateUI('advanced.base_art'), placeholder: translateUI('advanced.placeholder'), none: '—' };
   return h('div', { class: 'stack tight' }, h('div', { class: 'tiny muted' }, translateUI('advanced.art_checked', { date: r.checked })),
     h('table', { class: 'table compact sprite-cov tiny' }, h('thead', null, h('tr', null, [translateUI('ui.form'), translateUI('advanced.your_client'), translateUI('advanced.your_library'), translateUI('advanced.known_sources')].map((x) => h('th', null, x)))),
-      h('tbody', null, r.forms.map((f) => h('tr', null, h('td', null, `${f.species} — ${f.name}`),
-        h('td', { title: f.local_reason }, label[f.local_status] || f.local_status),
-        h('td', null, f.library.length ? f.library.join(', ').replace(/_/g, ' ') : '—'),
+      h('tbody', null, r.forms.map((f) => h('tr', null, h('td', null, artworkReportLabel(f)),
+        h('td', { title: uiLabel(f.local_reason) }, label[f.local_status] || f.local_status),
+        h('td', null, f.library.length ? f.library.map(artworkVariantLabel).join(', ') : '—'),
         h('td', null, [f.known_sources.pokeapi_animated ? translateUI('advanced.pokeapi_anim') : null, f.known_sources.pokeapi_animated_shiny ? translateUI('advanced.shiny_suffix') : null,
           f.known_sources.smogon_animated ? translateUI('advanced.smogon_anim') : null, f.known_sources.pokesprite_icon ? translateUI('advanced.pokesprite_icon') : null].filter(Boolean).join(' · ') || '—'))))));
 }
