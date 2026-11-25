@@ -138,6 +138,12 @@ def smoke(artifact, target, release=False):
         env = os.environ.copy()
         for key in ("PYTHONPATH", "PYTHONHOME"):
             env.pop(key, None)
+        # Exercise the frozen runtime's default trust setup without inherited CA overrides.
+        tls_env = env.copy()
+        for key in ("SSL_CERT_FILE", "SSL_CERT_DIR"):
+            tls_env.pop(key, None)
+        subprocess.run([*command, "--check-tls-trust"], cwd=work,
+                       env=tls_env, check=True, timeout=120)
         subprocess.run([*command, "--check", "--data-dir", str(profile)], cwd=work,
                        env=env, check=True, timeout=120)
         expected = f"{APP_NAME} {__version__} — data dir "
@@ -185,7 +191,7 @@ def build(tag):
     glibc = smoke(artifact, target, release=bool(tag))
     if target == "linux" and not tag:
         print("Internal Linux build. The release glibc ceiling was not checked.")
-    checks = ["checksum", "bundled assets and runtimes", "fresh-profile backend self-check"]
+    checks = ["checksum", "bundled assets and runtimes", "packaged HTTPS trust store", "fresh-profile backend self-check"]
     if glibc is not None:
         checks += ["dynamic ELF dependencies", "maximum GLIBC requirement"]
     provenance = {"commit": sha, "tag": tag, "version": __version__, "platform": target,
