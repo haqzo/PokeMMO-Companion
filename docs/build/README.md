@@ -43,3 +43,5 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [29 — Timers and items](29-LOCALIZATION-TIMERS-ITEMS.md)
 - [29 — Imported item safeguards](29-LOCALIZATION-ITEM-IMPORTS.md)
 - [**29 — Service errors and roadmap reconciliation**](29-LOCALIZATION-SERVICE-ERRORS.md)
+
+- [**30 — Owner-confirmed translation review and 0.8.0 friends-only alpha gates**](30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md)

@@ -1,10 +1,10 @@
 # Friends-only closed alpha
 
-The current build identifies itself as **0.1.0**. Check the commit or checksum the owner sends with your copy. The proposed alpha version awaits approval.
+The current build identifies itself as **0.1.0**. Check the commit or checksum the owner sends with your copy. The owner-confirmed version target for the actual friends-only closed alpha is **0.8.0**. Development and translation-review builds remain 0.1.0 until the final alpha is ready; distribution still requires the final release gates and owner approval.
 
 ## Install and start
 
-- **Linux x86-64.** Save the owner-provided AppImage somewhere writable, make it executable in the file properties or with `chmod +x PokeMMO-Companion-0.1.0-x86_64.AppImage`, then open it. If your system lacks FUSE, run it from a terminal with `--appimage-extract-and-run`.
+- **Linux x86-64.** Save the owner-provided AppImage somewhere writable, make it executable in the file properties or with `chmod +x PokeMMO-Companion-<version>-x86_64.AppImage` (replace `<version>` with the supplied build version), then open it. If your system lacks FUSE, run it from a terminal with `--appimage-extract-and-run`.
 - **Windows x86-64.** If the owner supplies a verified Windows ZIP, extract the entire directory and open `pokemmo-companion.exe` from that directory. The files beside the executable support the native app.
 - On first launch, open Home and the Pokédex. Reference data, sprites, maps and the five regional walkthroughs are available from the installed app. Start a storyline run only if you want to track your walkthrough progress. Changes are stored in your per-user data directory.
 
@@ -23,11 +23,11 @@ Use **Settings → Backup & recovery** to make a complete ZIP before replacing a
 
 ## Release gates
 
-Localization is a closed-alpha development requirement: complete Spanish and Simplified Chinese interface and walkthrough coverage, review terminology and gameplay instructions, run the full rendered-interface and regression audit, and verify native glyph rendering. Coverage counts alone do not establish language quality. See the [active development checkpoint](roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md).
+Localization is a closed-alpha development requirement: complete Spanish and Simplified Chinese interface and walkthrough coverage, review terminology and gameplay instructions, run the full rendered-interface and regression audit, and verify native glyph rendering. Coverage counts alone do not establish language quality. Target approximately 99% of application-owned user-facing text before translation review, then review with MaToRiuKo (Simplified Chinese) and a Spanish-speaking reviewer, followed by owner-wide functional testing, fixes and final verification. See the [active development checkpoint](roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md) and [translation review checklist](build/30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md).
 
 | Stage | Open items |
 |---|---|
-| Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. Approve the alpha version and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. |
+| Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. The 0.8.0 target is agreed; confirm final build readiness and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. |
 | Public beta | Close all applicable alpha gates for a public audience. Verify the target Linux compatibility baseline and Windows distribution. Configure and verify Ed25519 application signing and the release checksums. Verify reference signing and index hosting if enabling automatic reference updates, and confirm the existing Discord announcement workflow with the owner before publication. |
 | During alpha | Collect feedback on the Unova reference, compact-window readability and the handoff to Discord. |
 
