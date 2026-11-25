@@ -1,3 +1,5 @@
+import { compareLabels, findSpecies, gameTerm, speciesLabel } from './game-locale.js';
+import { t } from './i18n.js';
 // Shared widgets.
 import { h, get, state, pad3, spriteOrFallback, typeChips } from './core.js';
 
@@ -8,14 +10,15 @@ export async function speciesIndex() {
 }
 
 /** Text input with suggestions; resolves to a species id. */
-export function speciesPicker({ value, onChange, label = 'Species', placeholder = 'Type a Pokémon name or #', id }) {
+export function speciesPicker({ value, onChange, label = t('game.species'), placeholder = t('game.species_search'), id }) {
   const listId = 'species-dl-' + (++dlCounter);
   const input = h('input', { class: 'input', list: listId, placeholder, id: id || null, autocomplete: 'off', 'aria-label': label });
   const dl = h('datalist', { id: listId });
   const preview = h('div', { class: 'row', style: { minHeight: '36px' } });
   speciesIndex().then((idx) => {
-    dl.append(...idx.map((s) => h('option', { value: s.name }, '#' + pad3(s.id))));
-    if (value) { const s = idx.find((x) => x.id === Number(value)); if (s) { input.value = s.name; show(s); } }
+    const sorted = [...idx].sort((a, b) => compareLabels(speciesLabel(a.id, a.name), speciesLabel(b.id, b.name)));
+    dl.append(...sorted.map((s) => h('option', { value: speciesLabel(s.id, s.name) }, '#' + pad3(s.id))));
+    if (value) { const s = idx.find((x) => x.id === Number(value)); if (s) { input.value = speciesLabel(s.id, s.name); show(s); } }
   });
   function show(s) {
     preview.replaceChildren(...(s ? [h('div', { style: { width: '36px', height: '36px', display: 'grid', placeItems: 'center' } }, spriteOrFallback(s.icon, s, 36)),
@@ -23,10 +26,9 @@ export function speciesPicker({ value, onChange, label = 'Species', placeholder 
   }
   input.addEventListener('change', async () => {
     const idx = await speciesIndex();
-    const v = input.value.trim().toLowerCase().replace(/^#/, '');
-    const s = idx.find((x) => x.name.toLowerCase() === v) || (/^\d+$/.test(v) ? idx.find((x) => x.id === Number(v)) : null);
+    const s = findSpecies(idx, input.value);
     show(s);
-    if (s) input.value = s.name;
+    if (s) input.value = speciesLabel(s.id, s.name);
     onChange(s ? s.id : null, s);
   });
   return h('div', { class: 'field' }, label ? h('label', null, label) : null, input, dl, preview);
@@ -52,7 +54,7 @@ export function pickJsonFile() {
 export const NATURES = ['Adamant', 'Bashful', 'Bold', 'Brave', 'Calm', 'Careful', 'Docile', 'Gentle', 'Hardy', 'Hasty', 'Impish', 'Jolly', 'Lax',
   'Lonely', 'Mild', 'Modest', 'Naive', 'Naughty', 'Quiet', 'Quirky', 'Rash', 'Relaxed', 'Sassy', 'Serious', 'Timid'];
 export function natureSelect(value, onChange, allowNone = true) {
-  return h('select', { class: 'input', onchange: (e) => onChange(e.target.value || null), 'aria-label': 'Nature' },
+  return h('select', { class: 'input', onchange: (e) => onChange(e.target.value || null), 'aria-label': t('ui.nature') },
     allowNone ? h('option', { value: '' }, '— Nature —') : null,
-    NATURES.map((n) => h('option', { value: n, selected: n === value ? 'selected' : null }, n)));
+    NATURES.map((n) => h('option', { value: n, selected: n === value ? 'selected' : null }, gameTerm('nature', n))));
 }

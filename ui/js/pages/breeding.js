@@ -1,3 +1,5 @@
+import { t as translateUI } from '../i18n.js';
+import { speciesLabel } from '../game-locale.js';
 // Breeding planner (docs/design/08): Preview (A | Offspring | B), Plan tree, Egg moves.
 import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, tabs, toast, confirmDialog, on, debounce, spriteOrFallback, extLink, pad3, modal, WINDOW_ID, sourceInfo } from '../core.js';
 import { go } from '../shell.js';
@@ -96,7 +98,7 @@ async function renderPreview(el, { popout, mode }) {
     mount(result, h('div', { class: 'offspring-card' },
       h('div', { class: 'eyebrow', style: { fontSize: '.75rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 } }, 'Expected offspring · prediction'),
       off ? h('div', { class: 'row' }, h('div', { style: { width: '48px', height: '48px', display: 'grid', placeItems: 'center' } }, spriteOrFallback(off.icon, off, 48)),
-        h('div', null, h('div', { style: { fontWeight: 700, fontSize: '1.1rem' } }, off.name), typeChips(off.types, true))) : h('div', { class: 'muted' }, 'Choose two compatible parents'),
+        h('div', null, h('div', { style: { fontWeight: 700, fontSize: '1.1rem' } }, speciesLabel(off.id, off.name)), typeChips(off.types, true))) : h('div', { class: 'muted' }, translateUI('ui.compatible_parents')),
       h('div', { class: 'iv-grid' }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, l))),
       h('div', { class: 'iv-grid' }, h('span', { class: 'label' }, 'IV'), p.ivs.map((r) => h('div', { class: 'iv-cell ' + r.state, title: r.text },
         r.state === 'guaranteed' ? (r.value ?? '?') : r.values && r.values.length ? r.values.join('/') : '?'))),
@@ -114,10 +116,10 @@ async function renderPreview(el, { popout, mode }) {
     notice('warn', p.consumption));
   };
   const actions = popout ? null : h('div', { class: 'row wrap' },
-    h('button', { class: 'btn', onclick: () => { const t = pairing.a; pairing.a = pairing.b; pairing.b = t; redrawCols(); update(); } }, 'Swap parents'),
-    h('button', { class: 'btn', onclick: async () => { const r = await post('/api/docs/pairing', { name: pairingName(idx), data: JSON.parse(JSON.stringify(pairing)) }); toast(`Saved pairing “${r.name}”`); } }, 'Save pairing'),
+    h('button', { class: 'btn', onclick: () => { const t = pairing.a; pairing.a = pairing.b; pairing.b = t; redrawCols(); update(); } }, translateUI('ui.swap_parents')),
+    h('button', { class: 'btn', onclick: async () => { const r = await post('/api/docs/pairing', { name: pairingName(idx), data: JSON.parse(JSON.stringify(pairing)) }); toast(`Saved pairing “${r.name}”`); } }, translateUI('ui.save_pairing')),
     h('button', { class: 'btn ghost', onclick: savedPairingsDialog }, 'Saved pairings…'),
-    h('button', { class: 'btn ghost', onclick: () => { pairing = { a: blankParent(), b: blankParent() }; redrawCols(); update(); } }, 'Reset'),
+    h('button', { class: 'btn ghost', onclick: () => { pairing = { a: blankParent(), b: blankParent() }; redrawCols(); update(); } }, translateUI('ui.reset')),
     h('span', { class: 'grow' }), h('span', { class: 'small muted' }, 'The Companion never breeds for you — confirm in game.'));
   mount(el, h('div', { class: 'stack' }, cols, compat, actions));
   redrawCols();
@@ -125,10 +127,10 @@ async function renderPreview(el, { popout, mode }) {
 
   async function savedPairingsDialog() {
     const list = (await get('/api/docs/pairing')).items.filter((x) => x.id !== 'current');
-    modal({ title: 'Saved pairings', body: list.length ? h('div', { class: 'list-rows' }, list.map((x) => h('div', { class: 'list-row' }, h('span', { class: 'grow' }, x.name),
+    modal({ title: translateUI('ui.saved_pairings'), body: list.length ? h('div', { class: 'list-rows' }, list.map((x) => h('div', { class: 'list-row' }, h('span', { class: 'grow' }, x.name),
       h('button', { class: 'btn small', onclick: () => { pairing = JSON.parse(JSON.stringify(x.data)); savePairing(); document.querySelector('.modal-back').remove(); renderPreview(el, { popout, mode }); } }, 'Load'),
-      h('button', { class: 'btn small danger', onclick: async (e) => { await api('DELETE', `/api/docs/pairing/${x.id}`); e.target.closest('.list-row').remove(); } }, 'Delete')))) : h('p', { class: 'muted' }, 'No saved pairings yet.'),
-    actions: [{ label: 'Close', kind: 'ghost' }] });
+      h('button', { class: 'btn small danger', onclick: async (e) => { await api('DELETE', `/api/docs/pairing/${x.id}`); e.target.closest('.list-row').remove(); } }, translateUI('ui.delete'))))) : h('p', { class: 'muted' }, 'No saved pairings yet.'),
+    actions: [{ label: translateUI('ui.close'), kind: 'ghost' }] });
   }
 }
 function pairingName(idx) {
@@ -171,9 +173,9 @@ async function renderPlan(el, route) {
         'aria-label': `${it} price`, onchange: (e) => { plan.prices[it] = e.target.value === '' ? undefined : Number(e.target.value); persist(); compute(); } }))));
     const sel = selectedNode && flat.find((f) => f.n.id === selectedNode);
     mount(side,
-      h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Summary')),
+      h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, translateUI('ui.summary'))),
         h('dl', { class: 'kv' }, h('dt', null, 'Base breeders'), h('dd', null, s.leaves), h('dt', null, 'Breeds'), h('dd', null, s.breeds),
-          h('dt', null, 'Progress'), h('dd', null, `${s.progress.done} of ${s.progress.nodes} nodes marked done`))),
+          h('dt', null, translateUI('ui.progress')), h('dd', null, `${s.progress.done} of ${s.progress.nodes} nodes marked done`))),
       h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Items & your prices')),
         h('table', { class: 'table compact' }, h('tbody', null, priceRows)),
         h('div', { style: { marginTop: '8px', fontWeight: 600 } }, s.cost.total !== null ? `Item total: ¥${s.cost.total.toLocaleString()}` :
@@ -206,11 +208,11 @@ async function renderPlan(el, route) {
       h('div', { class: 'field grow' }, h('label', null, 'Plan name'), h('input', { class: 'input', value: name, maxlength: 60, oninput: (e) => { name = e.target.value; persist(); } })),
       doc ? null : h('button', { class: 'btn primary', onclick: async () => { doc = await post('/api/docs/breeding_plan', { name, data: plan }); toast('Plan saved — changes now autosave'); renderPlanAgain(); } }, 'Save plan'),
       doc ? h('span', { class: 'small muted' }, 'Autosaves') : null,
-      h('button', { class: 'btn ghost', onclick: () => downloadJson(`breeding-plan-${(name || 'plan').replace(/\W+/g, '-')}.json`, { format: 'pokemmo-companion-breeding-plan', version: 1, name, plan }) }, icon('download'), 'Export'),
+      h('button', { class: 'btn ghost', onclick: () => downloadJson(`breeding-plan-${(name || 'plan').replace(/\W+/g, '-')}.json`, { format: 'pokemmo-companion-breeding-plan', version: 1, name, plan }) }, icon('download'), translateUI('ui.export')),
       h('button', { class: 'btn ghost', onclick: async () => { try { const f = await pickJsonFile(); if (!f) return; if (f.format !== 'pokemmo-companion-breeding-plan') throw new Error('Not a breeding plan file');
-        doc = await post('/api/docs/breeding_plan', { name: f.name + ' (imported)', data: f.plan }); renderPlanAgain(); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('upload'), 'Import'),
+        doc = await post('/api/docs/breeding_plan', { name: f.name + ' (imported)', data: f.plan }); renderPlanAgain(); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('upload'), translateUI('ui.import')),
       doc ? h('button', { class: 'btn danger', onclick: async () => { if (await confirmDialog('Delete plan', `Delete “${doc.name}”? Your in-game Pokémon are not affected.`, 'Delete', true)) {
-        await api('DELETE', `/api/docs/breeding_plan/${doc.id}`); doc = null; renderPlan(el, { query: new URLSearchParams('plan=__new') }); } } }, 'Delete') : null),
+        await api('DELETE', `/api/docs/breeding_plan/${doc.id}`); doc = null; renderPlan(el, { query: new URLSearchParams('plan=__new') }); } } }, translateUI('ui.delete')) : null),
     h('div', { class: 'card stack' }, h('div', { class: 'row wrap' },
       h('div', { style: { minWidth: '260px' } }, speciesPicker({ label: 'Target species', value: plan.species, onChange: (id) => { plan.species = id; persist(); } })),
       h('div', { class: 'field' }, h('label', null, 'Nature goal'), natureSelect(plan.nature, (v) => { plan.nature = v; plan.node_status = {}; persist(); renderPlanAgain(); }))),
@@ -231,11 +233,11 @@ async function renderEggMoves(el, route) {
     mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${r.species} · egg groups: ${r.egg_groups.join(', ') || 'none breedable'}`),
       r.moves.length ? r.moves.map((m) => h('div', { class: 'card tight stack tight' }, h('div', { class: 'row' }, h('strong', null, m.move), m.type ? typeChip(m.type, true) : null,
         m.verified_meta ? null : sourceInfo('DUMP_ONLY', 'Move details are not checked in game yet.'), h('span', { class: 'grow' }), h('span', { class: 'small muted' }, `${m.father_count} candidate father species`)),
-      h('div', { class: 'row wrap' }, m.fathers.map((f) => h('button', { class: 'chip btnlike', title: f.methods.join(', '), onclick: () => go('#/pokedex/' + f.id) }, f.name,
+      h('div', { class: 'row wrap' }, m.fathers.map((f) => h('button', { class: 'chip btnlike', title: f.methods.join(', '), onclick: () => go('#/pokedex/' + f.id) }, speciesLabel(f.id, f.name),
         f.tm_unconfirmed ? h('span', { style: { color: 'var(--st-dump)' } }, ' (TM?)') : null))))) : h('div', { class: 'empty' }, 'No egg moves listed for this species in the PokeMMO data.'),
       notice('warn', r.note)));
   };
   const sid = route && route.query ? Number(route.query.get('species')) || null : null;
-  mount(el, h('div', { class: 'stack' }, h('div', { class: 'card', style: { maxWidth: '420px' } }, speciesPicker({ label: 'Species', value: sid, onChange: load })), out));
+  mount(el, h('div', { class: 'stack' }, h('div', { class: 'card', style: { maxWidth: '420px' } }, speciesPicker({ label: translateUI('ui.species'), value: sid, onChange: load })), out));
   if (sid) load(sid);
 }

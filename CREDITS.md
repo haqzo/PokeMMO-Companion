@@ -40,3 +40,14 @@ preparation only), `cryptography` (optional, signature checks).
 ## Distribution note
 The project owner decides what is distributed. Permission to redistribute the sprite images and PokeMMO client
 assets (item icons, map images, reference data) has **not** been established; see docs/build/20.
+
+## Offline language catalogs
+
+Companion’s Spanish and Simplified Chinese interface text and walkthrough translations are community-review drafts.
+The name catalog uses the [PokéAPI CSV tables](https://github.com/PokeAPI/pokeapi/tree/de6760be38b60a3024f1d9054330ff265f0dc619/data/v2/csv).
+The packaged `ui/licenses/pokeapi.txt` preserves PokéAPI’s project license and trademark notice. Gameplay data remain
+from PokeMMO. Selected location name cross-references come from the
+[52Poké location list](https://wiki.52poke.com/wiki/地点列表（在其他语言中）), which publishes its text under CC BY-NC-SA 3.0.
+
+Companion Han is a renamed Simplified Chinese subset of [Noto Sans CJK](https://github.com/notofonts/noto-cjk).
+The SIL Open Font License and copyright notice are packaged in `ui/fonts/ofl.txt`.

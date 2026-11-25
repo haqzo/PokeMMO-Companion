@@ -1,3 +1,5 @@
+import { number, t as translateUI } from '../i18n.js';
+import { compareLabels, gameTerm, itemLabel, matchesTerm, searchText, speciesLabel } from '../game-locale.js';
 // Item Library (docs/design/18 §1): every item group from the user's own installed dump.
 // Categories are inferred and say so; links come only from item IDs in the same dump.
 import { h, mount, clear, icon, get, api, state, setting, saveSettings, on, notice, badge, debounce, toast, pad3, seg, WINDOW_ID } from '../core.js';
@@ -18,25 +20,25 @@ function filters() { if (!F) F = { ...F0, ...(setting('items.filters') || {}), q
 const persist = debounce(() => saveSettings({ 'items.filters': { ...F, q: '' } }).catch(() => {}), 600);
 
 export function applyItemFilters(items, f) {
-  const q = (f.q || '').trim().toLowerCase();
+  const q = searchText(f.q);
   const out = items.filter((i) => {
     if (!f.placeholders && i.category === 'placeholder') return false;
     if (f.cat !== 'all' && i.category !== f.cat) return false;
     if (f.fav && !i.fav) return false;
     if (f.held && !i.held) return false;
     if (f.evo && !i.evo) return false;
-    if (q && !(i.search.includes(q) || String(i.id) === q)) return false;
+    if (q && !(searchText(i.search).includes(q) || matchesTerm('item', i.name, q) || String(i.id) === q)) return false;
     return true;
   });
-  const by = { name: (a, b) => a.label.localeCompare(b.label), id: (a, b) => a.id - b.id, qty: (a, b) => (b.qty || 0) - (a.qty || 0) || a.label.localeCompare(b.label) };
+  const by = { name: (a, b) => compareLabels(itemLabel(a), itemLabel(b)), id: (a, b) => a.id - b.id, qty: (a, b) => (b.qty || 0) - (a.qty || 0) || compareLabels(itemLabel(a), itemLabel(b)) };
   return out.sort(by[f.sort] || by.name);
 }
 
 export function itemTile(i, { selected, onOpen, compact } = {}) {
-  return h('button', { class: 'item-tile' + (selected ? ' selected' : '') + (compact ? ' compact' : ''), dataset: { id: i.id }, title: i.label + (i.label !== i.name ? ` (${i.name})` : ''),
-    'aria-label': `${i.label}${i.fav ? ', favourite' : ''}${i.qty != null ? ', you have ' + i.qty : ''}`, onclick: () => onOpen(i.id) },
+  return h('button', { class: 'item-tile' + (selected ? ' selected' : '') + (compact ? ' compact' : ''), dataset: { id: i.id }, title: itemLabel(i) + (itemLabel(i) !== i.name ? ` (${i.name})` : ''),
+    'aria-label': `${itemLabel(i)}${i.fav ? ', favourite' : ''}${i.qty != null ? ', you have ' + i.qty : ''}`, onclick: () => onOpen(i.id) },
   i.icon ? h('img', { class: 'pixel', src: i.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : h('span', { class: 'item-noicon', title: 'No icon (artwork is not bundled)' }, '?'),
-  h('span', { class: 'it-name ellipsis' }, i.label), i.fav ? h('span', { class: 'it-fav', 'aria-hidden': 'true' }, '★') : null,
+  h('span', { class: 'it-name ellipsis' }, itemLabel(i)), i.fav ? h('span', { class: 'it-fav', 'aria-hidden': 'true' }, '★') : null,
   i.qty != null ? h('span', { class: 'it-qty' }, '×' + i.qty) : null);
 }
 
@@ -73,7 +75,7 @@ export async function render(el, route) {
   const scroll = h('div', { class: 'dex-scroll' }, grid);
   const draw = () => {
     const list = applyItemFilters(data.items, F);
-    count.textContent = `${list.length} of ${data.items.filter((i) => i.category !== 'placeholder').length}`;
+    count.textContent = translateUI('ui.item_counts', { count: number(list.length), total: number(data.items.filter((i) => i.category !== 'placeholder').length) });
     clear(grid);
     let shown = 0;
     const more = () => {
@@ -83,23 +85,22 @@ export async function render(el, route) {
       if (shown < list.length) { const s = h('div', { class: 'more-sentinel', style: { gridColumn: '1/-1', height: '1px' } }); grid.append(s);
         new IntersectionObserver((ents, obs) => { if (ents[0].isIntersecting) { obs.disconnect(); s.remove(); more(); } }, { root: scroll }).observe(s); }
     };
-    if (!list.length) grid.append(h('div', { class: 'empty', style: { gridColumn: '1/-1' } }, h('h3', null, 'No items match'), h('button', { class: 'btn small', onclick: () => { F = { ...F0 }; persist(); draw(); } }, 'Clear filters')));
+    if (!list.length) grid.append(h('div', { class: 'empty', style: { gridColumn: '1/-1' } }, h('h3', null, translateUI('ui.item_empty')), h('button', { class: 'btn small', onclick: () => { F = { ...F0 }; persist(); draw(); } }, 'Clear filters')));
     else more();
   };
   const chip = (label, key) => h('button', { class: 'chip btnlike' + (F[key] ? ' active' : ''), 'aria-pressed': String(!!F[key]), onclick: (e) => { F[key] = !F[key]; e.currentTarget.classList.toggle('active', F[key]); e.currentTarget.setAttribute('aria-pressed', String(F[key])); persist(); draw(); } }, label);
   left.append(h('div', { class: 'dex-toolbar' },
-    h('div', { class: 'search' }, icon('search'), h('input', { class: 'input', type: 'search', id: 'item-search', placeholder: 'Name, TM move or item ID', 'aria-label': 'Search items',
+    h('div', { class: 'search' }, icon('search'), h('input', { class: 'input', type: 'search', id: 'item-search', placeholder: translateUI('ui.item_search_detail'), 'aria-label': translateUI('ui.search_items'),
       oninput: debounce((e) => { F.q = e.target.value; draw(); }, 120) })),
     h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': t('items.category'), onchange: (e) => { F.cat = e.target.value; persist(); draw(); } },
       catOptions(data).map(([v, l]) => h('option', { value: v, selected: F.cat === v ? 'selected' : null }, l))),
     chip('★ ' + t('common.favourite'), 'fav'), chip(t('items.held_by'), 'held'), chip(t('items.evolution'), 'evo'),
-    h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Sort', onchange: (e) => { F.sort = e.target.value; persist(); draw(); } },
-      [['name', 'Name A–Z'], ['id', 'Item ID'], ['qty', 'My quantity']].map(([v, l]) => h('option', { value: v, selected: F.sort === v ? 'selected' : null }, l)))),
+    h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.sort'), onchange: (e) => { F.sort = e.target.value; persist(); draw(); } },
+      [['name', translateUI('ui.name_az')], ['id', translateUI('ui.item_id')], ['qty', translateUI('ui.item_quantity')]].map(([v, l]) => h('option', { value: v, selected: F.sort === v ? 'selected' : null }, l)))),
   h('div', { class: 'dex-info' }, h('div', { class: 'row wrap grow', style: { gap: '6px 14px' } }, count,
-    h('span', { class: 'small muted' }, `${data.stats.records} item records in the PokeMMO data → ${data.items.length} distinct items · ${data.stats.missing_icon} records without an icon`),
-    lang() !== 'en' ? h('span', { class: 'small muted' }, data.langs.includes(lang()) ? 'Names in your language come from your client’s string table where translated; others stay English.' :
-      'No item names for this language in the game data — names stay English. An optional import of the client’s XML-Strings.zip adds them.') : null,
-    h('span', { class: 'tiny muted' }, 'Categories are inferred from names/descriptions.'))), scroll);
+    h('span', { class: 'small muted' }, translateUI('ui.item_records', { records: number(data.stats.records), distinct: number(data.items.length), missing: number(data.stats.missing_icon) })),
+    lang() !== 'en' ? h('span', { class: 'small muted' }, translateUI('ui.item_name_source')) : null,
+    h('span', { class: 'tiny muted' }, translateUI('ui.item_cat_inferred')))), scroll);
   draw();
   if (sel) {
     const pane = h('div', { class: 'dex-detail' });
@@ -128,7 +129,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
       h('div', { class: 'grow', style: { minWidth: 0 } },
         h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, 'Item ' + d.id), h('span', { class: 'grow' }), fav,
           back ? h('button', { class: 'icon-btn', title: t('common.close'), 'aria-label': t('common.close'), onclick: back }, icon('close')) : null),
-        h('h2', null, d.label), d.label !== d.name ? h('div', { class: 'small muted' }, d.name) : null,
+        h('h2', null, itemLabel(d)), itemLabel(d) !== d.name ? h('div', { class: 'small muted' }, d.name) : null,
         h('div', { class: 'row wrap', style: { marginTop: '4px' } }, h('span', { class: 'chip' }, d.category_label),
           h('span', { class: 'tiny muted', title: 'How the category was inferred' }, d.category_basis)))),
     h('div', { class: 'detail-body stack' },
@@ -136,17 +137,17 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
       d.desc_local ? h('details', null, h('summary', { class: 'small' }, 'English description'), h('p', { class: 'small', style: { whiteSpace: 'pre-line' } }, d.desc)) : null,
       h('div', { class: 'row wrap' }, h('label', { class: 'label', for: 'qty-' + d.id }, t('items.owned_qty')), qty,
         h('span', { class: 'tiny muted' }, 'Entered by you — the Companion cannot see your bag.')),
-      d.move ? h('div', { class: 'card inset' }, h('div', { class: 'label' }, 'Teaches'), h('div', null, h('strong', null, d.move.name), ` · ${d.move.type} · ${d.move.category} · Pow ${d.move.power || '—'} · Acc ${d.move.accuracy > 100 ? '—' : d.move.accuracy} · PP ${d.move.pp}`)) : null,
+      d.move ? h('div', { class: 'card inset' }, h('div', { class: 'label' }, 'Teaches'), h('div', null, h('strong', null, gameTerm('move', d.move.name)), ` · ${d.move.type} · ${d.move.category} · Pow ${d.move.power || '—'} · Acc ${d.move.accuracy > 100 ? '—' : d.move.accuracy} · PP ${d.move.pp}`)) : null,
       d.evolution_uses.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, t('items.evolution')),
-        h('div', { class: 'row wrap' }, d.evolution_uses.map((e) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + e.to), title: `${e.from_name} → ${e.to_name} (${e.method.replace(/_/g, ' ').toLowerCase()})` },
-          e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, `${e.from_name} → ${e.to_name}`))))) : null,
+        h('div', { class: 'row wrap' }, d.evolution_uses.map((e) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + e.to), title: `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)} (${e.method.replace(/_/g, ' ').toLowerCase()})` },
+          e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)}`))))) : null,
       d.held_by.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, `${t('items.held_by')} (${d.held_by.length})`),
-        h('div', { class: 'row wrap' }, d.held_by.map((s) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + s.id), title: s.name },
-          s.icon ? h('img', { class: 'pixel', src: s.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : null, h('span', { class: 'small' }, s.name)))),
+        h('div', { class: 'row wrap' }, d.held_by.map((s) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + s.id), title: speciesLabel(s.id, s.name) },
+          s.icon ? h('img', { class: 'pixel', src: s.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : null, h('span', { class: 'small' }, speciesLabel(s.id, s.name))))),
         h('div', { class: 'tiny muted' }, 'From held-item IDs in the PokeMMO data. Hold chances are not in the data.')) : null,
       d.breeding ? h('div', { class: 'row wrap' }, h('span', { class: 'small' }, 'Breeding item.'), h('button', { class: 'btn small', onclick: () => go_('#/tools/breeding') }, icon('egg'), 'Open Breeding planner')) : null,
       h('details', null, h('summary', { class: 'small' }, `Source records (${d.records.length})`),
-        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Item ID', 'Region code', 'Icon ID', 'Icon'].map((c) => h('th', null, c)))),
+        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.item_id'), 'Region code', 'Icon ID', 'Icon'].map((c) => h('th', null, c)))),
           h('tbody', null, d.records.map((r) => h('tr', null, h('td', null, r.id), h('td', null, r.region_code), h('td', null, r.icon_id), h('td', null, r.has_icon ? '✓' : 'missing'))))),
         h('div', { class: 'tiny muted' }, d.provenance)),
       linkedNotes('item', String(d.id), d.label),
@@ -173,7 +174,7 @@ export async function renderItemsPopout(el, mode) {
     mount(grid, list.map((i) => itemTile(i, { compact: mode === 'compact', onOpen: (id) => { location.hash = `#/item/${id}`; } })));
   };
   mount(el, h('div', { class: 'row', style: { marginBottom: '6px' } },
-    h('input', { class: 'input', type: 'search', placeholder: t('common.search'), 'aria-label': 'Search items', value: F.q, oninput: debounce((e) => { F.q = e.target.value; draw(); }, 120) }),
+    h('input', { class: 'input', type: 'search', placeholder: t('common.search'), 'aria-label': translateUI('ui.search_items'), value: F.q, oninput: debounce((e) => { F.q = e.target.value; draw(); }, 120) }),
     mode !== 'compact' ? h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': t('items.category'), onchange: (e) => { F.cat = e.target.value; draw(); } },
       catOptions(data).map(([v, l]) => h('option', { value: v, selected: F.cat === v ? 'selected' : null }, l))) : null), countEl, grid);
   draw();

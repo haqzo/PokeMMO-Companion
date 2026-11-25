@@ -1,3 +1,7 @@
+import { WALKTHROUGH_TEXT } from '../walkthrough-locales.js';
+import { lang } from '../i18n.js';
+import { gameTerm, searchText } from '../game-locale.js';
+import { t as translateUI } from '../i18n.js';
 // Guides (docs/design/14–17): named character runs, five regions, manual progress.
 import { guideContext, shortcutFor, displayCombo } from '../shortcuts.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, tabs, toast, confirmDialog, modal, on, debounce, fmtDate, relTime, extLink, sourceInfo } from '../core.js';
@@ -8,6 +12,13 @@ import { guideExtras } from '../guide-extras.js';
 const REGIONS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
 let unsub = [];
 let ui = { chapter: {}, search: '', all: {} };
+function stepLabel(step) {
+  const entry = WALKTHROUGH_TEXT[step.id];
+  if (entry && entry[0] === step.text_hash && lang() !== 'en') return entry[lang() === 'es' ? 1 : 2];
+  return step.text;
+}
+const chapterLabel = (name) => gameTerm('location', name);
+
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
 export function runInitial(run) { return (run.character_name || '?').trim().charAt(0).toUpperCase(); }
@@ -22,7 +33,7 @@ export async function runForm({ title = 'New character run', name = '', label = 
     h('div', { class: 'field' }, h('label', null, 'Run label (optional) — separate playthroughs of the same character'), labelIn),
     withRegion ? h('div', { class: 'field' }, h('label', null, 'Open region first (you can switch any time)'), regionSel) : null,
     h('div', { class: 'tiny muted' }, 'Just a typed name — no avatars or account login. Progress is stored on this computer.'), err),
-  actions: [{ label: 'Cancel', value: null, kind: 'ghost' }, { label: okLabel, kind: 'primary', handler: () => {
+  actions: [{ label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: okLabel, kind: 'primary', handler: () => {
     const v = { name: nameIn.value.trim(), label: labelIn.value.trim(), region: regionSel.value };
     if (!v.name) { err.textContent = 'Please type a character name.'; nameIn.focus(); return false; }
     return v; } }] });
@@ -43,7 +54,7 @@ export async function render(el, route) {
   // Browse the bundled walkthroughs without a character run (or with ?browse=1): read-only, nothing is ticked.
   if (route.query.get('browse') || (!runs.runs.length && REGIONS.includes(route.query.get('region')))) return browse(page, route, runs, el);
   if (!runs.runs.length) {
-    page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'), h('div', { class: 'sub' }, 'Storyline walkthroughs with your own per-character progress. My Guides work without a run.'))),
+    page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('ui.storyline')), h('div', { class: 'sub' }, 'Storyline walkthroughs with your own per-character progress. My Guides work without a run.'))),
       h('div', { class: 'card content-narrow stack', style: { maxWidth: '620px' } }, h('h2', { style: { margin: 0 } }, 'Create your first character run'),
         h('p', { class: 'muted', style: { margin: 0 } }, 'Type your character’s name. Each run keeps its own checkmarks in all five regions; you can create as many as you like.'),
         h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) render(el, route); } }, icon('plus'), 'Create run'),
@@ -59,7 +70,7 @@ export async function render(el, route) {
   Object.assign(guideContext, { run: run.id, region, step: st.active_step_id, refresh: () => { if (el.isConnected && location.hash.startsWith('#/guides')) render(el, route); } });
   unsub.push(() => Object.assign(guideContext, { run: null, region: null, step: null, refresh: null }));
 
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'), h('div', { class: 'sub' }, 'Every checkmark is yours to set — nothing is read from the game.')),
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('ui.storyline')), h('div', { class: 'sub' }, 'Every checkmark is yours to set — nothing is read from the game.')),
     h('div', { class: 'actions' }, runSelector(runs, run, el, route),
       h('button', { class: 'btn', title: 'Open the Storyline popout', onclick: () => openPopout('storyline') }, icon('popout'), 'Storyline popout'))));
   const sk = ['guide.prev', 'guide.next', 'guide.toggle'].map((a) => shortcutFor(a));
@@ -90,7 +101,7 @@ export async function render(el, route) {
       h('button', { class: 'btn ghost small', title: 'Undo the last checkbox change', onclick: async () => { const r = await post(`/api/guides/runs/${run.id}/undo`); toast(r.undone ? `Undid ${r.undone} change(s)` : 'Nothing to undo'); render(el, route); } }, icon('undo'), 'Undo'),
       h('button', { class: 'btn ghost small', onclick: () => bulkMark() }, 'Mark up to current…')),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })),
-      h('span', { class: 'small nowrap' }, isImported ? `${counts.done}/${counts.total} steps` : `${counts.done}/${counts.total} main-story milestones`)),
+      h('span', { class: 'small nowrap' }, isImported ? translateUI('ui.guide_steps', { done: counts.done, total: counts.total }) : `${counts.done}/${counts.total} main-story milestones`)),
     h('div', { class: 'small muted' }, isImported
       ? (st.source === 'walkthrough'
         ? 'Complete walkthrough by its original author, included with Companion. Progress counts every step. Steps are tagged automatically (battle, item, …).'
@@ -118,26 +129,26 @@ export async function render(el, route) {
   const showAll = ui.all[region + st.source] ?? !ownFile;
   let selKey = ui.chapter[region + st.source] ?? curChapter.key;
   const stepsBox = h('div', { class: 'stack tight' });
-  const searchIn = h('input', { class: 'input', type: 'search', placeholder: 'Search steps in this region', value: ui.search, oninput: debounce((e) => { ui.search = e.target.value; drawSteps(); }, 150) });
+  const searchIn = h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.guide_search_steps_in_region'), value: ui.search, oninput: debounce((e) => { ui.search = e.target.value; drawSteps(); }, 150) });
   const chapterList = h('div', { class: 'chapters', role: 'listbox', 'aria-label': 'Chapters' });
   const drawChapters = () => mount(chapterList,
-    h('button', { class: 'chapter-btn' + (showAll && ui.all[region + st.source] !== false ? ' active' : ''), onclick: () => { ui.all[region + st.source] = true; drawChapters(); drawSteps(); } }, 'All chapters', h('span', { class: 'pc' }, `${steps.filter((s) => done.has(s.id)).length}/${steps.length}`)),
+    h('button', { class: 'chapter-btn' + (showAll && ui.all[region + st.source] !== false ? ' active' : ''), onclick: () => { ui.all[region + st.source] = true; drawChapters(); drawSteps(); } }, translateUI('ui.guide_all_chapters'), h('span', { class: 'pc' }, `${steps.filter((s) => done.has(s.id)).length}/${steps.length}`)),
     chapters.map((c) => { const d = c.steps.filter((s) => done.has(s.id)).length;
       return h('button', { class: 'chapter-btn' + (!(ui.all[region + st.source] ?? !ownFile) && c.key === selKey ? ' active' : '') + (d === c.steps.length ? ' complete' : ''), role: 'option',
         onclick: () => { ui.all[region + st.source] = false; selKey = c.key; ui.chapter[region + st.source] = c.key; drawChapters(); drawSteps(); } },
-      c.steps.some((s) => s.id === st.active_step_id) ? icon('target') : null, h('span', { class: 'ellipsis' }, c.name), h('span', { class: 'pc' }, `${d}/${c.steps.length}`)); }));
+      c.steps.some((s) => s.id === st.active_step_id) ? icon('target') : null, h('span', { class: 'ellipsis' }, chapterLabel(c.name)), h('span', { class: 'pc' }, `${d}/${c.steps.length}`)); }));
   const drawSteps = () => {
     const all = ui.all[region + st.source] ?? !ownFile;
     let list = all ? steps : (chapters.find((c) => c.key === selKey) || curChapter).steps;
-    const q = ui.search.trim().toLowerCase();
-    if (q) list = steps.filter((s) => s.text.toLowerCase().includes(q) || s.chapter.toLowerCase().includes(q));
+    const q = searchText(ui.search);
+    if (q) list = steps.filter((s) => [s.text, stepLabel(s), s.chapter, chapterLabel(s.chapter)].some((v) => searchText(v).includes(q)));
     const out = [];
     let lastChapter = null;
     for (const s of list) {
-      if ((all || q) && s.chapter !== lastChapter) { out.push(h('div', { class: 'step-chapter' }, s.chapter)); lastChapter = s.chapter; }
+      if ((all || q) && s.chapter !== lastChapter) { out.push(h('div', { class: 'step-chapter' }, chapterLabel(s.chapter))); lastChapter = s.chapter; }
       out.push(stepRow(s));
     }
-    mount(stepsBox, out.length ? out : h('div', { class: 'empty' }, 'No steps match.'));
+    mount(stepsBox, out.length ? out : h('div', { class: 'empty' }, translateUI('ui.guide_no_steps')));
   };
   const stepRow = (s) => {
     const isDone = done.has(s.id);
@@ -151,9 +162,9 @@ export async function render(el, route) {
       render(el, route);
     } });
     return h('div', { class: 'step' + (isDone ? ' done' : '') + (s.id === st.active_step_id ? ' current' : ''), id: 'step-' + s.id.replace(/[^\w-]/g, '_') }, cb,
-      h('div', null, h('div', { class: 's-text' }, s.text),
-        h('div', { class: 's-meta' }, s.id === st.active_step_id ? h('span', { class: 'badge corroborated plain' }, 'Current') : null,
-          s.mandatory === false ? h('span', { class: 'chip' }, 'Optional') : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? ' (auto-tag)' : '')) : null,
+      h('div', null, h('div', { class: 's-text' }, stepLabel(s)),
+        h('div', { class: 's-meta' }, s.id === st.active_step_id ? h('span', { class: 'badge corroborated plain' }, translateUI('ui.current')) : null,
+          s.mandatory === false ? h('span', { class: 'chip' }, translateUI('ui.optional')) : null, s.kind && s.kind !== 'route' ? h('span', { class: 'chip' }, cap(s.kind) + (isImported ? ' (auto-tag)' : '')) : null,
           s.source_url ? extLink(s.source_url, 'Official changelog') : null, changed ? h('span', { class: 'chip tiny warn', title: 'This step changed in the guide after you ticked it' }, 'Changed') : null), gx.stepTimers(s.id)),
       s.id !== st.active_step_id ? h('button', { class: 'btn ghost small', title: 'Make this your current step', onclick: async () => {
         await api('PATCH', `/api/guides/runs/${run.id}`, { region, active_step_id: s.id }); render(el, route); } }, 'Set current') : h('span'));
@@ -214,7 +225,7 @@ async function restoreDialog(deleted, el, route) {
   await modal({ title: 'Restore a deleted run', body: h('div', { class: 'list-rows' }, deleted.map((d) => h('div', { class: 'list-row' }, h('span', { class: 'grow' }, d.display),
     h('span', { class: 'when' }, 'deleted ', relTime(d.deleted_at)),
     h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${d.id}/restore`); document.querySelector('.modal-back').remove(); render(el, route); toast('Run restored'); }
-      catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Restore')))), actions: [{ label: 'Close', kind: 'ghost' }] });
+      catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.restore'))))), actions: [{ label: translateUI('ui.close'), kind: 'ghost' }] });
 }
 
 // ------------------------------------------------------------ browse without a run
@@ -223,24 +234,24 @@ async function browse(page, route, runs, el) {
   const region = REGIONS.includes(route.query.get('region')) ? route.query.get('region') : 'kanto';
   const cat = await get('/api/guides/catalog/' + region);
   const q = (route.query.get('q') || '').toLowerCase();
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Storyline'),
-    h('div', { class: 'sub' }, 'Browsing the walkthrough — read only. Create a character run to tick steps and keep progress per character.')),
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('ui.storyline')),
+    h('div', { class: 'sub' }, translateUI('ui.guide_source_readonly'))),
   h('div', { class: 'actions' }, runs.runs.length ? h('button', { class: 'btn', onclick: () => go(`#/guides/storyline?region=${region}`) }, 'Back to my run')
     : h('button', { class: 'btn primary', onclick: async () => { if (await createRun()) go(`#/guides/storyline?region=${region}`); } }, icon('plus'), 'Create a run'))));
   page.append(h('div', { class: 'row wrap', style: { marginBottom: '12px' } }, tabs(REGIONS.map((r) => ({ id: r, label: cap(r) })), region,
     (r) => go(`#/guides/storyline?browse=1&region=${r}`), 'Regions')));
   const chapters = [];
   for (const st of cat.steps) { const last = chapters[chapters.length - 1]; if (!last || last.name !== st.chapter) chapters.push({ name: st.chapter, steps: [st] }); else last.steps.push(st); }
-  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search this region…', value: q, 'aria-label': 'Search steps', style: { maxWidth: '320px' } });
+  const search = h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.guide_search_region'), value: q, 'aria-label': translateUI('ui.guide_search_steps'), style: { maxWidth: '320px' } });
   const list = h('div', { class: 'stack tight browse-steps' });
   const draw = () => {
-    const term = search.value.trim().toLowerCase();
+    const term = searchText(search.value);
     mount(list, chapters.map((c) => {
-      const hits = term ? c.steps.filter((x) => x.text.toLowerCase().includes(term) || (c.name || '').toLowerCase().includes(term)) : c.steps;
+      const hits = term ? c.steps.filter((x) => [x.text, stepLabel(x), c.name, chapterLabel(c.name)].some((v) => searchText(v).includes(term))) : c.steps;
       if (!hits.length) return null;
       return h('details', { class: 'card tight browse-chapter', open: term ? '' : null },
-        h('summary', null, h('strong', null, c.name || 'Steps'), h('span', { class: 'tiny muted' }, ` · ${hits.length} step${hits.length === 1 ? '' : 's'}`)),
-        h('ol', { class: 'browse-list' }, hits.map((x) => h('li', null, x.text))));
+        h('summary', null, h('strong', null, chapterLabel(c.name) || 'Steps'), h('span', { class: 'tiny muted' }, ` · ${hits.length} step${hits.length === 1 ? '' : 's'}`)),
+        h('ol', { class: 'browse-list' }, hits.map((x) => h('li', null, stepLabel(x)))));
     }));
   };
   search.addEventListener('input', draw);

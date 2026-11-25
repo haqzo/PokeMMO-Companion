@@ -1,3 +1,6 @@
+import { uiLabel } from '../i18n.js';
+import { t as translateUI } from '../i18n.js';
+import { gameTerm, speciesLabel } from '../game-locale.js';
 // Tools workspace (docs/design/07): grouped hub + individual tools.
 import { teamEditor, purposeLabel } from '../team-editor.js';
 import { t as tr } from '../i18n.js';
@@ -35,8 +38,8 @@ let ownMod = null;
 // per record/value inside the tool. Only genuinely incomplete tools would get an 'Experimental' badge.
 const STATUS_BADGE = { EXPERIMENTAL: ['UNKNOWN', 'Experimental'] };
 const statusBadge = (t) => (STATUS_BADGE[t.status] ? badge(...STATUS_BADGE[t.status]) : null);
-const ttl = (t) => (t.i18n ? tr(t.i18n) : t.title);
-const tdesc = (t) => (t.descKey ? tr(t.descKey) : t.desc);
+const ttl = (t) => (t.i18n ? tr(t.i18n) : uiLabel(t.title));
+const tdesc = (t) => (t.descKey ? tr(t.descKey) : uiLabel(t.desc));
 
 export async function render(el, route) {
   dispose();
@@ -118,7 +121,7 @@ const MULT_TEXT = { 2: 'super effective', 0.5: 'not very effective', 0: 'no effe
 const multLabel = (m) => (m === 0.5 ? '½×' : m === 0.25 ? '¼×' : `${m}×`);
 export function typeChartReadout(a, d) {
   const m = (tc.matrix[tc.types.indexOf(a)] || [])[tc.types.indexOf(d)];
-  return { m, text: `${cap(a)} attack → ${cap(d)} defender: ${multLabel(m)} (${MULT_TEXT[m]})` };
+  return { m, text: `${gameTerm('type', cap(a))} attack → ${gameTerm('type', cap(d))} defender: ${multLabel(m)} (${MULT_TEXT[m]})` };
 }
 export async function renderTypeChart(el, route, { compact = false, compare = false } = {}) {
   tc = tc || await get('/api/tools/typechart');
@@ -210,9 +213,9 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     const group = (m) => vals.filter((v) => v.m === m).map((v) => typeChip(v.t, true));
     return h('div', { class: 'card stack tight' },
       h('div', { class: 'row wrap' }, seg([['attacker', 'As attacker (row)'], ['defender', 'As defender (column)']], focusAxis, (v) => { focusAxis = v; draw(); }, 'Axis'),
-        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Type', onchange: (e) => { focusType = e.target.value; draw(); } },
-          T.map((t) => h('option', { value: t, selected: t === focusType ? 'selected' : null }, cap(t))))),
-      h('div', { class: 'small muted' }, focusAxis === 'attacker' ? `${cap(focusType)} attacking each defending type:` : `Each attacking type hitting a ${cap(focusType)} defender:`),
+        h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.type'), onchange: (e) => { focusType = e.target.value; draw(); } },
+          T.map((t) => h('option', { value: t, selected: t === focusType ? 'selected' : null }, gameTerm('type', cap(t)))))),
+      h('div', { class: 'small muted' }, focusAxis === 'attacker' ? `${gameTerm('type', cap(focusType))} attacking each defending type:` : `Each attacking type hitting a ${gameTerm('type', cap(focusType))} defender:`),
       [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0'], [1, '1×', 'm1']].map(([m, l, cls]) => (group(m).length ? h('div', { class: 'row wrap' }, h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), group(m)) : null)));
   };
   const defensive = () => {
@@ -231,7 +234,7 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     return h('div', { class: 'card stack tight' }, h('div', { class: 'card-head', style: { margin: 0 } }, h('h3', null, 'Offensive check'), h('span', { class: 'small muted' }, 'One attacking move type')),
       h('div', { class: 'row wrap' }, T.map((t) => h('button', { class: 'chip btnlike' + (offType === t ? ' active' : ''), 'aria-pressed': String(offType === t),
         onclick: () => { offType = offType === t ? null : t; draw(); } }, typeChip(t, true)))),
-      offType ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, `A ${cap(offType)} move against single-type defenders:`),
+      offType ? h('div', { class: 'stack tight' }, h('div', { class: 'small muted' }, `A ${gameTerm('type', cap(offType))} move against single-type defenders:`),
         [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0']].map(([m, l, cls]) => by(m).length ? h('div', { class: 'row wrap' },
           h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), by(m).map((t) => typeChip(t, true))) : null)) : null);
   };
@@ -254,13 +257,13 @@ export async function renderNatures(el, route, { compact = false } = {}) {
   const holder = h('div');
   const draw = () => {
     const rows = n.natures.filter((x) => !filter || x.up === filter || x.down === filter);
-    mount(holder, h('table', { class: 'table compact' }, h('thead', null, h('tr', null, h('th', null, 'Nature'), h('th', null, 'Raises (+10%)'), h('th', null, 'Lowers (−10%)'))),
-      h('tbody', null, rows.map((x) => h('tr', null, h('td', { style: { fontWeight: 600 } }, x.name),
+    mount(holder, h('table', { class: 'table compact' }, h('thead', null, h('tr', null, h('th', null, translateUI('ui.nature')), h('th', null, 'Raises (+10%)'), h('th', null, 'Lowers (−10%)'))),
+      h('tbody', null, rows.map((x) => h('tr', null, h('td', { style: { fontWeight: 600 } }, gameTerm('nature', x.name)),
         h('td', { style: { color: x.up ? 'var(--good)' : 'var(--text-muted)' } }, x.up ? n.labels[x.up] : 'Neutral'),
         h('td', { style: { color: x.down ? '#e07b77' : 'var(--text-muted)' } }, x.down ? n.labels[x.down] : '—'))))));
   };
   el.append(h('div', { class: 'stack', style: { maxWidth: '640px' } },
-    h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Involving stat'), seg([['', 'All'], ...Object.entries(n.labels).filter(([k]) => k !== 'hp')], filter, (v) => { filter = v; draw(); })),
+    h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Involving stat'), seg([['', translateUI('ui.all')], ...Object.entries(n.labels).filter(([k]) => k !== 'hp')], filter, (v) => { filter = v; draw(); })),
     holder, compact ? null : h('p', { class: 'small muted' }, 'Standard 25 natures; neutral natures change nothing. Everstone passes a parent’s nature when breeding (official rule).')));
   draw();
 }
@@ -286,9 +289,9 @@ async function renderStats(el) {
       oninput: (e) => { s[key][k] = Math.max(0, Math.min(max, Number(e.target.value || 0))); evSum.textContent = `EV total ${STATS.reduce((a, [x]) => a + (s.evs[x] || 0), 0)} / 510`; run(); } })));
   el.append(h('div', { class: 'grid-2', style: { alignItems: 'start' } },
     h('div', { class: 'card stack' }, speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
-      h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Level'),
+      h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, translateUI('ui.level')),
         h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 50, oninput: (e) => { s.level = Math.max(1, Math.min(100, Number(e.target.value || 1))); run(); } })),
-      h('div', { class: 'field grow' }, h('label', null, 'Nature'), natureSelect(null, (v) => { s.nature = v; run(); }))),
+      h('div', { class: 'field grow' }, h('label', null, translateUI('ui.nature')), natureSelect(null, (v) => { s.nature = v; run(); }))),
       h('div', { class: 'iv-grid', style: { gridTemplateColumns: '60px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'label', style: { textAlign: 'center' } }, l))),
       numRow('ivs', 31), numRow('evs', 252), evSum, h('div', { class: 'tiny muted' }, 'IVs 0–31 · EVs up to 252 per stat and 510 in total. Shedinja always has 1 HP.')),
     h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', null, 'Calculated stats')), out)));
@@ -305,7 +308,7 @@ async function renderCatch(el) {
     try {
       const r = await post('/api/tools/catch', s);
       mount(out, h('div', { class: 'stack tight' },
-        h('div', { class: 'small' }, `${r.name}: catch rate ${r.catch_rate} (${r.rate_source}) · HP ${r.cur_hp}/${r.max_hp} · ${r.status === 'none' ? 'no status' : r.status}`),
+        h('div', { class: 'small' }, `${speciesLabel(s.species, r.name)}: catch rate ${r.catch_rate} (${r.rate_source}) · HP ${r.cur_hp}/${r.max_hp} · ${r.status === 'none' ? 'no status' : r.status}`),
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Ball', 'Condition', 'Per ball', '90% within', '99% within'].map((c) => h('th', null, c)))),
           h('tbody', null, r.rows.map((x) => h('tr', null, h('td', null, x.label), h('td', { class: 'small' }, x.condition, x.confirmed ? null : h('span', { class: 'tiny', style: { color: 'var(--warn)' }, title: 'PokeMMO behaviour for this ball not confirmed' }, ' · condition not confirmed')),
             h('td', { style: { fontWeight: 700 } }, x.guaranteed ? '100% (certain)' : (x.percent >= 99.995 ? '>99.99%' : x.percent + '%')),
@@ -322,8 +325,8 @@ async function renderCatch(el) {
       speciesPicker({ onChange: (id) => { s.species = id; run(); } }),
       h('div', { class: 'field' }, h('label', null, 'Target HP remaining'), h('div', { class: 'row' }, h('input', { type: 'range', min: 1, max: 100, value: 100, 'aria-label': 'HP remaining',
         oninput: (e) => { s.hp_percent = Number(e.target.value); hpLabel.textContent = e.target.value + '%'; run(); } }), hpLabel)),
-      h('div', { class: 'row' }, sel('Status', 'status', [['none', 'None'], ['sleep', 'Sleep ×2'], ['freeze', 'Freeze ×2'], ['paralysis', 'Paralysis ×1.5'], ['poison', 'Poison ×1.5'], ['burn', 'Burn ×1.5']]),
-        sel('Time', 'time', [['day', 'Morning / day'], ['night', 'Night']])),
+      h('div', { class: 'row' }, sel('Status', 'status', [['none', translateUI('ui.none')], ['sleep', 'Sleep ×2'], ['freeze', 'Freeze ×2'], ['paralysis', 'Paralysis ×1.5'], ['poison', 'Poison ×1.5'], ['burn', 'Burn ×1.5']]),
+        sel('Time', 'time', [['day', 'Morning / day'], ['night', translateUI('ui.night')]])),
       h('div', { class: 'row' }, h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Turn'), h('input', { class: 'input', type: 'number', min: 1, max: 99, value: 1, oninput: (e) => { s.turn = Number(e.target.value || 1); run(); } })),
         h('div', { class: 'field', style: { width: '120px' } }, h('label', null, 'Wild level'), h('input', { class: 'input', type: 'number', min: 1, max: 100, value: 30, oninput: (e) => { s.level = Number(e.target.value || 1); run(); } }))),
       h('div', { class: 'row wrap' }, chk('In a cave', 'cave'), chk('Surfing / fishing', 'water'), chk('Already caught this species', 'caught_before')),
@@ -341,11 +344,11 @@ async function renderEv(el) {
     const cands = idx.filter((s) => s.ev && s.ev[stat] && (horde === 1 || (horde === 5 ? s.horde5 : s.horde)) && (!region || (s.regions || []).includes(region)))
       .sort((a, b) => (b.ev[stat] - a.ev[stat]) || a.id - b.id).slice(0, 40);
     mount(out, h('div', { class: 'stack' }, h('div', { class: 'small muted' }, `${cands.length ? 'Top' : 'No'} species yielding ${STATS.find((x) => x[0] === stat)[1]} EVs${horde === 5 ? ' that appear in ×5 hordes' : ''}${region ? ' in ' + cap(region) : ''}.`),
-      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Pokémon', 'Yield', `EVs per ${horde > 1 ? 'horde' : 'battle'}`, `Battles ${current}→${target}`, ''].map((c) => h('th', null, c)))),
+      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.pokemon'), 'Yield', `EVs per ${horde > 1 ? 'horde' : 'battle'}`, `Battles ${current}→${target}`, ''].map((c) => h('th', null, c)))),
         h('tbody', null, cands.map((s) => { const per = s.ev[stat] * (macho ? 2 : 1) * horde; const rem = Math.max(0, target - current);
-          return h('tr', null, h('td', null, s.name, ' ', typeChips(s.types, true)), h('td', null, `+${s.ev[stat]}`),
+          return h('tr', null, h('td', null, speciesLabel(s.id, s.name), ' ', typeChips(s.types, true)), h('td', null, `+${s.ev[stat]}`),
           h('td', null, per), h('td', { style: { fontWeight: 700 } }, rem ? Math.ceil(rem / per) : 0),
-          h('td', null, h('button', { class: 'btn small ghost', onclick: () => go(`#/pokedex/${s.id}?tab=locations`) }, 'Locations'))); }))),
+          h('td', null, h('button', { class: 'btn small ghost', onclick: () => go(`#/pokedex/${s.id}?tab=locations`) }, translateUI('ui.locations')))); }))),
       h('div', { class: 'tiny muted' }, 'Yield × Pokémon per encounter' + (macho ? ' × 2 (Macho Brace)' : '') + '. Power items and Pokérus are not applied (no PokeMMO-specific evidence collected). Horde rows come from the built-in game data (client snapshot 16 Nov 2026).')));
   };
   el.append(h('div', { class: 'stack' }, h('div', { class: 'card row wrap' },
@@ -354,8 +357,8 @@ async function renderEv(el) {
     h('div', { class: 'field', style: { width: '110px' } }, h('label', null, 'Target EVs'), h('input', { class: 'input', type: 'number', min: 1, max: 252, value: target, oninput: (e) => { target = Math.max(1, Math.min(252, Number(e.target.value || 1))); draw(); } })),
     h('div', { class: 'field' }, h('label', null, 'Encounter'), seg([[5, 'Horde ×5'], [3, 'Horde ×3'], [1, 'Single']], horde, (v) => { horde = v; draw(); })),
     h('label', { class: 'row small', style: { alignSelf: 'end' } }, h('input', { type: 'checkbox', class: 'check', onchange: (e) => { macho = e.target.checked; draw(); } }), 'Macho Brace (×2, mainline effect — not confirmed for PokeMMO)'),
-    h('div', { class: 'field' }, h('label', null, 'Region'), h('select', { class: 'input', onchange: (e) => { region = e.target.value; draw(); } }, h('option', { value: '' }, 'Any'),
-      ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r }, cap(r)))))), out));
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.region')), h('select', { class: 'input', onchange: (e) => { region = e.target.value; draw(); } }, h('option', { value: '' }, 'Any'),
+      ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r }, gameTerm('region', cap(r))))))), out));
   draw();
 }
 

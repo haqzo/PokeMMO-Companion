@@ -1,3 +1,6 @@
+import { t as translateUI } from './i18n.js';
+import { lang, locale, t } from './i18n.js';
+import { gameTerm, speciesLabel } from './game-locale.js';
 // Core helpers: API client, DOM builder, icons, live sync, toasts, dialogs, formatting.
 import { applyTheme } from './themes.js';
 const params = new URLSearchParams(location.search);
@@ -163,7 +166,7 @@ export function applyAppearance() {
   if (!POPOUT && SHELL !== 'qt') document.body && (document.body.style.zoom = String((s['appearance.ui_scale'] || 100) / 100));
   root.classList.toggle('reduced-motion', !!s['appearance.reduced_motion']);
   root.classList.toggle('stat-accent', s['appearance.stat_bars'] === 'accent');
-  root.lang = ({ en: 'en', es: 'es', zh: 'zh-Hans' })[s['app.language'] || 'en'] || 'en';
+  root.lang = locale();
   if (POPOUT) root.classList.toggle('text-outline', !!s[`window.${POPOUT}.text_outline`]);
   if (POPOUT) root.style.setProperty('--panel-alpha', String((s[`window.${POPOUT}.bg_opacity`] || 92) / 100));
   const stack = document.getElementById('toasts');
@@ -182,7 +185,7 @@ export function toast(message, { kind = 'info', timeout = 3800, action } = {}) {
   stack.append(el);
   if (timeout) setTimeout(() => el.remove(), timeout);
 }
-on('external.open_failed', () => toast('Could not open your default browser.', { kind: 'warn' }));
+on('external.open_failed', () => toast(translateUI('ui.foreign_browser'), { kind: 'warn' }));
 
 export function reportToast(p, openFn) {
   // In-window custom toast (browser mode). Native shell shows its own frameless toast window.
@@ -215,7 +218,7 @@ export function modal({ title, body, actions = [], onClose, wide }) {
     }, a.label)));
     const m = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': title, style: wide ? { width: 'min(760px,100%)' } : null },
       h('div', { class: 'm-head' }, h('h2', null, title), h('span', { class: 'grow' }),
-        h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: () => done(null) }, icon('close'))),
+        h('button', { class: 'icon-btn', 'aria-label': translateUI('ui.close'), onclick: () => done(null) }, icon('close'))),
       h('div', { class: 'm-body' }, body), actions.length ? foot : null);
     const back = h('div', { class: 'modal-back', onclick: (e) => { if (e.target === back) done(null); } }, m);
     document.body.append(back);
@@ -226,13 +229,18 @@ export function modal({ title, body, actions = [], onClose, wide }) {
 }
 export const confirmDialog = (title, text, okLabel = 'Confirm', danger = false) =>
   modal({ title, body: h('p', { style: { margin: 0 } }, text), actions: [
-    { label: 'Cancel', value: false, kind: 'ghost' }, { label: okLabel, value: true, kind: danger ? 'danger' : 'primary' }] });
+    { label: translateUI('ui.cancel'), value: false, kind: 'ghost' }, { label: okLabel, value: true, kind: danger ? 'danger' : 'primary' }] });
 
 // ----------------------------------------------------------- formatting
 export function relTime(iso) {
-  if (!iso) return 'unknown time';
+  if (!iso) return t('ui.unknown_time');
   const d = new Date(iso); const s = (Date.now() - d.getTime()) / 1000;
   if (isNaN(s)) return iso;
+  if (lang() !== 'en' && Math.abs(s) < 86400 * 45) {
+    const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: 'auto', style: 'short' });
+    const [unit, seconds] = Math.abs(s) >= 86400 ? ['day', 86400] : Math.abs(s) >= 3600 ? ['hour', 3600] : ['minute', 60];
+    return rtf.format(Math.trunc(-s / seconds), unit);
+  }
   if (s < 0) { const f = -s; if (f < 86400) return `in ${Math.round(f / 3600)} h`; return `in ${Math.round(f / 86400)} days`; }
   if (s < 60) return 'just now';
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
@@ -246,7 +254,7 @@ export function fmtDate(iso, withTime = false) {
   if (isNaN(d)) return iso;
   const o = { year: 'numeric', month: 'short', day: 'numeric' };
   if (withTime) Object.assign(o, { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleString(undefined, o);
+  return d.toLocaleString(locale(), o);
 }
 export const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 export const pad3 = (n) => String(n).padStart(3, '0');
@@ -255,7 +263,7 @@ export const TYPE_LIST = ['normal', 'fire', 'water', 'electric', 'grass', 'ice',
 /** Type badge. Colour + readable label colour come from the .t-<type> class (tokens.css palette), not inline styles. */
 export function typeChip(t, small) {
   const k = String(t || '').toLowerCase();
-  return h('span', { class: `type-chip t-${TYPE_LIST.includes(k) ? k : 'unknown'}` + (small ? ' sm' : ''), dataset: { type: k } }, k);
+  return h('span', { class: `type-chip t-${TYPE_LIST.includes(k) ? k : 'unknown'}` + (small ? ' sm' : ''), dataset: { type: k } }, gameTerm('type', k));
 }
 export function typeChips(types, small) { return h('span', { class: 'row', style: { gap: '3px' } }, types.map((t) => typeChip(t, small))); }
 const BADGE = { VERIFIED: 'verified', CORROBORATED: 'corroborated', DUMP_ONLY: 'dump', ESTIMATE: 'estimate', UNKNOWN: 'unknown', TEST: 'test',
@@ -286,7 +294,7 @@ export function notice(kind, ...content) {
 }
 export function spriteOrFallback(url, sp, size = 72, eager = false) {
   if (url) {
-    const img = h('img', { class: 'pixel', src: url, width: size, height: size, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });
+    const img = h('img', { class: 'pixel', src: url, width: size, height: size, alt: speciesLabel(sp.id, sp.name), loading: eager ? 'eager' : 'lazy', decoding: 'async' });
     img.addEventListener('error', () => img.replaceWith(silhouette(sp, size)));
     return img;
   }
@@ -320,7 +328,7 @@ function placeSprite(img, box, f) {
 /** Grid/row sprite in a size×size frame. With `still` ({url, w, h, bbox}) the size is known before loading. */
 export function sizedSprite(sp, size, { still = null, url = null, tier = 'm', eager = false, ani = null } = {}) {
   if (ani) {   // animated Gen V sprite (already cropped to the Pokémon), fitted by the same size rule
-    const img = h('img', { src: ani, alt: sp.name, decoding: 'async', style: { visibility: 'hidden' } });
+    const img = h('img', { src: ani, alt: speciesLabel(sp.id, sp.name), decoding: 'async', style: { visibility: 'hidden' } });
     const box = h('div', { class: 'still-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier } }, img);
     img.addEventListener('load', () => { placeSprite(img, box, fitSprite(img.naturalWidth, img.naturalHeight, null, tier, size, size)); img.style.visibility = ''; });
     img.addEventListener('error', () => box.replaceWith(sizedSprite(sp, size, { still, url, tier, eager })));
@@ -328,7 +336,7 @@ export function sizedSprite(sp, size, { still = null, url = null, tier = 'm', ea
   }
   const src = still ? still.url : url;
   if (!src) return silhouette(sp, size);
-  const img = h('img', { src, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });
+  const img = h('img', { src, alt: speciesLabel(sp.id, sp.name), loading: eager ? 'eager' : 'lazy', decoding: 'async' });
   const box = h('div', { class: 'still-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier } }, img);
   if (still) placeSprite(img, box, fitSprite(still.w, still.h, still.bbox, tier, size, size));
   else {
@@ -343,7 +351,7 @@ export function stillArt(still, sp, size = 72, { cap = 1.5, eager = false } = {}
   const [x0, y0, x1, y1] = still.bbox || [0, 0, still.w, still.h];
   const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
   const k = Math.min(size / Math.max(bw, bh), cap);
-  const img = h('img', { src: still.url, alt: sp.name, loading: eager ? 'eager' : 'lazy', decoding: 'async' });
+  const img = h('img', { src: still.url, alt: speciesLabel(sp.id, sp.name), loading: eager ? 'eager' : 'lazy', decoding: 'async' });
   const box = h('div', { class: 'still-art', style: { width: size + 'px', height: size + 'px' } }, img);
   placeSprite(img, box, { k, width: still.w * k, height: still.h * k, left: (size - bw * k) / 2 - x0 * k, top: (size - bh * k) / 2 - y0 * k,
     smooth: Math.abs(k - Math.round(k)) > 0.01 });

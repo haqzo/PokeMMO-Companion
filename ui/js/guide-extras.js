@@ -1,3 +1,4 @@
+import { t as translateUI } from './i18n.js';
 // Timers and a team attached to a guide (My Guides "cg:<id>" or a run's storyline region "story:<run>:<region>").
 // Templates are only recipes stored with the guide; pressing Start creates a timer in the Timers service with an owner
 // (guide, step, run, cycle, template) — so it keeps running when you leave the page, close a popout or restart, it
@@ -42,12 +43,12 @@ export async function templateDialog(initial = {}) {
   const body = h('div', { class: 'stack' },
     all.length ? h('div', { class: 'field' }, h('label', null, 'From a preset'), h('div', { class: 'row wrap tight' }, all.map((p) =>
       h('button', { class: 'btn small', type: 'button', onclick: () => apply(p) }, p.mine ? icon('star') : null, `${p.label} · ${fmt(p.seconds)}`)))) : null,
-    h('div', { class: 'field' }, h('label', null, 'Name'), name),
+    h('div', { class: 'field' }, h('label', null, translateUI('ui.name')), name),
     h('div', { class: 'row tight' }, hh, h('span', null, 'h'), mm, h('span', null, 'm'), ss, h('span', null, 's')),
-    h('div', { class: 'row wrap' }, h('label', { class: 'row tight small' }, rep, 'Repeat'), h('label', { class: 'row tight small' }, snd, 'Sound'),
+    h('div', { class: 'row wrap' }, h('label', { class: 'row tight small' }, rep, translateUI('ui.repeat')), h('label', { class: 'row tight small' }, snd, translateUI('ui.sound')),
       h('label', { class: 'row tight small' }, ntf, 'Notification')),
     h('p', { class: 'tiny muted', style: { margin: 0 } }, 'The timer only starts when you press Start. When it finishes it notifies you; it never ticks a step.'));
-  const ok = await modal({ title: initial.id ? 'Edit timer' : 'Add timer', body, actions: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Save', value: true, kind: 'primary' }] });
+  const ok = await modal({ title: initial.id ? 'Edit timer' : 'Add timer', body, actions: [{ label: translateUI('ui.cancel'), value: false, kind: 'ghost' }, { label: translateUI('ui.save'), value: true, kind: 'primary' }] });
   if (!ok) return null;
   const seconds = (Number(hh.value) || 0) * 3600 + (Number(mm.value) || 0) * 60 + (Number(ss.value) || 0);
   if (seconds < 1) { toast('Set a duration', { kind: 'warn' }); return null; }
@@ -93,9 +94,9 @@ export function guideExtras(ctx) {
     const startBtn = (label) => h('button', { class: 'btn small primary', onclick: () => start(tpl, step), title: 'Start this timer' }, label);
     if (!t) return [h('span', { class: 'gx-rem mono muted' }, fmt(tpl.seconds)), startBtn('Start')];
     return [remEl(t), h('span', { class: 'tiny muted' }, STATE[t.state]),
-      t.state === 'running' ? h('button', { class: 'btn small', onclick: () => act(t, 'pause') }, 'Pause')
-        : t.state === 'paused' ? h('button', { class: 'btn small primary', onclick: () => act(t, 'resume') }, 'Resume') : startBtn(t.state === 'done' ? 'Start again' : 'Start'),
-      h('button', { class: 'btn small ghost', onclick: () => act(t, 'reset') }, 'Reset')];
+      t.state === 'running' ? h('button', { class: 'btn small', onclick: () => act(t, 'pause') }, translateUI('ui.pause'))
+        : t.state === 'paused' ? h('button', { class: 'btn small primary', onclick: () => act(t, 'resume') }, translateUI('ui.resume')) : startBtn(t.state === 'done' ? 'Start again' : 'Start'),
+      h('button', { class: 'btn small ghost', onclick: () => act(t, 'reset') }, translateUI('ui.reset'))];
   }
 
   /** Small timer chips for one step (storyline or My Guides step row). */
@@ -125,7 +126,7 @@ export function guideExtras(ctx) {
       const others = st.timers.filter((t) => { const o = t.owner || {};
         return !tplIds.has(o.template) || (o.cycle || '') !== String(curCycle() || '') || (o.run || '') !== String(ctx.run || ''); });
       const timersCard = h('section', { class: 'card stack tight gx-timers' },
-        h('h3', { class: 'gx-h' }, icon('clock'), 'Timers'), h('div', { class: 'row wrap tight' },
+        h('h3', { class: 'gx-h' }, icon('clock'), translateUI('ui.timers')), h('div', { class: 'row wrap tight' },
           h('button', { class: 'btn small', onclick: async () => { const tpl = await templateDialog(); if (tpl) { try { await save({ timers: [...ex.timers, tpl] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } } }, icon('plus'), 'Add timer'),
           h('button', { class: 'btn small ghost', title: 'Attach a timer you already made in Tools › Timers', onclick: attachDialog }, 'Attach existing')),
         ex.timers.length ? ex.timers.map((tpl) => h('div', { class: 'gx-timer', dataset: { tpl: tpl.id } }, h('div', { class: 'gx-tname' }, tpl.name,
@@ -139,10 +140,10 @@ export function guideExtras(ctx) {
             onclick: async () => { const r = await post('/api/timers/cleanup', { guide: ctx.key, keep_cycle: curCycle() || null }); toast(`${r.removed} finished timer(s) removed`); load(); } }, 'Clear finished') : null),
           others.map((t) => h('div', { class: 'gx-timer row tight wrap' }, h('span', { class: 'grow small' }, t.name, t.owner && t.owner.cycle && t.owner.cycle !== String(curCycle() || '') ? h('span', { class: 'chip tiny' }, 'earlier cycle') : null),
             remEl(t), h('span', { class: 'tiny muted' }, STATE[t.state]),
-            t.state === 'running' ? h('button', { class: 'btn small', onclick: () => act(t, 'pause') }, 'Pause') : t.state === 'paused' ? h('button', { class: 'btn small', onclick: () => act(t, 'resume') }, 'Resume') : null,
+            t.state === 'running' ? h('button', { class: 'btn small', onclick: () => act(t, 'pause') }, translateUI('ui.pause')) : t.state === 'paused' ? h('button', { class: 'btn small', onclick: () => act(t, 'resume') }, translateUI('ui.resume')) : null,
             h('button', { class: 'icon-btn tiny', title: 'Detach from this guide (the timer stays in Tools › Timers)', 'aria-label': 'Detach ' + t.name, onclick: async () => { await api('PUT', `/api/timers/${t.id}/owner`, { owner: null }); load(); } }, icon('close'))))) : null,
         h('button', { class: 'btn tiny ghost', onclick: () => (ctx.nav || go)('#/tools/timers') }, 'Open Timers', icon('chev')));
-      const teamCard = h('section', { class: 'card stack tight gx-team' }, h('h3', { class: 'gx-h' }, icon('box'), 'Team'),
+      const teamCard = h('section', { class: 'card stack tight gx-team' }, h('h3', { class: 'gx-h' }, icon('box'), translateUI('ui.team')),
         h('div', { class: 'row wrap tight' }, ex.team ? [
           h('button', { class: 'btn small', onclick: async () => { const d = await editTeamDialog({ ...ex.team }); if (d) load(); } }, 'Edit'),
           h('button', { class: 'btn small ghost', onclick: attachTeam }, 'Replace'),
@@ -162,7 +163,7 @@ export function guideExtras(ctx) {
       if (!all.length) { toast('No standalone timers to attach — make one in Tools › Timers'); return; }
       const sel = h('select', { class: 'input', 'aria-label': 'Timer' }, all.map((t) => h('option', { value: t.id }, `${t.name} · ${fmt(t.remaining)} · ${STATE[t.state]}`)));
       if (!await modal({ title: 'Attach existing timer', body: h('div', { class: 'stack' }, sel, h('p', { class: 'tiny muted' }, 'The timer keeps its time and state; it is listed with this guide and in Tools › Timers.')),
-        actions: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Attach', value: true, kind: 'primary' }] })) return;
+        actions: [{ label: translateUI('ui.cancel'), value: false, kind: 'ghost' }, { label: 'Attach', value: true, kind: 'primary' }] })) return;
       if (ctx.cycle) ctx.cycleId = await ctx.cycle(false);
       await api('PUT', `/api/timers/${sel.value}/owner`, { owner: { kind: 'guide', guide: ctx.key, run: ctx.run || undefined, cycle: ctx.cycleId || undefined, label: ctx.title.slice(0, 80) } });
       load();
@@ -170,9 +171,9 @@ export function guideExtras(ctx) {
     async function attachTeam() {
       const teams = (await get('/api/docs/team')).items;
       if (!teams.length) { toast('No saved teams yet — create one'); return; }
-      const sel = h('select', { class: 'input', 'aria-label': 'Team' }, teams.map((t) => h('option', { value: t.id, selected: st.extras.team_id === t.id ? 'selected' : null },
+      const sel = h('select', { class: 'input', 'aria-label': translateUI('ui.team') }, teams.map((t) => h('option', { value: t.id, selected: st.extras.team_id === t.id ? 'selected' : null },
         t.name + (t.data && t.data.purpose ? ' · ' + purposeLabel(t.data.purpose) : ''))));
-      if (await modal({ title: 'Attach saved team', body: sel, actions: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Attach', value: true, kind: 'primary' }] })) await save({ team_id: sel.value });
+      if (await modal({ title: 'Attach saved team', body: sel, actions: [{ label: translateUI('ui.cancel'), value: false, kind: 'ghost' }, { label: 'Attach', value: true, kind: 'primary' }] })) await save({ team_id: sel.value });
     }
     st.listeners.add(draw); draw();
     return box;

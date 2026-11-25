@@ -83,3 +83,15 @@
   --text-muted: #c3c6d0; --accent: #fff; --link: #b8d0ff;
 }
 :root.reduced-motion { --motion: 0ms; }
+
+/* Offline Simplified Chinese glyphs. Keep the normal text stack for other languages. */
+@font-face {
+  font-family: "Companion Han";
+  src: url("../fonts/companion-han.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+:root:lang(zh) {
+  --font: "Noto Sans", "Segoe UI", "Companion Han", "Microsoft YaHei", sans-serif;
+}

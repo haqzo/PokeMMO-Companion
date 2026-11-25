@@ -1,3 +1,4 @@
+import { t as translateUI } from '../i18n.js';
 // Settings › Appearance & themes, Layout & scaling, Home (2026-11-24).
 import { h, mount, get, post, api, state, saveSettings, seg, switchEl, toast, confirmDialog, modal, debounce, applyAppearance, icon } from '../core.js';
 import { downloadJson, pickJsonFile } from '../components.js';
@@ -71,8 +72,8 @@ export async function appearanceSec(b, { personal } = {}) {
   // ---- actions
   const askName = async (title, value) => {
     const inp = h('input', { class: 'input', value: value || '', maxlength: 40, 'aria-label': 'Theme name' });
-    const r = await modal({ title, body: h('div', { class: 'field' }, h('label', null, 'Name'), inp), actions: [
-      { label: 'Cancel', value: null, kind: 'ghost' }, { label: 'Save', kind: 'primary', handler: () => inp.value.trim() || false }] });
+    const r = await modal({ title, body: h('div', { class: 'field' }, h('label', null, translateUI('ui.name')), inp), actions: [
+      { label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: translateUI('ui.save'), kind: 'primary', handler: () => inp.value.trim() || false }] });
     return r;
   };
   const saveNew = async (t, name) => {
@@ -89,11 +90,11 @@ export async function appearanceSec(b, { personal } = {}) {
       catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Save changes') : null,
     modified ? h('button', { class: 'btn small ghost', onclick: () => { commitTheme({ ...savedRef, shape: theme.shape, layout: theme.layout }, id); redraw(); } }, 'Discard changes') : null,
     mine ? h('button', { class: 'btn small ghost', onclick: async () => { const n = await askName('Rename theme', mine.name); if (!n) return;
-      try { const res = await api('PUT', '/api/themes/' + mine.id, { ...mine, name: n }); commitTheme({ ...theme, name: res.name }, mine.id); redraw((await get('/api/themes')).personal); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Rename') : null,
-    mine ? h('button', { class: 'btn small ghost', onclick: () => saveNew(mine, (mine.name + ' copy').slice(0, 40)) }, 'Duplicate') : null,
+      try { const res = await api('PUT', '/api/themes/' + mine.id, { ...mine, name: n }); commitTheme({ ...theme, name: res.name }, mine.id); redraw((await get('/api/themes')).personal); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.rename')) : null,
+    mine ? h('button', { class: 'btn small ghost', onclick: () => saveNew(mine, (mine.name + ' copy').slice(0, 40)) }, translateUI('ui.duplicate')) : null,
     mine ? h('button', { class: 'btn small ghost', onclick: async () => {
       if (!await confirmDialog('Delete theme', `Delete “${mine.name}”? The built-in themes are not affected.`, 'Delete', true)) return;
-      await api('DELETE', '/api/themes/' + mine.id); commitTheme({ ...theme }, mine.base); redraw((await get('/api/themes')).personal); } }, 'Delete') : null,
+      await api('DELETE', '/api/themes/' + mine.id); commitTheme({ ...theme }, mine.base); redraw((await get('/api/themes')).personal); } }, translateUI('ui.delete')) : null,
     h('span', { class: 'grow' }),
     h('button', { class: 'btn small ghost', onclick: async () => {
       let raw; try { raw = await pickJsonFile(); } catch (e) { toast(e.message, { kind: 'warn' }); return; }
@@ -103,8 +104,8 @@ export async function appearanceSec(b, { personal } = {}) {
         if (v.dropped.length) toast(`Imported; ignored ${v.dropped.length} unknown or invalid value${v.dropped.length === 1 ? '' : 's'}: ${v.dropped.slice(0, 4).join(', ')}${v.dropped.length > 4 ? '…' : ''}`, { kind: 'warn', timeout: 7000 });
         await saveNew(v.theme, v.theme.name);
       } catch (e) { toast('Not imported: ' + e.message, { kind: 'warn', timeout: 6000 }); }
-    } }, icon('upload'), 'Import…'),
-    h('button', { class: 'btn small ghost', onclick: () => downloadJson(`companion-theme-${(activeName || 'theme').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, exportDoc({ ...theme, name: activeName })) }, icon('download'), 'Export'),
+    } }, icon('upload'), translateUI('ui.import_more')),
+    h('button', { class: 'btn small ghost', onclick: () => downloadJson(`companion-theme-${(activeName || 'theme').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, exportDoc({ ...theme, name: activeName })) }, icon('download'), translateUI('ui.export')),
     id !== cat.default || !isPristineDefault(theme) ? h('button', { class: 'btn small ghost', onclick: async () => {
       if (await confirmDialog('Restore Companion Default', 'Switch back to the Companion Default theme and clear colour, border and layout changes? Your saved themes are kept.')) {
         commitTheme({ base: cat.default }, cat.default); redraw(); } } }, 'Restore Companion Default') : null);
@@ -114,7 +115,7 @@ export async function appearanceSec(b, { personal } = {}) {
   const colorRow = (key, label, value, baseValue, onSet) => {
     const hex = h('input', { class: 'input mono hex-in', value, maxlength: 9, 'aria-label': label + ' colour (hex)', spellcheck: 'false' });
     const pickEl = h('input', { type: 'color', value: value.slice(0, 7), 'aria-label': label + ' colour' });
-    const op = OPACITY_KEYS.has(key) ? h('input', { type: 'range', min: 0, max: 100, step: 5, value: alphaOf(value), 'aria-label': label + ' opacity', title: 'Opacity' }) : null;
+    const op = OPACITY_KEYS.has(key) ? h('input', { type: 'range', min: 0, max: 100, step: 5, value: alphaOf(value), 'aria-label': label + ' opacity', title: translateUI('ui.opacity') }) : null;
     const err = h('span', { class: 'tiny bad-text', role: 'alert' });
     const put = (v) => { err.textContent = ''; hex.classList.remove('invalid'); onSet(v); };
     pickEl.addEventListener('input', () => { const v = op ? withAlpha(pickEl.value, Number(op.value)) : pickEl.value; hex.value = v; put(v); });
@@ -127,7 +128,7 @@ export async function appearanceSec(b, { personal } = {}) {
     const bad = issues.filter((i) => i.fg === key || i.bg === key);
     return h('div', { class: 'color-row', dataset: { key } },
       h('span', { class: 'cr-label' }, label, value !== baseValue ? h('span', { class: 'tiny muted' }, ' · changed') : null),
-      h('div', { class: 'row tight' }, pickEl, hex, op, value !== baseValue ? h('button', { class: 'btn ghost small', title: 'Back to the preset colour', onclick: () => onSet(null, true) }, 'Reset') : null),
+      h('div', { class: 'row tight' }, pickEl, hex, op, value !== baseValue ? h('button', { class: 'btn ghost small', title: 'Back to the preset colour', onclick: () => onSet(null, true) }, translateUI('ui.reset')) : null),
       bad.length ? h('span', { class: 'tiny warn-text', title: bad.map((i) => `${i.label}: ${i.ratio}:1 (needs ${i.min}:1)`).join('\n') }, '⚠ low contrast') : null, err);
   };
   const editColors = (section, key) => (v, reset) => {
@@ -146,7 +147,7 @@ export async function appearanceSec(b, { personal } = {}) {
   refreshIssues(resolved);
   const p = cat.presets[theme.base].colors;
   const editor = h('div', { id: 'theme-editor', class: 'stack tight' },
-    h('h3', null, 'Customize colours'),
+    h('h3', null, translateUI('ui.customize_colours')),
     h('p', { class: 'small muted', style: { margin: 0 } }, `Starting point: ${cat.presets[theme.base].name}. Changes apply at once to every window; save them as a theme to keep several looks.`,
       s['appearance.high_contrast'] ? ' High contrast is on, so theme colours are paused until you turn it off.' : ''),
     issueBox,
@@ -157,13 +158,13 @@ export async function appearanceSec(b, { personal } = {}) {
       h('p', { class: 'tiny muted' }, 'Used on type badges and the type chart. Badge text switches between dark and light for readability.'),
       h('div', { class: 'color-grid' }, TYPES.map((t) => colorRow('type_' + t, t[0].toUpperCase() + t.slice(1), resolved.types[t], cat.type_colors[t], editColors('types', t))))));
 
-  mount(b, h('h2', { style: { marginTop: 0 } }, 'Appearance & themes'),
+  mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.appearance_themes')),
     h('div', { class: 'row wrap tight theme-status' }, h('strong', null, activeName), modified ? h('span', { class: 'chip' }, `${changeCount(theme)} change${changeCount(theme) === 1 ? '' : 's'}`) : null),
-    h('div', { class: 'theme-grid', role: 'group', 'aria-label': 'Themes' }, presetCards, customCard),
+    h('div', { class: 'theme-grid', role: 'group', 'aria-label': translateUI('ui.themes') }, presetCards, customCard),
     personalCards.length ? h('div', null, h('h3', null, 'Your themes'), h('div', { class: 'theme-grid' }, personalCards)) : null,
     actions,
     editor,
-    h('h3', null, 'Accessibility'),
+    h('h3', null, translateUI('ui.accessibility')),
     row('High contrast', 'Stronger borders and pure white text. Overrides theme colours while on.', switchEl(s['appearance.high_contrast'], async (v) => { await saveSettings({ 'appearance.high_contrast': v }); redraw(); })),
     row('Reduced motion', 'Turns off transitions and shimmer. Sprite animation has its own switch in Pokémon & sprites.', switchEl(s['appearance.reduced_motion'], (v) => saveSettings({ 'appearance.reduced_motion': v }))),
     row('Stat bars', 'Soft colours per stat or a single accent colour.', seg([['soft', 'Soft colours'], ['accent', 'Accent']], s['appearance.stat_bars'], (v) => saveSettings({ 'appearance.stat_bars': v }))),
@@ -188,20 +189,20 @@ export function layoutSec(b) {
     return row(label, desc, h('div', { class: 'row' }, h('input', { type: 'range', min, max, step: 5, value: s[key] || 100, 'aria-label': label,
       oninput: (e) => { lbl.textContent = e.target.value + '%'; if (live) { state.settings[key] = Number(e.target.value); applyAppearance(); } },
       onchange: (e) => saveSettings({ [key]: Number(e.target.value) }).catch((er) => toast(er.message, { kind: 'warn' })) }), lbl,
-      (s[key] || 100) !== 100 ? h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ [key]: 100 }); redraw(); } }, 'Reset') : null));
+      (s[key] || 100) !== 100 ? h('button', { class: 'btn ghost small', onclick: async () => { await saveSettings({ [key]: 100 }); redraw(); } }, translateUI('ui.reset')) : null));
   };
-  mount(b, h('h2', { style: { marginTop: 0 } }, 'Layout & scaling'),
+  mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.layout_scaling')),
     h('h3', { style: { marginTop: 0 } }, 'Size'),
     pct('Text size', 'Text only (60–200%). Layout, icons and sprites keep their size. Popouts have their own text size.', 'appearance.text_scale', 60, 200, true),
     pct('Interface scale', 'Everything in the main window — text, controls, spacing and sprites — together (75–150%). Applied once on top of your desktop’s own display scaling.', 'appearance.ui_scale', 75, 150, false),
-    row('Font weight', 'Body text weight.', seg([['light', 'Light'], ['normal', 'Normal'], ['medium', 'Medium']], r.layout.font_weight, (v) => setPart('layout', { font_weight: v }), 'Font weight')),
+    row('Font weight', 'Body text weight.', seg([['light', 'Light'], ['normal', translateUI('ui.normal')], ['medium', translateUI('ui.medium')]], r.layout.font_weight, (v) => setPart('layout', { font_weight: v }), 'Font weight')),
     h('h3', null, 'Spacing'),
     row('Density', 'Sets spacing, card padding and gaps together. Fine-tune them below.',
-      seg([['compact', 'Compact'], ['standard', 'Standard'], ['comfortable', 'Comfortable']], r.layout.density, (v) => setPart('layout', { density: v, ...DENSITY_PRESET[v] }, true), 'Density')),
+      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', 'Comfortable']], r.layout.density, (v) => setPart('layout', { density: v, ...DENSITY_PRESET[v] }, true), 'Density')),
     slider('Card padding', null, 'layout', 'card_padding', 6, 28, 1),
     slider('Grid gap', 'Space between cards and Pokédex tiles.', 'layout', 'grid_gap', 4, 24, 1),
     slider('Section spacing', null, 'layout', 'section_gap', 6, 32, 1),
-    row('Table rows', null, seg([['compact', 'Compact'], ['standard', 'Standard'], ['comfortable', 'Comfortable']], r.layout.table_density, (v) => setPart('layout', { table_density: v }), 'Table density')),
+    row('Table rows', null, seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', 'Comfortable']], r.layout.table_density, (v) => setPart('layout', { table_density: v }), 'Table density')),
     h('h3', null, 'Borders & corners'),
     row('Borders', null, switchEl(r.shape.border_visible, (v) => setPart('shape', { border_visible: v }, true), 'Show borders')),
     r.shape.border_visible ? slider('Border thickness', null, 'shape', 'border_width', 1, 3, 1) : null,
@@ -211,7 +212,7 @@ export function layoutSec(b) {
     row('Navigation', 'Vertical sidebar or horizontal top bar.', seg([['vertical', 'Vertical'], ['horizontal', 'Horizontal']], s['appearance.nav'], (v) => saveSettings({ 'appearance.nav': v }).then(changed), 'Navigation')),
     row('Sidebar labels', 'Automatic shows icons only when the window is narrow.', seg([['auto', 'Automatic'], ['icons', 'Icons only'], ['full', 'Always labels']], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(changed), 'Sidebar labels')),
     slider('Sidebar width', null, 'layout', 'sidebar_width', 150, 300, 2),
-    row('Scrollbars', null, seg([['hidden', 'Hidden'], ['thin', 'Thin'], ['standard', 'Standard'], ['wide', 'Wide']], r.layout.scrollbar, (v) => setPart('layout', { scrollbar: v }), 'Scrollbars')),
+    row('Scrollbars', null, seg([['hidden', 'Hidden'], ['thin', 'Thin'], ['standard', translateUI('ui.standard')], ['wide', 'Wide']], r.layout.scrollbar, (v) => setPart('layout', { scrollbar: v }), 'Scrollbars')),
     h('p', { class: 'tiny muted' }, 'Pokédex grid density and sprite sizes are in Pokémon & sprites. Popout size, opacity and scale are per window in Windows & popouts.'),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
       if (!await confirmDialog('Reset layout', 'Reset spacing, borders, corners, scrollbars, text size and interface scale? Colours and themes are not changed.')) return;
@@ -228,7 +229,7 @@ export function homeSec(b) {
   const label = Object.fromEntries(HOME_SECTIONS);
   const redraw = () => { mount(b); homeSec(b); };
   const save = async (list) => { await saveSettings({ 'home.sections': list }); redraw(); };
-  mount(b, h('h2', { style: { marginTop: 0 } }, 'Home'),
+  mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.home')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Choose and order the sections on Home. On wide windows sections sit side by side in this order; cards in a row share one height. Hidden sections keep their data.'),
     h('ol', { class: 'home-order' }, all.map((k) => {
       const on_ = enabled.includes(k), i = enabled.indexOf(k);

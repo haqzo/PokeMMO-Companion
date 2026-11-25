@@ -1,3 +1,5 @@
+import { t as translateUI } from '../i18n.js';
+import { compareLabels, formLabel, gameTerm, matchesTerm, searchText, speciesCategory, speciesLabel, speciesMatches } from '../game-locale.js';
 // Pokédex (docs/design/06, 19 + 2026-11-22 accuracy pass).
 // Main Pokédex shows one tile for each of 649 Gen I–V species. The 82 researched
 // alternate forms remain selectable INSIDE their species details, not as duplicate cards.
@@ -48,11 +50,11 @@ export function dexMeta() { return meta; }
 for (const t of ['favourites', 'dex.roster', 'dex.progress']) on(t, () => { state.dexCache = null; });
 on('import', (d) => { if (d && d.state === 'done') state.dexCache = null; });
 // Lower-case "form name + full name" text of each species' alternate forms, built once per loaded list (search).
-let formTextFor = null, formTextMap = new Map();
+let formTextLanguage, formTextFor = null, formTextMap = new Map();
 function formText() {
-  if (formTextFor !== state.dexForms) {
-    formTextFor = state.dexForms; formTextMap = new Map();
-    for (const f of state.dexForms || []) formTextMap.set(f.id, (formTextMap.get(f.id) || '') + ` ${f.form_name || ''} ${f.name || ''}`.toLowerCase());
+  if (formTextFor !== state.dexForms || formTextLanguage !== setting('app.language')) {
+    formTextFor = state.dexForms; formTextLanguage = setting('app.language'); formTextMap = new Map();
+    for (const f of state.dexForms || []) formTextMap.set(f.id, (formTextMap.get(f.id) || '') + ' ' + searchText([f.form_name, f.name, formLabel(f.id, f.form_name)].filter(Boolean).join(' ')));
   }
   return formTextMap;
 }
@@ -63,15 +65,14 @@ const persistFilters = debounce(() => saveSettings({ 'pokedex.filters': { ...F, 
 export function currentFilters() { if (!F) F = { ...DEFAULT_F, ...(setting('pokedex.filters') || {}) }; return F; }
 
 export function applyFilters(all, f = currentFilters(), scope = setting('pokedex.scope')) {
-  const q = (f.q || '').trim().toLowerCase();
+  const q = searchText(f.q);
   const tracking = !!setting('pokedex.progress_run');
   const out = all.filter((s) => {
     if (scope === 'pokemmo' && s.dex === 'no') return false;
     if (q) {
-      const num = q.replace(/^#/, '');
       const formHit = (formText().get(s.id) || '').includes(q);
-      const hit = s.name.toLowerCase().includes(q) || formHit || (/^\d+$/.test(num) && String(s.id) === String(Number(num))) ||
-        (s.abilities || []).some((a) => a.toLowerCase().includes(q)) || s.types.includes(q);
+      const hit = speciesMatches(s, q) || formHit ||
+        (s.abilities || []).some((a) => matchesTerm('ability', a, q)) || s.types.some((type) => matchesTerm('type', type, q));
       if (!hit) return false;
     }
     if (f.gen !== 'all' && String(s.gen) !== f.gen) return false;
@@ -85,8 +86,8 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
     if (f.horde === '5' && !s.horde5) return false;
     if (f.egg && !(s.egg_groups || []).includes(f.egg)) return false;
     if (f.season && !(s.seasons || []).some((x) => x === f.season || x === 'Any')) return false;
-    if (f.ability && !(s.abilities || []).some((a) => a.toLowerCase().includes(f.ability.toLowerCase()))) return false;
-    if (f.held && !(s.held_items || []).some((a) => a.toLowerCase().includes(f.held.toLowerCase()))) return false;
+    if (f.ability && !(s.abilities || []).some((a) => matchesTerm('ability', a, f.ability))) return false;
+    if (f.held && !(s.held_items || []).some((a) => matchesTerm('item', a, f.held))) return false;
     if (f.statKey && f.statMin !== '' && !((f.statKey === 'bst' ? s.bst : (s.stats || {})[f.statKey]) >= Number(f.statMin))) return false;
     if (f.classes.length && !f.classes.some((c) => (s.tags || []).includes(c))) return false;
     if (tracking && f.reg.length) {
@@ -97,7 +98,7 @@ export function applyFilters(all, f = currentFilters(), scope = setting('pokedex
     if (f.fav && !s.fav) return false;
     return true;
   });
-  const by = { num: (a, b) => a.id - b.id || (a.form_key ? 1 : 0) - (b.form_key ? 1 : 0), name: (a, b) => a.name.localeCompare(b.name), bst: (a, b) => (b.bst || 0) - (a.bst || 0) || a.id - b.id,
+  const by = { num: (a, b) => a.id - b.id || (a.form_key ? 1 : 0) - (b.form_key ? 1 : 0), name: (a, b) => compareLabels(speciesLabel(a.id, a.name), speciesLabel(b.id, b.name)), bst: (a, b) => (b.bst || 0) - (a.bst || 0) || a.id - b.id,
     fav: (a, b) => (b.fav - a.fav) || a.id - b.id };
   out.sort(by[f.sort] || by.num);
   return out;
@@ -136,7 +137,7 @@ async function openSummary(el, sel, selForm) {
   if (!back) {
     if (!lastFocus) lastFocus = document.activeElement;
     back = h('div', { class: 'dex-summary-back', onmousedown: (e) => { if (e.target === back) go('#/pokedex'); } },
-      h('div', { class: 'dex-summary', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pokémon summary', tabindex: '-1' }));
+      h('div', { class: 'dex-summary', role: 'dialog', 'aria-modal': 'true', 'aria-label': translateUI('ui.species_summary'), tabindex: '-1' }));
     el.append(back);
     host && host.setAttribute('aria-hidden', 'true');
   }
@@ -177,7 +178,7 @@ export async function render(el, route) {
   await buildToolbar(gridWrap, all);
   if (seq !== renderSeq) return;
   const scroll = h('div', { class: 'dex-scroll', tabindex: '-1' });
-  gridEl = h('div', { class: 'dex-grid density-' + (setting('pokedex.density') || 'standard'), role: 'grid', 'aria-label': 'Pokémon' });
+  gridEl = h('div', { class: 'dex-grid density-' + (setting('pokedex.density') || 'standard'), role: 'grid', 'aria-label': translateUI('ui.pokemon') });
   scroll.append(gridEl);
   gridWrap.append(scroll);
   drawGrid(all, sel, selForm);
@@ -201,24 +202,24 @@ function parseHash() { const raw = location.hash.replace(/^#\/?/, ''); const [p,
   return { page: parts[0], parts: parts.slice(1), query: new URLSearchParams(qs || ''), hash: location.hash }; }
 
 async function buildToolbar(wrap, all) {
-  const search = h('input', { id: 'dex-search', class: 'input', type: 'search', placeholder: 'Name, number, type or ability', value: F.q,
-    'aria-label': 'Search Pokémon', oninput: debounce((e) => { F.q = e.target.value; drawGrid(all); }, 120) });
+  const search = h('input', { id: 'dex-search', class: 'input', type: 'search', placeholder: translateUI('ui.search_dex'), value: F.q,
+    'aria-label': translateUI('ui.search_pokemon'), oninput: debounce((e) => { F.q = e.target.value; drawGrid(all); }, 120) });
   countEl = h('span', { class: 'small muted nowrap' });
   const filterBtn = h('button', { class: 'btn' + (ui.drawer ? ' primary' : ''), 'aria-expanded': String(ui.drawer), onclick: () => { ui.drawer = !ui.drawer; rerender(); } },
-    icon('filter'), 'Filters', activeFilterCount() ? h('span', { class: 'chip', style: { padding: '0 6px' } }, activeFilterCount()) : null);
-  const sort = h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Sort', onchange: (e) => { F.sort = e.target.value; persistFilters(); drawGrid(all); } },
-    [['num', 'National #'], ['name', 'Name A–Z'], ['bst', 'Base stat total'], ['fav', 'Favourites first']].map(([v, t]) =>
+    icon('filter'), translateUI('ui.filters'), activeFilterCount() ? h('span', { class: 'chip', style: { padding: '0 6px' } }, activeFilterCount()) : null);
+  const sort = h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.sort'), onchange: (e) => { F.sort = e.target.value; persistFilters(); drawGrid(all); } },
+    [['num', translateUI('ui.national_number')], ['name', translateUI('ui.name_az')], ['bst', translateUI('ui.bst')], ['fav', translateUI('ui.favourites_first')]].map(([v, t]) =>
       h('option', { value: v, selected: F.sort === v ? 'selected' : null, disabled: v === 'bst' && !state.boot.dex.imported ? 'disabled' : null }, t)));
   wrap.append(h('div', { class: 'dex-toolbar' },
     h('div', { class: 'search' }, icon('search'), search),
-    seg([['all', 'All'], ['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['5', 'V']], F.gen, (v) => { F.gen = v; persistFilters(); rerender(); }, 'Generation of introduction'),
+    seg([['all', translateUI('ui.all')], ['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['5', 'V']], F.gen, (v) => { F.gen = v; persistFilters(); rerender(); }, 'Generation of introduction'),
     filterBtn, sort,
-    seg([['compact', 'Small'], ['standard', 'Medium'], ['large', 'Large']], setting('pokedex.density') || 'standard', async (v) => {
+    seg([['compact', translateUI('ui.small')], ['standard', translateUI('ui.medium')], ['large', translateUI('ui.large')]], setting('pokedex.density') || 'standard', async (v) => {
       await saveSettings({ 'pokedex.density': v }); gridEl.className = 'dex-grid density-' + v; drawGrid(all); }, 'Card size'),
     // Display only: never ownership, never availability. Cards are updated in place (filters & scroll stay).
-    seg([['normal', 'Normal'], ['shiny', 'Shiny']], setting('pokedex.shiny') ? 'shiny' : 'normal', async (v) => {
+    seg([['normal', translateUI('ui.normal')], ['shiny', translateUI('ui.shiny')]], setting('pokedex.shiny') ? 'shiny' : 'normal', async (v) => {
       await saveSettings({ 'pokedex.shiny': v === 'shiny' }); refreshGridArt(); }, 'Normal or shiny artwork'),
-    seg([['static', 'Static'], ['animated', 'Animated']], animatedIn('dex_grid') ? 'animated' : 'static', async (v) => {
+    seg([['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]], animatedIn('dex_grid') ? 'animated' : 'static', async (v) => {
       await saveSettings({ 'sprites.animation': { ...(setting('sprites.animation') || {}), dex_grid: v } }); refreshGridArt(); }, 'Static or animated sprites'),
     h('span', { class: 'grow' }), popoutButton('pokedex')));
   wrap.append(await infoBar(all));
@@ -252,7 +253,7 @@ async function infoBar(all) {
         title: `Gen I–V reference: ${all.length} species${forms ? `, ${forms} alternate forms inside each Pokémon’s summary` : ''}. This is not the in-game Pokédex total, and being listed does not mean a Pokémon can be obtained. PokeMMO’s Seen / Owned / Caught counters use their own totals — record yours in the Availability report.${reg ? ` Availability registry ${reg.registry_version}.` : ''}`,
         onclick: (e) => toast(e.currentTarget.title, { timeout: 8000 }) }, icon('info')),
       scope === 'pokemmo' && hidden ? h('span', { class: 'small muted' }, `${hidden} you marked “Not listed” hidden`) : null,
-      h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, 'Availability report')),
+      h('button', { class: 'btn ghost small', onclick: rosterDialog, title: 'Availability by source, your in-game checks and your counter readings' }, translateUI('ui.availability_report'))),
     h('div', { class: 'row wrap', style: { gap: '6px 12px' } }, runs.runs.length ? runSel : null, counters));
 }
 
@@ -264,7 +265,7 @@ function filterDrawer(all) {
   const eggGroups = [...new Set(all.flatMap((s) => s.egg_groups || []))].sort();
   const tracking = !!setting('pokedex.progress_run');
   return h('div', { class: 'filter-drawer' },
-    h('div', { class: 'fgroup wide' }, h('span', { class: 'label' }, 'Type'), h('div', { class: 'chips' },
+    h('div', { class: 'fgroup wide' }, h('span', { class: 'label' }, translateUI('ui.type')), h('div', { class: 'chips' },
       TYPES.map((t) => h('button', { class: 'chip btnlike' + (F.types.includes(t) ? ' active' : ''), 'aria-pressed': String(F.types.includes(t)), onclick: () => {
         F.types = F.types.includes(t) ? F.types.filter((x) => x !== t) : [...F.types, t].slice(-2); redraw(); } }, typeChip(t, true)))),
     seg([['any', 'Has all selected'], ['primary', 'Primary type'], ['secondary', 'Secondary type']], F.typeSlot, (v) => { F.typeSlot = v; redraw(); }, 'Type slot')),
@@ -281,10 +282,10 @@ function filterDrawer(all) {
     h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Hunting'), h('div', { class: 'chips' },
       chip('Any', !F.horde, () => { F.horde = ''; redraw(); }, !imported), chip('In any horde', F.horde === 'any', () => { F.horde = F.horde === 'any' ? '' : 'any'; redraw(); }, !imported),
       chip('Horde ×5', F.horde === '5', () => { F.horde = F.horde === '5' ? '' : '5'; redraw(); }, !imported))),
-    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Season'), h('div', { class: 'chips' },
+    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, translateUI('ui.season')), h('div', { class: 'chips' },
       chip('Any', !F.season, () => { F.season = ''; redraw(); }, !imported),
       ['Spring', 'Summer', 'Autumn', 'Winter'].map((s) => chip(s, F.season === s, () => { F.season = F.season === s ? '' : s; redraw(); }, !imported)))),
-    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Egg group'),
+    h('div', { class: 'fgroup' }, h('span', { class: 'label' }, translateUI('ui.egg_group')),
       h('select', { class: 'input', disabled: imported ? null : 'disabled', onchange: (e) => { F.egg = e.target.value; redraw(); } },
         h('option', { value: '' }, 'Any'), eggGroups.map((g) => h('option', { value: g, selected: F.egg === g ? 'selected' : null }, cap(g))))),
     h('div', { class: 'fgroup' }, h('span', { class: 'label' }, 'Ability contains'),
@@ -339,7 +340,7 @@ function drawGrid(all, sel = Number(parseHash().parts[0]) || null, selForm = par
   const density = setting('pokedex.density') || 'standard';
   const tracking = !!setting('pokedex.progress_run');
   const sig = `${density}|${tracking}`;
-  if (cardCache.list !== all || cardCache.sig !== sig) { cardCache.list = all; cardCache.sig = sig; cardCache.cards = new Map(); }
+  if (cardCache.list !== all || cardCache.sig !== sig || cardCache.language !== setting('app.language')) { cardCache.list = all; cardCache.sig = sig; cardCache.language = setting('app.language'); cardCache.cards = new Map(); }
   gridEl.append(catalogFragment(list, { sel, selForm, density, tracking, onOpen: (s) => go(entryRoute(s)), onKey: gridKeys, grouped: F.sort === 'num', cache: cardCache.cards }));
 }
 /** Cards with Generation headings (when sorted by number). Shared by the main grid and popouts. */
@@ -439,7 +440,7 @@ export function dexCard(s, { selected, density, tracking, onOpen, onKey }) {
   s.form_key ? h('span', { class: 'form-badge', title: s.own_sprite ? 'Alternate form' : 'Alternate form — shown with the base sprite (no separate sprite in your client data)' }, s.own_sprite ? 'form' : 'form*') : null,
   unverified && density !== 'compact' ? h('span', { class: 'qmark', title: 'PokeMMO acquisition not verified yet' }, '?') : null,
   density !== 'compact' ? favButton(s) : null, marks, sprite,
-  h('div', { class: 'nm' + (unseen ? ' muted' : '') }, s.name),
+  h('div', { class: 'nm' + (unseen ? ' muted' : '') }, speciesLabel(s.id, s.name)),
   density !== 'compact' ? h('div', { class: 'types' }, s.types.map((t) => typeChip(t, true))) : null,
   density === 'large' ? h('div', { class: 'avail' }, s.avail + (s.bst ? ` · BST ${s.bst}` : '')) :
     density === 'standard' ? h('div', { class: 'avail' }, absent ? 'Not listed (your check)' : s.avail) : null);
@@ -473,7 +474,7 @@ export async function rosterDialog() {
     x.icon ? h('img', { class: 'pixel', src: x.icon, width: 32, height: 32, alt: '', loading: 'lazy' }) : h('span', { class: 'muted', style: { width: '32px' } }, '#' + pad3(x.id)),
     h('span', { class: 'grow' }, `#${pad3(x.id)} ${x.name}`, h('div', { class: 'tiny muted' }, `${x.label} · ${x.evidence}` + (x.membership_basis === 'your-check' ? ` · you: ${x.membership === 'yes' ? 'listed' : 'not listed'}` : ''))),
     h('button', { class: 'btn small', onclick: () => mark(x.id, 'yes') }, 'It’s listed'), h('button', { class: 'btn small', onclick: () => mark(x.id, 'no') }, 'Not listed'),
-    x.membership_basis === 'your-check' ? h('button', { class: 'btn small ghost', onclick: () => mark(x.id, 'clear') }, 'Clear') : null);
+    x.membership_basis === 'your-check' ? h('button', { class: 'btn small ghost', onclick: () => mark(x.id, 'clear') }, translateUI('ui.clear')) : null);
   const counterTable = (o, mine) => h('div', { class: 'card inset stack tight' },
     h('div', { class: 'small' }, h('strong', null, fmtDate(o.observed_at)), ' · ', mine ? (o.client_note || 'Your reading') : o.source),
     h('div', { class: 'row wrap small' }, Object.entries(o.counters).map(([k, v]) => h('span', { class: 'counter' }, h('span', { class: 'muted' }, k.replace('_', ' ') + ' '),
@@ -513,9 +514,9 @@ export async function rosterDialog() {
       h('ul', { class: 'small' }, Object.entries(r.sources).map(([id, src]) => h('li', null, src.url && src.url.startsWith('http') ? extLink(src.url, src.title) : src.title,
         h('span', { class: 'tiny muted' }, ` · ${src.kind} · checked ${src.checked}`))))));
   draw(await get('/api/dex/roster'));
-  await modal({ title: 'Availability report', body, wide: true, actions: [
+  await modal({ title: translateUI('ui.availability_report'), body, wide: true, actions: [
     { label: 'Export (JSON)', kind: 'ghost', handler: async () => { downloadJson(`pokemmo-availability-report-${new Date().toISOString().slice(0, 10)}.json`, await get('/api/dex/roster')); return false; } },
-    { label: 'Close', kind: 'primary' }] });
+    { label: translateUI('ui.close'), kind: 'primary' }] });
   await loadList(true);
   if (location.hash.startsWith('#/pokedex')) rerender();
 }
@@ -547,7 +548,7 @@ export function pickArt(a, { shiny = false, isForm = false, animated = null, ctx
   const key = (n) => (sh ? n + '_shiny' : n);
   base.bounds = a.bounds || {};
   base.tier = (a.size && a.size.tier) || 'm';
-  if (motion && hasAni) return { ...base, kind: 'ani', key: key('ani'), url: pickS('ani'), label: 'Animated', detail: lib('ani') && lib('ani').path };
+  if (motion && hasAni) return { ...base, kind: 'ani', key: key('ani'), url: pickS('ani'), label: translateUI('ui.animated'), detail: lib('ani') && lib('ani').path };
   if (pickS('static')) return { ...base, kind: 'static', key: key('static'), url: pickS('static'), label: 'Still', detail: lib('static') && lib('static').path };
   if (pickS('front')) return { ...base, kind: 'front', key: key('front'), url: pickS('front'), label: 'PokeMMO client sprite' };
   if (hasAni) return { ...base, kind: 'ani-still', key: key('ani'), url: pickS('ani'), label: 'Still frame' };
@@ -563,7 +564,7 @@ const artObserver = typeof ResizeObserver === 'function' ? new ResizeObserver((e
 export function artImage(art, sp) {
   if (!art.url) return h('div', { class: 'art-missing', title: art.detail || art.label, role: 'img', 'aria-label': art.label },
     silhouette(sp, 72), h('span', { class: 'tiny' }, art.isForm ? 'No form artwork' : ''));
-  const img = h('img', { class: 'pixel art-img', src: art.url, alt: sp.name, decoding: 'async', style: { visibility: 'hidden' } });
+  const img = h('img', { class: 'pixel art-img', src: art.url, alt: speciesLabel(sp.id, sp.name), decoding: 'async', style: { visibility: 'hidden' } });
   let el = img;
   const fit = () => {
     const box = el.parentElement;
@@ -581,7 +582,7 @@ export function artImage(art, sp) {
   };
   img.addEventListener('load', () => {
     if (art.kind === 'ani-still') {
-      const c = h('canvas', { class: 'pixel art-img', width: img.naturalWidth, height: img.naturalHeight, role: 'img', 'aria-label': sp.name });
+      const c = h('canvas', { class: 'pixel art-img', width: img.naturalWidth, height: img.naturalHeight, role: 'img', 'aria-label': speciesLabel(sp.id, sp.name) });
       try { c.getContext('2d').drawImage(img, 0, 0); img.replaceWith(c); el = c; } catch (_) { /* keep the image */ }
     }
     fit();
@@ -617,7 +618,7 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
     art.hasAni ? h('div', { class: 'seg small', role: 'group', 'aria-label': 'Motion' },
       segBtn(!art.motion, 'Static', () => { ui.anim = false; redraw(); }), segBtn(art.motion, 'Animated', () => { ui.anim = true; redraw(); },
         motionGlobal() ? null : 'Animations are switched off in Settings › Pokémon & sprites')) : null,
-    femaleArt ? h('div', { class: 'seg small', role: 'group', 'aria-label': 'Gender' },
+    femaleArt ? h('div', { class: 'seg small', role: 'group', 'aria-label': translateUI('ui.gender') },
       segBtn(!ui.female, '♂', () => { ui.female = false; redraw(); }, 'Male / default artwork'), segBtn(ui.female, '♀', () => { ui.female = true; redraw(); }, 'Female artwork')) : null);
   const formNav = (k) => (popout ? (location.hash = '#/species/' + id + (k ? '/' + k : '')) : go('#/pokedex/' + id + (k ? '/' + k : '')));
   const av = d.availability;
@@ -629,19 +630,20 @@ export async function renderDetail(pane, id, { back, popout = false, mode = 'exp
     h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, 'No. ' + pad3(d.id)), h('span', { class: 'grow' }), favToggle(d),
         !popout ? pinButton({ kind: 'pokemon', id: d.id }) : null,
-        !popout ? h('button', { class: 'icon-btn', title: 'Open in a separate window', 'aria-label': 'Pop out', onclick: () => openPopout('pokedex', `#/species/${id}`) }, icon('popout')) : null,
-        back ? h('button', { class: 'icon-btn', title: 'Close (Esc)', 'aria-label': 'Close details', onclick: back }, icon('close')) : null),
-      h('h2', null, d.name),
+        !popout ? h('button', { class: 'icon-btn', title: 'Open in a separate window', 'aria-label': translateUI('ui.popout'), onclick: () => openPopout('pokedex', `#/species/${id}`) }, icon('popout')) : null,
+        back ? h('button', { class: 'icon-btn', title: 'Close (Esc)', 'aria-label': translateUI('ui.close_details'), onclick: back }, icon('close')) : null),
+      h('h2', null, setting('app.language') === 'en' ? d.name : speciesLabel(d.id, d.base_name || d.name),
+        fm && setting('app.language') !== 'en' ? ' · ' + formLabel(d.id, fm.form_name) : null),
       h('div', { class: 'row wrap', style: { marginTop: '4px' } }, typeChips(d.types),
         fm && fm.kind !== 'cosmetic' && fm.kind !== 'season' ? h('span', { class: 'badge unknown', title: 'Whether this form can be obtained or switched to in PokeMMO is not verified' }, 'Form change not verified') :
           h('span', { class: 'badge ' + avClass, title: av.evidence }, av.label))));
   pane.replaceChildren(head);
   if (d.catalog_forms && d.catalog_forms.length) {
-    pane.append(h('div', { class: 'form-strip', role: 'group', 'aria-label': `${d.base_name || d.name} forms` }, h('span', { class: 'label' }, 'Form'),
+    pane.append(h('div', { class: 'form-strip', role: 'group', 'aria-label': `${d.base_name || d.name} forms` }, h('span', { class: 'label' }, translateUI('ui.form')),
       d.catalog_forms.map((f) => h('button', { class: 'chip btnlike' + ((f.base ? !fm : fm && fm.form_key === f.form_key) ? ' active' : ''), 'aria-pressed': String(f.base ? !fm : !!(fm && fm.form_key === f.form_key)),
-        onclick: () => formNav(f.base ? null : f.form_key) }, f.form_name))));
+        onclick: () => formNav(f.base ? null : f.form_key) }, formLabel(d.id, f.form_name)))));
   }
-  if (fm) pane.append(h('div', { class: 'detail-body', style: { paddingBottom: 0 } }, notice('info', h('strong', null, fm.form_name + '. '),
+  if (fm) pane.append(h('div', { class: 'detail-body', style: { paddingBottom: 0 } }, notice('info', h('strong', null, formLabel(d.id, fm.form_name) + '. '),
     fm.note ? fm.note + ' ' : '', `Types: ${fm.types_source}. Stats: ${fm.stats_source}. Abilities: ${fm.abilities_source}.`,
     fm.in_client === false ? ' The PokeMMO game data has no record for this form.' : '',
     !fm.own_sprite && !(fm.art && (fm.art.static || fm.art.ani)) ? ' No verified artwork exists for this form, so none is shown.' : '', fm.mismatch.length ? ` ⚠ PokeMMO’s data differs from the mainline values (${fm.mismatch.join(', ')}); PokeMMO’s value is shown.` : '',
@@ -711,17 +713,19 @@ function availabilityBlock(d, compact) {
 }
 
 function summary(d) {
-  const abil = h('div', { class: 'stack tight' }, d.abilities.map((a) => h('div', { class: 'row' }, h('span', { style: { fontWeight: 600 } }, a.name),
-    a.slot === 'hidden' ? h('span', { class: 'chip' }, 'Hidden Ability') : null)));
+  const abil = h('div', { class: 'stack tight' }, d.abilities.map((a) => h('div', { class: 'row' }, h('span', { style: { fontWeight: 600 } }, gameTerm('ability', a.name)),
+    a.slot === 'hidden' ? h('span', { class: 'chip' }, translateUI('ui.hidden_ability')) : null)));
+  const category = speciesCategory(d.id);
   const overlay = d.overlays && d.overlays[0];
   return h('div', { class: 'stack' },
     h('div', { class: 'grid-2', style: { gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' } },
-      h('div', null, h('div', { class: 'label', style: { marginBottom: '6px' } }, 'Abilities'), abil),
+      h('div', null, h('div', { class: 'label', style: { marginBottom: '6px' } }, translateUI('ui.abilities')), abil),
       h('dl', { class: 'kv' },
-        h('dt', null, 'Height / weight'), h('dd', null, `${d.height_m} m · ${d.weight_kg} kg`),
-        h('dt', null, 'Wild held items'), h('dd', null, d.held_items.length ? d.held_items.join(', ') : '—'),
-        h('dt', null, 'Forms'), h('dd', null, d.forms.filter((f) => f.name && f.name !== 'Egg').map((f) => f.name + (f.costume ? ' (costume)' : '')).join(', ') || '—'),
-        overlay ? [h('dt', null, 'Patch note'), h('dd', null, overlay.note)] : null)),
+        category ? [h('dt', null, translateUI('ui.category')), h('dd', null, category)] : null,
+        h('dt', null, translateUI('ui.height_weight')), h('dd', null, `${d.height_m} m · ${d.weight_kg} kg`),
+        h('dt', null, translateUI('ui.held_items')), h('dd', null, d.held_items.length ? d.held_items.map((item) => gameTerm('item', item)).join(', ') : '—'),
+        h('dt', null, translateUI('ui.forms')), h('dd', null, d.forms.filter((f) => f.name && f.name !== 'Egg').map((f) => f.name + (f.costume ? ' (costume)' : '')).join(', ') || '—'),
+        overlay ? [h('dt', null, translateUI('ui.patch_note')), h('dd', null, overlay.note)] : null)),
     availabilityBlock(d),
     h('div', { class: 'tiny muted' }, 'Stats, moves and locations come from the PokeMMO client data (built in, or your own copy). Its raw “obtainable” flag ',
       `(${d.obtainable_flag}) is not used for availability.`, d.types_raw_duplicated ? ' The game data lists this single type twice; it is shown once.' : ''));
@@ -735,7 +739,7 @@ function statsSection(d, compact) {
     h('div', { class: 'stat-row', dataset: { stat: k }, style: { '--stat-c': `var(--stat-${k})` }, 'aria-label': `${label} ${d.stats[k] ?? 'unknown'}` },
       h('span', { class: 'lbl' }, label), h('span', { class: 'val' }, d.stats[k] ?? '—'), bar(d.stats[k], STAT_MAX))),
   h('div', { class: 'stat-row total', 'aria-label': `Total ${d.bst}` }, h('span', { class: 'lbl' }, 'Total'), h('span', { class: 'val' }, d.bst), bar(d.bst, BST_MAX))),
-  compact ? h('div', { class: 'small' }, 'Abilities: ', d.abilities.map((a) => a.name + (a.slot === 'hidden' ? ' (HA)' : '')).join(', ')) : null);
+  compact ? h('div', { class: 'small' }, 'Abilities: ', d.abilities.map((a) => gameTerm('ability', a.name) + (a.slot === 'hidden' ? ' (HA)' : '')).join(', ')) : null);
 }
 
 function typeMatchups(d) {
@@ -770,10 +774,10 @@ function locations(d) {
         if (!seen.has(sig)) seen.set(sig, { ...l, seasons: [l.season] }); else seen.get(sig).seasons.push(l.season);
       }
       const lid = ls[0].location_id != null ? `${region}:${ls[0].location_id}` : `${region}:${area}`;
-      out.append(h('div', { class: 'loc-group' }, h('div', { class: 'lg-head' }, h('span', { class: 'chip' }, cap(region)),
-        h('a', { href: '#/tools/locations/' + encodeURIComponent(lid), title: 'Open in the Location explorer' }, area)),
-        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Type', 'Levels', 'Horde', 'Season', 'Morning', 'Day', 'Night'].map((c) => h('th', null, c)))),
-          h('tbody', null, [...seen.values()].map((l) => h('tr', null, h('td', null, l.method), h('td', { class: 'nowrap' }, l.min === l.max ? l.min : `${l.min}–${l.max}`),
+      out.append(h('div', { class: 'loc-group' }, h('div', { class: 'lg-head' }, h('span', { class: 'chip' }, gameTerm('region', cap(region))),
+        h('a', { href: '#/tools/locations/' + encodeURIComponent(lid), title: translateUI('ui.location_open') }, gameTerm('location', area))),
+        h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.type'), translateUI('ui.levels'), 'Horde', translateUI('ui.season'), translateUI('ui.morning'), translateUI('ui.day'), translateUI('ui.night')].map((c) => h('th', null, c)))),
+          h('tbody', null, [...seen.values()].map((l) => h('tr', null, h('td', null, gameTerm('encounter', l.method)), h('td', { class: 'nowrap' }, l.min === l.max ? l.min : `${l.min}–${l.max}`),
             h('td', null, l.horde5 ? '×5' : l.horde3 ? '×3' : '—'), h('td', { class: 'small' }, l.seasons.join(', ')), rateCell(l.morning), rateCell(l.day), rateCell(l.night)))))));
     }
     return out;
@@ -781,7 +785,7 @@ function locations(d) {
   const holder = h('div');
   const redraw = () => mount(holder, draw());
   const firstRegion = d.locations[0] && d.locations[0].region;
-  wrap.append(h('div', { class: 'row wrap' }, h('span', { class: 'label' }, 'Season'), seg(SEASONS.map((s) => [s, s === 'all' ? 'All' : s]), ui.locSeason, (v) => { ui.locSeason = v; redraw(); }, 'Season'),
+  wrap.append(h('div', { class: 'row wrap' }, h('span', { class: 'label' }, translateUI('ui.season')), seg(SEASONS.map((s) => [s, s === 'all' ? 'All' : s]), ui.locSeason, (v) => { ui.locSeason = v; redraw(); }, 'Season'),
     h('span', { class: 'grow' }), h('a', { class: 'btn small ghost', href: `#/tools/locations?region=${firstRegion || 'kanto'}&species=${d.id}`, title: 'Highlight every location of this Pokémon in the Location explorer' }, icon('map'), 'Show in Location explorer')),
     h('p', { class: 'tiny muted', style: { margin: 0 } }, '“Lure only”, “Special” and “Unknown rate” are shown exactly as the game data states them — never as 0% or 100%. Percentages come from the game data and may predate later patches (e.g. 29 Jul 2026 encounter rebuild, Altering Cave rotation).'),
     holder);
@@ -831,9 +835,9 @@ function moves(d) {
         return h('tr', { dataset: { move: r.name } },
           h('td', { class: 'mv-methods' }, r.methods.map(methodBadge)),
           h('td', { class: 'num' }, levels.length ? levels.join(', ') : dash('No level for this method')),
-          h('td', { class: 'mv-name' }, r.name),
+          h('td', { class: 'mv-name' }, gameTerm('move', r.name)),
           h('td', null, r.type ? typeChip(r.type, true) : dash(miss)),
-          h('td', { class: 'small' }, r.category || dash(miss)),
+          h('td', { class: 'small' }, gameTerm('category_move', r.category) || dash(miss)),
           h('td', { class: 'num' }, r.power === 1 ? dash('Variable power (depends on the target or the situation)', 'var.') : r.power ? r.power : r.verified_meta ? dash('No base power (status or variable)') : dash(miss)),
           h('td', { class: 'num' }, r.accuracy == null ? dash(miss) : r.accuracy > 100 ? dash('Never misses') : r.accuracy),
           h('td', { class: 'num' }, r.pp ?? dash(miss)));
@@ -863,7 +867,7 @@ function evolution(d) {
   Object.keys(byDepth).sort().forEach((depth, i) => {
     if (i > 0) row.append(h('div', { class: 'arrow' }, byDepth[depth].map((n) => h('div', null, '→ ', evoText(n.via)))));
     row.append(h('div', { class: 'stack tight' }, byDepth[depth].map((n) => h('div', { class: 'node', role: 'button', tabindex: '0', onclick: () => go('#/pokedex/' + n.id),
-      style: n.id === d.id ? { borderColor: 'var(--accent)' } : null }, spriteOrFallback(n.icon, { id: n.id, name: n.name, types: [] }, 48), h('span', { class: 'small' }, n.name)))));
+      style: n.id === d.id ? { borderColor: 'var(--accent)' } : null }, spriteOrFallback(n.icon, { id: n.id, name: n.name, types: [] }, 48), h('span', { class: 'small' }, speciesLabel(n.id, n.name))))));
   });
   return h('div', { class: 'stack' }, row, h('p', { class: 'tiny muted', style: { margin: 0 } }, 'Evolution methods from the PokeMMO data; region- or form-specific details are not verified.'));
 }
@@ -872,7 +876,7 @@ function registration(d) {
   if (!run) return h('div', { class: 'stack tight' }, notice('info', 'Registration is not being tracked. Choose a character run in the Pokédex toolbar (“Registration: …”) to record Seen / Owned / Caught OT / Alpha / Shiny / Costume for that character.'),
     h('div', { class: 'small muted' }, 'The Companion cannot read your PokeMMO account; everything here is entered by you.'));
   const p = { ...(d.progress || { status: 'unregistered' }) };
-  const save = async () => { await api('PUT', `/api/dex/progress/${run}/${d.id}`, p); toast('Saved'); state.dexCache = null; staleGrid = true; };
+  const save = async () => { await api('PUT', `/api/dex/progress/${run}/${d.id}`, p); toast(translateUI('ui.saved')); state.dexCache = null; staleGrid = true; };
   return h('div', { class: 'stack' }, h('div', { class: 'small muted' }, 'Your manual record for the selected character. Not read from your account.'),
     seg(REG_LEVELS, p.status, (v) => { p.status = v; save(); }, 'Registration status'),
     h('div', { class: 'row wrap' }, [['caught_alpha', 'Caught Alpha'], ['owned_shiny', 'Owned Shiny'], ['owned_costume', 'Owned Costume']].map(([k, l]) =>
@@ -881,7 +885,7 @@ function registration(d) {
 function breeding(d) {
   const cannot = d.egg_groups.includes('cannot breed');
   return h('div', { class: 'stack' },
-    h('dl', { class: 'kv' }, h('dt', null, 'Egg groups'), h('dd', null, d.egg_groups.map(cap).join(', ')), h('dt', null, 'Gender'), h('dd', null, d.gender.label)),
+    h('dl', { class: 'kv' }, h('dt', null, translateUI('ui.egg_groups')), h('dd', null, d.egg_groups.map(cap).join(', ')), h('dt', null, translateUI('ui.gender')), h('dd', null, d.gender.label)),
     cannot ? notice('warn', 'In the “cannot breed” egg group.') : null,
     h('div', { class: 'row wrap' },
       h('button', { class: 'btn primary', disabled: cannot ? 'disabled' : null, onclick: () => go(`#/tools/breeding?a=${d.id}`) }, icon('egg'), 'Use as Parent A in Breeding Preview'),
@@ -898,6 +902,6 @@ function notesSection(d) {
     h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'label' }, `In My Box (${(d.box_entries || []).length})`), h('span', { class: 'grow' }),
       h('button', { class: 'btn small', onclick: () => openRoute(`#/collection/pokemon/new?species=${d.id}`) }, icon('plus'), 'Add to My Box')),
     (d.box_entries || []).length ? h('div', { class: 'row wrap' }, d.box_entries.map((e) => h('button', { class: 'mini-mon', onclick: () => openRoute('#/collection/pokemon/' + e.id) },
-      e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, (e.nickname || e.species_name) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
+      e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, (e.nickname || speciesLabel(e.species_id, e.species_name)) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
       h('div', { class: 'small muted' }, 'No Box entries for this species.')));
 }

@@ -6,6 +6,8 @@ from pathlib import Path
 root = Path(SPECPATH).resolve().parent
 # Explicit asset paths and formats. No whole-tree copy of data, settings, relay code or tooling.
 asset_patterns = (
+    r"ui/licenses/pokeapi\.txt",
+    r"ui/fonts/(?:companion-han\.woff2|ofl\.txt)",
     r"ui/(?:index\.html|css/[a-z-]+\.css|img/[a-z-]+\.svg|js/(?:pages/)?[a-z0-9-]+\.js)",
     r"companion/data/(?:catalog_reference_synergy|form_art|forms|legendaries|legendary_mythical|news_snapshot|"
     r"pokemmo_availability|species_index|themes)\.json",

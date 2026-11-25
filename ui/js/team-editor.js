@@ -1,3 +1,5 @@
+import { t as translateUI } from './i18n.js';
+import { gameTerm, searchText, speciesLabel } from './game-locale.js';
 // Team editor shared by Tools › Team builder and Guides. Teams are saved documents (kind "team") referenced by id,
 // so a team linked to several guides is the same team everywhere. Only the Pokémon is needed; every other field
 // is optional. Coverage uses types only (no abilities or items), from moves when moves are entered.
@@ -31,7 +33,7 @@ export async function teamStrip(team) {
   const t = normTeam(team.data);
   return h('div', { class: 'team-strip' }, t.slots.map((s) => {
     const sp = s && idx.find((x) => x.id === s.species);
-    return h('div', { class: 'team-strip-slot' + (sp ? '' : ' vacant'), title: sp ? sp.name + (s.level ? ` · Lv ${s.level}` : '') : 'Empty slot' },
+    return h('div', { class: 'team-strip-slot' + (sp ? '' : ' vacant'), title: sp ? speciesLabel(sp.id, sp.name) + (s.level ? ` · Lv ${s.level}` : '') : 'Empty slot' },
       sp ? sizedSprite(sp, scaled('team', 40), { still: sp.still, url: sp.icon, tier: sp.size || 'm', ani: animatedIn('team') ? sp.ani : null }) : null);
   }));
 }
@@ -54,7 +56,7 @@ export function analyseTeam(t, { tc, idx, moves }) {
   const covered = tc.types.filter((d, j) => [...attackTypes].some((a) => tc.types.includes(a) && tc.matrix[tc.types.indexOf(a)][j] > 1));
   return h('div', { class: 'stack' },
     h('div', null, h('div', { class: 'label', style: { marginBottom: '6px' } }, 'Defensive overview (members weak / resistant / immune per attacking type)'),
-      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Attacking', 'Weak', 'Resist', 'Immune'].map((c) => h('th', null, c)))),
+      h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.attacking'), translateUI('ui.weak'), translateUI('ui.resist'), translateUI('ui.immune')].map((c) => h('th', null, c)))),
         h('tbody', null, def.map((r) => h('tr', null, h('td', null, typeChip(r.a, true)), h('td', { style: { color: r.weak >= 3 ? '#e07b77' : null, fontWeight: r.weak >= 3 ? 700 : 400 } }, r.weak || '—'),
           h('td', null, r.resist || '—'), h('td', null, r.immune || '—')))))),
     h('div', null, h('div', { class: 'label', style: { marginBottom: '6px' } }, `Super-effective coverage: ${covered.length}/${tc.types.length}`),
@@ -72,13 +74,14 @@ export async function teamEditor(doc, { onSaved, onDeleted, compact = false } = 
   const t = normTeam(doc ? doc.data : null);
   let name = doc ? doc.name : 'New team';
   const out = h('div');
-  const moveDl = h('datalist', { id: 'team-moves-dl' }, d.moves.map((m) => h('option', { value: m.name })));
+  const moveAliases = new Map(d.moves.map((m) => [searchText(gameTerm('move', m.name)), m.name]));
+  const moveDl = h('datalist', { id: 'team-moves-dl' }, d.moves.map((m) => h('option', { value: gameTerm('move', m.name) })));
   const redraw = () => mount(out, analyseTeam(t, d));
   const save = async () => {
     try {
       const body = { name, data: t };
       const res = doc ? await api('PUT', `/api/docs/team/${doc.id}`, body) : await post('/api/docs/team', body);
-      doc = res; toast('Team saved');
+      doc = res; toast(translateUI('ui.team_saved'));
       onSaved && onSaved(res);
     } catch (e) { toast(e.message, { kind: 'warn' }); }
   };
@@ -86,17 +89,17 @@ export async function teamEditor(doc, { onSaved, onDeleted, compact = false } = 
     const box = h('div', { class: 'card tight team-slot' });
     const draw = () => {
       const s = t.slots[i];
-      const details = h('details', { class: 'team-slot-details' }, h('summary', { class: 'small' }, 'Details (optional)'));
+      const details = h('details', { class: 'team-slot-details' }, h('summary', { class: 'small' }, translateUI('ui.details_optional')));
       if (s) {
         const field = (label, el) => h('label', { class: 'field' }, h('span', { class: 'label' }, label), el);
         const txt = (k, n, ph, list) => h('input', { class: 'input', value: s[k] || '', maxlength: n, placeholder: ph || '', list: list || null, oninput: (e) => { s[k] = e.target.value; } });
         const num = (obj, k, hi) => h('input', { class: 'input tm-num', type: 'number', min: '0', max: String(hi), value: (s[obj] || {})[k] ?? '', 'aria-label': `${obj.toUpperCase()} ${k}`,
           oninput: (e) => { s[obj] = { ...(s[obj] || {}) }; if (e.target.value === '') delete s[obj][k]; else s[obj][k] = Number(e.target.value); } });
-        const moves = [0, 1, 2, 3].map((m) => h('input', { class: 'input', list: 'team-moves-dl', value: (s.moves || [])[m] || '', placeholder: `Move ${m + 1}`, maxlength: 40,
-          oninput: (e) => { const mv = [...(s.moves || [])]; mv[m] = e.target.value; s.moves = mv.filter((x, k) => x || k < 4); redraw(); } }));
+        const moves = [0, 1, 2, 3].map((m) => h('input', { class: 'input', list: 'team-moves-dl', value: gameTerm('move', (s.moves || [])[m]) || '', placeholder: `Move ${m + 1}`, maxlength: 40,
+          oninput: (e) => { const mv = [...(s.moves || [])]; mv[m] = moveAliases.get(searchText(e.target.value)) || e.target.value; s.moves = mv.filter((x, k) => x || k < 4); redraw(); } }));
         details.append(h('div', { class: 'team-slot-grid' },
           field('Form', txt('form', 40, 'e.g. Alolan')), field('Level', h('input', { class: 'input', type: 'number', min: '1', max: '100', value: s.level ?? '', oninput: (e) => { s.level = e.target.value === '' ? undefined : Number(e.target.value); } })),
-          field('Nature', h('select', { class: 'input', onchange: (e) => { s.nature = e.target.value || undefined; } }, h('option', { value: '' }, '—'), NATURES.map((n) => h('option', { value: n, selected: s.nature === n ? 'selected' : null }, n)))),
+          field('Nature', h('select', { class: 'input', onchange: (e) => { s.nature = e.target.value || undefined; } }, h('option', { value: '' }, '—'), NATURES.map((n) => h('option', { value: n, selected: s.nature === n ? 'selected' : null }, gameTerm('nature', n))))),
           field('Ability', txt('ability', 40)), field('Held item', txt('item', 60))),
         h('div', { class: 'team-moves' }, moves),
         h('div', { class: 'team-stats' }, h('span', { class: 'label' }, 'IVs'), STATS.map(([k, l]) => h('label', { class: 'tiny' }, l, num('ivs', k, 31)))),
@@ -111,14 +114,14 @@ export async function teamEditor(doc, { onSaved, onDeleted, compact = false } = 
   };
   const el = h('div', { class: 'stack team-editor' + (compact ? ' compact' : '') },
     h('div', { class: 'card row wrap' },
-      h('div', { class: 'field grow' }, h('label', null, 'Team name'), h('input', { class: 'input', value: name, maxlength: 60, oninput: (e) => { name = e.target.value; } })),
+      h('div', { class: 'field grow' }, h('label', null, translateUI('ui.team_name')), h('input', { class: 'input', value: name, maxlength: 60, oninput: (e) => { name = e.target.value; } })),
       h('div', { class: 'field' }, h('label', null, 'Purpose'), h('select', { class: 'input', onchange: (e) => { t.purpose = e.target.value; } },
         PURPOSES.map(([v, l]) => h('option', { value: v, selected: t.purpose === v ? 'selected' : null }, l)))),
       h('button', { class: 'btn primary', onclick: save }, 'Save team'),
       doc && onDeleted ? h('button', { class: 'btn danger', onclick: async () => {
         const used = (await get(`/api/teams/${doc.id}/guides`)).guides.length;
         if (await confirmDialog('Delete team', `Delete “${doc.name}”?` + (used ? ` It is linked to ${used} guide(s); they will show it as missing.` : ''), 'Delete', true)) {
-          await api('DELETE', `/api/docs/team/${doc.id}`); onDeleted(); } } }, 'Delete') : null),
+          await api('DELETE', `/api/docs/team/${doc.id}`); onDeleted(); } } }, translateUI('ui.delete')) : null),
     moveDl,
     h('div', { class: 'team-slots' }, [0, 1, 2, 3, 4, 5].map(slotEl)),
     h('div', { class: 'card' }, h('label', { class: 'label' }, 'Team notes'), h('textarea', { class: 'input', rows: '2', maxlength: '4000', oninput: (e) => { t.notes = e.target.value; } }, t.notes)),
@@ -131,7 +134,7 @@ export async function teamEditor(doc, { onSaved, onDeleted, compact = false } = 
 export async function editTeamDialog(doc) {
   let saved = null;
   const body = await teamEditor(doc, { onSaved: (d) => { saved = d; }, compact: true });
-  await modal({ title: doc ? `Edit team · ${doc.name}` : 'New team', wide: true, body, actions: [{ label: 'Close', value: true, kind: 'ghost' }] });
+  await modal({ title: doc ? `Edit team · ${doc.name}` : 'New team', wide: true, body, actions: [{ label: translateUI('ui.close'), value: true, kind: 'ghost' }] });
   return saved;
 }
 

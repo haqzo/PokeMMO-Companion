@@ -1,3 +1,5 @@
+import { t as translateUI } from '../i18n.js';
+import { compareLabels, findSpecies, gameTerm, matchesTerm, speciesLabel, speciesMatches } from '../game-locale.js';
 // Location explorer: a searchable directory of every PokeMMO location, grouped by region, sub-region (Sevii Islands)
 // and kind of place, with the full encounter tables. Data: the built-in PokeMMO reference (or your own client
 // data when you imported it). The interactive map work (artwork, geometry, personal marks) is kept in the
@@ -135,13 +137,13 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
       const ids = ok ? e.location_ids.filter((i) => ok.has(i)) : e.location_ids;
       if (ok && !ids.length) return false;
       if (!q) return true;
-      if (e.name.toLowerCase().includes(q) || e.location_ids.some((i) => locById[i].name.toLowerCase().includes(q))) return true;
-      return ids.some((i) => locById[i].species.some((sid) => ((species[sid] || {}).name || '').toLowerCase().includes(q)));
+      if (matchesTerm('location', e.name, q) || e.location_ids.some((i) => matchesTerm('location', locById[i].name, q))) return true;
+      return ids.some((i) => locById[i].species.some((sid) => speciesMatches({ id: sid, name: species[sid]?.name }, q)));
     });
   }
 
   // ---- region tabs (+ "All regions"), with match counts when searching / filtering
-  const tabsEl = h('div', { class: 'tabs loc-tabs', role: 'tablist', 'aria-label': 'Region' });
+  const tabsEl = h('div', { class: 'tabs loc-tabs', role: 'tablist', 'aria-label': translateUI('ui.region') });
   function drawTabs() {
     const searching = filtersActive() || f.q.trim();
     mount(tabsEl, [...REGIONS, 'all'].map((r) => h('button', { class: 'tab' + (r === region ? ' active' : ''), role: 'tab', 'aria-selected': String(r === region), dataset: { region: r },
@@ -153,18 +155,17 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
   const methods = [...new Set(data.locations.flatMap((l) => l.methods))].sort(naturalCompare);
   const sel_ = (label, key, opts) => h('select', { class: 'input', 'aria-label': label, onchange: (e) => { f[key] = e.target.value; draw(); } },
     opts.map(([v, l]) => h('option', { value: v, selected: f[key] === v ? 'selected' : null }, l)));
-  const pokeIn = h('input', { class: 'input', list: 'loc-species-dl', placeholder: 'Pokémon (name or #)', 'aria-label': 'Pokémon', autocomplete: 'off',
-    value: f.species && species[f.species] ? species[f.species].name : '' });
-  const dl = h('datalist', { id: 'loc-species-dl' }, Object.values(species).map((s) => h('option', { value: s.name }, '#' + pad3(s.id))));
+  const pokeIn = h('input', { class: 'input', list: 'loc-species-dl', placeholder: 'Pokémon (name or #)', 'aria-label': translateUI('ui.pokemon'), autocomplete: 'off',
+    value: f.species && species[f.species] ? speciesLabel(f.species, species[f.species].name) : '' });
+  const dl = h('datalist', { id: 'loc-species-dl' }, Object.values(species).map((s) => h('option', { value: speciesLabel(s.id, s.name) }, '#' + pad3(s.id))));
   pokeIn.addEventListener('change', async () => {
-    const v = pokeIn.value.trim().toLowerCase().replace(/^#/, '');
-    const s = Object.values(species).find((x) => x.name.toLowerCase() === v) || (/^\d+$/.test(v) ? species[Number(v)] : null);
+    const s = findSpecies(Object.values(species), pokeIn.value);
     f.species = s ? s.id : null;
-    if (s) { pokeIn.value = s.name; await Promise.all(REGIONS.map(loadEnc)); }
+    if (s) { pokeIn.value = speciesLabel(s.id, s.name); await Promise.all(REGIONS.map(loadEnc)); }
     draw();
   });
   const pokeCard = h('div', { class: 'loc-poke' });
-  const searchIn = h('input', { class: 'input', type: 'search', value: f.q, placeholder: 'Search a location or Pokémon', 'aria-label': 'Search locations', oninput: debounce((e) => { f.q = e.target.value; draw(); }, 120) });
+  const searchIn = h('input', { class: 'input', type: 'search', value: f.q, placeholder: 'Search a location or Pokémon', 'aria-label': translateUI('ui.search_location'), oninput: debounce((e) => { f.q = e.target.value; draw(); }, 120) });
   const hordeChip = h('button', { class: 'chip btnlike' + (f.horde ? ' active' : ''), 'aria-pressed': String(f.horde), onclick: (e) => { f.horde = !f.horde; e.currentTarget.classList.toggle('active', f.horde); e.currentTarget.setAttribute('aria-pressed', String(f.horde)); draw(); } }, 'Hordes only');
   const searchBox = h('div', { class: 'search loc-search', role: 'search' }, icon('search'), searchIn);
   const filters = h('div', { class: 'loc-filters' },
@@ -175,7 +176,7 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
       sel_('Time of day', 'time', [['', 'Any time'], ...TIMES.map(([v, l]) => [v, l])]),
       sel_('Season', 'season', [['', 'Any season'], ...['Spring', 'Summer', 'Autumn', 'Winter'].map((s) => [s, s])]), hordeChip),
     h('button', { class: 'btn small ghost', onclick: () => { Object.assign(f, { q: '', species: null, type: '', method: '', horde: false, time: '', season: '' }); ui.cat = 'all'; explorer(host, { region, sel: null, variant, nav }); } }, icon('close'), 'Clear filters'));
-  const filterToggle = h('button', { class: 'btn small loc-filter-toggle', 'aria-expanded': 'false', onclick: (e) => { const open = wrap.classList.toggle('filters-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); } }, icon('filter'), h('span', null, 'Filters'));
+  const filterToggle = h('button', { class: 'btn small loc-filter-toggle', 'aria-expanded': 'false', onclick: (e) => { const open = wrap.classList.toggle('filters-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); } }, icon('filter'), h('span', null, translateUI('ui.filters')));
 
   // ---- list
   const catsEl = h('div', { class: 'loc-cats', role: 'tablist', 'aria-label': 'Kind of place' });
@@ -188,8 +189,8 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
   function drawPokeCard() {
     const s = f.species && species[f.species];
     mount(pokeCard, s ? h('div', { class: 'row tight' }, sizedSprite(s, 40, { still: s.still, url: s.icon, tier: s.size || 'm' }),
-      h('div', { class: 'grow' }, h('div', { class: 'small' }, s.name, h('span', { class: 'tiny muted' }, ' #' + pad3(s.id))), typeChips(s.types, true)),
-      h('button', { class: 'btn small ghost', onclick: () => nav('#/pokedex/' + s.id + '?tab=locations') }, 'Summary'),
+      h('div', { class: 'grow' }, h('div', { class: 'small' }, speciesLabel(s.id, s.name), h('span', { class: 'tiny muted' }, ' #' + pad3(s.id))), typeChips(s.types, true)),
+      h('button', { class: 'btn small ghost', onclick: () => nav('#/pokedex/' + s.id + '?tab=locations') }, translateUI('ui.summary')),
       h('button', { class: 'icon-btn', 'aria-label': 'Clear Pokémon', onclick: () => { f.species = null; pokeIn.value = ''; draw(); } }, icon('close'))) : null);
   }
   function card(e, ok) {
@@ -198,7 +199,7 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
     const meth = [...new Set(ids.flatMap((i) => locById[i].methods))];
     return h('button', { class: 'loc-card' + (selected && selected.key === e.key ? ' selected' : '') + (e.location_ids.length ? '' : ' empty'), role: 'listitem', dataset: { key: e.key, feature: e.feature || '' },
       onclick: () => openEntry(e) },
-    h('span', { class: 'loc-card-name' }, e.name),
+    h('span', { class: 'loc-card-name' }, gameTerm('location', e.name)),
     h('span', { class: 'tiny muted' }, e.location_ids.length ? [
       e.location_ids.length > 1 ? `${e.location_ids.length} sections · ` : '', `${sp.size} Pokémon`, meth.length ? ' · ' + meth.slice(0, 3).join(', ') + (meth.length > 3 ? '…' : '') : ''] : 'No wild Pokémon listed'),
     region === 'all' ? h('span', { class: 'chip tiny' }, cap(e.region)) : null);
@@ -225,7 +226,7 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
     const regTotal = entries.filter((e) => (region === 'all' || e.region === region) && e.location_ids.length).length;
     const locCount = new Set(list.flatMap((e) => e.location_ids)).size;
     count.textContent = `${list.length} place${list.length === 1 ? '' : 's'} (${locCount} encounter area${locCount === 1 ? '' : 's'}) · ${regTotal} places with wild Pokémon in ${region === 'all' ? 'all regions' : cap(region)}`;
-    const sorted = [...list].sort((a, b) => (region === 'all' ? REGIONS.indexOf(a.region) - REGIONS.indexOf(b.region) : 0) || naturalCompare(a.name, b.name));
+    const sorted = [...list].sort((a, b) => (region === 'all' ? REGIONS.indexOf(a.region) - REGIONS.indexOf(b.region) : 0) || compareLabels(gameTerm('location', a.name), gameTerm('location', b.name)));
     if (!sorted.length) { mount(listEl, h('div', { class: 'empty' }, 'No locations match. ', h('button', { class: 'btn small ghost', onclick: () => { Object.assign(f, { q: '', species: null, type: '', method: '', horde: false, time: '', season: '' }); ui.cat = 'all'; explorer(host, { region, sel: null, variant, nav }); } }, 'Clear filters'))); return; }
     if (region === 'all') {
       mount(listEl, REGIONS.filter((r) => sorted.some((e) => e.region === r)).map((r) => h('section', { class: 'loc-group' },
@@ -272,7 +273,7 @@ export async function explorer(host, { region, sel, variant = 'page', nav = go }
         h('span', { class: 'chip' }, cap(e.region)), e.sub === 'sevii' ? h('span', { class: 'chip tiny' }, 'Sevii Islands') : null,
         h('span', { class: 'chip tiny' }, KIND_LABEL[e.kind] || 'Place'), h('span', { class: 'grow' }),
         h('button', { class: 'icon-btn', 'aria-label': t('common.close'), onclick: closeDetail }, icon('close'))),
-      h('h2', null, e.name)));
+      h('h2', null, gameTerm('location', e.name))));
     mount(detail, h('div', { class: 'loc-detail', dataset: { key: e.key } }, head,
       ids.length > 1 ? h('div', { class: 'tabs loc-subareas', role: 'tablist', 'aria-label': 'Floors and sections' }, ids.map((id) => h('button', {
         class: 'tab' + (id === first ? ' active' : ''), role: 'tab', 'aria-selected': String(id === first), dataset: { loc: id },
@@ -347,12 +348,12 @@ export async function renderLocation(pane, id, { back, popout, nav, onMap, embed
         h('button', { class: 'btn small ghost', onclick: () => { all = !all; draw(); } }, all ? 'Only matching' : 'Show all')) : null,
       [...byMethod.entries()].map(([method, m]) => h('section', { class: 'loc-method', dataset: { method } },
         h('h3', { class: 'loc-method-head' }, method, h('span', { class: 'tiny muted' }, ` · ${new Set([...m.values()].map((r) => r.species_id)).size} Pokémon`)),
-        h('div', { class: 'table-scroll' }, h('table', { class: 'table compact loc-enc' }, h('thead', null, h('tr', null, ['', 'Pokémon', 'Lv', 'Season', 'Morning', 'Day', 'Night'].map((c) => h('th', null, c)))),
+        h('div', { class: 'table-scroll' }, h('table', { class: 'table compact loc-enc' }, h('thead', null, h('tr', null, ['', translateUI('ui.pokemon'), 'Lv', translateUI('ui.season'), translateUI('ui.morning'), translateUI('ui.day'), translateUI('ui.night')].map((c) => h('th', null, c)))),
           h('tbody', null, [...m.values()].sort((x, y) => x.name.localeCompare(y.name)).map((r) => {
             const sp = species[r.species_id] || { id: r.species_id, name: r.name, types: r.types, icon: r.icon };
             return h('tr', { dataset: { sid: r.species_id } },
               h('td', { class: 'loc-sprite' }, sizedSprite(sp, scaled('locations', 36), { still: sp.still, url: sp.icon || r.icon, tier: sp.size || 'm', ani: animatedIn('locations') ? sp.ani : null })),
-              h('td', null, h('a', { href: '#/pokedex/' + r.species_id, onclick: (e) => { e.preventDefault(); go_('#/pokedex/' + r.species_id + '?tab=locations'); } }, r.name),
+              h('td', null, h('a', { href: '#/pokedex/' + r.species_id, onclick: (e) => { e.preventDefault(); go_('#/pokedex/' + r.species_id + '?tab=locations'); } }, speciesLabel(r.species_id, r.name)),
                 h('span', { class: 'tiny muted' }, ' #' + pad3(r.species_id)), r.horde5 ? h('span', { class: 'chip tiny' }, 'Horde ×5') : r.horde3 ? h('span', { class: 'chip tiny' }, 'Horde ×3') : null,
                 h('div', null, typeChips(r.types || sp.types || [], true))),
               h('td', { class: 'nowrap' }, r.min === r.max ? r.min : `${r.min}–${r.max}`),
@@ -364,14 +365,14 @@ export async function renderLocation(pane, id, { back, popout, nav, onMap, embed
       linkedNotes('location', d.id, `${d.name} (${cap(d.region)})`));
   };
   if (embedded) {
-    mount(pane, h('div', { class: 'loc-sub-head small muted' }, h('strong', { class: 'loc-sub-name' }, d.name), ` · ${new Set(d.rows.map((r) => r.species_id)).size} Pokémon · ${d.rows.length} encounter rows`), body);
+    mount(pane, h('div', { class: 'loc-sub-head small muted' }, h('strong', { class: 'loc-sub-name' }, gameTerm('location', d.name)), ` · ${new Set(d.rows.map((r) => r.species_id)).size} Pokémon · ${d.rows.length} encounter rows`), body);
     draw();
     return;
   }
   mount(pane, h('div', { class: 'detail-head' }, h('div', { class: 'grow' },
     h('div', { class: 'row' }, h('span', { class: 'chip' }, cap(d.region)),
       h('span', { class: 'grow' }), back ? h('button', { class: 'icon-btn', 'aria-label': t('common.close'), onclick: back }, icon('close')) : null),
-    h('h2', null, d.name), h('div', { class: 'small muted' }, `${new Set(d.rows.map((r) => r.species_id)).size} Pokémon · ${d.rows.length} encounter rows`))), body);
+    h('h2', null, gameTerm('location', d.name)), h('div', { class: 'small muted' }, `${new Set(d.rows.map((r) => r.species_id)).size} Pokémon · ${d.rows.length} encounter rows`))), body);
   draw();
   void typeChip;
 }

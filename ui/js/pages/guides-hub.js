@@ -1,3 +1,4 @@
+import { t as translateUI } from '../i18n.js';
 // Guides — one place for the bundled Storyline walkthroughs (per character run) and My Guides (your own
 // checklists, reruns, routines). Routes:
 //   #/guides                  All guides (overview)
@@ -41,11 +42,11 @@ async function renderAll(el) {
   const overview = active ? await get(`/api/guides/runs/${active.id}/overview`).catch(() => null) : null;
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Guides'),
     h('div', { class: 'sub' }, 'Storyline walkthroughs with your per-character progress, and your own guides — with checklists, timers and teams.')),
-  h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => go('#/guides/mine?new=1') }, icon('plus'), 'New guide'))));
+  h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => go('#/guides/mine?new=1') }, icon('plus'), translateUI('ui.new_guide')))));
   const REG = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
   // Region cards always show: with a run they open it at that region; without one they open the read-only walkthrough.
   const totals = active && overview ? null : Object.fromEntries(await Promise.all(REG.map((r) => get('/api/guides/catalog/' + r).then((c) => [r, c.steps.length]).catch(() => [r, 0]))));
-  const story = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, 'Storyline'),
+  const story = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.storyline')),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/storyline') }, active ? 'Open' : 'Start', icon('chev')))),
     h('div', { class: 'small muted' }, active ? `Character run: ${active.display || active.character_name}` : 'Walkthroughs for all five regions. Browse now; create a character run to tick steps.'),
     h('div', { class: 'guides-regions' }, REG.map((r) => {
@@ -65,7 +66,7 @@ async function renderAll(el) {
   const count = (k) => list.filter((g) => g.scope === k).length;
   const shortcuts = SCOPES.filter(([k]) => k !== 'custom');
   const minePane = h('section', { class: 'card stack tight guides-card' }, h('div', { class: 'card-head' }, h('h2', null, 'My Guides'),
-    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/mine') }, 'All', icon('chev')))),
+    h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/guides/mine') }, translateUI('ui.all'), icon('chev')))),
   list.length ? h('div', { class: 'stack tight' }, list.slice(0, 5).map((g) => h('button', { class: 'tool-link', onclick: () => go('#/guides/mine/' + g.id) }, icon('list'),
     h('div', null, h('div', { class: 'tl-title' }, g.title), h('div', { class: 'small muted' }, `${g.scope_label} · ${g.done}/${g.checks} done · edited ${relTime(g.updated_at)}`))))) :
     h('div', { class: 'small muted' }, 'Your own checklists, reruns and routines. No character run needed.'),

@@ -1,3 +1,5 @@
+import { lang, uiLabel } from './i18n.js';
+import { t as translateUI } from './i18n.js';
 // Independent popout windows (docs/design/04, 15). One shared backend state; each
 // popout has its own mode/scroll. In the native shell, Qt draws the titlebar
 // (pin, mode, window opacity, lock, minimise, close); in browser mode we draw it.
@@ -25,7 +27,7 @@ const MODES = [['compact', 'C', 'Compact'], ['standard', 'S', 'Standard'], ['exp
 function openInMain(route) {
   if (SHELL === 'qt') { post('/api/shell/command', { action: 'navigate_main', route }); return; }
   if (window.opener && !window.opener.closed) { window.opener.location.hash = route; window.opener.focus(); }
-  else toast('Main window not found — open the Companion main window.', { kind: 'warn' });
+  else toast(translateUI('ui.pop_main_missing'), { kind: 'warn' });
 }
 
 export function startPopout(el) {
@@ -33,13 +35,13 @@ export function startPopout(el) {
   document.body.classList.add('popout', 'shell-' + SHELL);
   mode = new URLSearchParams(location.search).get('mode') || setting(`window.${POPOUT}.mode`) || 'standard';
   savedMode = setting(`window.${POPOUT}.mode`);
-  const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
-  document.title = def.title + ' — PokeMMO Companion';
+  let lastLanguage = lang();
   bodyEl = h('div', { class: 'popout-body readable' });
   installTimerSound();
   draw();
   document.addEventListener('settings-changed', (ev) => {
     const keys = Object.keys((ev && ev.detail) || {});
+    if (lang() !== lastLanguage) { lastLanguage = lang(); draw(); return; }
     if (POPOUT === 'pokedex' && keys.some((k) => k.startsWith('pokedex.'))) { state.dexCache = null; renderBody(); }
     else if (keys.some((k) => k.startsWith('sprites.') || k === `window.${POPOUT}.sprite_scale` || k === `window.${POPOUT}.sprite_motion`)) renderBody();
     const m = setting(`window.${POPOUT}.mode`);
@@ -78,6 +80,7 @@ const rememberSize = debounce(() => {
 }, 700);
 function draw() {
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
+  document.title = (def.i18n ? t(def.i18n) : uiLabel(def.title)) + ' — PokeMMO Companion';
   barEl = h('div');
   footEl = h('div', { class: 'popout-foot' });
   mount(root, h('div', { class: `popout-root mode-${mode}` }, barEl, bodyEl, footEl));
@@ -88,26 +91,26 @@ function draw() {
 function drawBar() {
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
   if (SHELL !== 'qt') {
-    mount(barEl, h('div', { class: 'popout-bar' }, h('span', { class: 'ptitle ellipsis' }, def.title),
-      h('button', { class: 'icon-btn', disabled: 'disabled', title: 'Pin / always-on-top needs the native shell (PySide6). Browser windows cannot be pinned.' }, icon('pin')),
-      MODES.map(([m, short, long]) => h('button', { class: 'icon-btn' + (m === mode ? ' on' : ''), title: long + ' view', 'aria-pressed': String(m === mode),
+    mount(barEl, h('div', { class: 'popout-bar' }, h('span', { class: 'ptitle ellipsis' }, def.i18n ? t(def.i18n) : uiLabel(def.title)),
+      h('button', { class: 'icon-btn', disabled: 'disabled', title: translateUI('ui.pop_pin_browser') }, icon('pin')),
+      MODES.map(([m, short, long]) => h('button', { class: 'icon-btn' + (m === mode ? ' on' : ''), title: uiLabel(long + ' view'), 'aria-pressed': String(m === mode),
         onclick: () => switchMode(m) }, h('span', { style: { fontWeight: 700, fontSize: '.8rem' } }, short))),
-      h('button', { class: 'icon-btn', title: 'Close popout (your data is kept)', 'aria-label': 'Close', onclick: () => window.close() }, icon('close'))));
+      h('button', { class: 'icon-btn', title: translateUI('ui.pop_close'), 'aria-label': translateUI('ui.close'), onclick: () => window.close() }, icon('close'))));
   } else {
     clear(barEl);
   }
   const bg = setting(`window.${POPOUT}.bg_opacity`);
   const ts = setting(`window.${POPOUT}.text_scale`);
   mount(footEl,
-    h('label', { class: 'row', title: 'Panel background opacity — text stays fully opaque' }, icon('opacity'),
-      h('input', { type: 'range', min: 20, max: 100, step: 5, value: bg, style: { width: '90px' }, 'aria-label': 'Background opacity',
+    h('label', { class: 'row', title: translateUI('ui.pop_bg') }, icon('opacity'),
+      h('input', { type: 'range', min: 20, max: 100, step: 5, value: bg, style: { width: '90px' }, 'aria-label': translateUI('ui.background_opacity'),
         oninput: (e) => document.documentElement.style.setProperty('--panel-alpha', String(e.target.value / 100)),
         onchange: (e) => saveSettings({ [`window.${POPOUT}.bg_opacity`]: Number(e.target.value) }) }), h('span', { class: 'tiny muted' }, bg + '%')),
     textSizeButton(ts),
     h('span', { class: 'grow' }),
-    SHELL === 'qt' ? h('span', { class: 'tiny muted' }, cap(mode)) : h('button', { class: 'btn ghost small', title: 'Resize this window to the preset for this mode',
-      onclick: () => { const sizes = { ...(setting(`window.${POPOUT}.sizes`) || {}) }; delete sizes[mode]; saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).then(applyBrowserSize); } }, 'Reset size'),
-    h('button', { class: 'btn ghost small', onclick: () => openInMain(mainRoute()) }, 'Open in main'));
+    SHELL === 'qt' ? h('span', { class: 'tiny muted' }, uiLabel(cap(mode))) : h('button', { class: 'btn ghost small', title: translateUI('ui.pop_resize'),
+      onclick: () => { const sizes = { ...(setting(`window.${POPOUT}.sizes`) || {}) }; delete sizes[mode]; saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).then(applyBrowserSize); } }, translateUI('ui.reset_size')),
+    h('button', { class: 'btn ghost small', onclick: () => openInMain(mainRoute()) }, translateUI('ui.open_main')));
 }
 // Text size: one button → popover with a 60–200 % slider (live), quick presets, readability
 // outline for see-through backgrounds, and reset. Saved per tool window.
@@ -134,16 +137,16 @@ function openTextPopover(btn) {
     h('div', { class: 'row', style: { gap: '6px' } }, h('span', { class: 'tiny', 'aria-hidden': 'true' }, 'A'), slider, h('span', { 'aria-hidden': 'true', style: { fontSize: '1.2rem' } }, 'A')),
     h('div', { class: 'row', style: { gap: '4px' } }, [90, 100, 120, 150].map((p) => h('button', { class: 'btn ghost small', onclick: () => apply(p, true) }, p + '%')),
       h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => apply(100, true) }, t('common.reset'))),
-    h('label', { class: 'row small', title: 'Adds a soft dark outline behind text so it stays readable over the game when the background is very transparent' }, outline, 'Outline text (for see-through backgrounds)'),
+    h('label', { class: 'row small', title: translateUI('ui.pop_outline_hint') }, outline, translateUI('ui.pop_outline')),
     // this window's Pokémon sprites (2026-11-24): size and animation just for this popout
-    h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, 'Sprite size'),
-      h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': 'Sprite size in this window',
+    h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, translateUI('ui.pop_sprite_size')),
+      h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': translateUI('ui.pop_sprite_size_window'),
         onchange: (e) => saveSettings({ [`window.${POPOUT}.sprite_scale`]: Number(e.target.value) }).then(() => document.dispatchEvent(new CustomEvent('settings-changed', { detail: { [`window.${POPOUT}.sprite_scale`]: 1 } }))) },
         [70, 85, 100, 125, 150].map((p) => h('option', { value: p, selected: (setting(`window.${POPOUT}.sprite_scale`) || 100) === p ? 'selected' : null }, p + '%')))),
     h('div', { class: 'row small', style: { gap: '6px' } }, h('span', { class: 'grow' }, 'Sprite animation'),
       h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '2px 6px' }, 'aria-label': 'Sprite animation in this window',
         onchange: (e) => saveSettings({ [`window.${POPOUT}.sprite_motion`]: e.target.value }).then(() => document.dispatchEvent(new CustomEvent('settings-changed', { detail: { [`window.${POPOUT}.sprite_motion`]: 1 } }))) },
-        [['inherit', 'As in Settings'], ['static', 'Static'], ['animated', 'Animated']].map(([v, l]) => h('option', { value: v, selected: (setting(`window.${POPOUT}.sprite_motion`) || 'inherit') === v ? 'selected' : null }, l)))));
+        [['inherit', 'As in Settings'], ['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]].map(([v, l]) => h('option', { value: v, selected: (setting(`window.${POPOUT}.sprite_motion`) || 'inherit') === v ? 'selected' : null }, l)))));
   document.body.append(pop);
   place();
   btn.setAttribute('aria-expanded', 'true');
@@ -216,7 +219,7 @@ async function storyline(el) {
   const header = h('div', { class: 'stack tight', style: { marginBottom: '8px' } },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'ellipsis', style: { fontWeight: 700 } }, run.display), h('div', { class: 'tiny muted ellipsis' }, `${cap(region)} · ${cur ? cur.chapter : ''}`)),
-    mode !== 'compact' ? h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '1px 4px' }, 'aria-label': 'Region', onchange: async (e) => {
+    mode !== 'compact' ? h('select', { class: 'input', style: { width: 'auto', minHeight: '26px', padding: '1px 4px' }, 'aria-label': translateUI('ui.region'), onchange: async (e) => {
       storyRegion = e.target.value; await api('PATCH', `/api/guides/runs/${run.id}`, { region: storyRegion }); storyline(el); } },
     ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => h('option', { value: r, selected: r === region ? 'selected' : null }, cap(r)))) : null),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: (counts.total ? counts.done / counts.total * 100 : 0) + '%' } })),
@@ -257,7 +260,7 @@ async function pokedex(el) {
   const density = { compact: 'compact', standard: 'standard', expanded: 'large' }[mode] || 'standard';
   const tracking = !!setting('pokedex.progress_run');
   const count = h('span', { class: 'tiny muted nowrap' });
-  const results = h('div', { class: 'dex-grid density-' + density, role: 'grid', 'aria-label': 'Pokémon' });
+  const results = h('div', { class: 'dex-grid density-' + density, role: 'grid', 'aria-label': translateUI('ui.pokemon') });
   const drawList = () => {
     const list = applyFilters(all, { ...currentFilters(), q: miniQuery });
     const scopeSize = all.filter((s) => setting('pokedex.scope') !== 'pokemmo' || s.dex !== 'no').length;
@@ -266,8 +269,8 @@ async function pokedex(el) {
       onOpen: (s) => { location.hash = '#/species/' + s.id + (s.form_key ? '/' + s.form_key : ''); } }));
     if (!list.length) results.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1' } }, 'No Pokémon match this search and the Pokédex filters.'));
   };
-  mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search Pokémon', value: miniQuery,
-    'aria-label': 'Search Pokémon', oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), count),
+  mount(el, h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.search_pokemon'), value: miniQuery,
+    'aria-label': translateUI('ui.search_pokemon'), oninput: debounce((e) => { miniQuery = e.target.value; drawList(); }, 120) })), count),
   h('div', { class: 'tiny muted' }, setting('pokedex.catalog') === 'species' ? 'Species only' : 'Pokémon & forms', ' · filters from the main Pokédex apply'), results));
   drawList();
 }

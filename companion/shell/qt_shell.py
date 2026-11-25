@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, Q
 
 from .. import APP_NAME, __version__
 from ..config import UI_DIR
+from ..localization import native_text
 from ..data.window_presets import clamp, target_size
 from ..services.external_links import open_external_url
 
@@ -136,6 +137,9 @@ class TitleBar(QWidget):
         self.title.setObjectName("title")
         lay.addWidget(self.title, 1)
 
+        self._button_labels = []
+        self._action_labels = []
+        self._text_labels = []
         caps = popout.shell.caps
         self.pin = self._btn("📌", "Pin: keep above other windows" if caps["pin"] else
                              "Pin is not supported on native Wayland — relaunch with --xwayland", checkable=True)
@@ -145,13 +149,13 @@ class TitleBar(QWidget):
         self.mode.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(self)
         for m, label in (("compact", "Compact"), ("standard", "Standard"), ("expanded", "Expanded")):
-            act = QAction(label, menu)
+            act = self._menu_action(label, menu)
             act.triggered.connect(lambda _=False, mm=m: popout.set_mode(mm, save=True))
             menu.addAction(act)
         menu.addSeparator()
-        reset = QAction("Reset this mode to its preset size", menu)
+        reset = self._menu_action("Reset this mode to its preset size", menu)
         reset.triggered.connect(popout.reset_mode_size)
-        keep = QAction("Keep my size when switching modes", menu)
+        keep = self._menu_action("Keep my size when switching modes", menu)
         keep.setCheckable(True)
         keep.setChecked(bool(popout.pref("keep_size")))
         keep.toggled.connect(lambda on: _settings_set(popout.shell.ctx, {f"window.{popout.tool}.keep_size": on}))
@@ -174,7 +178,9 @@ class TitleBar(QWidget):
         holder = QWidget()
         hl = QHBoxLayout(holder)
         hl.setContentsMargins(10, 6, 10, 6)
-        hl.addWidget(QLabel("Window"))
+        window_label = QLabel(popout.shell.tr_ui("Window"))
+        self._text_labels.append((window_label, "Window"))
+        hl.addWidget(window_label)
         hl.addWidget(slider)
         wa.setDefaultWidget(holder)
         omenu.addAction(wa)
@@ -192,11 +198,26 @@ class TitleBar(QWidget):
     def _btn(self, text: str, tip: str, checkable: bool = False) -> QToolButton:
         b = QToolButton(self)
         b.setText(text)
+        self._button_labels.append((b, tip))
+        tip = self.p.shell.tr_ui(tip)
         b.setToolTip(tip)
         b.setAccessibleName(tip)
         b.setCheckable(checkable)
         b.setFocusPolicy(Qt.NoFocus)
         return b
+
+    def _menu_action(self, label: str, menu: QMenu) -> QAction:
+        action = QAction(self.p.shell.tr_ui(label), menu)
+        self._action_labels.append((action, label))
+        return action
+
+    def retranslate(self) -> None:
+        tr = self.p.shell.tr_ui
+        for button, label in self._button_labels:
+            button.setToolTip(tr(label))
+            button.setAccessibleName(tr(label))
+        for widget, label in self._action_labels + self._text_labels:
+            widget.setText(tr(label))
 
     def mousePressEvent(self, e):  # noqa: N802
         if e.button() == Qt.LeftButton and not self.p.locked:
@@ -237,6 +258,7 @@ class Popout(QWidget):
         self.bar = TitleBar(self)
         url = shell.server.url(hash_ or "#/", popout=tool, mode=mode)
         self.view = _make_view(shell, url, transparent=True)
+        self.view.titleChanged.connect(self._localized_title)
         lay.addWidget(self.bar)
         lay.addWidget(self.view, 1)
         self.grip = QSizeGrip(self)
@@ -248,6 +270,12 @@ class Popout(QWidget):
         self.apply_prefs(initial=True)
 
     # -------------------------------------------------------------- prefs
+    def _localized_title(self, title: str) -> None:
+        suffix = f" — {APP_NAME}"
+        if title.endswith(suffix):
+            self.setWindowTitle(title)
+            self.bar.title.setText(title.removesuffix(suffix))
+
     def pref(self, key: str):
         return self.shell.ctx.settings.get(f"window.{self.tool}.{key}")
 
@@ -438,7 +466,7 @@ class Toast(QWidget):
         row.addWidget(icon, 0, Qt.AlignTop)
         col = QVBoxLayout()
         col.setSpacing(2)
-        kind = QLabel("TEST · NOT A REAL REPORT" if payload.get("is_test") else str(payload.get("kind", "report")).upper())
+        kind = QLabel(shell.tr_ui("TEST · NOT A REAL REPORT") if payload.get("is_test") else str(payload.get("kind", "report")).upper())
         kind.setObjectName("tkind")
         kind.setProperty("test", test)
         title = QLabel(payload.get("title", ""))
@@ -449,10 +477,10 @@ class Toast(QWidget):
         line.setObjectName("tline")
         line.setWordWrap(True)
         line.setTextFormat(Qt.PlainText)
-        meta = QLabel(payload.get("meta") or ("Reported " + _rel(payload.get("reported"))))
+        meta = QLabel(payload.get("meta") or shell.tr_ui("Reported {time}").format(time=_rel(payload.get("reported"), shell.tr_ui)))
         meta.setObjectName("tmeta")
         btns = QHBoxLayout()
-        open_b = QPushButton(payload.get("open_label") or "Open in Live")
+        open_b = QPushButton(payload.get("open_label") or shell.tr_ui("Open in Live"))
         open_b.setFocusPolicy(Qt.NoFocus)
         open_b.clicked.connect(self._open)
         btns.addWidget(open_b)
@@ -492,19 +520,19 @@ class Toast(QWidget):
         super().closeEvent(e)
 
 
-def _rel(iso: str | None) -> str:
+def _rel(iso: str | None, tr) -> str:
     if not iso:
-        return "at an unknown time"
+        return tr("at an unknown time")
     try:
         from datetime import datetime, timezone
         t = datetime.fromisoformat(iso.replace("Z", "+00:00"))
         s = (datetime.now(timezone.utc) - t).total_seconds()
         if s < 60:
-            return "just now"
+            return tr("just now")
         if s < 3600:
-            return f"{int(s // 60)} min ago"
+            return tr("{count} min ago").format(count=int(s // 60))
         if s < 86400:
-            return f"{int(s // 3600)} h ago"
+            return tr("{count} h ago").format(count=int(s // 3600))
         return t.strftime("%Y-%m-%d")
     except ValueError:
         return iso
@@ -635,7 +663,13 @@ class QtShell:
             except queue.Empty:
                 break
             if ev.get("topic") == "settings":
+                language_changed = "app.language" in (ev.get("data") or {})
+                if self.tray is not None and language_changed:
+                    for action, label in self._tray_labels:
+                        action.setText(self.tr_ui(label))
                 for p in list(self.popouts.values()):
+                    if language_changed:
+                        p.bar.retranslate()
                     p.apply_prefs()
                 if "appearance.ui_scale" in (ev.get("data") or {}):
                     self.main.apply_ui_scale()
@@ -648,6 +682,9 @@ class QtShell:
                                  desktop_open=lambda address: QDesktopServices.openUrl(QUrl(address)),
                                  on_failure=failed):
             failed()
+
+    def tr_ui(self, source: str) -> str:
+        return native_text(source, self.ctx.settings.get("app.language"))
 
     # ----------------------------------------------------------- commands
     def handle(self, cmd: dict) -> None:
@@ -679,11 +716,11 @@ class QtShell:
         elif a in ("focus_main", "navigate_main"):
             self.navigate_main(cmd.get("route"))
         elif a == "pick_folder":
-            path = QFileDialog.getExistingDirectory(self.main, "Choose folder", str(Path.home() / "Documents"))
+            path = QFileDialog.getExistingDirectory(self.main, self.tr_ui("Choose folder"), str(Path.home() / "Documents"))
             self.ctx.bus.publish("shell.folder", {"purpose": cmd.get("purpose"), "path": path or None})
         elif a == "pick_file":
-            path, _ = QFileDialog.getOpenFileName(self.main, "Choose your ROM file (opened read-only)", str(Path.home()),
-                                                  "Game Boy Advance / Nintendo DS ROMs (*.gba *.nds);;All files (*)")
+            path, _ = QFileDialog.getOpenFileName(self.main, self.tr_ui("Choose your ROM file (opened read-only)"), str(Path.home()),
+                                                  "Game Boy Advance / Nintendo DS ROMs (*.gba *.nds);;" + self.tr_ui("All files") + " (*)")
             self.ctx.bus.publish("shell.file", {"purpose": cmd.get("purpose"), "path": path or None})
         elif a == "minimize_main":
             if self.tray is not None and self.ctx.settings.get("app.close_behavior") == "tray":
@@ -761,11 +798,11 @@ class QtShell:
         tray = QSystemTrayIcon(icon, self.app)
         tray.setToolTip(f"{APP_NAME} {__version__}")
         menu = QMenu()
-        show = QAction("Show Companion", menu)
+        show = QAction(self.tr_ui("Show Companion"), menu)
         show.triggered.connect(lambda: self.navigate_main(None))
-        story = QAction("Open Storyline popout", menu)
+        story = QAction(self.tr_ui("Open Storyline popout"), menu)
         story.triggered.connect(lambda: self.open_popout("storyline", self.ctx.settings.get("window.storyline.mode"), ""))
-        quit_a = QAction("Quit (stops alerts)", menu)
+        quit_a = QAction(self.tr_ui("Quit (stops alerts)"), menu)
         quit_a.triggered.connect(self.quit)
         for a in (show, story):
             menu.addAction(a)
@@ -775,6 +812,7 @@ class QtShell:
         tray.activated.connect(lambda reason: self.navigate_main(None) if reason == QSystemTrayIcon.ActivationReason.Trigger else None)
         tray.show()
         self._tray_menu = menu
+        self._tray_labels = [(show, "Show Companion"), (story, "Open Storyline popout"), (quit_a, "Quit (stops alerts)")]
         return tray
 
     @staticmethod

@@ -1,3 +1,4 @@
+import { t as translateUI } from './i18n.js';
 // Shared entity links between the connected tools (Notes ↔ Pokédex, Items, Locations, Box, Guides).
 import { h, mount, icon, get, api, post, modal, toast, debounce, relTime, pad3, spriteOrFallback, POPOUT, SHELL } from './core.js';
 import { t } from './i18n.js';
@@ -43,7 +44,7 @@ export async function pickLink(kinds = ['species', 'item', 'location', 'custom_g
     ...guides.map((g) => ({ kind: 'custom_guide', ref: g.id, label: g.title, sub: g.scope_label })),
     ...box.map((b) => ({ kind: 'owned', ref: b.id, label: b.nickname ? `${b.nickname} (${b.species_name})` : b.species_name, sub: b.shiny ? 'shiny' : '', icon: b.icon }))];
   let chosen = null;
-  const list = h('div', { class: 'list-rows pick-list', role: 'listbox', 'aria-label': 'Results' });
+  const list = h('div', { class: 'list-rows pick-list', role: 'listbox', 'aria-label': translateUI('ui.results') });
   let kindF = 'all';
   const input = h('input', { class: 'input', type: 'search', placeholder: 'Search Pokémon, items, locations, guides, Box…', 'aria-label': 'Search what to link' });
   const draw = () => {

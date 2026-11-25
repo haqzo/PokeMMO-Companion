@@ -1,3 +1,6 @@
+import { speciesLabel } from './game-locale.js';
+import { uiLabel } from './i18n.js';
+import { t as translateUI } from './i18n.js';
 // Main window chrome, navigation and router.
 import { installTimerSound } from './timer-sound.js';
 import { h, mount, icon, logo, state, setting, saveSettings, on, reportToast, post, SHELL, TOKEN, toast, debounce, get, pad3 } from './core.js';
@@ -54,7 +57,9 @@ export function startApp(el) {
   renderChrome();
   window.addEventListener('hashchange', renderRoute);
   let lastNav = setting('appearance.nav');
+  let lastLanguage = lang();
   document.addEventListener('settings-changed', () => {
+    if (lang() !== lastLanguage) { lastLanguage = lang(); renderChrome(); return; }
     if (setting('appearance.nav') !== lastNav) { lastNav = setting('appearance.nav'); renderChrome(); }
     applyNavCollapse();
   });
@@ -105,7 +110,7 @@ function languageMenu(anchor) {
   const r = anchor.getBoundingClientRect();
   const menu = h('div', { class: 'menu lang-menu', role: 'menu', style: { top: r.bottom + 4 + 'px', left: Math.max(8, Math.min(r.left, innerWidth - 280)) + 'px' } },
     LANGS.map((l) => h('button', { role: 'menuitemradio', 'aria-checked': String(l.id === lang()), class: l.id === lang() ? 'on' : null,
-      onclick: async () => { menu.remove(); if (l.id === lang()) return; await saveSettings({ 'app.language': l.id }); renderChrome(); } },
+      onclick: async () => { menu.remove(); if (l.id === lang()) return; await saveSettings({ 'app.language': l.id }); } },
     h('span', { class: 'grow' }, l.native, l.native !== l.label ? h('span', { class: 'tiny muted' }, ' · ' + l.label) : null),
     l.status === 'beta' ? h('span', { class: 'badge unknown', title: t('lang.beta') }, 'beta') : null)),
     h('div', { class: 'sep' }), h('div', { class: 'tiny muted', style: { padding: '4px 10px', maxWidth: '260px' } }, t('lang.game_names')),
@@ -132,14 +137,14 @@ export function renderChrome() {
   const vertical = setting('appearance.nav') !== 'horizontal';
   const r = parseRoute();
   const activeId = navIdFor(r);
-  const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: 'Settings (Ctrl+,)', 'aria-label': 'Settings',
+  const gear = h('button', { class: 'icon-btn' + (r.page === 'settings' ? ' on' : ''), title: 'Settings (Ctrl+,)', 'aria-label': translateUI('ui.settings'), dataset: { action: 'settings' },
     onclick: () => go('#/settings') }, icon('gear'));
   const brand = h('div', { class: 'brand' }, logo(28), h('div', { class: 'text' },
     h('div', { class: 'name' }, 'PokeMMO Companion')),
   vertical ? h('div', { class: 'brand-tools' }, toolbarExtras(true)) : null);
   mainEl = h('main', { class: 'main', id: 'main' });
   let shell;
-  quickEl = h('div', { class: vertical ? 'quick' : 'quick-strip', role: 'list', 'aria-label': 'Quick access' });
+  quickEl = h('div', { class: vertical ? 'quick' : 'quick-strip', role: 'list', 'aria-label': translateUI('ui.quick_access') });
   if (vertical) {
     shell = h('div', { class: 'app nav-vertical' },
       h('aside', { class: 'sidebar' }, brand, h('nav', { 'aria-label': 'Main' }, NAV.map((n) => navButton(n, n.id === activeId))),
@@ -176,7 +181,7 @@ function renderRoute() {
     const on_ = b.dataset.nav === activeId;
     b.classList.toggle('active', on_); b.setAttribute('aria-current', on_ ? 'page' : 'false');
   });
-  document.querySelectorAll('.topbar .icon-btn[aria-label=Settings]').forEach((b) => b.classList.toggle('on', r.page === 'settings'));
+  document.querySelectorAll('.topbar .icon-btn[data-action=settings]').forEach((b) => b.classList.toggle('on', r.page === 'settings'));
   if (current.mod && current.mod !== mod && current.mod.dispose) current.mod.dispose();
   const samePage = current.mod === mod && current.page === r.page;
   current = { page: r.page, mod };
@@ -184,7 +189,7 @@ function renderRoute() {
     mod.render(mainEl, r, { samePage });
   } catch (e) {
     console.error(e);
-    mount(mainEl, h('div', { class: 'page' }, h('div', { class: 'notice bad' }, 'This page failed to render: ' + e.message)));
+    mount(mainEl, h('div', { class: 'page' }, h('div', { class: 'notice bad' }, translateUI('ui.ui_error', { message: e.message }))));
   }
   const title = NAV.find((n) => n.id === activeId) ? t('nav.' + activeId) : r.page === 'settings' ? t('nav.settings') : '';
   document.title = `${title} — PokeMMO Companion`;
@@ -220,11 +225,11 @@ export async function openPopout(tool, extraHash = '') {
   const url = `/?token=${encodeURIComponent(TOKEN)}&popout=${tool}&mode=${mode}&shell=browser${extraHash}`;
   const win = window.open(url, 'pmc-' + tool, `popup=yes,width=${w},height=${h_}`);
   if (!win) toast('Your browser blocked the popout window. Allow popups for this page.', { kind: 'warn' });
-  else toast(`${def.i18n ? t(def.i18n) : def.title} opened as a browser window. Pin / always-on-top needs the native shell.`, { timeout: 3200 });
+  else toast(`${def.i18n ? t(def.i18n) : uiLabel(def.title)} opened as a browser window. Pin / always-on-top needs the native shell.`, { timeout: 3200 });
 }
 export function popoutButton(tool, extraHash = '') {
   return h('button', { class: 'btn ghost small', title: 'Open as a separate window', onclick: () => openPopout(tool, extraHash) },
-    icon('popout'), 'Pop out');
+    icon('popout'), translateUI('ui.popout'));
 }
 
 // ---------------------------------------------------------- Quick access
@@ -256,12 +261,12 @@ const QA_PAGES = {
   news: { label: 'Official updates', icon: 'book', route: '#/news' },
 };
 export function qaInfo(item) {
-  if (item.kind === 'tool') { const x = QA_TOOLS[item.id]; return x ? { ...x, label: x.i18n ? t(x.i18n) : x.label } : null; }
-  if (item.kind === 'page') return QA_PAGES[item.id] || null;
+  if (item.kind === 'tool') { const x = QA_TOOLS[item.id]; return x ? { ...x, label: x.i18n ? t(x.i18n) : uiLabel(x.label) } : null; }
+  if (item.kind === 'page') { const x = QA_PAGES[item.id]; return x ? { ...x, label: uiLabel(x.label) } : null; }
   if (item.kind === 'guide') return { label: 'Current guide step', icon: 'guides', route: '#/guides/storyline?jump=1', popout: 'storyline' };
   if (item.kind === 'pokemon') {
     const sp = (state.dexCache || []).find((s) => s.id === Number(item.id));
-    return { label: sp ? sp.name : '#' + pad3(item.id), icon: 'dex', route: '#/pokedex/' + item.id, popout: 'pokedex',
+    return { label: sp ? speciesLabel(sp.id, sp.name) : '#' + pad3(item.id), icon: 'dex', route: '#/pokedex/' + item.id, popout: 'pokedex',
       popoutHash: '#/species/' + item.id, sprite: sp && sp.icon };
   }
   return null;

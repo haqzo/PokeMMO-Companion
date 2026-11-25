@@ -1,9 +1,6 @@
-// UI translation foundation. English is the source and the fallback for every missing key.
-// Spanish and Chinese are BETA: written for this build and not yet reviewed by native speakers,
-// so the language menu labels them that way. Game names (Pokémon, items) are never translated here:
-// item names in ES/ZH come from your own PokeMMO client string tables when they exist; species names
-// stay English because the dump has no translated species names.
+// English is the source and safe fallback. Spanish and Simplified Chinese await community review.
 import { state } from './core.js';
+import { UI_STRINGS } from './ui-strings.js';
 
 export const LANGS = [
   { id: 'en', label: 'English', native: 'English', status: 'primary' },
@@ -14,7 +11,7 @@ export const LANGS = [
 const ES = {
   'nav.home': 'Inicio', 'nav.pokedex': 'Pokédex', 'nav.tools': 'Herramientas', 'nav.live': 'En vivo', 'nav.guides': 'Guías', 'nav.settings': 'Ajustes',
   'nav.quick': 'Acceso rápido', 'nav.quick_empty': 'Arrastra herramientas aquí desde Herramientas o usa «Fijar en la barra».',
-  'lang.menu': 'Idioma', 'lang.beta': 'beta · traducción sin revisar', 'lang.game_names': 'Los nombres de Pokémon siguen en inglés; los objetos usan los textos de tu cliente si existen.',
+  'lang.menu': 'Idioma', 'lang.beta': 'beta · traducción sin revisar', 'lang.game_names': 'Se muestran nombres localizados cuando están disponibles.',
   'common.search': 'Buscar', 'common.save': 'Guardar', 'common.saved': 'Guardado', 'common.saving': 'Guardando…', 'common.cancel': 'Cancelar', 'common.delete': 'Eliminar',
   'common.edit': 'Editar', 'common.new': 'Nuevo', 'common.close': 'Cerrar', 'common.open': 'Abrir', 'common.restore': 'Restaurar', 'common.archive': 'Archivar',
   'common.unarchive': 'Desarchivar', 'common.duplicate': 'Duplicar', 'common.export': 'Exportar', 'common.import': 'Importar', 'common.all': 'Todo',
@@ -43,7 +40,7 @@ const ES = {
 const ZH = {
   'nav.home': '主页', 'nav.pokedex': '图鉴', 'nav.tools': '工具', 'nav.live': '实时', 'nav.guides': '攻略', 'nav.settings': '设置',
   'nav.quick': '快速访问', 'nav.quick_empty': '从“工具”页拖动工具到这里，或使用“固定到侧栏”。',
-  'lang.menu': '语言', 'lang.beta': '测试版 · 译文未经审校', 'lang.game_names': '宝可梦名称保持英文；道具名称在你的客户端文本中有翻译时使用该翻译。',
+  'lang.menu': '语言', 'lang.beta': '测试版 · 译文未经审校', 'lang.game_names': '有已核实的本地化名称时，将显示该名称。',
   'common.search': '搜索', 'common.save': '保存', 'common.saved': '已保存', 'common.saving': '正在保存…', 'common.cancel': '取消', 'common.delete': '删除',
   'common.edit': '编辑', 'common.new': '新建', 'common.close': '关闭', 'common.open': '打开', 'common.restore': '恢复', 'common.archive': '归档',
   'common.unarchive': '取消归档', 'common.duplicate': '复制', 'common.export': '导出', 'common.import': '导入', 'common.all': '全部',
@@ -72,7 +69,7 @@ const ZH = {
 const EN = {
   'nav.home': 'Home', 'nav.pokedex': 'Pokédex', 'nav.tools': 'Tools', 'nav.live': 'Live', 'nav.guides': 'Guides', 'nav.settings': 'Settings',
   'nav.quick': 'Quick access', 'nav.quick_empty': 'Drag tools here from the Tools page, or use “Pin to sidebar”.',
-  'lang.menu': 'Language', 'lang.beta': 'beta · translation not reviewed', 'lang.game_names': 'Pokémon names stay in English; item names use your client’s own text where it has a translation.',
+  'lang.menu': 'Language', 'lang.beta': 'beta · translation not reviewed', 'lang.game_names': 'Verified localized game names are shown where available.',
   'common.search': 'Search', 'common.save': 'Save', 'common.saved': 'Saved', 'common.saving': 'Saving…', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
   'common.edit': 'Edit', 'common.new': 'New', 'common.close': 'Close', 'common.open': 'Open', 'common.restore': 'Restore', 'common.archive': 'Archive',
   'common.unarchive': 'Unarchive', 'common.duplicate': 'Duplicate', 'common.export': 'Export', 'common.import': 'Import', 'common.all': 'All',
@@ -100,19 +97,36 @@ const EN = {
 
 const DICTS = { en: EN, es: ES, zh: ZH };
 
+for (const [key, [en, es, zh]] of Object.entries(UI_STRINGS)) {
+  EN[key] = en; ES[key] = es; ZH[key] = zh;
+}
+
+const labelKeys = new Map(Object.entries(UI_STRINGS).map(([key, [source]]) => [source, key]));
+
+/** Render a controlled, application-authored label supplied by a registry or backend. */
+export function uiLabel(source) {
+  return labelKeys.has(source) ? t(labelKeys.get(source)) : source;
+}
+
+export const locale = () => ({ en: 'en', es: 'es', zh: 'zh-Hans' })[lang()] || 'en';
+export const number = (value, options) => new Intl.NumberFormat(locale(), options).format(value);
+
 export function lang() { return (state.settings && state.settings['app.language']) || 'en'; }
 
 /** Translate a key with {name} placeholders. Missing keys fall back to English, then to the key itself. */
 export function t(key, vars) {
   const d = DICTS[lang()] || EN;
   let s = d[key] ?? EN[key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
-  return s;
+  return vars ? s.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) => Object.hasOwn(vars, name) ? String(vars[name]) : match) : s;
 }
 
-/** Coverage report used by Settings › Language (keys present per language). */
-export function coverage() {
-  const total = Object.keys(EN).length;
-  return LANGS.map((l) => ({ ...l, keys: Object.keys(DICTS[l.id]).filter((k) => k in EN).length, total }));
+// Use the unsuffixed source when a language has no dedicated plural-category message.
+export function plural(key, count, vars) {
+  const category = new Intl.PluralRules(locale()).select(count);
+  const variant = `${key}_${category}`;
+  return t(Object.hasOwn(EN, variant) ? variant : key, { ...vars, count: number(count) });
 }
-export function missingKeys(id) { return Object.keys(EN).filter((k) => !(k in (DICTS[id] || {}))); }
+
+export function catalogEntries() {
+  return Object.keys(EN).map((key) => [key, ...LANGS.map(({ id }) => DICTS[id][key])]);
+}

@@ -1,3 +1,4 @@
+import { t as translateUI } from '../i18n.js';
 // Tools › Timers — your own named countdowns. Completion is detected by the backend (the page does not need to
 // stay open) and delivered through your notification settings. These are NOT in-game spawn timers and are
 // separate from Live's estimates.
@@ -38,7 +39,7 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
   dispose();
   let data = { timers: [], presets: [] };
   let syncedAt = performance.now();
-  const listEl = h('div', { class: 'tm-list ' + variant, role: 'list', 'aria-label': 'Timers' });
+  const listEl = h('div', { class: 'tm-list ' + variant, role: 'list', 'aria-label': translateUI('ui.timers') });
   const live = h('div', { class: 'sr-only', 'aria-live': 'polite' });
   const remainingOf = (t) => (t.state === 'running' ? Math.max(0, t.remaining - (performance.now() - syncedAt) / 1000) : t.remaining);
   const act = async (t, a) => { try { await post(`/api/timers/${t.id}/${a}`); await refresh(); } catch (e) { toast(e.message, { kind: 'warn' }); } };
@@ -75,14 +76,14 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
         t.state !== 'done' ? ` · of ${fmt(t.duration)}` : ''),
       h('div', { class: 'row tight tm-actions' },
         h('button', { class: 'btn small' + (t.state === 'running' ? '' : ' primary'), onclick: () => act(t, toggle[1]) }, toggle[0]),
-        h('button', { class: 'btn small ghost', onclick: () => act(t, 'reset'), title: 'Reset (R)' }, 'Reset'),
-        compact ? null : h('button', { class: 'btn small ghost', onclick: () => act(t, 'duplicate') }, 'Duplicate'),
-        compact ? null : h('button', { class: 'icon-btn', 'aria-label': 'Rename ' + t.name, title: 'Rename', onclick: rename }, icon('note')),
-        compact ? null : h('button', { class: 'icon-btn', 'aria-pressed': String(t.repeat), 'aria-label': 'Repeat', title: t.repeat ? 'Repeat on' : 'Repeat off',
+        h('button', { class: 'btn small ghost', onclick: () => act(t, 'reset'), title: 'Reset (R)' }, translateUI('ui.reset')),
+        compact ? null : h('button', { class: 'btn small ghost', onclick: () => act(t, 'duplicate') }, translateUI('ui.duplicate')),
+        compact ? null : h('button', { class: 'icon-btn', 'aria-label': 'Rename ' + t.name, title: translateUI('ui.rename'), onclick: rename }, icon('note')),
+        compact ? null : h('button', { class: 'icon-btn', 'aria-pressed': String(t.repeat), 'aria-label': translateUI('ui.repeat'), title: t.repeat ? 'Repeat on' : 'Repeat off',
           onclick: async () => { await api('PATCH', `/api/timers/${t.id}`, { repeat: !t.repeat }); refresh(); } }, icon('refresh')),
-        compact ? null : h('button', { class: 'icon-btn', 'aria-pressed': String(t.sound), 'aria-label': 'Sound', title: t.sound ? 'Sound on' : 'Sound off',
+        compact ? null : h('button', { class: 'icon-btn', 'aria-pressed': String(t.sound), 'aria-label': translateUI('ui.sound'), title: t.sound ? 'Sound on' : 'Sound off',
           onclick: async () => { await api('PATCH', `/api/timers/${t.id}`, { sound: !t.sound }); refresh(); } }, icon('bell')),
-        compact ? null : h('button', { class: 'icon-btn', 'aria-label': 'Delete ' + t.name, title: 'Delete',
+        compact ? null : h('button', { class: 'icon-btn', 'aria-label': 'Delete ' + t.name, title: translateUI('ui.delete'),
           onclick: async () => { if (await confirmDialog('Delete timer?', `“${t.name}” will be removed.`, 'Delete', true)) { await api('DELETE', `/api/timers/${t.id}`); refresh(); } } }, icon('trash')))));
     views.set(t.id, { t, timeEl, rg, bar });
     return c;
@@ -117,20 +118,20 @@ export async function renderTimers(el, { variant = 'page' } = {}) {
   const nameIn = h('input', { class: 'input', placeholder: 'Name (e.g. Berries, Daycare egg)', 'aria-label': 'New timer name', maxlength: '60' });
   const num = (label, max, val) => h('input', { class: 'input tm-num', type: 'number', min: '0', max: String(max), value: String(val), 'aria-label': label, inputmode: 'numeric' });
   const hh = num('Hours', 99, 0), mm = num('Minutes', 59, 10), ss = num('Seconds', 59, 0);
-  const repeat = h('input', { type: 'checkbox', 'aria-label': 'Repeat' });
-  const sound = h('input', { type: 'checkbox', checked: true, 'aria-label': 'Sound' });
+  const repeat = h('input', { type: 'checkbox', 'aria-label': translateUI('ui.repeat') });
+  const sound = h('input', { type: 'checkbox', checked: true, 'aria-label': translateUI('ui.sound') });
   const add = async (start) => {
     const secs = (Number(hh.value) || 0) * 3600 + (Number(mm.value) || 0) * 60 + (Number(ss.value) || 0);
     try { await post('/api/timers', { name: nameIn.value, seconds: secs, repeat: repeat.checked, sound: sound.checked, start }); nameIn.value = ''; await refresh(); }
     catch (e) { toast(e.message, { kind: 'warn' }); }
   };
-  const presets = h('div', { class: 'row tight tm-presets', role: 'group', 'aria-label': 'Presets' });
+  const presets = h('div', { class: 'row tight tm-presets', role: 'group', 'aria-label': translateUI('ui.presets') });
   const form = h('form', { class: 'tm-form', onsubmit: (e) => { e.preventDefault(); add(true); } },
     variant === 'compact' ? null : nameIn,
     h('div', { class: 'row tight' }, hh, h('span', null, 'h'), mm, h('span', null, 'm'), ss, h('span', null, 's'),
-      h('label', { class: 'row tight small' }, repeat, 'Repeat'), h('label', { class: 'row tight small' }, sound, 'Sound')),
+      h('label', { class: 'row tight small' }, repeat, translateUI('ui.repeat')), h('label', { class: 'row tight small' }, sound, translateUI('ui.sound'))),
     h('div', { class: 'row tight' }, h('button', { class: 'btn primary small', type: 'submit' }, icon('plus'), 'Add & start'),
-      h('button', { class: 'btn small', type: 'button', onclick: () => add(false) }, 'Add'),
+      h('button', { class: 'btn small', type: 'button', onclick: () => add(false) }, translateUI('ui.add')),
       h('button', { class: 'btn small ghost', type: 'button', title: 'Keep these settings as a reusable preset (also offered in guides)', onclick: async () => {
         const secs = (Number(hh.value) || 0) * 3600 + (Number(mm.value) || 0) * 60 + (Number(ss.value) || 0);
         try { await post('/api/timers/presets', { label: nameIn.value || fmt(secs), seconds: secs, repeat: repeat.checked, sound: sound.checked }); toast('Preset saved'); drawPresets(); }
@@ -170,7 +171,7 @@ export async function render(el) {
   mount(el, page);
   page.append(h('div', { class: 'page-head' },
     h('button', { class: 'btn ghost', onclick: () => go('#/tools') }, icon('back'), 'Tools'),
-    h('div', null, h('h1', null, 'Timers'), h('div', { class: 'sub' }, 'Your own countdowns — several at once, with presets, repeat, sound and notifications. Not in-game spawn timers.')),
+    h('div', null, h('h1', null, translateUI('ui.timers')), h('div', { class: 'sub' }, 'Your own countdowns — several at once, with presets, repeat, sound and notifications. Not in-game spawn timers.')),
     h('div', { class: 'actions' }, pinButton({ kind: 'tool', id: 'timers' }), popoutButton('timers'))));
   const body = h('div');
   page.append(body);

@@ -1,3 +1,5 @@
+import { uiLabel } from '../i18n.js';
+import { t as translateUI } from '../i18n.js';
 // Settings (docs/design/16) + data import + first-run onboarding.
 import { CONTEXTS } from '../sprites.js';
 import { appearanceSec, layoutSec, homeSec } from './settings-theme.js';
@@ -5,7 +7,7 @@ import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, no
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { createRun } from './guides.js';
-import { LANGS, coverage, t } from '../i18n.js';
+import { LANGS, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
 const SECTIONS = [['appearance', 'Appearance & themes'], ['layout', 'Layout & scaling'], ['sprites', 'Pokémon & sprites'], ['home', 'Home'], ['language', 'Language'],
@@ -16,7 +18,7 @@ let unsub = [];
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
 const row = (label, desc, control) => h('div', { class: 'set-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, label), desc ? h('div', { class: 'desc' }, desc) : null), h('div', null, control));
-const set = (k) => (v) => saveSettings({ [k]: v }).then(() => toast('Saved', { timeout: 1200 })).catch((e) => toast(e.message, { kind: 'warn' }));
+const set = (k) => (v) => saveSettings({ [k]: v }).then(() => toast(translateUI('ui.saved'), { timeout: 1200 })).catch((e) => toast(e.message, { kind: 'warn' }));
 
 export async function render(el, route) {
   dispose();
@@ -24,29 +26,26 @@ export async function render(el, route) {
   const sec = SECTIONS.some(([k]) => k === want) ? want : 'appearance';
   const page = h('div', { class: 'page' });
   mount(el, page);
-  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Settings'), h('div', { class: 'sub' }, 'Saved immediately on this computer.'))));
+  page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('ui.settings')), h('div', { class: 'sub' }, translateUI('ui.saved_on_computer')))));
   const body = h('div', { class: 'card' });
-  page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': 'Settings sections' },
-    SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, l))), body));
+  page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': translateUI('ui.settings_sections') },
+    SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, uiLabel(l)))), body));
   await ({ appearance: appearanceSec, layout: layoutSec, home: homeSec, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, sprites: spritesSec, data, about })[sec](body);
 }
 
 // --------------------------------------------------------------- language
 async function language(b) {
-  const cov = coverage();
   const cur = setting('app.language') || 'en';
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Language'),
-    row('Companion language', 'English is complete. Spanish and Chinese are beta: menus, navigation and the new tools are translated; other pages still show English. Translations were written for this build and have not been reviewed by native speakers yet.',
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.language')),
+    row(translateUI('ui.language_companion'), translateUI('ui.language_review'),
       h('div', { class: 'stack tight' }, LANGS.map((l) => h('label', { class: 'row' }, h('input', { type: 'radio', name: 'lang', checked: cur === l.id ? 'checked' : null,
-        onchange: async () => { await saveSettings({ 'app.language': l.id }); (await import('../shell.js')).renderChrome(); go('#/settings/language'); } }),
+        onchange: async () => { await saveSettings({ 'app.language': l.id }); } }),
       h('span', null, l.native, l.native !== l.label ? h('span', { class: 'tiny muted' }, ` (${l.label})`) : null),
-      l.status === 'beta' ? h('span', { class: 'badge unknown' }, 'beta') : null)))),
-    row('Translation coverage', 'Keys in the Companion’s interface dictionary. Missing keys fall back to English.',
-      h('div', { class: 'stack tight' }, cov.map((c) => h('div', { class: 'small' }, `${c.native}: ${c.keys} / ${c.total}`)))),
-    row('Game names', 'Pokémon names stay in English (the game data has no translated species names). Item names and descriptions use your own client’s Spanish/Chinese text when your installed data includes XML-Strings.', h('span', { class: 'tiny muted' }, '—')),
-    row('Language button in the toolbar', 'Shows the globe button in the sidebar / top bar for quick switching.',
+      l.status === 'beta' ? h('span', { class: 'badge unknown' }, translateUI('ui.locale_beta')) : null)))),
+    row(translateUI('ui.language_terminology'), t('lang.game_names'), h('span', { class: 'small muted' }, '—')),
+    row(translateUI('ui.language_toolbar'), translateUI('ui.language_toolbar_help'),
       switchEl((setting('app.toolbar') || []).includes('language'), (v) => saveSettings({ 'app.toolbar': v ? [...new Set([...(setting('app.toolbar') || []), 'language'])] : (setting('app.toolbar') || []).filter((x) => x !== 'language') }).then(async () => (await import('../shell.js')).renderChrome()))),
-    row('“New note” button in the toolbar', 'Adds a quick button that opens a new floating note.',
+    row(translateUI('ui.toolbar_note'), translateUI('ui.toolbar_note_help'),
       switchEl((setting('app.toolbar') || []).includes('notes'), (v) => saveSettings({ 'app.toolbar': v ? [...new Set([...(setting('app.toolbar') || []), 'notes'])] : (setting('app.toolbar') || []).filter((x) => x !== 'notes') }).then(async () => (await import('../shell.js')).renderChrome()))));
 }
 
@@ -87,7 +86,7 @@ async function shortcutsSec(b) {
           h('div', { class: 'desc' }, { app: 'Any Companion window', guides: 'Guides page or Storyline popout', pokedex: 'Pokédex page or popout', notes: 'Notes page or popout', items: 'Item Library', links: 'Websites page' }[a.scope] || a.scope,
             a.default && a.default !== a.binding ? ` · default ${displayCombo(a.default)}` : '')),
         h('div', { class: 'row' }, h('kbd', { class: 'kb' + (a.binding ? '' : ' none') }, displayCombo(a.binding)), rec,
-          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': `Clear shortcut for ${a.label}`, onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, 'Clear') : null,
+          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': `Clear shortcut for ${a.label}`, onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
           a.default !== a.binding ? h('button', { class: 'btn ghost small', onclick: async () => {
             try { data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true }); } catch (err) {
               if (await confirmDialog('Default in use', err.message + ' Replace it?', 'Replace')) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
@@ -112,7 +111,7 @@ async function windows(b) {
   const caps = (await get('/api/shell/capabilities'));
   const s = state.settings;
   const capRow = (label, ok) => h('div', { class: 'row small' }, h('span', { class: 'dot ' + (ok ? 'connected' : '') }), label, h('span', { class: 'muted' }, ok ? 'supported' : 'not available'));
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Windows & popouts'),
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.windows_popouts')),
     h('div', { class: 'card inset stack tight' }, h('div', null, h('strong', null, caps.mode === 'qt' ? 'Native window shell' : 'Browser mode'), h('span', { class: 'muted small' }, ` · platform: ${caps.platform}`)),
       h('div', { class: 'grid-3' }, capRow('Separate popout windows', caps.native_windows || caps.mode === 'browser'), capRow('Pin / always on top', caps.pin), capRow('Window opacity', caps.window_opacity),
         capRow('Companion toast window', caps.toast_window), capRow('Tray icon', caps.tray), capRow('Restore window position', caps.position)),
@@ -138,20 +137,20 @@ function toolPrefCard(t, def, caps) {
     const c = sizes[m];
     return h('div', { class: 'row small', style: { justifyContent: 'space-between' } }, h('span', { class: 'muted' }, cap(m)),
       h('span', null, c ? `${c.w}×${c.h} (yours)` : `${p[0]}×${p[1]} (preset)`),
-      c ? h('button', { class: 'btn ghost small', title: 'Forget your size for this mode', onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, 'Reset') : h('span', { style: { width: '52px' } }));
+      c ? h('button', { class: 'btn ghost small', title: 'Forget your size for this mode', onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
   });
   return h('div', { class: 'card tool-pref stack tight' },
     h('div', { class: 'row' }, h('strong', null, def.title), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(t) }, icon('popout'), 'Open')),
     h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, 'Default mode'),
-      seg([['compact', 'Compact'], ['standard', 'Standard'], ['expanded', 'Expanded']], s[`window.${t}.mode`], set(`window.${t}.mode`), 'Mode')),
+      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${t}.mode`], set(`window.${t}.mode`), 'Mode')),
     h('div', { class: 'stack tight' }, sizeLine),
     h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${t}.keep_size`], onchange: (e) => set(`window.${t}.keep_size`)(e.target.checked) }), h('span', null, 'Keep my size when switching modes')),
     h('div', { class: 'row wrap' },
       h('label', { class: 'switch small', title: caps.pin ? '' : 'Not supported in this mode' }, h('input', { type: 'checkbox', checked: s[`window.${t}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${t}.pinned`)(e.target.checked) }), h('span', null, 'Pin on open')),
       h('label', { class: 'switch small', title: caps.native_windows ? '' : 'Native shell only' }, h('input', { type: 'checkbox', checked: s[`window.${t}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${t}.locked`)(e.target.checked) }), h('span', null, 'Lock position'))),
-    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, 'Background'), rangeCell(`window.${t}.bg_opacity`, 35, 100),
-      h('span', { class: 'label' }, 'Window'), rangeCell(`window.${t}.window_opacity`, 40, 100, !caps.window_opacity),
-      h('span', { class: 'label' }, 'Text size'), rangeCell(`window.${t}.text_scale`, 70, 180)));
+    h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, translateUI('ui.background')), rangeCell(`window.${t}.bg_opacity`, 35, 100),
+      h('span', { class: 'label' }, translateUI('ui.window')), rangeCell(`window.${t}.window_opacity`, 40, 100, !caps.window_opacity),
+      h('span', { class: 'label' }, translateUI('ui.text_size')), rangeCell(`window.${t}.text_scale`, 70, 180)));
 }
 function rangeCell(key, min, max, disabled) {
   const lbl = h('span', { class: 'tiny muted', style: { width: '34px', display: 'inline-block' } }, state.settings[key] + '%');
@@ -164,13 +163,13 @@ async function notifications(b) {
   const s = state.settings;
   const n = state.boot.notifier;
   const routes = [['off', 'Off'], ['toast', 'Toast'], ['os', 'OS'], ['both', 'Both']];
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Notifications'),
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.notifications')),
     notice('info', 'Every received report is saved to Live › history whatever you choose here. Toasts are the Companion’s own small window; OS notifications go through your desktop’s notification centre (its Do-Not-Disturb rules apply).'),
     row('Alpha reports', null, seg(routes, s['notify.alpha'], set('notify.alpha'))),
     row('Swarm reports', null, seg(routes, s['notify.swarm'], set('notify.swarm'))),
     row('Other reports', 'Messages without an Alpha/Swarm keyword.', seg(routes, s['notify.other'], set('notify.other'))),
     row('TEST notifications', 'For the “Send TEST notification” button in Live.', seg(routes, s['notify.test'], set('notify.test'))),
-    row('Timers', 'When one of your Tools › Timers finishes. Do not disturb silences these too (the timer still completes).', seg(routes, s['notify.timer'], set('notify.timer'))),
+    row(translateUI('ui.timers'), 'When one of your Tools › Timers finishes. Do not disturb silences these too (the timer still completes).', seg(routes, s['notify.timer'], set('notify.timer'))),
     row('Do not disturb', 'Manual switch: saves reports silently (TEST notifications still show).', switchEl(s['notify.quiet'], set('notify.quiet'))),
     row('Toast corner', 'On Native Wayland the compositor may decide placement.', seg([['top-left', '↖'], ['top-right', '↗'], ['bottom-left', '↙'], ['bottom-right', '↘']], s['notify.toast_corner'], set('notify.toast_corner'))),
     row('Toast screen', null, seg([['primary', 'Primary screen'], ['main-window', 'Screen with main window']], s['notify.toast_screen'], set('notify.toast_screen'))),
@@ -185,7 +184,7 @@ async function notifications(b) {
 // -------------------------------------------------------------- sources
 async function sources(b) {
   const [src, n] = await Promise.all([get('/api/live/source'), get('/api/news')]);
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Live sources & news'),
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')),
     row('Alpha/Swarm report feed', 'Read-only subscription to the public Alphapedia ntfy topics (alphapings, swarmpings). Off until you connect it in Live.',
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? cap(src.status) : 'Off',
         src.last_success_at ? h('span', { class: 'small muted' }, ' · last data ', relTime(src.last_success_at)) : null),
@@ -215,18 +214,18 @@ async function sources(b) {
 // --------------------------------------------------------------- guides
 async function guidesSec(b) {
   const runs = await get('/api/guides/runs');
-  b.append(h('h2', { style: { marginTop: 0 } }, 'Guides & characters'),
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.guides_characters')),
     row('Active run', 'Used by Home, the Storyline popout and legendary tracking.', runs.runs.length ? h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => set('guides.active_run')(e.target.value) },
       runs.runs.map((r) => h('option', { value: r.id, selected: r.id === runs.active ? 'selected' : null }, r.display))) : h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, 'Create a run')),
     h('h3', null, 'Runs'),
-    h('table', { class: 'table compact' }, h('thead', null, h('tr', null, ['Character', 'Label', 'Last region', 'Updated', ''].map((c) => h('th', null, c)))),
+    h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.select_character'), 'Label', 'Last region', 'Updated', ''].map((c) => h('th', null, c)))),
       h('tbody', null, runs.runs.map((r) => h('tr', null, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, cap(r.last_region)), h('td', { class: 'small' }, relTime(r.updated_at)),
         h('td', null, h('button', { class: 'btn small danger', onclick: async () => { if (await confirmDialog('Delete run', `Delete “${r.display}”? You can restore it later.`, 'Delete', true)) {
-          await api('DELETE', '/api/guides/runs/' + r.id); render(document.getElementById('main'), { parts: ['guides'] }); } } }, 'Delete')))),
+          await api('DELETE', '/api/guides/runs/' + r.id); render(document.getElementById('main'), { parts: ['guides'] }); } } }, translateUI('ui.delete'))))),
       runs.deleted.map((r) => h('tr', { style: { opacity: 0.7 } }, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, 'deleted'), h('td', { class: 'small' }, relTime(r.deleted_at)),
-        h('td', null, h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${r.id}/restore`); render(document.getElementById('main'), { parts: ['guides'] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Restore')))))),
+        h('td', null, h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${r.id}/restore`); render(document.getElementById('main'), { parts: ['guides'] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.restore'))))))),
     h('div', { class: 'row wrap', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), 'New run'),
-      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/backup') }, 'Backup & recovery'), h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Walkthrough import')));
+      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/backup') }, translateUI('ui.backup_recovery')), h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Walkthrough import')));
 }
 
 // ----------------------------------------------------------------- data
@@ -263,7 +262,7 @@ export async function data(b) {
   const guideSources = await Promise.all(['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'].map((r) => get('/api/guides/sources/' + r)));
   const importedGuides = guideSources.map((g, i) => [['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'][i], g.sources.find((s) => s.id === 'imported')]).filter(([, s]) => s);
   const ds = await get('/api/data/status');
-  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Advanced'),
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.advanced')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Everything Companion needs is built in. The options here are optional extras for people who want to use their own files.'),
     h('h3', null, 'PokeMMO data'),
     (() => { const rb = boot.dex.reference || {}; const rc = rb.counts || {};
@@ -354,7 +353,7 @@ async function formArtReport() {
   const r = await get('/api/dex/art');
   const label = { verified: 'Client ✓', unverified: 'Client (changed)', 'same-as-base': 'Base art only', placeholder: 'Placeholder', none: '—' };
   return h('div', { class: 'stack tight' }, h('div', { class: 'tiny muted' }, `Client slots checked by eye on ${r.checked}. “Known sources” lists where an exact file name exists in each public repository (not downloaded).`),
-    h('table', { class: 'table compact sprite-cov tiny' }, h('thead', null, h('tr', null, ['Form', 'Your client', 'Your library', 'Known sources'].map((x) => h('th', null, x)))),
+    h('table', { class: 'table compact sprite-cov tiny' }, h('thead', null, h('tr', null, [translateUI('ui.form'), 'Your client', 'Your library', 'Known sources'].map((x) => h('th', null, x)))),
       h('tbody', null, r.forms.map((f) => h('tr', null, h('td', null, `${f.species} — ${f.name}`),
         h('td', { title: f.local_reason }, label[f.local_status] || f.local_status),
         h('td', null, f.library.length ? f.library.join(', ').replace(/_/g, ' ') : '—'),
@@ -370,16 +369,16 @@ async function spritesSec(b) {
   const size = { ...(s['sprites.size'] || {}) };
   const lib = await get('/api/sprites/library').catch(() => null);
   const redraw = () => { b.innerHTML = ''; spritesSec(b); };
-  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Pokémon & sprites'),
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.pokemon_sprites')),
     row('Animations', 'Follow the system’s reduced-motion setting, always allow, or switch every animation off. This overrides the choices below.',
-      seg([['system', 'Follow system'], ['on', 'On'], ['off', 'Off']], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, 'Animations')),
+      seg([['system', 'Follow system'], ['on', 'On'], ['off', translateUI('ui.status_off')]], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, 'Animations')),
     row('Pokédex colours', 'Show the whole Pokédex grid in normal or shiny colours. Display only — nothing is marked as owned.',
-      seg([['normal', 'Normal'], ['shiny', 'Shiny']], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), 'Pokédex colours')),
+      seg([['normal', translateUI('ui.normal')], ['shiny', translateUI('ui.shiny')]], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), 'Pokédex colours')),
     h('h3', null, 'Where sprites move'),
     h('div', { class: 'sprite-prefs' }, CONTEXTS.map(([id, label, def, hasSize]) => h('div', { class: 'set-row' },
       h('div', null, h('div', { style: { fontWeight: 600 } }, label), h('div', { class: 'desc' }, `Default: ${def === 'animated' ? 'animated' : 'static'}`)),
       h('div', { class: 'row wrap tight' },
-        seg([['static', 'Static'], ['animated', 'Animated']], anim[id] || def, async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, label + ' animation'),
+        seg([['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]], anim[id] || def, async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, label + ' animation'),
         hasSize ? h('label', { class: 'row tight small' }, 'Size', h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': label + ' size',
           onchange: async (e) => { const v = Number(e.target.value); if (v === 100) delete size[id]; else size[id] = v; await saveSettings({ 'sprites.size': { ...size } }); } },
           [70, 85, 100, 115, 130, 150].map((p) => h('option', { value: p, selected: (size[id] || 100) === p ? 'selected' : null }, p + ' %')))) : null)))),
@@ -389,7 +388,7 @@ async function spritesSec(b) {
     lib ? h('div', { class: 'small' }, lib.source_kind === 'personal' ? 'Using your own sprite library (Settings › Advanced). ' : 'Built-in sprites: ',
       `${lib.coverage.species_static} species, ${lib.coverage.forms_ani} alternate forms, ${lib.female} female variants — static and animated, normal and shiny. `,
       lib.derived_stills ? `${lib.derived_stills} form stills are the first frame of that form’s animation. ` : '',
-      h('a', { href: '#/settings/about' }, 'Credits')) : null));
+      h('a', { href: '#/settings/about' }, translateUI('ui.credits'))) : null));
 }
 
 // --------------------------------------------------------------- startup & game integration
@@ -419,7 +418,7 @@ async function startupSec(b) {
         try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : r.already_starting ? 'PokeMMO is already starting' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? 'PokeMMO is running' : 'Launch PokeMMO'))),
     h('div', { class: 'row wrap', style: { margin: '4px 0 10px' } },
       native ? h('button', { class: 'btn small', onclick: () => post('/api/shell/command', { action: 'pick_launcher', purpose: 'launcher' }) }, 'Choose launcher…')
-        : [h('div', { class: 'grow', style: { minWidth: '220px' } }, pathIn), h('button', { class: 'btn small', onclick: () => savePath(pathIn.value.trim()) }, 'Save')],
+        : [h('div', { class: 'grow', style: { minWidth: '220px' } }, pathIn), h('button', { class: 'btn small', onclick: () => savePath(pathIn.value.trim()) }, translateUI('ui.save'))],
       g.manual ? h('button', { class: 'btn small ghost', onclick: () => savePath('') }, 'Use detected launcher') : null),
     g.launchers.length > 1 ? h('div', { class: 'tiny muted' }, 'Also found: ', g.launchers.slice(1).map((l) => l.label).join(' · ')) : null,
     row('When PokeMMO closes', 'Companion keeps running by default. It never closes PokeMMO.',
@@ -446,7 +445,7 @@ async function updatesSec(b) {
   const refUsing = ref.using === 'downloaded' ? `Updated data from ${fmtDate(ref.downloaded.dump_date)} (revision ${ref.downloaded.revision})`
     : `Built-in data from the PokeMMO client of ${fmtDate(ref.built_in.dump_date)}`;
   const latest = app.latest;
-  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Updates'),
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.updates')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Three separate things, each checked in the background. Nothing interrupts a game or a running timer.'),
     h('h3', null, 'Official PokeMMO news'),
     row('Check automatically', f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
@@ -493,7 +492,7 @@ async function backupSec(b) {
     x.kind === 'archive' ? h('button', { class: 'btn small', onclick: () => restoreFlow({ name: x.name }) }, 'Restore…')
       : h('span', { class: 'tiny muted', title: 'A copy of the database file. Use a complete backup (.zip) to restore from inside the Companion.' }, 'database copy'))) :
     h('div', { class: 'small muted' }, 'No backups yet.'));
-  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Backup & recovery'),
+  b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.backup_recovery')),
     st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? 'A restore was interrupted last time; it has been finished.' : `A restore was interrupted and could not be finished (${st.recovered.reason}). Your safety copy is in the backup folder.`) : null,
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'A complete backup contains your notes, collection, showcases, pictures, guides with their cycles and history, character runs and storyline progress, teams, timers and presets, map marks, settings and window positions. Never ROMs or PokeMMO client files. Nothing is uploaded anywhere.'),
     row('Automatic backups', auto ? `Last: ${fmtDate(auto.created_at, true)}. The newest 7 are kept.` : 'Made in the background; the newest 7 are kept.',
@@ -536,7 +535,7 @@ async function backupSec(b) {
       h('ul', { class: 'small', style: { margin: 0 } }, lines),
       pv.runs_conflicting || pv.documents_conflicting ? h('div', { class: 'small muted' }, `${pv.runs_conflicting} run(s) and ${pv.documents_conflicting} item(s) already exist here. Merge keeps yours and adds the backup’s versions as copies, with their links intact.`) : null,
       h('div', { class: 'small muted' }, 'A safety copy of your current data is saved first.')),
-    actions: [{ label: 'Cancel', value: null, kind: 'ghost' }, { label: 'Replace my data', value: 'replace', kind: 'danger' }, { label: 'Merge', value: 'merge', kind: 'primary' }] });
+    actions: [{ label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: 'Replace my data', value: 'replace', kind: 'danger' }, { label: 'Merge', value: 'merge', kind: 'primary' }] });
     if (!mode || pv.newer) return;
     if (mode === 'replace' && !(await confirmDialog('Replace all your data?', 'Everything you created in Companion is replaced by this backup. A safety copy is saved first, so this can be undone by restoring it.', 'Replace', true))) return;
     try {
@@ -550,20 +549,20 @@ async function backupSec(b) {
 async function about(b) {
   const boot = state.boot;
   const discord = boot.community && boot.community.discord;
-  b.append(h('h2', { style: { marginTop: 0 } }, 'About & credits'),
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.about_credits')),
     h('dl', { class: 'kv' }, h('dt', null, 'Version'), h('dd', null, `${boot.version} (development preview)`), h('dt', null, 'Window mode'), h('dd', null, boot.mode === 'qt' ? 'Native shell (PySide6)' : 'Browser'),
       h('dt', null, 'Data folder'), h('dd', { class: 'mono' }, boot.data_dir)),
-    discord ? h('div', null, h('h3', null, 'Community'),
+    discord ? h('div', null, h('h3', null, translateUI('ui.community')),
       h('p', { class: 'small', style: { marginTop: 0 } }, 'Questions, beta testing, ideas and release news are on the PokeMMO Companion Discord. Joining is optional — Companion never needs a Discord account. ',
-        extLink(discord, 'Join the community Discord'))) : null,
-    h('section', null, h('h3', null, 'About the Developer'),
+        extLink(discord, translateUI('ui.discord_join')))) : null,
+    h('section', null, h('h3', null, translateUI('ui.about_developer')),
       h('div', { class: 'stack tight small' },
         h('strong', null, 'Haqzo — Creator & Developer'),
         h('div', null, 'PokeMMO player and community creator developing tools, themes and mods.'),
         h('div', null, 'PokeMMO Companion, Better Default, Better Items, and ROM Patch Manager (co-developed with MaToRiuKo).'),
         h('div', { class: 'row wrap' }, extLink('https://github.com/haqzo', 'GitHub'),
           discord ? extLink(discord, 'Discord') : null))),
-    h('h3', null, 'Credits'),
+    h('h3', null, translateUI('ui.credits')),
     h('ul', { class: 'small', style: { color: 'var(--text-secondary)', marginTop: 0 } },
       h('li', null, 'Pokémon sprites: Gen V Black/White sprites from the PokeAPI/sprites repository (CC0 repository; images © Nintendo / Creatures Inc. / GAME FREAK / The Pokémon Company).'),
       h('li', null, 'Item icons and reference data: from the PokeMMO client.'),
@@ -571,13 +570,13 @@ async function about(b) {
       h('li', null, 'Theme palettes: Catppuccin (MIT) and enkia’s Tokyo Night (MIT).'),
       h('li', null, 'Alpha and Swarm reports and Phenomenon reference examples · ', extLink(boot.alphapedia.website, 'Alphapedia'),
         ' · ', extLink(boot.alphapedia.discord, 'Alphapedia Discord'))),
-    h('h3', null, 'Diagnostics'),
+    h('h3', null, translateUI('ui.diagnostics')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'For troubleshooting: versions, window system and a log with private details removed (session tokens, your home folder and user name). Nothing is sent anywhere — you decide whether to share the file.'),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => {
       const d = await get('/api/diagnostics');
       const blob = new Blob([JSON.stringify(d.report, null, 1) + '\n\n----- log (sanitized) -----\n' + d.log], { type: 'text/plain' });
       const a = h('a', { href: URL.createObjectURL(blob), download: `pokemmo-companion-diagnostics-${new Date().toISOString().slice(0, 10)}.txt` });
-      document.body.append(a); a.click(); a.remove(); } }, icon('download'), 'Save diagnostics')),
+      document.body.append(a); a.click(); a.remove(); } }, icon('download'), translateUI('ui.save_diagnostics'))),
     h('h3', null, 'Keyboard'),
     h('div', { class: 'small stack tight' }, h('div', null, h('span', { class: 'kbd' }, 'Alt+1…5'), ' switch sections · ', h('span', { class: 'kbd' }, 'Ctrl+,'), ' settings · ', h('span', { class: 'kbd' }, 'Ctrl+F'), ' search Pokédex · ',
       h('span', { class: 'kbd' }, 'Esc'), ' close details/dialogs · arrows + Enter in the Pokédex grid')),

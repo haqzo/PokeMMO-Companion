@@ -1,3 +1,5 @@
+import { t as translateUI } from '../i18n.js';
+import { findSpecies, gameTerm, speciesLabel, speciesMatches } from '../game-locale.js';
 // My Box (curated individual Pokémon, docs/design/18 §3) and Showcase (§4).
 // Nothing here is read from the game; nothing updates the Pokédex registration unless you press
 // “Copy to Pokédex registration” (with undo).
@@ -17,14 +19,14 @@ let natures = null;
 export function dispose() { unsub.forEach((u) => u()); unsub = []; }
 
 function marks(e) {
-  return [e.shiny ? h('span', { class: 'mk shiny', title: 'Shiny' }, '✦') : null, e.secret_shiny ? h('span', { class: 'mk', title: 'Secret shiny' }, '✧') : null,
+  return [e.shiny ? h('span', { class: 'mk shiny', title: translateUI('ui.shiny') }, '✦') : null, e.secret_shiny ? h('span', { class: 'mk', title: 'Secret shiny' }, '✧') : null,
     e.alpha ? h('span', { class: 'mk alpha', title: 'Alpha' }, 'α') : null];
 }
 export function boxCard(e, onOpen, selected) {
   return h('button', { class: 'box-card' + (selected ? ' selected' : '') + (e.status !== 'kept' ? ' faded' : ''), dataset: { id: e.id }, onclick: () => onOpen(e),
-    'aria-label': `${e.nickname || e.species_name}${e.shiny ? ', shiny' : ''}${e.alpha ? ', alpha' : ''}` },
+    'aria-label': `${e.nickname || speciesLabel(e.species_id, e.species_name)}${e.shiny ? ', shiny' : ''}${e.alpha ? ', alpha' : ''}` },
   h('div', { class: 'bc-sprite' }, spriteOrFallback(e.icon, { id: e.species_id, name: e.species_name, types: [] }, 48)),
-  h('div', { class: 'bc-name ellipsis' }, e.nickname || e.species_name), h('div', { class: 'tiny muted ellipsis' }, e.nickname ? e.species_name : `#${pad3(e.species_id)}`),
+  h('div', { class: 'bc-name ellipsis' }, e.nickname || speciesLabel(e.species_id, e.species_name)), h('div', { class: 'tiny muted ellipsis' }, e.nickname ? speciesLabel(e.species_id, e.species_name) : `#${pad3(e.species_id)}`),
   h('div', { class: 'bc-marks' }, marks(e), e.iv_total != null ? h('span', { class: 'tiny muted' }, `IV ${e.iv_total}`) : null));
 }
 
@@ -58,7 +60,7 @@ export async function render(el, route) {
   const count = h('span', { class: 'small muted' });
   const draw = () => {
     const q = f.q.toLowerCase();
-    const list = data.entries.filter((e) => (!q || (e.nickname || '').toLowerCase().includes(q) || e.species_name.toLowerCase().includes(q) || (e.tags || []).some((x) => x.includes(q))) &&
+    const list = data.entries.filter((e) => (!q || (e.nickname || '').toLowerCase().includes(q) || speciesMatches({ id: e.species_id, name: e.species_name }, q) || (e.tags || []).some((x) => x.includes(q))) &&
       (!f.run || e.run_id === f.run) && (!f.shiny || e.shiny) && (!f.alpha || e.alpha) && (f.status === 'all' || e.status === f.status));
     count.textContent = `${list.length} of ${data.entries.length}`;
     mount(grid, list.length ? list.map((e) => boxCard(e, (x) => go('#/collection/pokemon/' + x.id), e.id === sel)) :
@@ -70,7 +72,7 @@ export async function render(el, route) {
     h('div', { class: 'search' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Nickname, species or tag', 'aria-label': 'Search Box', oninput: debounce((e) => { f.q = e.target.value; draw(); }, 120) })),
     h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Character run', onchange: (e) => { f.run = e.target.value; draw(); } }, h('option', { value: '' }, 'All characters'),
       data.runs.map((r) => h('option', { value: r.id }, r.display))),
-    h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Status', onchange: (e) => { f.status = e.target.value; draw(); } },
+    h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.status'), onchange: (e) => { f.status = e.target.value; draw(); } },
       [['all', 'Any status'], ...STATUS].map(([v, l]) => h('option', { value: v, selected: v === 'kept' ? 'selected' : null }, l))),
     chip('✦ Shiny', 'shiny'), chip('α Alpha', 'alpha'), count), h('div', { class: 'dex-scroll' }, grid));
   layout.append(left);
@@ -96,10 +98,10 @@ async function boxEditor(pane, e, { runs, species, onSaved, onClose }) {
     oninput: (ev) => { obj[k] = ev.target.value === '' ? null : Number(ev.target.value); evTotal(); } });
   const sel = (k, opts) => h('select', { class: 'input', onchange: (ev) => { v[k] = ev.target.value; } }, opts.map(([a, b]) => h('option', { value: a, selected: (v[k] || '') === a ? 'selected' : null }, b)));
   const check = (k, label) => h('label', { class: 'chip btnlike' + (v[k] ? ' active' : '') }, h('input', { type: 'checkbox', class: 'check', checked: !!v[k], onchange: (ev) => { v[k] = ev.target.checked; ev.target.parentElement.classList.toggle('active', v[k]); } }), label);
-  const spInput = h('input', { class: 'input', list: 'box-species', value: v.species_id ? `${species.find((s) => s.id === v.species_id)?.name || ''} #${pad3(v.species_id)}` : '', placeholder: 'Species', 'aria-label': 'Species',
-    onchange: (ev) => { const m = ev.target.value.match(/#?(\d{1,3})\s*$/); const byName = species.find((s) => s.name.toLowerCase() === ev.target.value.trim().toLowerCase());
+  const spInput = h('input', { class: 'input', list: 'box-species', value: v.species_id ? `${speciesLabel(v.species_id, species.find((s) => s.id === v.species_id)?.name)} #${pad3(v.species_id)}` : '', placeholder: translateUI('ui.species'), 'aria-label': translateUI('ui.species'),
+    onchange: (ev) => { const m = ev.target.value.match(/#?(\d{1,3})\s*$/); const byName = findSpecies(species, ev.target.value);
       v.species_id = m ? Number(m[1]) : byName ? byName.id : null; } });
-  const dl = h('datalist', { id: 'box-species' }, species.map((s) => h('option', { value: `${s.name} #${pad3(s.id)}` })));
+  const dl = h('datalist', { id: 'box-species' }, species.map((s) => h('option', { value: `${speciesLabel(s.id, s.name)} #${pad3(s.id)}` })));
   const evTot = h('span', { class: 'tiny muted' });
   const evTotal = () => { const s = STATS.reduce((a, [k]) => a + (v.evs[k] || 0), 0); evTot.textContent = `EV total ${s} / 510`; evTot.style.color = s > 510 ? 'var(--bad)' : ''; };
   const photo = h('div', { class: 'row' });
@@ -119,12 +121,12 @@ async function boxEditor(pane, e, { runs, species, onSaved, onClose }) {
   mount(pane, h('div', { class: 'detail-head' }, h('div', { class: 'art' }, e.front || e.icon ? h('img', { class: 'pixel', src: e.front || e.icon, alt: '', width: 96, height: 96 }) : icon('box')),
     h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', { class: 'muted' }, e.id ? 'Box entry' : t('box.add')), h('span', { class: 'grow' }),
       h('button', { class: 'icon-btn', title: t('common.close'), 'aria-label': t('common.close'), onclick: onClose }, icon('close'))),
-    h('h2', null, e.nickname || e.species_name || t('box.add')), e.species_id ? h('a', { href: '#/pokedex/' + e.species_id }, 'Open in Pokédex') : null)),
+    h('h2', null, e.nickname || speciesLabel(e.species_id, e.species_name) || t('box.add')), e.species_id ? h('a', { href: '#/pokedex/' + e.species_id }, translateUI('ui.pokedex_open')) : null)),
   h('div', { class: 'detail-body stack' },
     h('div', { class: 'grid-2' }, field('Species', h('div', null, spInput, dl)), field('Nickname', txt('nickname', '', 24))),
     h('div', { class: 'row wrap' }, check('shiny', '✦ Shiny'), check('secret_shiny', '✧ Secret shiny'), check('alpha', 'α Alpha'), check('showcase_ok', 'Allow in Showcase')),
     h('div', { class: 'grid-3' }, field('Level', num(v, 'level', 1, 100, '100%')), field('Gender', sel('gender', [['unknown', '—'], ['male', '♂ Male'], ['female', '♀ Female'], ['genderless', 'Genderless']])),
-      field('Nature', sel('nature', [['', '—'], ...natures.map((n) => [n.name, n.name + (n.up ? ` (+${n.up} −${n.down})` : '')])]))),
+      field('Nature', sel('nature', [['', '—'], ...natures.map((n) => [n.name, gameTerm('nature', n.name) + (n.up ? ` (+${n.up} −${n.down})` : '')])]))),
     h('div', { class: 'grid-2' }, field('Ability', txt('ability', '', 40)), field('Form', txt('form', 'e.g. Heat Rotom, costume', 40))),
     h('div', { class: 'stack tight' }, h('span', { class: 'label' }, 'IVs (0–31) · EVs (0–252, 510 total)'),
       h('div', { class: 'iv-grid', style: { gridTemplateColumns: '44px repeat(6, minmax(0,1fr))' } }, h('span'), STATS.map(([, l]) => h('span', { class: 'tiny muted', style: { textAlign: 'center' } }, l)),
@@ -143,8 +145,8 @@ async function boxEditor(pane, e, { runs, species, onSaved, onClose }) {
     h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', onclick: save }, t('common.save')), h('button', { class: 'btn ghost', onclick: onClose }, t('common.cancel')), h('span', { class: 'grow' }),
       e.id ? h('button', { class: 'btn ghost', title: 'Explicitly copy this entry into the manual Pokédex registration of a character', onclick: () => syncDialog(e, runs) }, 'Copy to Pokédex registration…') : null,
       e.id ? h('button', { class: 'btn danger ghost', onclick: async () => { if (!(await confirmDialog('Remove from Box?', 'You can restore it right after from the notification.', 'Remove', true))) return;
-        await api('DELETE', '/api/box/' + e.id); toast('Removed from Box', { action: { label: t('common.restore'), fn: async () => { await post(`/api/box/${e.id}/restore`); onSaved(e); } } }); onClose(); } }, icon('trash'), t('common.remove')) : null),
-    e.id ? linkedNotes('owned', e.id, e.nickname || e.species_name) : null));
+        await api('DELETE', '/api/box/' + e.id); toast(translateUI('ui.entry_removed'), { action: { label: t('common.restore'), fn: async () => { await post(`/api/box/${e.id}/restore`); onSaved(e); } } }); onClose(); } }, icon('trash'), t('common.remove')) : null),
+    e.id ? linkedNotes('owned', e.id, e.nickname || speciesLabel(e.species_id, e.species_name)) : null));
   evTotal();
 }
 
@@ -155,7 +157,7 @@ async function syncDialog(e, runs) {
   const { modal } = await import('../core.js');
   const ok = await modal({ title: 'Copy to Pokédex registration', body: h('div', { class: 'stack tight' }, h('p', { class: 'small', style: { margin: 0 } },
     `Sets ${e.species_name} for the chosen character (plus Alpha/Shiny marks from this entry). This only changes your manual registration, and you can undo it.`),
-  h('label', { class: 'label' }, 'Character'), runSel, h('label', { class: 'label' }, 'Status'), stSel),
+  h('label', { class: 'label' }, translateUI('ui.select_character')), runSel, h('label', { class: 'label' }, translateUI('ui.status')), stSel),
   actions: [{ label: t('common.cancel'), kind: 'ghost', value: false }, { label: 'Copy', kind: 'primary', value: true }] });
   if (!ok) return;
   const r = await post(`/api/box/${e.id}/sync-dex`, { run_id: runSel.value, status: stSel.value });
@@ -172,7 +174,7 @@ export async function renderBoxPopout(el, mode) {
     if (!e) { location.hash = '#/'; return; }
     mount(el, h('button', { class: 'btn ghost small', onclick: () => { location.hash = '#/'; } }, icon('back'), t('common.back')),
       h('div', { class: 'stack tight', style: { marginTop: '6px' } }, h('div', { class: 'row' }, h('img', { class: 'pixel', src: e.front || e.icon, width: 96, height: 96, alt: '' }),
-        h('div', null, h('h2', { style: { margin: 0 } }, e.nickname || e.species_name), h('div', { class: 'small muted' }, e.species_name, ' ', marks(e)))),
+        h('div', null, h('h2', { style: { margin: 0 } }, e.nickname || speciesLabel(e.species_id, e.species_name)), h('div', { class: 'small muted' }, speciesLabel(e.species_id, e.species_name), ' ', marks(e)))),
       h('div', { class: 'small' }, [e.level ? `Lv ${e.level}` : null, e.nature, e.ability].filter(Boolean).join(' · ') || '—'),
       e.iv_total != null ? h('div', { class: 'small' }, 'IVs ', STATS.map(([k, l]) => `${l} ${e.ivs[k] ?? '—'}`).join(' · ')) : null,
       (e.moves || []).length ? h('div', { class: 'small' }, 'Moves: ', e.moves.join(', ')) : null,
@@ -194,9 +196,9 @@ export function showcaseView(sc, { mode = 'standard', index = 0 } = {}) {
   const line = (it) => [it.nickname, it.level ? `Lv ${it.level}` : null, it.nature, it.iv_total != null ? `IV ${it.iv_total}` : null,
     it.encounter_count != null ? `${it.encounter_count.toLocaleString()} encounters` : null, it.method ? cap(it.method) : null, it.location, it.date, it.ot ? 'OT ' + it.ot : null].filter(Boolean);
   const card = (it, big) => h('div', { class: 'sc-item' + (big ? ' big' : '') },
-    h('div', { class: 'sc-sprite' }, h('img', { class: 'pixel', src: (big || o.big_sprites) && it.front ? it.front : it.icon || it.front, alt: it.species_name, width: big ? 160 : o.big_sprites ? 96 : 48, height: big ? 160 : o.big_sprites ? 96 : 48 }),
+    h('div', { class: 'sc-sprite' }, h('img', { class: 'pixel', src: (big || o.big_sprites) && it.front ? it.front : it.icon || it.front, alt: speciesLabel(it.species_id, it.species_name), width: big ? 160 : o.big_sprites ? 96 : 48, height: big ? 160 : o.big_sprites ? 96 : 48 }),
       h('span', { class: 'sc-marks' }, it.shiny ? '✦' : '', it.alpha ? ' α' : '')),
-    sc.template !== 'minimal' ? h('div', { class: 'sc-name' }, it.nickname || it.species_name) : null,
+    sc.template !== 'minimal' ? h('div', { class: 'sc-name' }, it.nickname || speciesLabel(it.species_id, it.species_name)) : null,
     sc.template !== 'minimal' && line(it).length > (it.nickname ? 1 : 0) ? h('div', { class: 'sc-line' }, line(it).filter((x) => x !== it.nickname).join(' · ')) : null);
   if (!items.length) wrap.append(h('div', { class: 'sc-empty' }, 'No entries yet — add Box entries to this showcase.'));
   else if (sc.template === 'featured') {
@@ -229,7 +231,7 @@ export async function renderShowcasePage(el, route) {
   page.append(h('div', { class: 'grid-2', style: { gridTemplateColumns: 'minmax(280px, 380px) 1fr', alignItems: 'start' } },
     h('div', { class: 'card stack tight' },
       h('select', { class: 'input', 'aria-label': 'Showcase', onchange: (e) => go('#/collection/showcases/' + e.target.value) }, list.showcases.map((x) => h('option', { value: x.id, selected: x.id === sc.id ? 'selected' : null }, x.name))),
-      h('label', { class: 'label' }, 'Name'), h('input', { class: 'input', value: v.name, maxlength: 80, oninput: (e) => { v.name = e.target.value; save(); } }),
+      h('label', { class: 'label' }, translateUI('ui.name')), h('input', { class: 'input', value: v.name, maxlength: 80, oninput: (e) => { v.name = e.target.value; save(); } }),
       h('label', { class: 'label' }, 'Title shown in the window'), h('input', { class: 'input', value: v.options.title || '', maxlength: 80, oninput: (e) => { v.options.title = e.target.value; save(); } }),
       h('label', { class: 'label' }, 'Layout'), h('select', { class: 'input', onchange: (e) => { v.template = e.target.value; save(); } },
         [['grid', 'Grid'], ['minimal', 'Minimal sprites'], ['featured', 'Featured (one at a time)']].map(([a, b]) => h('option', { value: a, selected: v.template === a ? 'selected' : null }, b))),
@@ -237,16 +239,16 @@ export async function renderShowcasePage(el, route) {
         h('label', { class: 'label' }, 'Cycle every (s, 0 = off)'), h('input', { class: 'input', type: 'number', min: 0, max: 600, value: v.options.cycle_seconds, style: { width: '70px' }, onchange: (e) => { v.options.cycle_seconds = Number(e.target.value); save(); } })),
       h('div', { class: 'row wrap' }, h('label', { class: 'label' }, t('common.background')), h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => { v.options.background = e.target.value; save(); } },
         [['panel', 'Panel'], ['dark', 'Dark'], ['light', 'Light'], ['transparent', 'Transparent']].map(([a, b]) => h('option', { value: a, selected: v.options.background === a ? 'selected' : null }, b))),
-      h('input', { type: 'range', min: 0, max: 100, value: v.options.bg_opacity, 'aria-label': 'Background opacity', oninput: (e) => { v.options.bg_opacity = Number(e.target.value); save(); } })),
+      h('input', { type: 'range', min: 0, max: 100, value: v.options.bg_opacity, 'aria-label': translateUI('ui.background_opacity'), oninput: (e) => { v.options.bg_opacity = Number(e.target.value); save(); } })),
       h('div', { class: 'row wrap' }, h('label', { class: 'label' }, 'Motion'), h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => { v.options.motion = e.target.value; save(); } },
-        [['none', 'None'], ['float', 'Gentle float'], ['sheen', 'Shiny sheen']].map(([a, b]) => h('option', { value: a, selected: v.options.motion === a ? 'selected' : null }, b))),
+        [['none', translateUI('ui.none')], ['float', 'Gentle float'], ['sheen', 'Shiny sheen']].map(([a, b]) => h('option', { value: a, selected: v.options.motion === a ? 'selected' : null }, b))),
       h('label', { class: 'chip btnlike' + (v.options.big_sprites ? ' active' : '') }, h('input', { type: 'checkbox', class: 'check', checked: v.options.big_sprites, onchange: (e) => { v.options.big_sprites = e.target.checked; save(); } }), 'Large sprites')),
       h('span', { class: 'label' }, 'Show details'), h('div', { class: 'row wrap' }, sw('nickname', 'Nickname'), sw('level', 'Level'), sw('nature', 'Nature'), sw('ivs', 'IVs'),
         sw('encounter_count', 'Encounters'), sw('method', 'Method'), sw('location', 'Location'), sw('date', 'Date'), sw('ot', 'OT')),
       h('span', { class: 'label' }, `Entries (${v.entries.length})`),
       eligible.length ? h('div', { class: 'stack tight sc-pick', style: { maxHeight: '260px', overflow: 'auto' } }, eligible.map((e) => h('label', { class: 'row' },
         h('input', { type: 'checkbox', class: 'check', checked: v.entries.includes(e.id), onchange: (ev) => { v.entries = ev.target.checked ? [...v.entries, e.id] : v.entries.filter((x) => x !== e.id); save(); } }),
-        h('img', { class: 'pixel', src: e.icon, width: 28, height: 28, alt: '' }), h('span', { class: 'small' }, (e.nickname || e.species_name) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
+        h('img', { class: 'pixel', src: e.icon, width: 28, height: 28, alt: '' }), h('span', { class: 'small' }, (e.nickname || speciesLabel(e.species_id, e.species_name)) + (e.shiny ? ' ✦' : '') + (e.alpha ? ' α' : ''))))) :
         h('div', { class: 'small muted' }, 'No Box entries allowed in Showcase yet.'),
       h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: async () => { await saveSettings({ 'showcase.active': sc.id }); toast('Shown in the Showcase window'); } }, 'Use in Showcase window'),
         h('span', { class: 'grow' }), h('button', { class: 'btn danger ghost small', onclick: async () => { if (await confirmDialog('Delete showcase?', 'Box entries are not affected.', t('common.delete'), true)) { await api('DELETE', '/api/showcases/' + sc.id); go('#/collection/showcases'); } } }, t('common.delete')))),

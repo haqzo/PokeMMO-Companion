@@ -1,3 +1,6 @@
+import { locale } from '../i18n.js';
+import { plural, t as translateUI } from '../i18n.js';
+import { gameTerm, speciesLabel } from '../game-locale.js';
 // Home + in-app official news / changelog / event reader (docs/design/03).
 import { h, mount, icon, get, post, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
@@ -58,11 +61,11 @@ async function renderHome(el) {
     get('/api/guides/runs'), get('/api/data/status'), on_('favourites') ? loadList().catch(() => []) : Promise.resolve([])]);
   const active = cur.current.filter((g) => g.status.state === 'recent').length;
   const status = [
-    !cur.source.enabled ? 'Alpha/Swarm feed off' : `${active} Alpha/Swarm report${active === 1 ? '' : 's'} likely active`,
-    `Roaming this month: ${leg.current.kanto.name} & ${leg.current.johto.name}`,
-    n.latest ? `Latest update ${fmtDate(n.latest.published)}` : null].filter(Boolean).join(' · ');
+    !cur.source.enabled ? translateUI('ui.home_feed_off') : plural('ui.home_feed_active', active),
+    translateUI('ui.home_roaming', { first: speciesLabel(leg.current.kanto.id, leg.current.kanto.name), second: speciesLabel(leg.current.johto.id, leg.current.johto.name) }),
+    n.latest ? translateUI('ui.home_last_update', { date: fmtDate(n.latest.published) }) : null].filter(Boolean).join(' · ');
   page.append(h('div', { class: 'page-head home-head' }, h('div', null, h('h1', null, greeting()), h('div', { class: 'sub' }, status)),
-    h('div', { class: 'actions' }, communityLink(), h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), 'Customize Home'))));
+    h('div', { class: 'actions' }, communityLink(), h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), translateUI('ui.customize_home')))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, () => renderHome(el)));
   else if (data.update_available) page.append(installBanner(data, () => renderHome(el), true));
   const grid = h('div', { class: 'home-v3' });
@@ -114,7 +117,7 @@ function communityLink() {
 
 function greeting() {
   const hr = new Date().getHours();
-  return hr < 5 ? 'Good night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+  return translateUI(hr < 5 ? 'ui.hello_night' : hr < 12 ? 'ui.hello_morning' : hr < 18 ? 'ui.hello_afternoon' : 'ui.hello_evening');
 }
 
 // ------------------------------------------------------------ roaming Legendaries
@@ -136,16 +139,16 @@ function roamerArt(m, size) {
 }
 function roamersCard(leg) {
   const cur = leg.current, nxt = leg.next;
-  const month = (mm, y) => new Date(y, mm - 1, 1).toLocaleString(undefined, { month: 'long' });
+  const month = (mm, y) => new Date(y, mm - 1, 1).toLocaleString(locale(), { month: 'long' });
   const tile = (region, m) => h('button', { class: 'roamer', onclick: () => go('#/pokedex/' + m.id), title: `${m.name} — open in the Pokédex` },
-    roamerArt(m, scaled('roamers', 116)), h('div', { class: 'roamer-name' }, m.name), h('div', { class: 'tiny muted roamer-region' }, cap(region)), typeChips(m.types, true));
+    roamerArt(m, scaled('roamers', 116)), h('div', { class: 'roamer-name' }, speciesLabel(m.id, m.name)), h('div', { class: 'tiny muted roamer-region' }, gameTerm('region', cap(region))), typeChips(m.types, true));
   return h('section', { class: 'card home-roamers half', 'aria-labelledby': 'roam-h' },
-    h('div', { class: 'card-head' }, h('h2', { id: 'roam-h' }, 'Roaming Legendaries'), h('span', { class: 'tiny muted' }, month(cur.month, cur.year)),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/legendaries') }, 'Calendar', icon('chev')))),
+    h('div', { class: 'card-head' }, h('h2', { id: 'roam-h' }, translateUI('ui.roaming_legendaries')), h('span', { class: 'tiny muted' }, month(cur.month, cur.year)),
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/legendaries') }, translateUI('ui.calendar'), icon('chev')))),
     h('div', { class: 'roamer-row' }, tile('kanto', cur.kanto), tile('johto', cur.johto)),
     h('div', { class: 'tiny muted roamer-foot', title: leg.status_note },
       nxt ? `Next: ${month(nxt.month, nxt.year)} · ${nxt.kanto.name} & ${nxt.johto.name}` : '',
-      sourceInfo('COMMUNITY-CYCLE', 'Not checked in game this month; the rollover time is unknown.'), extLink(leg.source_url, 'Source')));
+      sourceInfo('COMMUNITY-CYCLE', 'Not checked in game this month; the rollover time is unknown.'), extLink(leg.source_url, translateUI('ui.source'))));
 }
 
 // ------------------------------------------------------------ Alpha & Swarm
@@ -153,8 +156,8 @@ function liveCard(cur) {
   const box = h('div', { class: 'cur-grid home-cur' });
   const head = h('div', { class: 'row small home-feed' });
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
-    h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, 'Alpha & Swarm'), h('span', { class: 'tiny muted' }, 'recently reported'),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, 'History', icon('chev')))), head, box, homePhenomena());
+    h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, translateUI('ui.alpha_swarm')), h('span', { class: 'tiny muted' }, 'recently reported'),
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, homePhenomena());
   let stop = null, expiry = null, sprites = new Map();
   const draw = (c) => {
     const src = c.source;
@@ -207,14 +210,14 @@ async function updateCard(n, rerender) {
     f && !f.ok ? `Last attempt failed: ${f.error}.` : '', f && f.stale ? 'The saved list may be out of date.' : '',
     `Summaries written ${fmtDate(n.snapshot_checked_at)}.`].filter(Boolean).join(' ');
   return h('section', { class: 'card hero home-update', 'aria-labelledby': 'latest-h' },
-    h('div', { class: 'hero-eyebrow' }, icon('book'), 'Latest official update', h('span', { class: 'grow' }), provenanceLine(L)),
+    h('div', { class: 'hero-eyebrow' }, icon('book'), translateUI('ui.official_update'), h('span', { class: 'grow' }), provenanceLine(L)),
     h('h2', { class: 'headline', id: 'latest-h' }, L.title),
     L.has_summary === false || !L.summary ? h('p', { class: 'hero-summary muted' }, 'New official post — only its title, date and link are known in the Companion. Open it on the forum for the full changelog.')
       : h('p', { class: 'hero-summary' }, L.summary),
     points.length ? h('ul', { class: 'hero-points' }, points.map((p) => h('li', null, p))) : null,
     L.edited_upstream ? h('div', { class: 'small', style: { color: 'var(--warn)' } }, 'The official post was edited after this summary was written — check the forum for changes.') : null,
     h('div', { class: 'row wrap' }, L.discovered ? extLink(L.source_url, 'Open official post')
-      : h('button', { class: 'btn primary small', onclick: () => go('#/news/' + L.id) }, 'Read details'),
+      : h('button', { class: 'btn primary small', onclick: () => go('#/news/' + L.id) }, translateUI('ui.read_details')),
     h('button', { class: 'btn small', onclick: () => go('#/news') }, 'All updates & events')),
     h('div', { class: 'update-foot row wrap tiny', title: detail }, h('span', { class: 'dot ' + (!f ? '' : f.ok && !f.stale ? 'connected' : 'offline') }), h('span', null, status),
       n.new_posts.length ? h('span', { class: 'muted' }, `· ${n.new_posts.length} post${n.new_posts.length === 1 ? '' : 's'} without a summary yet`) : null,
@@ -242,7 +245,7 @@ function newsCard(n) {
       ? h('div', { class: 'list-row compact new-post', dataset: { published: p.published } }, ...inner, extLink(p.source_url || p.link, 'Open'))
       : h('button', { class: 'list-row compact', dataset: { published: p.published }, onclick: () => go('#/news/' + p.id) }, ...inner);
   });
-  return h('section', { class: 'card home-news half' }, h('div', { class: 'card-head' }, h('h2', null, 'More official updates'),
+  return h('section', { class: 'card home-news half' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.official_updates_more')),
     h('span', { class: 'tiny muted' }, `published in the last ${hm.window_days} days`),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/news') }, 'Archive', icon('chev')))),
   rows.length ? h('div', { class: 'list-rows' }, rows) : h('div', { class: 'small muted home-empty' }, `Nothing published in the last ${hm.window_days} days besides the update above. Older posts are in the archive.`));
@@ -251,7 +254,7 @@ function newsCard(n) {
 function eventsCard(n) {
   // Only ongoing (scheduled window open) and upcoming events. Past events live in the archive, not on Home.
   const evs = ((n.home && n.home.events) || n.upcoming).slice(0, 3);
-  return h('section', { class: 'card home-events' }, h('div', { class: 'card-head' }, h('h2', null, 'Official events'), h('div', { class: 'right' },
+  return h('section', { class: 'card home-events' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.official_events')), h('div', { class: 'right' },
     h('button', { class: 'btn ghost small', onclick: () => go('#/events') }, 'Archive', icon('chev')))),
   evs.length ? h('div', { class: 'list-rows' }, evs.map((e) => eventRow(e))) :
     h('div', { class: 'small muted home-empty', title: `Event list written ${fmtDate(n.snapshot_checked_at)}; new official event posts appear under official updates.` }, 'No ongoing or upcoming official events.'));
@@ -260,7 +263,7 @@ function eventsCard(n) {
 async function continueCard(runs, rerender) {
   const run = runs.runs.find((r) => r.id === runs.active) || runs.runs[0];
   if (!run) {
-    return h('section', { class: 'card half home-run row' }, icon('guides'), h('div', { class: 'grow small' }, h('strong', null, 'Storyline run'), h('div', { class: 'muted' }, 'Track storyline progress per character.')),
+    return h('section', { class: 'card half home-run row' }, icon('guides'), h('div', { class: 'grow small' }, h('strong', null, translateUI('ui.storyline_run')), h('div', { class: 'muted' }, 'Track storyline progress per character.')),
       h('button', { class: 'btn small', onclick: async () => { if (await createRun()) rerender(); } }, icon('plus'), 'Create a run'));
   }
   const st = await get(`/api/guides/runs/${run.id}/state?region=${run.last_region}`);
@@ -277,7 +280,7 @@ async function continueCard(runs, rerender) {
 
 function quickCard() {
   const list = (setting('nav.quick_access') || []).map((it) => ({ it, info: qaInfo(it) })).filter((x) => x.info);
-  return h('section', { class: 'card home-quick' }, h('div', { class: 'card-head' }, h('h2', null, 'Quick access'),
+  return h('section', { class: 'card home-quick' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.quick_access')),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/tools') }, 'Tools', icon('chev')))),
   list.length ? h('div', { class: 'quick-chips' }, list.map(({ info }) => h('button', { class: 'quick-chip' + (info.disabled ? ' disabled' : ''), title: info.disabled || info.label,
     onclick: () => (info.disabled ? toast(info.disabled, { kind: 'warn' }) : go(info.route)) },
@@ -287,7 +290,7 @@ function quickCard() {
 
 function favouritesCard(species) {
   const favs = species.filter((x) => x.fav).slice(0, 18);
-  return h('section', { class: 'card half home-favs' }, h('div', { class: 'card-head' }, h('h2', null, 'Favourite Pokémon'),
+  return h('section', { class: 'card half home-favs' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.favourite_pokemon')),
     h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/pokedex') }, 'Pokédex', icon('chev')))),
   favs.length ? h('div', { class: 'fav-strip' }, favs.map((x) => h('button', { class: 'fav-tile', title: `${x.name} — ${x.avail}`, onclick: () => go('#/pokedex/' + x.id) },
     sizedSprite(x, 48, { still: x.still, url: x.icon, tier: x.size || 'm' }), h('span', { class: 'tiny' }, x.name)))) :
@@ -303,7 +306,7 @@ function getStarted(data, runs, rerender) {
   const draw = (game) => mount(steps,
     step(true, 'Ready to use', 'Pokédex, moves, items and encounters for all five regions are built in and work offline. Nothing to install or import.'),
     step(false, 'Language', 'Menus and texts; Pokémon names stay English.',
-      h('select', { class: 'input', style: { width: 'auto', minHeight: '28px' }, 'aria-label': 'Language', onchange: async (e) => { await saveSettings({ 'app.language': e.target.value }); location.reload(); } },
+      h('select', { class: 'input', style: { width: 'auto', minHeight: '28px' }, 'aria-label': translateUI('ui.language'), onchange: async (e) => { await saveSettings({ 'app.language': e.target.value }); location.reload(); } },
         LANGS.map((l) => h('option', { value: l.id, selected: setting('app.language') === l.id ? 'selected' : null }, l.native)))),
     step(!!(game && game.chosen), 'PokeMMO', game && game.chosen ? `Found: ${game.chosen.label}. You can start it from Companion.` : 'Not found automatically — you can choose it later. Companion works without it.',
       game && game.chosen ? h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : r.already_starting ? 'PokeMMO is already starting' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, icon('play'), 'Launch PokeMMO') : null,
@@ -366,13 +369,13 @@ async function renderNewsList(el, route, initial) {
     const items = listFilter === 'events' ? [] : all.filter((a) => listFilter === 'all' || (listFilter === 'pts' ? a.channel === 'pts'
       : listFilter === 'changelog' ? ['changelog', 'hotfix'].includes(a.kind) && a.channel === 'live' : a.kind === listFilter && a.channel === 'live'));
     mount(page,
-      h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/home') }, icon('back'), 'Home'),
+      h('div', { class: 'page-head' }, h('button', { class: 'btn ghost', onclick: () => go('#/home') }, icon('back'), translateUI('ui.home')),
         h('div', null, h('h1', null, 'Official updates & events'), h('div', { class: 'sub' }, n.feed && n.feed.last_ok_at ? `Official forum checked ${relTime(n.feed.last_ok_at)}` : `Summaries written ${fmtDate(n.snapshot_checked_at)}`))),
       h('div', { class: 'row wrap', style: { marginBottom: '14px' } },
         ['all', 'changelog', 'announcement', 'pts', 'events'].map((f) => h('button', { class: 'chip btnlike' + (listFilter === f ? ' active' : ''), onclick: () => { listFilter = f; draw(); } },
           { all: 'All', changelog: 'Changelogs', announcement: 'Announcements', pts: 'Test server (PTS)', events: 'Events' }[f]))),
       h('div', { class: 'content-narrow stack' },
-        listFilter === 'events' || listFilter === 'all' ? h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Events')),
+        listFilter === 'events' || listFilter === 'all' ? h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, translateUI('ui.events'))),
           n.upcoming.length ? null : h('p', { class: 'muted', style: { marginTop: 0 } }, 'No upcoming official events confirmed in this snapshot.'),
           h('div', { class: 'list-rows' }, n.events.map(eventRow))) : null,
         items.length ? h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Posts')),
@@ -391,7 +394,7 @@ async function renderArticle(el, id) {
   let a;
   try { a = await get('/api/news/' + id); } catch (e) { mount(page, notice('bad', e.message)); return; }
   mount(page, h('div', { class: 'content-narrow' },
-    h('div', { class: 'row', style: { marginBottom: '12px' } }, h('button', { class: 'btn ghost', onclick: () => history.length > 1 ? history.back() : go('#/news') }, icon('back'), 'Back')),
+    h('div', { class: 'row', style: { marginBottom: '12px' } }, h('button', { class: 'btn ghost', onclick: () => history.length > 1 ? history.back() : go('#/news') }, icon('back'), translateUI('ui.back'))),
     h('article', { class: 'card article' },
       h('div', { class: 'band' }, h('div', { class: 'eyebrow card-head', style: { margin: 0 } }, a.channel === 'pts' ? 'Public Test Server' : (KIND_LABEL[a.kind] || a.kind)),
         h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, a.title), provenanceLine(a)),
@@ -401,7 +404,7 @@ async function renderArticle(el, id) {
       a.companion_impact && a.companion_impact.length ? [h('h2', null, 'What this changes in the Companion'), h('ul', null, a.companion_impact.map((p) => h('li', null, p)))] : null,
       h('hr'),
       h('div', { class: 'small muted stack tight' },
-        h('div', null, 'Source: ', extLink(a.source_url, 'Original post on the official PokeMMO forum')),
+        h('div', null, 'Source: ', extLink(a.source_url, translateUI('ui.news_official_source'))),
         h('div', null, 'This is an independently written summary, not the full post. ', sourceText(a.provenance))))));
 }
 
@@ -413,7 +416,7 @@ async function renderEvent(el, id) {
   const local = (iso) => iso && iso.length > 10 ? `${fmtDate(iso, true)} (your time) · ${iso.replace('T', ' ').replace(':00Z', ' UTC')}` : fmtDate(iso);
   const kindLabel = { seasonal: 'Seasonal world event', competition: 'Catching competition', test: 'Test-server event', tournament: 'PvP tournament' }[e.kind] || cap(e.kind);
   mount(page, h('div', { class: 'content-narrow' },
-    h('div', { class: 'row', style: { marginBottom: '12px' } }, h('button', { class: 'btn ghost', onclick: () => history.length > 1 ? history.back() : go('#/events') }, icon('back'), 'Back')),
+    h('div', { class: 'row', style: { marginBottom: '12px' } }, h('button', { class: 'btn ghost', onclick: () => history.length > 1 ? history.back() : go('#/events') }, icon('back'), translateUI('ui.back'))),
     h('article', { class: 'card article' },
       h('div', { class: 'band' }, h('div', { class: 'eyebrow card-head', style: { margin: 0 } }, kindLabel),
         h('h1', { style: { margin: '4px 0 6px', fontSize: '1.45rem' } }, e.title),

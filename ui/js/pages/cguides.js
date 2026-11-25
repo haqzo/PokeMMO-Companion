@@ -1,3 +1,4 @@
+import { t as translateUI } from '../i18n.js';
 // My guides — user-authored guides with checklists and repeatable cycles (docs/design/18 §5).
 // The bundled storyline guides and character runs are untouched; these are separate records.
 import { guideExtras } from '../guide-extras.js';
@@ -32,7 +33,7 @@ export async function render(el, route) {
   const cat = route.query.get('cat') || '';
   const used = [...new Set(res.guides.map((g) => g.scope))];
   if (used.length > 1) page.append(h('div', { class: 'row wrap', style: { marginBottom: '10px' }, role: 'tablist', 'aria-label': 'Categories' },
-    [['', 'All'], ...SCOPES.filter(([k]) => used.includes(k))].map(([k, l]) => h('button', { class: 'chip btnlike' + (cat === k ? ' active' : ''), role: 'tab', 'aria-selected': String(cat === k),
+    [['', translateUI('ui.all')], ...SCOPES.filter(([k]) => used.includes(k))].map(([k, l]) => h('button', { class: 'chip btnlike' + (cat === k ? ' active' : ''), role: 'tab', 'aria-selected': String(cat === k),
       onclick: () => go('#/guides/mine' + (k ? '?cat=' + k : '')) }, l, h('span', { class: 'count' }, k ? res.guides.filter((g) => g.scope === k && !g.archived_at).length : res.guides.filter((g) => !g.archived_at).length)))));
   const inCat = (g) => !cat || g.scope === cat;
   const active = res.guides.filter((g) => !g.archived_at && inCat(g)), archived = res.guides.filter((g) => g.archived_at && inCat(g));
@@ -51,10 +52,10 @@ export async function render(el, route) {
 async function createDialog(prefill = {}) {
   const v = { title: '', scope: 'custom', region: '', location: '', recurring: false, description: '', ...prefill };
   const body = h('div', { class: 'stack tight' },
-    h('label', { class: 'label' }, 'Title'), h('input', { class: 'input', value: v.title, maxlength: 120, oninput: (e) => { v.title = e.target.value; } }),
-    h('div', { class: 'grid-2' }, h('div', null, h('label', { class: 'label' }, 'Type'), h('select', { class: 'input', onchange: (e) => { v.scope = e.target.value; if (e.target.value === 'gym_rerun') { v.recurring = true; rec.checked = true; } } },
+    h('label', { class: 'label' }, translateUI('ui.title')), h('input', { class: 'input', value: v.title, maxlength: 120, oninput: (e) => { v.title = e.target.value; } }),
+    h('div', { class: 'grid-2' }, h('div', null, h('label', { class: 'label' }, translateUI('ui.type')), h('select', { class: 'input', onchange: (e) => { v.scope = e.target.value; if (e.target.value === 'gym_rerun') { v.recurring = true; rec.checked = true; } } },
       SCOPES.map(([a, b]) => h('option', { value: a, selected: v.scope === a ? 'selected' : null }, b)))),
-    h('div', null, h('label', { class: 'label' }, 'Region'), h('select', { class: 'input', onchange: (e) => { v.region = e.target.value; } }, REGIONS.map((r) => h('option', { value: r }, r ? cap(r) : '—'))))),
+    h('div', null, h('label', { class: 'label' }, translateUI('ui.region')), h('select', { class: 'input', onchange: (e) => { v.region = e.target.value; } }, REGIONS.map((r) => h('option', { value: r }, r ? cap(r) : '—'))))),
     h('label', { class: 'label' }, 'Location (optional)'), h('input', { class: 'input', maxlength: 80, oninput: (e) => { v.location = e.target.value; } }));
   const rec = h('input', { type: 'checkbox', class: 'check', checked: v.recurring, onchange: (e) => { v.recurring = e.target.checked; } });
   body.append(h('label', { class: 'row' }, rec, h('span', null, 'Repeatable (start a new cycle when finished, keep history)')));
@@ -73,7 +74,7 @@ async function importDialog() {
   const title = h('input', { class: 'input', value: prev.title });
   const ok = await modal({ title: 'Import guide', wide: true, body: h('div', { class: 'stack tight' },
     h('div', { class: 'small' }, `${prev.count} steps found in ${file.name}. Your file stays on this computer; the steps become a guide you can edit.`),
-    prev.warnings.map((w) => notice('info', w)), h('label', { class: 'label' }, 'Title'), title,
+    prev.warnings.map((w) => notice('info', w)), h('label', { class: 'label' }, translateUI('ui.title')), title,
     h('div', { class: 'cg-preview' }, prev.steps.slice(0, 60).map((s) => h('div', { class: 'cg-step k-' + s.kind, style: { paddingLeft: (s.depth * 16) + 'px' } }, s.kind === 'check' ? '☐ ' : '', s.text)),
       prev.steps.length > 60 ? h('div', { class: 'tiny muted' }, `… and ${prev.steps.length - 60} more`) : null)),
   actions: [{ label: t('common.cancel'), kind: 'ghost', value: false }, { label: t('common.import'), kind: 'primary', value: true }] });
@@ -125,7 +126,7 @@ async function renderGuide(el, id, route) {
             if (g.done < g.checks && !(await confirmDialog('Finish this cycle?', `${g.checks - g.done} steps are not ticked. They stay unticked in the history.`, 'Finish cycle'))) return;
             g = await post(`/api/cguides/${g.id}/complete`, { note: '' }); toast(g.recurring ? `Cycle finished — cycle ${g.cycle.number} started` : 'Guide marked complete'); draw(); gx.load(); } },
           g.recurring ? 'Finish cycle & start next' : 'Mark complete'),
-          g.history.filter((c) => c.completed_at).length ? h('div', { class: 'stack tight' }, h('span', { class: 'label' }, 'History'),
+          g.history.filter((c) => c.completed_at).length ? h('div', { class: 'stack tight' }, h('span', { class: 'label' }, translateUI('ui.history')),
             g.history.filter((c) => c.completed_at).slice(0, 12).map((c) => h('div', { class: 'small' }, `#${c.number} · ${fmtDate(c.completed_at)} · ${c.done}/${g.checks}`, c.note ? ` · ${c.note}` : ''))) : null),
         gxPanel,
         linkedNotes('custom_guide', g.id, g.title),
@@ -166,17 +167,17 @@ function editor(g, onSaved) {
     h('button', { class: 'icon-btn sm' + (s.media_id ? ' on' : ''), title: s.media_id ? 'Picture attached (click to replace)' : 'Attach a picture', 'aria-label': 'Attach picture', onclick: async () => {
       const f = await pickFile('image/png,image/jpeg,image/gif,image/webp'); if (!f) return;
       try { const m = await post('/api/media', { filename: f.name, data_b64: await fileToBase64(f) }); s.media_id = m.id; drawList(); } catch (x) { toast(x.message, { kind: 'warn' }); } } }, icon('eye')),
-    h('button', { class: 'icon-btn sm', title: 'Move up', 'aria-label': 'Move up', onclick: () => move(i, -1) }, '↑'),
-    h('button', { class: 'icon-btn sm', title: 'Move down', 'aria-label': 'Move down', onclick: () => move(i, 1) }, '↓'),
+    h('button', { class: 'icon-btn sm', title: translateUI('ui.move_up'), 'aria-label': translateUI('ui.move_up'), onclick: () => move(i, -1) }, '↑'),
+    h('button', { class: 'icon-btn sm', title: translateUI('ui.move_down'), 'aria-label': translateUI('ui.move_down'), onclick: () => move(i, 1) }, '↓'),
     h('button', { class: 'icon-btn sm', title: t('common.remove'), 'aria-label': t('common.remove'), onclick: () => { steps.splice(i, 1); drawList(); } }, '✕'))));
   drawList();
   return h('div', { class: 'card stack tight' },
-    h('div', { class: 'grid-2' }, h('div', null, h('label', { class: 'label' }, 'Title'), h('input', { class: 'input', value: meta.title, maxlength: 120, oninput: (e) => { meta.title = e.target.value; } })),
-      h('div', null, h('label', { class: 'label' }, 'Type'), h('select', { class: 'input', onchange: (e) => { meta.scope = e.target.value; } }, SCOPES.map(([a, b]) => h('option', { value: a, selected: meta.scope === a ? 'selected' : null }, b))))),
-    h('div', { class: 'grid-3' }, h('div', null, h('label', { class: 'label' }, 'Region'), h('select', { class: 'input', onchange: (e) => { meta.region = e.target.value; } }, REGIONS.map((r) => h('option', { value: r, selected: meta.region === r ? 'selected' : null }, r ? cap(r) : '—')))),
-      h('div', null, h('label', { class: 'label' }, 'Location'), h('input', { class: 'input', value: meta.location, maxlength: 80, oninput: (e) => { meta.location = e.target.value; } })),
+    h('div', { class: 'grid-2' }, h('div', null, h('label', { class: 'label' }, translateUI('ui.title')), h('input', { class: 'input', value: meta.title, maxlength: 120, oninput: (e) => { meta.title = e.target.value; } })),
+      h('div', null, h('label', { class: 'label' }, translateUI('ui.type')), h('select', { class: 'input', onchange: (e) => { meta.scope = e.target.value; } }, SCOPES.map(([a, b]) => h('option', { value: a, selected: meta.scope === a ? 'selected' : null }, b))))),
+    h('div', { class: 'grid-3' }, h('div', null, h('label', { class: 'label' }, translateUI('ui.region')), h('select', { class: 'input', onchange: (e) => { meta.region = e.target.value; } }, REGIONS.map((r) => h('option', { value: r, selected: meta.region === r ? 'selected' : null }, r ? cap(r) : '—')))),
+      h('div', null, h('label', { class: 'label' }, translateUI('ui.location')), h('input', { class: 'input', value: meta.location, maxlength: 80, oninput: (e) => { meta.location = e.target.value; } })),
       h('label', { class: 'row', style: { alignSelf: 'end' } }, h('input', { type: 'checkbox', class: 'check', checked: meta.recurring, onchange: (e) => { meta.recurring = e.target.checked; } }), 'Repeatable')),
-    h('label', { class: 'label' }, 'Description'), h('textarea', { class: 'input', rows: 2, maxlength: 4000, oninput: (e) => { meta.description = e.target.value; } }, meta.description),
+    h('label', { class: 'label' }, translateUI('ui.description')), h('textarea', { class: 'input', rows: 2, maxlength: 4000, oninput: (e) => { meta.description = e.target.value; } }, meta.description),
     h('div', { class: 'tiny muted' }, 'Enter adds a step below · Tab / Shift+Tab indents · ☐ checklist, H heading, ¶ text. Ticks are kept when you reorder or edit text.'),
     list,
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: () => { steps.push({ kind: 'check', depth: 0, text: '', links: [] }); drawList(); list.querySelector('.cg-edit-row:last-child input.grow').focus(); } }, icon('plus'), 'Step'),
