@@ -412,3 +412,56 @@ def test_default_home_defers_unused_catalog_and_guides(app, page):
         assert any("/js/pages/pokedex.js" in url for url in requests)
     finally:
         app.ctx.settings.update(old)
+
+
+def test_empty_live_countdowns_do_not_schedule_work(app, page):
+    go(page, app, "#/home")
+    result = page.evaluate("""async () => {
+        const {startTimers} = await import('/js/pages/live.js');
+        const interval = window.setInterval, frame = window.requestAnimationFrame;
+        let calls = 0;
+        window.setInterval = (...args) => { calls++; return interval(...args); };
+        window.requestAnimationFrame = (...args) => { calls++; return frame(...args); };
+        try {
+            const stop = startTimers(document.createElement('div'), 0, () => {});
+            stop();
+            return calls;
+        } finally {
+            window.setInterval = interval;
+            window.requestAnimationFrame = frame;
+        }
+    }""")
+    assert result == 0
+
+
+def test_live_source_response_cannot_restart_disposed_page(app, page):
+    go(page, app, "#/home")
+    result = page.evaluate("""async () => {
+        const live = await import('/js/pages/live.js');
+        const host = document.createElement('div');
+        document.body.append(host);
+        const original = window.fetch;
+        let entered, release, calls = 0;
+        const requested = new Promise(resolve => { entered = resolve; });
+        const gate = new Promise(resolve => { release = resolve; });
+        window.fetch = async (path, ...args) => {
+            if (path === '/api/live/source') { entered(); await gate; }
+            if (path === '/api/live/current' || String(path).startsWith('/api/live/reports?')) calls++;
+            return original(path, ...args);
+        };
+        try {
+            const pending = live.render(host, {parts: ['reports']});
+            await requested;
+            live.dispose();
+            host.remove();
+            release();
+            await pending;
+            return calls;
+        } finally {
+            release();
+            window.fetch = original;
+            live.dispose();
+            host.remove();
+        }
+    }""")
+    assert result == 0

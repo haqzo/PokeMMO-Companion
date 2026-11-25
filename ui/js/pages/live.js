@@ -27,8 +27,9 @@ const reportTitle = (r) => r.is_test ? liveText(r.title) : r.title;
 const reportBody = (r) => r.is_test ? liveText(r.body) : r.body;
 
 let unsub = [];
+let renderEpoch = 0;
 let ui = { kind: 'all', q: '', hideTests: false, calendar: false, region: '' };
-export function dispose() { unsub.forEach((u) => u()); unsub = []; }
+export function dispose() { renderEpoch++; unsub.forEach((u) => u()); unsub = []; }
 
 // ---------------------------------------------------------------- current reports & estimated timers
 // Times come from the server ("now" + each report's start), so a wrong or changed local clock only shifts the
@@ -51,30 +52,45 @@ export function timerText(st, nowMs) {
   return '';
 }
 export function startTimers(root, skewMs, onExpire) {
-  let seen = false;
+  // No countdowns: no recurring work. The caller starts a new timer after replacing the report list.
+  if (!root.querySelector('[data-ends]')) return () => {};
+  let seen = false, stopped = false, id = null, early = null, frame = null;
+  const stop = () => {
+    stopped = true; clearInterval(id); clearInterval(early);
+    if (frame !== null) cancelAnimationFrame(frame);
+  };
   const tick = () => {
-    if (!root.isConnected) { if (seen) clearInterval(id); return; }  // not in the page yet, or gone (page switched)
+    if (stopped) return;
+    if (!root.isConnected) { if (seen) stop(); return; }
     seen = true;
+    if (document.visibilityState === 'hidden') return;
     const now = Date.now() + skewMs;
     let expired = false;
     root.querySelectorAll('[data-ends]').forEach((el) => {
       const st = { state: el.dataset.state, duration_min: 1, ends_at: el.dataset.ends };
-      el.textContent = timerText(st, now);
+      const text = timerText(st, now);
+      if (el.textContent !== text) el.textContent = text;
       if (el.dataset.state === 'recent' && Date.parse(el.dataset.ends) <= now) {
         expired = true;
         const chip = el.closest('.cur-card') && el.closest('.cur-card').querySelector('.cur-state');
-        if (chip) { chip.textContent = translateUI('ui.estimated_ended'); chip.className = 'cur-state warn'; }
+        if (chip && chip.className !== 'cur-state warn') { chip.textContent = translateUI('ui.estimated_ended'); chip.className = 'cur-state warn'; }
       }
     });
     if (expired && onExpire) onExpire();
   };
-  const id = setInterval(tick, 15000);
+  id = setInterval(tick, 15000);
   tick();
-  // built before it is placed in the page (Home assembles its sections first): fill the countdowns as soon as it is
-  let early = null;
-  if (!seen) { const t0 = Date.now(); early = setInterval(() => { if (root.isConnected) { tick(); clearInterval(early); } else if (Date.now() - t0 > 5000) clearInterval(early); }, 50); }
-  const frame = requestAnimationFrame(tick);
-  return () => { clearInterval(id); clearInterval(early); cancelAnimationFrame(frame); };
+  // Home builds sections before attaching them. Bound the attachment probe;
+  // an abandoned section must not retain a recurring timer indefinitely.
+  if (!seen) {
+    const t0 = Date.now();
+    early = setInterval(() => {
+      if (root.isConnected) { tick(); clearInterval(early); }
+      else if (Date.now() - t0 > 5000) stop();
+    }, 50);
+  }
+  frame = requestAnimationFrame(tick);
+  return stop;
 }
 const timeOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 /** Card for one current Alpha/Swarm (several identical reports are one card, timed from the earliest). */
@@ -112,6 +128,7 @@ function reportKind(kind) {
 
 export async function render(el, route) {
   dispose();
+  const epoch = renderEpoch;
   const sub = ['reports', 'phenomena', 'legendaries', 'cave'].includes(route.parts[0]) ? route.parts[0] : 'reports';
   const page = h('div', { class: 'page' });
   mount(el, page);
@@ -124,7 +141,9 @@ export async function render(el, route) {
   if (sub === 'legendaries') return renderLegendaries(body);
   if (sub === 'cave') return renderCave(body);
   if (sub === 'phenomena') return renderPhenomena(body);
-  return renderReports(body, route.parts[1], await get('/api/live/source'));
+  const src = await get('/api/live/source');
+  if (epoch !== renderEpoch || !body.isConnected) return;
+  return renderReports(body, route.parts[1], src, epoch);
 }
 
 // ---------------------------------------------------------------- reports
@@ -172,29 +191,40 @@ async function testDialog() {
   }), { timeout: 7000 });
 }
 
-async function renderReports(el, selectedId, src) {
+async function renderReports(el, selectedId, src, epoch) {
+  const active = () => epoch === renderEpoch && el.isConnected;
+  let listRequest = 0;
   const listBox = h('div', { class: 'stack tight' });
   const inspector = h('div');
   const load = async () => {
+    if (!active()) return;
+    const request = ++listRequest;
+    const current = () => active() && request === listRequest;
     const qs = new URLSearchParams();
     if (ui.kind !== 'all') qs.set('kind', ui.kind);
     if (ui.q) qs.set('q', ui.q);
     if (ui.region) qs.set('region', ui.region);
     qs.set('tests', ui.hideTests ? '0' : '1');
     const r = await get('/api/live/reports?' + qs);
+    if (!current()) return;
     mount(listBox, r.reports.length ? r.reports.map((x) => reportRow(x, x.id === selectedId)) : h('div', { class: 'empty' },
       h('h3', null, translateUI('ui.no_reports')), h('p', null, src.enabled ? translateUI('ui.live_empty_feed') :
         translateUI('ui.live_disabled_feed'))));
     if (selectedId) {
-      try { renderReportDetail(inspector, await get('/api/live/reports/' + selectedId)); } catch (_) { mount(inspector); }
+      try { const detail = await get('/api/live/reports/' + selectedId); if (current()) renderReportDetail(inspector, detail); } catch (_) { if (current()) mount(inspector); }
     } else mount(inspector, h('div', { class: 'card muted small' }, translateUI('ui.live_select_report')));
   };
   const notifier = state.boot.notifier;
   const curBox = h('div', { class: 'cur-grid' });
   const curNote = h('div');
-  let stopTimers = null;
+  let stopTimers = null, refreshing = false, queued = false;
   const loadCurrent = async () => {
+    if (!active()) return;
+    if (refreshing) { queued = true; return; }
+    refreshing = true;
+    try {
     const c = await get('/api/live/current');
+    if (!active()) return;
     const skew = Date.parse(c.now) - Date.now();
     const warn = !c.source.enabled ? notice('info', c.current.length ? translateUI('ui.live_cached_feed')
       : null)
@@ -203,9 +233,13 @@ async function renderReports(el, selectedId, src) {
       h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? translateUI('ui.live_none_recent') : translateUI('ui.live_enable_feed')));
     mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
     if (stopTimers) stopTimers();
-    stopTimers = startTimers(curBox, skew, () => loadCurrent());
+    stopTimers = startTimers(curBox, skew, refreshCurrent);
+    } finally {
+      refreshing = false;
+      if (queued) { queued = false; if (active()) refreshCurrent(); }
+    }
   };
-  const refreshCurrent = () => { if (document.visibilityState !== 'hidden') loadCurrent(); };
+  const refreshCurrent = () => { if (active() && document.visibilityState !== 'hidden') loadCurrent().catch(e => console.warn('Live refresh failed', e)); };
   const every = setInterval(refreshCurrent, 60000);
   document.addEventListener('visibilitychange', refreshCurrent);
   unsub.push(() => { clearInterval(every); document.removeEventListener('visibilitychange', refreshCurrent); if (stopTimers) stopTimers(); });
@@ -229,7 +263,8 @@ async function renderReports(el, selectedId, src) {
     h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmDialog(translateUI('ui.live_clear_tests'), translateUI('ui.live_clear_tests_confirm'))) { await post('/api/live/clear', { tests_only: true }); load(); } } }, translateUI('ui.live_clear_tests')),
       h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmDialog(translateUI('ui.live_clear_history'), translateUI('ui.live_clear_history_confirm'), translateUI('ui.live_clear'), true)) { await post('/api/live/clear', {}); load(); } } }, translateUI('ui.clear_history')))));
   await Promise.all([load(), loadCurrent()]);
-  unsub.push(on('live.report', () => { load(); loadCurrent(); }));
+  if (!active()) return;
+  unsub.push(on('live.report', () => { if (active()) { load().catch(e => console.warn('Live history refresh failed', e)); refreshCurrent(); } }));
   unsub.push(on('live.source', (s) => { const bar = el.querySelector('.source-bar'); if (bar) bar.replaceWith(sourceBar(s)); }));
 }
 
