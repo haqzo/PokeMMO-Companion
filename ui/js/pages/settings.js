@@ -234,26 +234,26 @@ export async function data(b) {
   const boot = await get('/api/bootstrap');
   const sugg = (await get('/api/import/suggest')).candidates;
   const m = boot.dex.manifest;
-  const dumpPath = h('input', { class: 'input', placeholder: '/home/you/Documents/PokeMMO-Companion/Pokemmo-Dumps', value: sugg.find((x) => /Dumps$/.test(x)) || sugg[0] || '', 'aria-label': 'Dump folder' });
-  const guidePath = h('input', { class: 'input', placeholder: '/home/you/Documents/PokeMMO-Companion/Storyline-guides', value: sugg.find((x) => /guides$/i.test(x)) || '', 'aria-label': 'Walkthrough folder' });
+  const dumpPath = h('input', { class: 'input', placeholder: '/home/you/Documents/PokeMMO-Companion/Pokemmo-Dumps', value: sugg.find((x) => /Dumps$/.test(x)) || sugg[0] || '', 'aria-label': translateUI('advanced.dump_folder') });
+  const guidePath = h('input', { class: 'input', placeholder: '/home/you/Documents/PokeMMO-Companion/Storyline-guides', value: sugg.find((x) => /guides$/i.test(x)) || '', 'aria-label': translateUI('advanced.guide_folder') });
   const browse = (input, purpose) => SHELL === 'qt' ? h('button', { class: 'btn', onclick: async () => {
     const off = on('shell.folder', (d) => { if (d.purpose === purpose && d.path) { input.value = d.path; } off(); });
-    await post('/api/shell/command', { action: 'pick_folder', purpose }); } }, 'Browse…') : null;
+    await post('/api/shell/command', { action: 'pick_folder', purpose }); } }, translateUI('advanced.browse')) : null;
   const jobBox = h('div', { class: 'small' });
   const runImport = async (kind, folder) => {
-    if (!folder.trim()) { toast('Type or choose a folder first', { kind: 'warn' }); return; }
+    if (!folder.trim()) { toast(translateUI('advanced.choose_folder'), { kind: 'warn' }); return; }
     try {
       const det = await post('/api/import/detect', { folder: folder.trim() });
-      const what = kind === 'dumps' ? Object.keys(det.dumps).join(', ') || (det.combined.length ? 'combined archive' : 'nothing recognised') : Object.keys(det.guides).join(', ') || 'no walkthrough files';
-      if (kind === 'dumps' && !det.dumps.pokedex && !det.combined.length) { mount(jobBox, notice('warn', `PokedexData.zip not found in that folder (found: ${what}).`)); return; }
-      if (kind === 'guides' && !Object.keys(det.guides).length) { mount(jobBox, notice('warn', 'No “<REGION> COMPLETE WALKTHROUGH.odt” files found in that folder.')); return; }
-      mount(jobBox, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), `Importing (${what})…`));
+      const what = kind === 'dumps' ? Object.keys(det.dumps).join(', ') || (det.combined.length ? translateUI('advanced.combined_archive') : translateUI('advanced.nothing_recognised')) : Object.keys(det.guides).join(', ') || translateUI('advanced.no_guides');
+      if (kind === 'dumps' && !det.dumps.pokedex && !det.combined.length) { mount(jobBox, notice('warn', translateUI('advanced.missing_dex', { what }))); return; }
+      if (kind === 'guides' && !Object.keys(det.guides).length) { mount(jobBox, notice('warn', translateUI('advanced.missing_guides'))); return; }
+      mount(jobBox, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), translateUI('advanced.importing', { what })));
       const { job } = await post('/api/import/' + kind, { folder: folder.trim() });
       const poll = async () => {
         const j = await get('/api/import/jobs/' + job);
-        if (j.state === 'running') { mount(jobBox, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), (j.messages || []).slice(-1)[0] || 'Working…')); setTimeout(poll, 400); return; }
+        if (j.state === 'running') { mount(jobBox, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), (j.messages || []).slice(-1)[0] || translateUI('advanced.working'))); setTimeout(poll, 400); return; }
         if (j.state === 'error') { mount(jobBox, notice('bad', j.error)); return; }
-        toast(kind === 'dumps' ? 'Pokédex data imported' : 'Walkthroughs imported');
+        toast(kind === 'dumps' ? translateUI('advanced.dex_imported') : translateUI('advanced.guides_imported'));
         state.dexCache = null; await (await import('../core.js')).loadBoot();
         render(document.getElementById('main'), { parts: ['data'] });
       };
@@ -264,38 +264,38 @@ export async function data(b) {
   const importedGuides = guideSources.map((g, i) => [['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'][i], g.sources.find((s) => s.id === 'imported')]).filter(([, s]) => s);
   const ds = await get('/api/data/status');
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.advanced')),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Everything Companion needs is built in. The options here are optional extras for people who want to use their own files.'),
-    h('h3', null, 'PokeMMO data'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('advanced.advanced_help')),
+    h('h3', null, translateUI('advanced.game_data')),
     (() => { const rb = boot.dex.reference || {}; const rc = rb.counts || {};
-      return h('div', { class: 'card inset small stack tight bundled-data' }, h('div', null, h('strong', null, 'Built in'),
-        ` — PokeMMO reference data, client data dated ${rb.dump_date ? fmtDate(rb.dump_date) : 'unknown'} · ${rc.species || 0} species · ${rc.location_rows || 0} encounter rows`),
-        h('div', { class: 'muted' }, 'Ships with the Companion and works offline. Nothing to install. ',
-          m && m.source_kind !== 'bundled' && !m.error ? 'Your own client data (below) is currently used instead.' : '')); })(),
-    h('details', { class: 'adv-data' }, h('summary', null, 'Optional, advanced: use your own PokeMMO client files (adds your client’s icons and sprites)'),
-    notice('info', h('strong', null, 'Your files stay on this computer. '), 'Never required. The Companion copies what it needs into its private data folder once and never modifies, uploads or commits your originals. Remove the personal copy any time to go back to the built-in data.'),
-    ds.candidates.length ? h('div', { class: 'stack tight', style: { marginBottom: '8px' } }, h('div', { class: 'label' }, 'Found on this computer'),
+      return h('div', { class: 'card inset small stack tight bundled-data' }, h('div', null, h('strong', null, translateUI('advanced.built_in')),
+        translateUI('advanced.ref_stats', { date: rb.dump_date ? fmtDate(rb.dump_date) : translateUI('advanced.unknown'), species: rc.species || 0, rows: rc.location_rows || 0 })),
+        h('div', { class: 'muted' }, translateUI('advanced.offline_help'),
+          m && m.source_kind !== 'bundled' && !m.error ? translateUI('advanced.personal_active') : '')); })(),
+    h('details', { class: 'adv-data' }, h('summary', null, translateUI('advanced.client_optional')),
+    notice('info', h('strong', null, translateUI('advanced.files_private')), translateUI('advanced.files_help')),
+    ds.candidates.length ? h('div', { class: 'stack tight', style: { marginBottom: '8px' } }, h('div', { class: 'label' }, translateUI('advanced.found_files')),
       ds.candidates.map((c) => h('div', { class: 'list-row', style: { cursor: 'default' } }, icon('download'), h('div', { class: 'grow' }, h('div', { class: 'mono small' }, c.folder),
-        h('div', { class: 'tiny muted' }, `contains: ${c.parts.join(', ') || 'combined archive'}${c.guides.length ? ' · walkthroughs: ' + c.guides.join(', ') : ''}`)),
-      h('button', { class: 'btn small' + (ds.installed ? '' : ' primary'), onclick: () => { dumpPath.value = c.folder; runImport('dumps', c.folder); } }, ds.installed ? 'Re-install from here' : 'Install'),
-      c.guides.length ? h('button', { class: 'btn small', onclick: () => runImport('guides', c.folder) }, 'Import walkthroughs') : null))) :
-      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, 'No PokeMMO client files found in the usual folders (Documents/PokeMMO-Companion, the PokeMMO Flatpak data folder, Downloads). Enter its folder below.'),
-    ds.update_available ? notice('warn', 'Your client files changed since they were imported — re-import to refresh. Runs, checkmarks and settings are kept.') : null,
-    m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, h('strong', null, 'Your client files in use'), ` · imported ${fmtDate(m.imported_at, true)} · ${m.counts.species} species · ${m.counts.location_rows} location rows · ${m.counts.icons || 0} icons · ${m.counts.battle_sprites || 0} battle sprites`),
+        h('div', { class: 'tiny muted' }, translateUI('advanced.contains', { parts: c.parts.join(', ') || translateUI('advanced.combined_archive') }) + (c.guides.length ? translateUI('advanced.contains_guides', { guides: c.guides.join(', ') }) : ''))),
+      h('button', { class: 'btn small' + (ds.installed ? '' : ' primary'), onclick: () => { dumpPath.value = c.folder; runImport('dumps', c.folder); } }, ds.installed ? translateUI('advanced.reinstall') : translateUI('advanced.install')),
+      c.guides.length ? h('button', { class: 'btn small', onclick: () => runImport('guides', c.folder) }, translateUI('advanced.import_guides')) : null))) :
+      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, translateUI('advanced.not_found')),
+    ds.update_available ? notice('warn', translateUI('advanced.client_changed')) : null,
+    m && !m.error && m.source_kind !== 'bundled' ? h('div', { class: 'card inset small stack tight' }, h('div', null, h('strong', null, translateUI('advanced.client_active')), translateUI('advanced.import_stats', { date: fmtDate(m.imported_at, true), species: m.counts.species, locations: m.counts.location_rows, icons: m.counts.icons || 0, sprites: m.counts.battle_sprites || 0 })),
       h('div', { class: 'muted' }, Object.entries(m.sources).map(([k, v]) => `${k}: ${v.file}${v.sha256 ? ' (sha256 ' + v.sha256.slice(0, 12) + '…)' : ''}`).join(' · ')),
-      (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : 'Not used — the built-in data is active.'),
-    h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, dumpPath), browse(dumpPath, 'dumps'), h('button', { class: 'btn primary', onclick: () => runImport('dumps', dumpPath.value) }, icon('download'), m ? 'Re-import' : 'Import')),
-    h('div', { class: 'tiny muted' }, 'Folder with PokedexData.zip (and optionally PokemmoIconsDump.zip, PokemmoBattleSpritesDump.zip, ItemSpriteDump.zip), or a combined Pokemmo-Dumps archive.')),
-    h('h3', null, 'Your own walkthrough files (optional)'),
-    h('div', { class: 'tiny muted' }, 'The five regional walkthroughs are already built in (Guides › Storyline). Import your own .odt copies only to use a different version; your checkmarks stay with each character run.'),
-    importedGuides.length ? h('div', { class: 'small' }, importedGuides.map(([r, s]) => h('div', null, `${cap(r)}: ${s.label.replace('Your walkthrough ', '')} · ${s.steps} steps · imported ${fmtDate(s.checked_at, true)}`))) : h('div', { class: 'small muted' }, 'None imported. Guides use the bundled milestone outline.'),
-    h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, guidePath), browse(guidePath, 'guides'), h('button', { class: 'btn primary', onclick: () => runImport('guides', guidePath.value) }, icon('download'), 'Import walkthroughs')),
-    h('div', { class: 'tiny muted' }, 'Reads “KANTO COMPLETE WALKTHROUGH.odt” etc. Re-importing keeps your checkmarks (stable step IDs) and flags any step whose wording changed.'),
+      (m.notes || []).map((x) => h('div', { class: 'muted' }, x))) : h('div', { class: 'small muted' }, m && m.error ? m.error : translateUI('advanced.client_inactive')),
+    h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, dumpPath), browse(dumpPath, 'dumps'), h('button', { class: 'btn primary', onclick: () => runImport('dumps', dumpPath.value) }, icon('download'), m ? translateUI('advanced.reimport') : t('common.import'))),
+    h('div', { class: 'tiny muted' }, translateUI('advanced.dump_help'))),
+    h('h3', null, translateUI('advanced.personal_guides')),
+    h('div', { class: 'tiny muted' }, translateUI('advanced.personal_guides_help')),
+    importedGuides.length ? h('div', { class: 'small' }, importedGuides.map(([r, s]) => h('div', null, translateUI('advanced.imported_guide', { region: gameTerm('region', cap(r)), name: s.label.replace('Your walkthrough ', ''), steps: s.steps, date: fmtDate(s.checked_at, true) })))) : h('div', { class: 'small muted' }, translateUI('advanced.no_imported_guides')),
+    h('div', { class: 'row', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, guidePath), browse(guidePath, 'guides'), h('button', { class: 'btn primary', onclick: () => runImport('guides', guidePath.value) }, icon('download'), translateUI('advanced.import_guides'))),
+    h('div', { class: 'tiny muted' }, translateUI('advanced.guide_format')),
     jobBox,
     await spriteLibrarySection(browse),
-    h('h3', null, 'Storage'),
-    h('div', { class: 'small' }, 'Data folder: ', h('span', { class: 'mono' }, boot.data_dir)),
-    h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Clear report history', 'Delete all saved Alpha/Swarm reports and TEST entries?', 'Clear', true)) { await post('/api/live/clear', {}); toast('Report history cleared'); } } }, 'Clear report history')),
-    h('p', { class: 'small muted' }, 'Privacy: no telemetry, no accounts, no game memory access, no automation. Network is used for the opt-in report feed and the official news check (automatic, can be turned off in Live sources & news).')));
+    h('h3', null, translateUI('advanced.storage')),
+    h('div', { class: 'small' }, translateUI('advanced.data_folder'), h('span', { class: 'mono' }, boot.data_dir)),
+    h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog(translateUI('advanced.clear_history'), translateUI('advanced.clear_history_confirm'), translateUI('ui.clear'), true)) { await post('/api/live/clear', {}); toast(translateUI('advanced.clear_history_done')); } } }, translateUI('advanced.clear_history'))),
+    h('p', { class: 'small muted' }, translateUI('advanced.privacy'))));
 
 }
 
@@ -303,7 +303,7 @@ export async function data(b) {
 async function spriteLibrarySection(browse) {
   const st = await get('/api/sprites/library');
   const box = h('div', { class: 'stack tight' });
-  const path = h('input', { class: 'input', placeholder: '/home/you/Downloads/sprites-master  (folder or .zip)', 'aria-label': 'Sprite library folder', value: st.personal ? st.source || '' : '' });
+  const path = h('input', { class: 'input', placeholder: '/home/you/Downloads/sprites-master  (folder or .zip)', 'aria-label': translateUI('advanced.sprite_folder'), value: st.personal ? st.source || '' : '' });
   const msg = h('div', { class: 'small' });
   const c = st.coverage;
   const lf = st.local_forms || {};
@@ -311,12 +311,12 @@ async function spriteLibrarySection(browse) {
   const run = async () => {
     try {
       await post('/api/sprites/library/import', { folder: path.value.trim() });
-      mount(msg, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), 'Reading the sprite files… your current library stays in use until this finishes.'));
+      mount(msg, h('div', { class: 'row' }, h('span', { class: 'dot connecting' }), translateUI('advanced.sprite_reading')));
       const poll = async () => {
         const j = (await get('/api/sprites/library')).job;
         if (j.state === 'running') { setTimeout(poll, 500); return; }
         if (j.state === 'error') { mount(msg, notice('bad', j.error)); return; }
-        toast(`Your sprite library is now in use: ${j.forms} forms, ${j.species} species${j.refused ? `, ${j.refused} files not used` : ''}`, { timeout: 7000 });
+        toast(translateUI('advanced.sprite_installed', { forms: j.forms, species: j.species, refused: j.refused ? translateUI('advanced.sprite_refused_suffix', { count: j.refused }) : '' }), { timeout: 7000 });
         state.dexCache = null; refresh();
       };
       poll();
@@ -327,39 +327,39 @@ async function spriteLibrarySection(browse) {
   const own = !!st.personal;
   const controls = h('div', { class: 'stack tight' },
     h('div', { class: 'row' }, h('div', { class: 'grow' }, path), browse(path, 'sprites'),
-      h('button', { class: 'btn ' + (own ? '' : 'primary'), onclick: run }, icon('download'), own ? 'Replace with this folder' : 'Use this folder instead')),
-      h('div', { class: 'tiny muted' }, 'Accepted layouts: PokéAPI …/black-white/animated[/shiny]/479-wash.gif, Smogon src/sprites/gen5/srotom-owash.gif, Showdown gen5ani[-shiny]/rotom-wash.gif. A file is used only for the exact species or form its name states; copies of base-form art are refused. Grid tiles keep the small static icons.'));
-  box.append(h('h3', null, 'Pokémon sprites'),
+      h('button', { class: 'btn ' + (own ? '' : 'primary'), onclick: run }, icon('download'), own ? translateUI('advanced.sprite_replace') : translateUI('advanced.sprite_use'))),
+      h('div', { class: 'tiny muted' }, translateUI('advanced.sprite_formats')));
+  box.append(h('h3', null, translateUI('advanced.pokemon_sprites')),
     own ? h('div', { class: 'card inset small stack tight' },
-      h('div', null, h('strong', null, 'Your own sprite library is in use'), ` — installed ${fmtDate(st.imported_at, true)} from `, h('span', { class: 'mono' }, st.source)),
-      c ? h('div', null, `Forms: ${c.forms_ani} animated · ${c.forms_ani_shiny} animated shiny · ${c.forms_static} still — of ${c.forms_total}. `,
-        `Species: ${c.species_ani} animated · ${c.species_ani_shiny} animated shiny — of ${c.species_total}.`) : null,
-      st.refused_count ? h('details', null, h('summary', null, `${st.refused_count} files were not used`),
+      h('div', null, h('strong', null, translateUI('advanced.sprite_personal_active')), translateUI('advanced.sprite_source', { date: fmtDate(st.imported_at, true) }), h('span', { class: 'mono' }, st.source)),
+      c ? h('div', null, translateUI('advanced.sprite_form_stats', { animated: c.forms_ani, shiny: c.forms_ani_shiny, still: c.forms_static, total: c.forms_total }),
+        translateUI('advanced.sprite_species_stats', { animated: c.species_ani, shiny: c.species_ani_shiny, total: c.species_total })) : null,
+      st.refused_count ? h('details', null, h('summary', null, translateUI('advanced.sprite_refused', { count: st.refused_count })),
         h('ul', { class: 'tiny' }, st.refused.slice(0, 60).map((r) => h('li', null, h('span', { class: 'mono' }, r.path), ' — ', r.reason)))) : null,
       h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: async () => {
-        if (await confirmDialog('Go back to the built-in sprites', 'Remove the copy of your sprite library from Companion’s data folder and use the built-in sprites again? Your own folder is not touched.', 'Use built-in sprites', true)) {
-          await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, 'Remove and use the built-in sprites')))
+        if (await confirmDialog(translateUI('advanced.sprite_go_back'), translateUI('advanced.sprite_remove_confirm'), translateUI('advanced.sprite_builtin_action'), true)) {
+          await api('DELETE', '/api/sprites/library'); state.dexCache = null; refresh(); } } }, translateUI('advanced.sprite_remove'))))
       : h('div', { class: 'card inset small stack tight' },
-        h('div', null, h('strong', null, 'Built-in sprites'), ' — included with Companion, nothing to install.'),
-        h('div', { class: 'muted' }, `${c ? c.species_total : 649} Pokémon and ${c ? c.forms_total : 82} alternate forms${st.female ? `, ${st.female} female variants` : ''}: normal and shiny, still and animated. Sources are listed in About & credits.`)),
-    own ? h('details', null, h('summary', { class: 'small' }, 'Replace it with another folder'), controls)
-      : h('details', null, h('summary', { class: 'small' }, 'Optional: use your own sprite collection instead'),
-        h('p', { class: 'small muted' }, 'Only if you prefer your own copy of a sprite collection (for example ', extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), ' or ',
-          extLink('https://github.com/smogon/sprites', 'Smogon sprites'), '). It is copied into your private data folder and used instead of the built-in set until you remove it.'), controls),
+        h('div', null, h('strong', null, translateUI('advanced.sprite_builtin')), translateUI('advanced.sprite_builtin_help')),
+        h('div', { class: 'muted' }, translateUI('advanced.sprite_builtin_stats', { species: c ? c.species_total : 649, forms: c ? c.forms_total : 82, female: st.female ? translateUI('advanced.female_suffix', { count: st.female }) : '' }))),
+    own ? h('details', null, h('summary', { class: 'small' }, translateUI('advanced.sprite_replace_other')), controls)
+      : h('details', null, h('summary', { class: 'small' }, translateUI('advanced.sprite_optional')),
+        h('p', { class: 'small muted' }, translateUI('advanced.sprite_optional_intro'), extLink('https://github.com/PokeAPI/sprites', 'PokéAPI sprites'), translateUI('advanced.sprite_optional_or'),
+          extLink('https://github.com/smogon/sprites', 'Smogon sprites'), translateUI('advanced.sprite_optional_end')), controls),
     msg,
-    h('details', null, h('summary', { class: 'small' }, 'Form artwork report'), await formArtReport()));
+    h('details', null, h('summary', { class: 'small' }, translateUI('advanced.art_report')), await formArtReport()));
   return box;
 }
 async function formArtReport() {
   const r = await get('/api/dex/art');
-  const label = { verified: 'Client ✓', unverified: 'Client (changed)', 'same-as-base': 'Base art only', placeholder: 'Placeholder', none: '—' };
-  return h('div', { class: 'stack tight' }, h('div', { class: 'tiny muted' }, `Client slots checked by eye on ${r.checked}. “Known sources” lists where an exact file name exists in each public repository (not downloaded).`),
-    h('table', { class: 'table compact sprite-cov tiny' }, h('thead', null, h('tr', null, [translateUI('ui.form'), 'Your client', 'Your library', 'Known sources'].map((x) => h('th', null, x)))),
+  const label = { verified: translateUI('advanced.client_verified'), unverified: translateUI('advanced.client_changed_art'), 'same-as-base': translateUI('advanced.base_art'), placeholder: translateUI('advanced.placeholder'), none: '—' };
+  return h('div', { class: 'stack tight' }, h('div', { class: 'tiny muted' }, translateUI('advanced.art_checked', { date: r.checked })),
+    h('table', { class: 'table compact sprite-cov tiny' }, h('thead', null, h('tr', null, [translateUI('ui.form'), translateUI('advanced.your_client'), translateUI('advanced.your_library'), translateUI('advanced.known_sources')].map((x) => h('th', null, x)))),
       h('tbody', null, r.forms.map((f) => h('tr', null, h('td', null, `${f.species} — ${f.name}`),
         h('td', { title: f.local_reason }, label[f.local_status] || f.local_status),
         h('td', null, f.library.length ? f.library.join(', ').replace(/_/g, ' ') : '—'),
-        h('td', null, [f.known_sources.pokeapi_animated ? 'PokéAPI anim' : null, f.known_sources.pokeapi_animated_shiny ? '+shiny' : null,
-          f.known_sources.smogon_animated ? 'Smogon anim' : null, f.known_sources.pokesprite_icon ? 'PokéSprite icon' : null].filter(Boolean).join(' · ') || '—'))))));
+        h('td', null, [f.known_sources.pokeapi_animated ? translateUI('advanced.pokeapi_anim') : null, f.known_sources.pokeapi_animated_shiny ? translateUI('advanced.shiny_suffix') : null,
+          f.known_sources.smogon_animated ? translateUI('advanced.smogon_anim') : null, f.known_sources.pokesprite_icon ? translateUI('advanced.pokesprite_icon') : null].filter(Boolean).join(' · ') || '—'))))));
 }
 
 // ---------------------------------------------------------------- about
