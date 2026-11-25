@@ -15,6 +15,8 @@ Owner correction, 25 November 2026. Development remains 0.1.0 on develop until t
 
 ## 3 — Quick performance smoke
 
+Use the optional developer-only `tools/performance_smoke.py` with psutil installed in the development environment. Start a fresh-profile native app, identify its main PID, then run `python tools/performance_smoke.py PID --output /tmp/companion-perf.json` (choose a writable Windows path on Windows). Four short samples: idle, navigation, popouts, recovery. Record startup/relaunch and process exit separately. No installed-app dependency or telemetry.
+
 - [ ] Measure startup time, idle and active CPU/RAM including native child processes. Check normal navigation, a few floating tools, sprite animation, closing tools and quitting/relaunching. Record machine/OS and measurements; investigate sustained abnormal growth or major slowdown.
 - [ ] Fix material performance issues only; no extensive profiling, speculative optimization or extra feature work.
 
