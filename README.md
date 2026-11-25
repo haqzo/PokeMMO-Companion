@@ -1,36 +1,75 @@
 # PokeMMO Companion
 
-**0.8.0 Alpha · Windows and Linux x86-64**
+An unofficial desktop companion for PokeMMO — Pokémon reference data, regional guides, planning tools and customizable floating windows, all in one application.
 
-An unofficial desktop companion for PokeMMO. Look up Pokémon and encounters, follow a region’s walkthrough, and keep a calculator or timer open beside the game.
+**Windows • Linux | English • Español • 简体中文**
 
-[GitHub Releases](https://github.com/haqzo/PokeMMO-Companion/releases) · [0.8.0 release notes](docs/releases/0.8.0.md) · [Community Discord](https://discord.gg/5Wbh28M3gu)
+[![Release](https://img.shields.io/github/v/release/haqzo/PokeMMO-Companion?include_prereleases&style=flat-square)](https://github.com/haqzo/PokeMMO-Companion/releases) [![Downloads](https://img.shields.io/github/downloads/haqzo/PokeMMO-Companion/total?style=flat-square)](https://github.com/haqzo/PokeMMO-Companion/releases) [![Stars](https://img.shields.io/github/stars/haqzo/PokeMMO-Companion?style=flat-square)](https://github.com/haqzo/PokeMMO-Companion/stargazers)
 
-The first official Alpha is in preparation. Official downloads will appear on GitHub Releases after approval and publication.
+[Downloads](https://github.com/haqzo/PokeMMO-Companion/releases) · [Installation](#installation) · [Showcase](showcase/) · [Discord](https://discord.gg/5Wbh28M3gu)
 
-## What you can do
+> **0.8.0 Alpha** — Preparing the first public release. Downloads will appear on GitHub Releases after publication.
 
-- Browse the Pokédex with animated normal and shiny sprites. Find encounters in Location Explorer and look up items, moves, and type matchups.
-- Follow walkthroughs for Kanto, Johto, Hoenn, Sinnoh, and Unova. Track progress separately for each character.
-- Plan teams and breeding projects, use calculators and timers, and keep Notes, My Pokémon, and your Shiny Showcase together.
-- Check legendary Pokémon, Unova Phenomena, and Altering Cave information. Community Alpha and Swarm reports are optional and require a connection.
-- Open supported tools in resizable floating windows. Choose English, Spanish, or Simplified Chinese and adjust themes, text size, layout, and performance profiles.
+![Companion home dashboard](showcase/screenshots/01-home-dashboard.png)
 
-The Pokédex, encounter data, guides, and personal tools work offline with the bundled data. A clean install needs no ROMs or dumps.
+## Features
 
-<!-- Add owner-approved showcase screenshots here when available. -->
+- **Pokédex & Location Explorer** — Normal and shiny sprites, Pokémon summaries, advanced filters, over 33,000 encounter records across five regions, and a searchable Item Library.
+- **Storyline & Guides** — Five regional walkthroughs, independent character runs, custom guides, progress and timers.
+- **Planning tools** — Team Builder, Breeding Planner, Type Matchups, Pokémon comparison, EV and horde planning, catch and stat calculators.
+- **Live information** — Optional Alpha and Swarm reports, Legendary rotations, Phenomena, Altering Cave and official news.
+- **Personal workspace** — Notes, My Pokémon, Shiny Showcase and reusable timers.
+- **Floating windows & customization** — Resizable tools, pinning where supported, opacity, themes, scaling and performance profiles.
 
-## Install from GitHub Releases
+The bundled references and most tools work offline. No ROMs, dumps or separate Python installation are required. Reference listings are not a guarantee of current in-game availability.
 
-| Platform | Download and launch |
+## Showcase
+
+![Floating Pokédex alongside PokeMMO gameplay](showcase/screenshots/12-floating-pokedex-in-gameplay.png)
+
+| Pokédex | Theme customization |
 | --- | --- |
-| Windows x86-64 | Download the portable ZIP, choose **Extract All**, then open `pokemmo-companion.exe` inside the extracted `pokemmo-companion` folder. Keep the files together. |
-| Linux x86-64 | Download the AppImage, make it executable, then open it. If FUSE is unavailable, run the AppImage with `--appimage-extract-and-run`. |
+| ![Pokédex](showcase/screenshots/02-pokedex.png) | ![Themes](showcase/gifs/themes.gif) |
 
-The packages bundle Python and Qt. Compare the package’s SHA-256 against `SHA256SUMS` on the release page. Back up your profile under **Settings → Backup & recovery** before replacing the application files. [Installation, updates, and recovery](docs/releases/0.8.0.md#install)
+[Explore more screenshots and demonstrations →](showcase/)
 
-## Alpha testing and support
+## Installation
 
-The first release targets Windows and Linux x86-64. Check the release notes for tested configurations. Please report your Companion version, OS and desktop, tool, reproduction steps, and what you expected to happen. Review any screenshots or diagnostics for personal information before sharing. [Tester and troubleshooting guide](docs/closed-alpha.md) · [Report a bug](https://github.com/haqzo/PokeMMO-Companion/issues) · [Community Discord](https://discord.gg/5Wbh28M3gu)
+Download the appropriate x86-64 package from [GitHub Releases](https://github.com/haqzo/PokeMMO-Companion/releases).
 
-[Changelog](CHANGELOG.md) · [Credits and software notices](CREDITS.md) · [Build instructions](packaging/README.md) · [Development workspace](https://github.com/haqzo/PokeMMO-Companion/blob/develop/DEVELOPMENT.md)
+**Windows — Portable ZIP**
+
+1. Download the Windows ZIP and select **Extract All**.
+2. Open the extracted `pokemmo-companion` folder.
+3. Run `pokemmo-companion.exe`. Keep all extracted files together.
+
+**Linux — AppImage**
+
+Download the AppImage, allow it to execute in your file manager, and open it. Alternatively, in its download directory:
+
+```bash
+chmod +x PokeMMO-Companion-0.8.0-x86_64.AppImage
+./PokeMMO-Companion-0.8.0-x86_64.AppImage
+```
+
+If FUSE is unavailable, launch with `--appimage-extract-and-run`.
+
+Verify downloaded packages against `SHA256SUMS`. See the release notes for tested systems and known limitations.
+
+## Getting started
+
+The optional Welcome panel helps you choose a language and configure PokeMMO integration. Open supported tools using their separate-window icon, then select Compact, Standard or Expanded mode. Themes and performance profiles are available in Settings.
+
+Updates are installed manually. Your personal data is stored separately from the application. Create backups under **Settings → Backup & recovery** before updating.
+
+[User guide, backups and troubleshooting](docs/closed-alpha.md)
+
+## Community
+
+This is alpha software. Please report bugs, compatibility problems and translation feedback through [GitHub Issues](https://github.com/haqzo/PokeMMO-Companion/issues) or our [Discord](https://discord.gg/5Wbh28M3gu).
+
+Companion does not read game memory, inject code, automate gameplay, count encounters or collect telemetry. Online reports, news and update checks require connectivity.
+
+[Changelog](CHANGELOG.md) · [Credits](CREDITS.md)
+
+PokeMMO Companion is an independent fan-made application and is not affiliated with or endorsed by PokeMMO or its developers.
