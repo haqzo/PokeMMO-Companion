@@ -4,6 +4,7 @@
 import { h, mount, icon, get, api, post, setting, saveSettings, on, notice, debounce, toast, relTime, confirmDialog, WINDOW_ID, POPOUT } from '../core.js';
 import { go, popoutButton, pinButton, openPopout } from '../shell.js';
 import { t, t as translateUI, lang } from '../i18n.js';
+import { speciesLabel } from '../game-locale.js';
 import { linkChip, pickLink, downloadText, openRoute } from '../links.js';
 
 const COLOURS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'grey'];
@@ -57,9 +58,9 @@ export function noteEditor(n, { onChange, compact, popout } = {}) {
   const preview = h('div', { class: 'note-preview', hidden: true });
   let previewing = false;
   const togglePreview = () => { previewing = !previewing; preview.hidden = !previewing; body.hidden = previewing;
-    if (previewing) mount(preview, renderNoteText(body.value)); prevBtn.textContent = previewing ? 'Edit' : 'Preview'; };
-  const prevBtn = h('button', { class: 'btn ghost small', onclick: togglePreview }, 'Preview');
-  const tags = h('input', { class: 'input', value: n.tags.join(', '), placeholder: 'tags, comma separated', 'aria-label': t('common.tags'), disabled: trash ? 'disabled' : null,
+    if (previewing) mount(preview, renderNoteText(body.value)); prevBtn.textContent = previewing ? t('common.edit') : translateUI('noteui.preview'); };
+  const prevBtn = h('button', { class: 'btn ghost small', onclick: togglePreview }, translateUI('noteui.preview'));
+  const tags = h('input', { class: 'input', value: n.tags.join(', '), placeholder: translateUI('noteui.tags'), 'aria-label': t('common.tags'), disabled: trash ? 'disabled' : null,
     onchange: (e) => queue({ tags: e.target.value }) });
   const links = h('div', { class: 'row wrap link-row' });
   const drawLinks = () => mount(links, n.links.map((l) => linkChip(l, trash ? null : async () => { Object.assign(n, await api('DELETE', `/api/notes/${n.id}/links/${l.kind}/${encodeURIComponent(l.ref)}`)); drawLinks(); onChange && onChange(n, 'links'); })),
@@ -68,8 +69,8 @@ export function noteEditor(n, { onChange, compact, popout } = {}) {
   const act = async (a) => { await flush(); const r = await post(`/api/notes/${n.id}/${a}`); onChange && onChange(r, a); return r; };
   const pin = h('button', { class: 'icon-btn' + (n.pinned ? ' on' : ''), title: n.pinned ? translateUI('ui.unpin') : translateUI('ui.b272_note_pin'), 'aria-pressed': String(n.pinned), disabled: trash ? 'disabled' : null,
     onclick: () => { n.pinned = !n.pinned; pin.classList.toggle('on', n.pinned); queue({ pinned: n.pinned }); } }, icon('pin'));
-  const colours = h('div', { class: 'row', role: 'radiogroup', 'aria-label': 'Colour' }, [null, ...COLOURS].map((c) => h('button', {
-    class: 'swatch' + (n.colour === c ? ' on' : ''), dataset: { c: c || 'none' }, role: 'radio', 'aria-checked': String(n.colour === c), title: c || translateUI('ui.b272_note_no_color'), disabled: trash ? 'disabled' : null,
+  const colours = h('div', { class: 'row', role: 'radiogroup', 'aria-label': translateUI('noteui.colour') }, [null, ...COLOURS].map((c) => h('button', {
+    class: 'swatch' + (n.colour === c ? ' on' : ''), dataset: { c: c || 'none' }, role: 'radio', 'aria-checked': String(n.colour === c), title: c ? translateUI('noteui.' + c) : translateUI('ui.b272_note_no_color'), disabled: trash ? 'disabled' : null,
     onclick: (e) => { n.colour = c; [...colours.children].forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-checked', 'false'); }); e.currentTarget.classList.add('on'); queue({ colour: c }); } })));
   const actions = trash ? [h('button', { class: 'btn', onclick: () => act('restore') }, icon('undo'), t('common.restore')),
     h('button', { class: 'btn danger', onclick: async () => { if (!(await confirmDialog(t('notes.purge'), translateUI('ui.b272_note_delete_forever'), t('notes.purge'), true))) return;
@@ -137,7 +138,7 @@ export async function render(el, route) {
       const box = e.target.querySelector('[data-lazy]');
       const sn = await get('/api/notes/species');
       mount(box, sn.notes.length ? sn.notes.map((x) => h('button', { class: 'note-row', onclick: () => go(`#/pokedex/${x.species_id}?tab=notes`) },
-        h('strong', null, x.name), h('div', { class: 'small muted ellipsis' }, x.body))) : h('div', { class: 'small muted' }, translateUI('ui.b272_note_species_empty')));
+        h('strong', null, speciesLabel(x.species_id, x.name)), h('div', { class: 'small muted ellipsis' }, x.body))) : h('div', { class: 'small muted' }, translateUI('ui.b272_note_species_empty')));
     });
     if (st.sel) {
       try {
@@ -160,7 +161,7 @@ export async function renderNotesPopout(el, mode) {
   let id = m ? m[1] : setting('notes.popout_note');
   const res = await get('/api/notes');
   if (!id || (!m && !res.notes.some((n) => n.id === id))) id = res.notes[0] && res.notes[0].id;
-  const picker = h('select', { class: 'input', 'aria-label': 'Note', onchange: async (e) => { if (e.target.value === '__new') { const n = await newNote(); location.hash = '#/note/' + n.id; return; }
+  const picker = h('select', { class: 'input', 'aria-label': translateUI('noteui.note'), onchange: async (e) => { if (e.target.value === '__new') { const n = await newNote(); location.hash = '#/note/' + n.id; return; }
     await saveSettings({ 'notes.popout_note': e.target.value }); location.hash = '#/note/' + e.target.value; } },
   res.notes.map((n) => h('option', { value: n.id, selected: n.id === id ? 'selected' : null }, (n.pinned ? '📌 ' : '') + (n.title || t('notes.untitled')))),
   h('option', { value: '__new' }, '+ ' + t('notes.new')));

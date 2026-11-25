@@ -133,7 +133,7 @@ class TitleBar(QWidget):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 3, 4, 3)
         lay.setSpacing(2)
-        self.title = QLabel(TOOL_TITLES.get(popout.tool, popout.tool))
+        self.title = QLabel(popout.shell.tr_ui(TOOL_TITLES.get(popout.tool, popout.tool)))
         self.title.setObjectName("title")
         lay.addWidget(self.title, 1)
 
@@ -249,7 +249,7 @@ class Popout(QWidget):
         self.locked = bool(self.pref("locked"))
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.setWindowTitle(f"{TOOL_TITLES.get(tool, tool)} — {APP_NAME}")
+        self.setWindowTitle(f"{shell.tr_ui(TOOL_TITLES.get(tool, tool))} — {APP_NAME}")
         self.setMinimumSize(260, 180)
         self.setMouseTracking(True)
         lay = QVBoxLayout(self)
@@ -720,7 +720,7 @@ class QtShell:
             self.ctx.bus.publish("shell.folder", {"purpose": cmd.get("purpose"), "path": path or None})
         elif a == "pick_file":
             path, _ = QFileDialog.getOpenFileName(self.main, self.tr_ui("Choose your ROM file (opened read-only)"), str(Path.home()),
-                                                  "Game Boy Advance / Nintendo DS ROMs (*.gba *.nds);;" + self.tr_ui("All files") + " (*)")
+                                                  self.tr_ui("Game Boy Advance / Nintendo DS ROMs") + " (*.gba *.nds);;" + self.tr_ui("All files") + " (*)")
             self.ctx.bus.publish("shell.file", {"purpose": cmd.get("purpose"), "path": path or None})
         elif a == "minimize_main":
             if self.tray is not None and self.ctx.settings.get("app.close_behavior") == "tray":
@@ -728,8 +728,8 @@ class QtShell:
             else:
                 self.main.showMinimized()
         elif a == "pick_launcher":
-            filt = "PokeMMO (PokeMMO.exe *.exe *.lnk *.bat *.cmd)" if sys.platform.startswith("win") else "PokeMMO launcher (*.sh PokeMMO*);;All files (*)"
-            path, _ = QFileDialog.getOpenFileName(self.main, "Choose the PokeMMO launcher", str(Path.home()), filt)
+            filt = "PokeMMO (PokeMMO.exe *.exe *.lnk *.bat *.cmd)" if sys.platform.startswith("win") else self.tr_ui("PokeMMO launcher") + " (*.sh PokeMMO*);;" + self.tr_ui("All files") + " (*)"
+            path, _ = QFileDialog.getOpenFileName(self.main, self.tr_ui("Choose the PokeMMO launcher"), str(Path.home()), filt)
             self.ctx.bus.publish("shell.file", {"purpose": cmd.get("purpose") or "launcher", "path": path or None})
         elif a == "quit":
             self.quit()
@@ -828,7 +828,7 @@ class QtShell:
     # ------------------------------------------------------------ downloads
     def _download(self, req) -> None:
         name = req.downloadFileName() or "pokemmo-companion-export.json"
-        target, _ = QFileDialog.getSaveFileName(self.main, "Save file", str(Path.home() / name), "JSON (*.json);;All files (*)")
+        target, _ = QFileDialog.getSaveFileName(self.main, self.tr_ui("Save file"), str(Path.home() / name), "JSON (*.json);;" + self.tr_ui("All files") + " (*)")
         if not target:
             req.cancel()
             return

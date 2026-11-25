@@ -1,4 +1,4 @@
-import { number, t as translateUI } from '../i18n.js';
+import { number, uiLabel, t as translateUI } from '../i18n.js';
 import { compareLabels, gameTerm, itemLabel, matchesTerm, searchText, speciesLabel } from '../game-locale.js';
 // Item Library (docs/design/18 §1): every item group from the user's own installed dump.
 // Categories are inferred and say so; links come only from item IDs in the same dump.
@@ -6,6 +6,11 @@ import { h, mount, clear, icon, get, api, state, setting, saveSettings, on, noti
 import { go, popoutButton, pinButton } from '../shell.js';
 import { t, lang } from '../i18n.js';
 import { linkedNotes, openRoute } from '../links.js';
+
+const CATEGORY_KEYS = {"balls":"itemui.cat_balls","medicine":"itemui.cat_medicine","berries":"itemui.cat_berries","hold":"itemui.cat_hold","tms":"itemui.cat_tms","evolution":"itemui.cat_evolution","breeding":"itemui.cat_breeding","training":"itemui.cat_training","battle":"itemui.cat_battle","field":"itemui.cat_field","farming":"itemui.cat_farming","fossils":"itemui.cat_fossils","rewards":"itemui.cat_rewards","cosmetics":"itemui.cat_cosmetics","mail":"itemui.cat_mail","key":"itemui.cat_key","other":"itemui.cat_other","placeholder":"itemui.cat_placeholder"};
+const SOURCE_KEYS = {"name is a placeholder":"itemui.basis_placeholder","name starts with TM/HM":"itemui.basis_tm","name ends with “Ball”":"itemui.basis_ball","name ends with “Berry”":"itemui.basis_berry","name ends with “Mail”":"itemui.basis_mail","description says cosmetic / dye / particle effect":"itemui.basis_cosmetic","description mentions an unknown reward / dated event item":"itemui.basis_reward","name contains “Fossil”":"itemui.basis_fossil","name/description mentions seeds or planting":"itemui.basis_farming","known breeding item":"itemui.basis_breeding","used by an evolution in the game data":"itemui.basis_evolution","evolution stone description":"itemui.basis_stone","description mentions stats / EVs / nature / level":"itemui.basis_training","description mentions use in battle":"itemui.basis_battle","description mentions use outside battle / lures":"itemui.basis_field","description mentions restoring / healing":"itemui.basis_medicine","description mentions holding":"itemui.basis_hold","name looks like a key item":"itemui.basis_key","no rule matched":"itemui.basis_other","PokeMMO game data. Region codes are the game data's raw values.":"itemui.provenance","Install (or re-install) your PokeMMO data to build the Item Library from your own dump.":"itemui.unavailable"};
+const itemCategory = (key, fallback) => CATEGORY_KEYS[key] ? translateUI(CATEGORY_KEYS[key]) : fallback;
+const itemSource = (value) => SOURCE_KEYS[value] ? translateUI(SOURCE_KEYS[value]) : uiLabel(value);
 
 let cache = null, unsub = [];
 const F0 = { q: '', cat: 'all', fav: false, held: false, evo: false, placeholders: false, sort: 'name' };
@@ -36,7 +41,7 @@ export function applyItemFilters(items, f) {
 
 export function itemTile(i, { selected, onOpen, compact } = {}) {
   return h('button', { class: 'item-tile' + (selected ? ' selected' : '') + (compact ? ' compact' : ''), dataset: { id: i.id }, title: itemLabel(i) + (itemLabel(i) !== i.name ? ` (${i.name})` : ''),
-    'aria-label': `${itemLabel(i)}${i.fav ? ', favourite' : ''}${i.qty != null ? ', you have ' + i.qty : ''}`, onclick: () => onOpen(i.id) },
+    'aria-label': itemLabel(i) + (i.fav ? translateUI('itemui.favourite_suffix') : '') + (i.qty != null ? translateUI('itemui.quantity_suffix', { count: i.qty }) : ''), onclick: () => onOpen(i.id) },
   i.icon ? h('img', { class: 'pixel', src: i.icon, alt: '', width: 32, height: 32, loading: 'lazy' }) : h('span', { class: 'item-noicon', title: translateUI('ui.b272_item_no_icon') }, '?'),
   h('span', { class: 'it-name ellipsis' }, itemLabel(i)), i.fav ? h('span', { class: 'it-fav', 'aria-hidden': 'true' }, '★') : null,
   i.qty != null ? h('span', { class: 'it-qty' }, '×' + i.qty) : null);
@@ -44,7 +49,7 @@ export function itemTile(i, { selected, onOpen, compact } = {}) {
 
 function catOptions(data) {
   return [['all', `${t('common.all')} (${Object.entries(data.counts).filter(([k]) => k !== 'placeholder').reduce((a, [, v]) => a + v, 0)})`],
-    ...data.categories.filter(([k]) => data.counts[k] && k !== 'placeholder').map(([k, l]) => [k, `${l} (${data.counts[k]})`])];
+    ...data.categories.filter(([k]) => data.counts[k] && k !== 'placeholder').map(([k, l]) => [k, `${itemCategory(k, l)} (${number(data.counts[k])})`])];
 }
 
 export async function render(el, route) {
@@ -59,8 +64,8 @@ export async function render(el, route) {
     h('div', { class: 'actions' }, pinButton({ kind: 'tool', id: 'items' }), popoutButton('items')));
   page.append(head);
   if (!data.available) {
-    page.append(h('div', { style: { padding: '0 18px' } }, notice(data.syncing ? 'info' : 'warn', data.reason || t('items.not_installed'), ' ',
-      data.syncing ? null : h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, 'Settings › Data'))));
+    page.append(h('div', { style: { padding: '0 18px' } }, notice(data.syncing ? 'info' : 'warn', itemSource(data.reason) || t('items.not_installed'), ' ',
+      data.syncing ? null : h('button', { class: 'btn small', onclick: () => go('#/settings/data') }, translateUI('itemui.settings_data')))));
     unsub.push(on('import', async (d) => { if (d.state === 'done') { await load(true); render(el, route); } }));
     if (data.syncing) setTimeout(async () => { if (el.isConnected && location.hash.startsWith('#/tools/items')) { await load(true); render(el, route); } }, 4000);
     return;
@@ -127,17 +132,17 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
     h('div', { class: 'detail-head' },
       h('div', { class: 'art item-art' }, d.icon ? h('img', { class: 'pixel', src: d.icon, alt: '', width: 64, height: 64 }) : h('span', { class: 'item-noicon big' }, '?')),
       h('div', { class: 'grow', style: { minWidth: 0 } },
-        h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, 'Item ' + d.id), h('span', { class: 'grow' }), fav,
+        h('div', { class: 'row' }, h('span', { class: 'muted nowrap' }, translateUI('itemui.item_number', { id: d.id })), h('span', { class: 'grow' }), fav,
           back ? h('button', { class: 'icon-btn', title: t('common.close'), 'aria-label': t('common.close'), onclick: back }, icon('close')) : null),
         h('h2', null, itemLabel(d)), itemLabel(d) !== d.name ? h('div', { class: 'small muted' }, d.name) : null,
-        h('div', { class: 'row wrap', style: { marginTop: '4px' } }, h('span', { class: 'chip' }, d.category_label),
-          h('span', { class: 'tiny muted', title: translateUI('ui.b272_item_cat_basis') }, d.category_basis)))),
+        h('div', { class: 'row wrap', style: { marginTop: '4px' } }, h('span', { class: 'chip' }, itemCategory(d.category, d.category_label)),
+          h('span', { class: 'tiny muted', title: translateUI('ui.b272_item_cat_basis') }, itemSource(d.category_basis))))),
     h('div', { class: 'detail-body stack' },
       h('p', { class: 'item-desc', style: { margin: 0, whiteSpace: 'pre-line' } }, d.desc_local || d.desc || h('span', { class: 'muted small' }, translateUI('ui.b272_item_no_desc'))),
       d.desc_local ? h('details', null, h('summary', { class: 'small' }, translateUI('ui.b272_item_en_desc')), h('p', { class: 'small', style: { whiteSpace: 'pre-line' } }, d.desc)) : null,
       h('div', { class: 'row wrap' }, h('label', { class: 'label', for: 'qty-' + d.id }, t('items.owned_qty')), qty,
         h('span', { class: 'tiny muted' }, translateUI('ui.b272_item_qty_manual'))),
-      d.move ? h('div', { class: 'card inset' }, h('div', { class: 'label' }, 'Teaches'), h('div', null, h('strong', null, gameTerm('move', d.move.name)), ` · ${d.move.type} · ${d.move.category} · Pow ${d.move.power || '—'} · Acc ${d.move.accuracy > 100 ? '—' : d.move.accuracy} · PP ${d.move.pp}`)) : null,
+      d.move ? h('div', { class: 'card inset' }, h('div', { class: 'label' }, translateUI('itemui.teaches')), h('div', null, h('strong', null, gameTerm('move', d.move.name)), translateUI('itemui.move_stats', { type: gameTerm('type', d.move.type), category: gameTerm('category', d.move.category), power: d.move.power || '—', accuracy: d.move.accuracy > 100 ? '—' : d.move.accuracy, pp: d.move.pp }))) : null,
       d.evolution_uses.length ? h('div', { class: 'stack tight' }, h('div', { class: 'label' }, t('items.evolution')),
         h('div', { class: 'row wrap' }, d.evolution_uses.map((e) => h('button', { class: 'mini-mon', onclick: () => go_('#/pokedex/' + e.to), title: `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)} (${e.method.replace(/_/g, ' ').toLowerCase()})` },
           e.icon ? h('img', { class: 'pixel', src: e.icon, alt: '', width: 32, height: 32 }) : null, h('span', { class: 'small' }, `${speciesLabel(e.from, e.from_name)} → ${speciesLabel(e.to, e.to_name)}`))))) : null,
@@ -148,8 +153,8 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
       d.breeding ? h('div', { class: 'row wrap' }, h('span', { class: 'small' }, translateUI('ui.b272_item_breeding')), h('button', { class: 'btn small', onclick: () => go_('#/tools/breeding') }, icon('egg'), translateUI('ui.b272_item_open_breeding'))) : null,
       h('details', null, h('summary', { class: 'small' }, translateUI('ui.b272_item_records', { count: number(d.records.length) })),
         h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.item_id'), translateUI('ui.b272_item_region_code'), translateUI('ui.b272_item_icon_id'), translateUI('ui.b272_item_icon')].map((c) => h('th', null, c)))),
-          h('tbody', null, d.records.map((r) => h('tr', null, h('td', null, r.id), h('td', null, r.region_code), h('td', null, r.icon_id), h('td', null, r.has_icon ? '✓' : 'missing'))))),
-        h('div', { class: 'tiny muted' }, d.provenance)),
+          h('tbody', null, d.records.map((r) => h('tr', null, h('td', null, r.id), h('td', null, r.region_code), h('td', null, r.icon_id), h('td', null, r.has_icon ? '✓' : translateUI('itemui.missing')))))),
+        h('div', { class: 'tiny muted' }, itemSource(d.provenance))),
       linkedNotes('item', String(d.id), d.label),
       !popout ? h('div', { class: 'row' }, popoutButton('items', `#/item/${d.id}`)) : null));
 }
@@ -158,7 +163,7 @@ export async function renderItemDetail(pane, id, { back, popout } = {}) {
 export async function renderItemsPopout(el, mode) {
   filters();
   const data = await load();
-  if (!data.available) { mount(el, notice('info', data.reason || t('items.not_installed'))); return; }
+  if (!data.available) { mount(el, notice('info', itemSource(data.reason) || t('items.not_installed'))); return; }
   const m = location.hash.match(/^#\/item\/(\d+)/);
   if (m) {
     const pane = h('div', { class: 'popout-detail' });
@@ -170,7 +175,7 @@ export async function renderItemsPopout(el, mode) {
   const countEl = h('span', { class: 'tiny muted' });
   const draw = () => {
     const list = applyItemFilters(data.items, F);
-    countEl.textContent = `${list.length} of ${data.items.filter((i) => i.category !== 'placeholder').length}`;
+    countEl.textContent = translateUI('itemui.count', { count: number(list.length), total: number(data.items.filter((i) => i.category !== 'placeholder').length) });
     mount(grid, list.map((i) => itemTile(i, { compact: mode === 'compact', onOpen: (id) => { location.hash = `#/item/${id}`; } })));
   };
   mount(el, h('div', { class: 'row', style: { marginBottom: '6px' } },
