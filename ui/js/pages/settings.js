@@ -1,3 +1,4 @@
+import { gameTerm } from '../game-locale.js';
 import { uiLabel } from '../i18n.js';
 import { t as translateUI } from '../i18n.js';
 // Settings (docs/design/16) + data import + first-run onboarding.
@@ -68,7 +69,7 @@ async function shortcutsSec(b) {
       if (!combo) { toast(translateUI('ui.b272_settings_002'), { kind: 'warn' }); draw(); return; }
       try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${a.label}: ${displayCombo(combo)}`); }
       catch (err) {
-        if (/already used/.test(err.message) && await confirmDialog(translateUI('ui.b272_settings_003'), err.message + ' Replace it?', 'Replace')) {
+        if (/already used/.test(err.message) && await confirmDialog(translateUI('ui.b272_settings_003'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) {
           try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo, replace: true }); } catch (x) { toast(x.message, { kind: 'warn' }); }
         } else if (!/already used/.test(err.message)) toast(err.message, { kind: 'warn' });
       }
@@ -79,17 +80,17 @@ async function shortcutsSec(b) {
   const draw = () => {
     const groups = {};
     for (const a of data.actions.filter((x) => !q || x.label.toLowerCase().includes(q) || x.group.toLowerCase().includes(q) || (x.binding || '').toLowerCase().includes(q))) (groups[a.group] ||= []).push(a);
-    mount(listEl, Object.entries(groups).map(([g, acts]) => h('section', { class: 'stack tight' }, h('h3', { style: { margin: '8px 0 0' } }, g),
+    mount(listEl, Object.entries(groups).map(([g, acts]) => h('section', { class: 'stack tight' }, h('h3', { style: { margin: '8px 0 0' } }, uiLabel(g)),
       acts.map((a) => {
-        const rec = h('button', { class: 'btn small kb-rec', 'aria-label': `Change shortcut for ${a.label}`, onclick: (e) => record(a, e.currentTarget) }, a.binding ? 'Change' : 'Assign');
-        return h('div', { class: 'set-row kb-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, a.label),
-          h('div', { class: 'desc' }, { app: translateUI('ui.b272_settings_005'), guides: translateUI('ui.b272_settings_006'), pokedex: translateUI('ui.b272_settings_007'), notes: translateUI('ui.b272_settings_008'), items: 'Item Library', links: translateUI('ui.b272_settings_009') }[a.scope] || a.scope,
-            a.default && a.default !== a.binding ? ` · default ${displayCombo(a.default)}` : '')),
+        const rec = h('button', { class: 'btn small kb-rec', 'aria-label': translateUI('settings.shortcut_change_for', { label: uiLabel(a.label) }), onclick: (e) => record(a, e.currentTarget) }, a.binding ? translateUI('settings.shortcut_change') : translateUI('settings.shortcut_assign'));
+        return h('div', { class: 'set-row kb-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, uiLabel(a.label)),
+          h('div', { class: 'desc' }, { app: translateUI('ui.b272_settings_005'), guides: translateUI('ui.b272_settings_006'), pokedex: translateUI('ui.b272_settings_007'), notes: translateUI('ui.b272_settings_008'), items: t('items.title'), links: translateUI('ui.b272_settings_009') }[a.scope] || a.scope,
+            a.default && a.default !== a.binding ? translateUI('settings.shortcut_default', { key: displayCombo(a.default) }) : '')),
         h('div', { class: 'row' }, h('kbd', { class: 'kb' + (a.binding ? '' : ' none') }, displayCombo(a.binding)), rec,
-          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': `Clear shortcut for ${a.label}`, onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
+          a.binding ? h('button', { class: 'btn ghost small', 'aria-label': translateUI('settings.shortcut_clear_for', { label: uiLabel(a.label) }), onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
           a.default !== a.binding ? h('button', { class: 'btn ghost small', onclick: async () => {
             try { data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true }); } catch (err) {
-              if (await confirmDialog(translateUI('ui.b272_settings_004'), err.message + ' Replace it?', 'Replace')) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
+              if (await confirmDialog(translateUI('ui.b272_settings_004'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
             await loadShortcuts(); draw(); } }, t('common.reset')) : null));
       }))));
   };
@@ -101,7 +102,7 @@ async function shortcutsSec(b) {
       oninput: (e) => { q = e.target.value.toLowerCase(); draw(); } })),
     h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog(translateUI('ui.b272_settings_017'), translateUI('ui.b272_settings_018'), t('common.reset'))) { data = await post('/api/shortcuts/reset'); await loadShortcuts(); draw(); } } }, translateUI('ui.b272_settings_019'))),
     listEl,
-    h('p', { class: 'tiny muted' }, 'Shortcuts never fire while you type in a text field or while a dialog is open. Holding a key down does not repeat a tick. Storyline actions always use the character run and region shown in the Guides page or Storyline popout; at the first/last step nothing is changed.'));
+    h('p', { class: 'tiny muted' }, translateUI('settings.shortcut_help')));
   draw();
 }
 
@@ -110,20 +111,20 @@ async function shortcutsSec(b) {
 async function windows(b) {
   const caps = (await get('/api/shell/capabilities'));
   const s = state.settings;
-  const capRow = (label, ok) => h('div', { class: 'row small' }, h('span', { class: 'dot ' + (ok ? 'connected' : '') }), label, h('span', { class: 'muted' }, ok ? 'supported' : 'not available'));
+  const capRow = (label, ok) => h('div', { class: 'row small' }, h('span', { class: 'dot ' + (ok ? 'connected' : '') }), label, h('span', { class: 'muted' }, ok ? translateUI('settings.supported') : translateUI('settings.not_available')));
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.windows_popouts')),
-    h('div', { class: 'card inset stack tight' }, h('div', null, h('strong', null, caps.mode === 'qt' ? translateUI('ui.b272_settings_020') : translateUI('ui.b272_settings_021')), h('span', { class: 'muted small' }, ` · platform: ${caps.platform}`)),
+    h('div', { class: 'card inset stack tight' }, h('div', null, h('strong', null, caps.mode === 'qt' ? translateUI('ui.b272_settings_020') : translateUI('ui.b272_settings_021')), h('span', { class: 'muted small' }, translateUI('settings.platform', { name: caps.platform }))),
       h('div', { class: 'grid-3' }, capRow(translateUI('ui.b272_settings_022'), caps.native_windows || caps.mode === 'browser'), capRow(translateUI('ui.b272_settings_023'), caps.pin), capRow(translateUI('ui.b272_settings_024'), caps.window_opacity),
         capRow(translateUI('ui.b272_settings_025'), caps.toast_window), capRow(translateUI('ui.b272_settings_026'), caps.tray), capRow(translateUI('ui.b272_settings_027'), caps.position)),
       (caps.notes || []).map((n) => h('div', { class: 'small muted' }, '• ', n))),
     row(translateUI('ui.b272_settings_028'), translateUI('ui.b272_settings_029'),
-      seg([['auto', 'Auto'], ['xwayland', 'XWayland'], ['wayland', translateUI('ui.b272_settings_030')]], s['app.window_backend'], set('app.window_backend'))),
+      seg([['auto', translateUI('settings.auto')], ['xwayland', 'XWayland'], ['wayland', translateUI('ui.b272_settings_030')]], s['app.window_backend'], set('app.window_backend'))),
     row(translateUI('ui.b272_settings_031'), translateUI('ui.b272_settings_032'),
       seg([['quit', translateUI('ui.b272_settings_033')], ['tray', translateUI('ui.b272_settings_034')]], s['app.close_behavior'], (v) => {
         if (v === 'tray' && !caps.tray) { toast(translateUI('ui.b272_settings_035'), { kind: 'warn' }); }
         set('app.close_behavior')(v); })),
     h('h3', null, translateUI('ui.b272_settings_036')),
-    h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Each mode opens at its own starting size. Resize freely afterwards — your size is remembered for that tool and mode. Background opacity fades only the panel behind the text; window opacity fades the whole window (native shell only).'),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('settings.window_help')),
     h('div', { class: 'tool-pref-grid' }, Object.entries(POPOUT_TOOLS).map(([t, def]) => toolPrefCard(t, def, caps))),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
       if (await confirmDialog(translateUI('ui.b272_settings_037'), translateUI('ui.b272_settings_038'))) { await post('/api/settings/reset', { prefix: 'window.' }); location.reload(); } } }, translateUI('ui.b272_settings_039'))));
@@ -135,14 +136,14 @@ function toolPrefCard(t, def, caps) {
   const sizeLine = ['compact', 'standard', 'expanded'].map((m) => {
     const p = presets[m] || [];
     const c = sizes[m];
-    return h('div', { class: 'row small', style: { justifyContent: 'space-between' } }, h('span', { class: 'muted' }, cap(m)),
-      h('span', null, c ? `${c.w}×${c.h} (yours)` : `${p[0]}×${p[1]} (preset)`),
+    return h('div', { class: 'row small', style: { justifyContent: 'space-between' } }, h('span', { class: 'muted' }, uiLabel(cap(m))),
+      h('span', null, c ? translateUI('settings.your_size', { w: c.w, h: c.h }) : translateUI('settings.preset_size', { w: p[0], h: p[1] })),
       c ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_040'), onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
   });
   return h('div', { class: 'card tool-pref stack tight' },
-    h('div', { class: 'row' }, h('strong', null, def.title), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(t) }, icon('popout'), 'Open')),
+    h('div', { class: 'row' }, h('strong', null, uiLabel(def.title)), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(t) }, icon('popout'), t('common.open'))),
     h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, translateUI('ui.b272_settings_041')),
-      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${t}.mode`], set(`window.${t}.mode`), 'Mode')),
+      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${t}.mode`], set(`window.${t}.mode`), translateUI('settings.mode'))),
     h('div', { class: 'stack tight' }, sizeLine),
     h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${t}.keep_size`], onchange: (e) => set(`window.${t}.keep_size`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_042'))),
     h('div', { class: 'row wrap' },
@@ -162,23 +163,23 @@ function rangeCell(key, min, max, disabled) {
 async function notifications(b) {
   const s = state.settings;
   const n = state.boot.notifier;
-  const routes = [['off', 'Off'], ['toast', 'Toast'], ['os', 'OS'], ['both', 'Both']];
+  const routes = [['off', translateUI('settings.off')], ['toast', translateUI('settings.toast')], ['os', translateUI('settings.os')], ['both', translateUI('settings.both')]];
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.notifications')),
-    notice('info', 'Every received report is saved to Live › history whatever you choose here. Toasts are the Companion’s own small window; OS notifications go through your desktop’s notification centre (its Do-Not-Disturb rules apply).'),
+    notice('info', translateUI('settings.notification_help')),
     row(translateUI('ui.b272_settings_047'), null, seg(routes, s['notify.alpha'], set('notify.alpha'))),
     row(translateUI('ui.b272_settings_048'), null, seg(routes, s['notify.swarm'], set('notify.swarm'))),
     row(translateUI('ui.b272_settings_049'), translateUI('ui.b272_settings_050'), seg(routes, s['notify.other'], set('notify.other'))),
     row(translateUI('ui.b272_settings_051'), translateUI('ui.b272_settings_052'), seg(routes, s['notify.test'], set('notify.test'))),
-    row(translateUI('ui.timers'), 'When one of your Tools › Timers finishes. Do not disturb silences these too (the timer still completes).', seg(routes, s['notify.timer'], set('notify.timer'))),
+    row(translateUI('ui.timers'), translateUI('settings.timer_alert_help'), seg(routes, s['notify.timer'], set('notify.timer'))),
     row(translateUI('ui.b272_settings_053'), translateUI('ui.b272_settings_054'), switchEl(s['notify.quiet'], set('notify.quiet'))),
     row(translateUI('ui.b272_settings_055'), translateUI('ui.b272_settings_056'), seg([['top-left', '↖'], ['top-right', '↗'], ['bottom-left', '↙'], ['bottom-right', '↘']], s['notify.toast_corner'], set('notify.toast_corner'))),
     row(translateUI('ui.b272_settings_057'), null, seg([['primary', translateUI('ui.b272_settings_058')], ['main-window', translateUI('ui.b272_settings_059')]], s['notify.toast_screen'], set('notify.toast_screen'))),
-    row(translateUI('ui.b272_settings_060'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 3, max: 60, value: s['notify.toast_duration'], style: { width: '90px' }, onchange: (e) => set('notify.toast_duration')(Number(e.target.value)) }), 'seconds')),
+    row(translateUI('ui.b272_settings_060'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 3, max: 60, value: s['notify.toast_duration'], style: { width: '90px' }, onchange: (e) => set('notify.toast_duration')(Number(e.target.value)) }), translateUI('settings.seconds'))),
     row(translateUI('ui.b272_settings_061'), null, rangeCell('notify.toast_opacity', 60, 100)),
-    row(translateUI('ui.b272_settings_062'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 1, max: 365, value: s['notify.retention_days'], style: { width: '90px' }, onchange: (e) => set('notify.retention_days')(Number(e.target.value)) }), 'days')),
+    row(translateUI('ui.b272_settings_062'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 1, max: 365, value: s['notify.retention_days'], style: { width: '90px' }, onchange: (e) => set('notify.retention_days')(Number(e.target.value)) }), translateUI('settings.days'))),
     row(translateUI('ui.b272_settings_063'), n.available ? translateUI('ui.b272_settings_064') : n.reason, h('span', { class: 'badge ' + (n.available ? 'verified' : 'unknown') }, n.backend)),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { const r = await post('/api/live/test', { kind: 'alpha' }); const d = r.delivery || {};
-      toast(`TEST sent — toast: ${d.toast ? (d.toast.delivered ? 'shown' : 'not shown') : 'off'}, OS: ${d.os ? (d.os.delivered ? 'sent' : 'failed: ' + (d.os.error || '')) : 'off'}`, { timeout: 6000 }); } }, icon('bell'), 'Send TEST notification')));
+      toast(translateUI('settings.test_delivery', { toast: d.toast ? (d.toast.delivered ? translateUI('settings.shown') : translateUI('settings.not_shown')) : translateUI('settings.off'), os: d.os ? (d.os.delivered ? translateUI('settings.sent') : translateUI('settings.failed', { error: d.os.error || '' })) : translateUI('settings.off') }), { timeout: 6000 }); } }, icon('bell'), translateUI('settings.send_test'))));
 }
 
 // -------------------------------------------------------------- sources
@@ -186,46 +187,46 @@ async function sources(b) {
   const [src, n] = await Promise.all([get('/api/live/source'), get('/api/news')]);
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')),
     row(translateUI('ui.b272_settings_065'), translateUI('ui.b272_settings_066'),
-      h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? cap(src.status) : 'Off',
-        src.last_success_at ? h('span', { class: 'small muted' }, ' · last data ', relTime(src.last_success_at)) : null),
+      h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? uiLabel(cap(src.status)) : translateUI('settings.off'),
+        src.last_success_at ? h('span', { class: 'small muted' }, translateUI('settings.last_data'), relTime(src.last_success_at)) : null),
       h('div', { class: 'tiny muted' }, src.payload_note || ''),
-      src.enabled ? h('button', { class: 'btn small', onclick: async () => { await saveSettings({ 'live.ntfy.enabled': false }); render(document.getElementById('main'), { parts: ['sources'] }); } }, 'Turn off') :
-        h('button', { class: 'btn small', onclick: () => go('#/live/reports') }, 'Connect in Live…'))),
+      src.enabled ? h('button', { class: 'btn small', onclick: async () => { await saveSettings({ 'live.ntfy.enabled': false }); render(document.getElementById('main'), { parts: ['sources'] }); } }, translateUI('settings.turn_off')) :
+        h('button', { class: 'btn small', onclick: () => go('#/live/reports') }, translateUI('settings.connect_live')))),
     row(translateUI('ui.b272_settings_067'), translateUI('ui.b272_settings_068'), h('div', { class: 'row wrap' },
       h('input', { class: 'input', style: { width: '260px' }, value: state.settings['live.ntfy.server'], onchange: (e) => set('live.ntfy.server')(e.target.value.trim()) }),
-      h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: 'Comma-separated topics', onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
-    row(translateUI('ui.b272_settings_069'), 'Used only for the “≈ time left” estimate on swarm reports. Community reports disagree (≈15, 20 or 30 min); this is not an official despawn time. Alphas use 75 min from the official changelog.',
+      h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: translateUI('settings.topics'), onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
+    row(translateUI('ui.b272_settings_069'), translateUI('settings.swarm_help'),
       h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 5, max: 120, value: state.settings['live.swarm_estimate_minutes'], style: { width: '80px' },
-        'aria-label': 'Swarm duration estimate in minutes', onchange: (e) => set('live.swarm_estimate_minutes')(Math.max(5, Math.min(120, Number(e.target.value) || 20))) }), h('span', { class: 'small' }, 'minutes'))),
-    row(translateUI('ui.b272_settings_070'), 'When the Companion starts or reconnects it catches up on recent reports. Show those in “Current” if their own report time is still recent (they never trigger alerts).',
+        'aria-label': translateUI('settings.swarm_duration'), onchange: (e) => set('live.swarm_estimate_minutes')(Math.max(5, Math.min(120, Number(e.target.value) || 20))) }), h('span', { class: 'small' }, translateUI('settings.minutes')))),
+    row(translateUI('ui.b272_settings_070'), translateUI('settings.catchup_help'),
       switchEl(state.settings['live.current_include_catchup'] !== false, set('live.current_include_catchup'))),
-    row(translateUI('ui.b272_settings_071'), `Bundled, independently written summaries checked ${fmtDate(n.snapshot_checked_at)}.`, h('span', { class: 'small' }, `${n.articles.length} posts · ${n.events.length} events`)),
-    row(translateUI('ui.b272_settings_072'), 'Fetches only the official Updates feed (titles, dates, links) in the background, at most hourly. New titles show “Summary pending verification”.',
+    row(translateUI('ui.b272_settings_071'), translateUI('settings.news_checked', { date: fmtDate(n.snapshot_checked_at) }), h('span', { class: 'small' }, translateUI('settings.news_counts', { posts: n.articles.length, events: n.events.length }))),
+    row(translateUI('ui.b272_settings_072'), translateUI('settings.feed_help'),
       h('div', { class: 'row wrap' }, switchEl(state.settings['updates.auto_check'], set('updates.auto_check')),
-        h('span', { class: 'small' }, 'every'), h('input', { class: 'input', type: 'number', min: 1, max: 24, value: state.settings['updates.check_hours'], style: { width: '70px' },
-          onchange: (e) => set('updates.check_hours')(Number(e.target.value)) }), h('span', { class: 'small' }, 'hours'))),
+        h('span', { class: 'small' }, translateUI('settings.every')), h('input', { class: 'input', type: 'number', min: 1, max: 24, value: state.settings['updates.check_hours'], style: { width: '70px' },
+          onchange: (e) => set('updates.check_hours')(Number(e.target.value)) }), h('span', { class: 'small' }, translateUI('settings.hours')))),
     row(translateUI('ui.b272_settings_073'), translateUI('ui.b272_settings_074'),
       h('div', { class: 'stack tight' }, h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; const r = await post('/api/news/check');
-        toast(r.ok ? `Checked: ${r.count} posts` : `Could not refresh: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), 'Check now'),
-      n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? `Last check OK ${relTime(n.feed.checked_at)}` : `Last check failed ${relTime(n.feed.checked_at)}: ${n.feed.error}`) : h('span', { class: 'small muted' }, 'Never checked'))),
-    row(translateUI('ui.b272_settings_075'), 'No verified, permitted feed exists in this build; Live shows Unknown plus your own observations.', badge('UNKNOWN', 'Not connected')));
+        toast(r.ok ? translateUI('settings.checked_posts', { count: r.count }) : translateUI('settings.refresh_failed', { error: r.error }), { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), translateUI('settings.check_now')),
+      n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? translateUI('settings.last_check_ok', { date: relTime(n.feed.checked_at) }) : translateUI('settings.last_check_failed', { date: relTime(n.feed.checked_at), error: n.feed.error })) : h('span', { class: 'small muted' }, translateUI('settings.never_checked')))),
+    row(translateUI('ui.b272_settings_075'), translateUI('settings.no_feed'), badge('UNKNOWN', translateUI('settings.not_connected'))));
 }
 
 // --------------------------------------------------------------- guides
 async function guidesSec(b) {
   const runs = await get('/api/guides/runs');
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.guides_characters')),
-    row(translateUI('ui.b272_settings_076'), 'Used by Home, the Storyline popout and legendary tracking.', runs.runs.length ? h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => set('guides.active_run')(e.target.value) },
-      runs.runs.map((r) => h('option', { value: r.id, selected: r.id === runs.active ? 'selected' : null }, r.display))) : h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, 'Create a run')),
-    h('h3', null, 'Runs'),
-    h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.select_character'), 'Label', 'Last region', 'Updated', ''].map((c) => h('th', null, c)))),
-      h('tbody', null, runs.runs.map((r) => h('tr', null, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, cap(r.last_region)), h('td', { class: 'small' }, relTime(r.updated_at)),
-        h('td', null, h('button', { class: 'btn small danger', onclick: async () => { if (await confirmDialog('Delete run', `Delete “${r.display}”? You can restore it later.`, 'Delete', true)) {
+    row(translateUI('ui.b272_settings_076'), translateUI('settings.run_help'), runs.runs.length ? h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => set('guides.active_run')(e.target.value) },
+      runs.runs.map((r) => h('option', { value: r.id, selected: r.id === runs.active ? 'selected' : null }, r.display))) : h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, translateUI('settings.create_run'))),
+    h('h3', null, translateUI('settings.runs')),
+    h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.select_character'), translateUI('settings.label'), translateUI('settings.last_region'), translateUI('settings.updated'), ''].map((c) => h('th', null, c)))),
+      h('tbody', null, runs.runs.map((r) => h('tr', null, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, gameTerm('region', cap(r.last_region))), h('td', { class: 'small' }, relTime(r.updated_at)),
+        h('td', null, h('button', { class: 'btn small danger', onclick: async () => { if (await confirmDialog(translateUI('settings.delete_run'), translateUI('settings.delete_run_confirm', { name: r.display }), t('common.delete'), true)) {
           await api('DELETE', '/api/guides/runs/' + r.id); render(document.getElementById('main'), { parts: ['guides'] }); } } }, translateUI('ui.delete'))))),
-      runs.deleted.map((r) => h('tr', { style: { opacity: 0.7 } }, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, 'deleted'), h('td', { class: 'small' }, relTime(r.deleted_at)),
+      runs.deleted.map((r) => h('tr', { style: { opacity: 0.7 } }, h('td', null, r.character_name), h('td', null, r.run_label || '—'), h('td', null, translateUI('settings.deleted')), h('td', { class: 'small' }, relTime(r.deleted_at)),
         h('td', null, h('button', { class: 'btn small', onclick: async () => { try { await post(`/api/guides/runs/${r.id}/restore`); render(document.getElementById('main'), { parts: ['guides'] }); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.restore'))))))),
-    h('div', { class: 'row wrap', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), 'New run'),
-      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/backup') }, translateUI('ui.backup_recovery')), h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, 'Walkthrough import')));
+    h('div', { class: 'row wrap', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, icon('plus'), translateUI('settings.new_run')),
+      h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/backup') }, translateUI('ui.backup_recovery')), h('button', { class: 'btn ghost wrap', onclick: () => go('#/settings/data') }, translateUI('settings.walkthrough_import'))));
 }
 
 // ----------------------------------------------------------------- data
@@ -370,24 +371,24 @@ async function spritesSec(b) {
   const lib = await get('/api/sprites/library').catch(() => null);
   const redraw = () => { b.innerHTML = ''; spritesSec(b); };
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.pokemon_sprites')),
-    row(translateUI('ui.b272_settings_077'), 'Follow the system’s reduced-motion setting, always allow, or switch every animation off. This overrides the choices below.',
-      seg([['system', 'Follow system'], ['on', 'On'], ['off', translateUI('ui.status_off')]], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, translateUI('ui.b272_settings_077'))),
-    row(translateUI('ui.b272_settings_078'), 'Show the whole Pokédex grid in normal or shiny colours. Display only — nothing is marked as owned.',
+    row(translateUI('ui.b272_settings_077'), translateUI('settings.motion_help'),
+      seg([['system', translateUI('settings.follow_system')], ['on', translateUI('settings.on')], ['off', translateUI('ui.status_off')]], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, translateUI('ui.b272_settings_077'))),
+    row(translateUI('ui.b272_settings_078'), translateUI('settings.shiny_help'),
       seg([['normal', translateUI('ui.normal')], ['shiny', translateUI('ui.shiny')]], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), translateUI('ui.b272_settings_078'))),
-    h('h3', null, 'Where sprites move'),
+    h('h3', null, translateUI('settings.sprite_context')),
     h('div', { class: 'sprite-prefs' }, CONTEXTS.map(([id, label, def, hasSize]) => h('div', { class: 'set-row' },
-      h('div', null, h('div', { style: { fontWeight: 600 } }, label), h('div', { class: 'desc' }, `Default: ${def === 'animated' ? 'animated' : 'static'}`)),
+      h('div', null, h('div', { style: { fontWeight: 600 } }, uiLabel(label)), h('div', { class: 'desc' }, translateUI('settings.sprite_default', { mode: def === 'animated' ? translateUI('ui.animated') : translateUI('ui.static') }))),
       h('div', { class: 'row wrap tight' },
-        seg([['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]], anim[id] || def, async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, label + ' animation'),
-        hasSize ? h('label', { class: 'row tight small' }, 'Size', h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': label + ' size',
+        seg([['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]], anim[id] || def, async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, translateUI('settings.sprite_animation', { label: uiLabel(label) })),
+        hasSize ? h('label', { class: 'row tight small' }, translateUI('theme.size'), h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('settings.sprite_size', { label: uiLabel(label) }),
           onchange: async (e) => { const v = Number(e.target.value); if (v === 100) delete size[id]; else size[id] = v; await saveSettings({ 'sprites.size': { ...size } }); } },
           [70, 85, 100, 115, 130, 150].map((p) => h('option', { value: p, selected: (size[id] || 100) === p ? 'selected' : null }, p + ' %')))) : null)))),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn ghost small', onclick: async () => {
-      await saveSettings({ 'sprites.animation': {}, 'sprites.size': {}, 'sprites.motion': 'system' }); toast('Sprite settings reset'); redraw(); } }, 'Reset sprite settings')),
-    h('h3', null, 'Artwork'),
-    lib ? h('div', { class: 'small' }, lib.source_kind === 'personal' ? 'Using your own sprite library (Settings › Advanced). ' : 'Built-in sprites: ',
-      `${lib.coverage.species_static} species, ${lib.coverage.forms_ani} alternate forms, ${lib.female} female variants — static and animated, normal and shiny. `,
-      lib.derived_stills ? `${lib.derived_stills} form stills are the first frame of that form’s animation. ` : '',
+      await saveSettings({ 'sprites.animation': {}, 'sprites.size': {}, 'sprites.motion': 'system' }); toast(translateUI('settings.sprite_reset_done')); redraw(); } }, translateUI('settings.sprite_reset'))),
+    h('h3', null, translateUI('settings.artwork')),
+    lib ? h('div', { class: 'small' }, lib.source_kind === 'personal' ? translateUI('settings.using_own') : translateUI('settings.builtin_sprites'),
+      translateUI('settings.sprite_stats', { species: lib.coverage.species_static, forms: lib.coverage.forms_ani, female: lib.female }),
+      lib.derived_stills ? translateUI('settings.derived_stills', { count: lib.derived_stills }) : '',
       h('a', { href: '#/settings/about' }, translateUI('ui.credits'))) : null));
 }
 
@@ -450,7 +451,7 @@ async function updatesSec(b) {
     h('h3', null, 'Official PokeMMO news'),
     row(translateUI('ui.b272_settings_087'), f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
       switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }))),
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? 'Official news checked' : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), 'Check now')),
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? 'Official news checked' : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), translateUI('settings.check_now'))),
     h('h3', null, 'PokeMMO reference data'),
     h('div', { class: 'small' }, refUsing, '.'),
     ref.private_superseded ? notice('info', `Your own client import (${fmtDate(ref.private_superseded.private_date)}) is older than this data, so the newer data is used. Your sprites and icons are still shown.`) : null,
@@ -598,7 +599,7 @@ export async function onboarding() {
     h('div', { class: 'field' }, h('label', null, 'Guides'), h('div', { class: 'small muted' }, 'Create a named character run to track storyline progress per character.')),
     h('div', { class: 'tiny muted' }, 'No encounter counter, no game memory access, no automation. Everything you enter stays on this computer.'));
   const r = await modal({ title: 'Welcome to PokeMMO Companion 0.1.0', body, actions: [
-    { label: 'Skip', value: 'skip', kind: 'ghost' }, { label: 'Create a run', value: 'run' }, { label: 'Import data now', value: 'data', kind: 'primary' }] });
+    { label: 'Skip', value: 'skip', kind: 'ghost' }, { label: translateUI('settings.create_run'), value: 'run' }, { label: 'Import data now', value: 'data', kind: 'primary' }] });
   await saveSettings({ 'app.onboarded': true, 'appearance.nav': nav });
   document.dispatchEvent(new CustomEvent('settings-changed'));
   if (r === 'data') go('#/settings/data');
