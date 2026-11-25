@@ -46,19 +46,25 @@ def main():
     from companion.app import AppContext
     from companion.server import CompanionServer
     from companion.settings import DEFAULTS
-    from companion.shell.qt_shell import QtShell
+    from companion import APP_NAME, __version__
+    from companion.shell.qt_shell import QSS, QtShell
     from companion.__main__ import choose_qt_platform
 
     QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     backend = choose_qt_platform("auto", None)
     app = QApplication([sys.argv[0], "-platform", backend] if backend else [sys.argv[0]])
+    app.setApplicationName(APP_NAME)
+    app.setApplicationVersion(__version__)
+    app.setDesktopFileName('pokemmo-companion')
+    app.setStyleSheet(QSS)
     app.setQuitOnLastWindowClosed(False)
     report = {
         "revision": revision, "platform": platform.platform(), "qt_platform": app.platformName(),
         "qt": __import__("PySide6").__version__, "python": platform.python_version(),
         "system_ram_mib": round(psutil.virtual_memory().total / 1048576),
         "seconds": args.seconds, "settle": args.settle, "logical_cpus": psutil.cpu_count(),
+        "screens": [{"w": s.size().width(), "h": s.size().height(), "dpr": s.devicePixelRatio()} for s in app.screens()],
         "workload": "fresh bundled data, English, explicit normal motion, external feed/update/backup disabled",
         "metric_note": "PSS when complete; summed RSS may double-count; CPU percent of one core. Sampler runs in a thread in the measured process.",
         "samples": {}, "status": "incomplete",

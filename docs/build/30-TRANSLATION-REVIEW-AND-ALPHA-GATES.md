@@ -39,3 +39,16 @@ Public beta and 1.0 remain later milestones. Existing exclusions remain unchange
 ## Owner-approved pre-0.8.0 performance requirement (25 November)
 
 Full baseline at 3c8b634: 581 passed, 52 skipped, no failures. Before packaging, optimize Balanced/default itself (not merely a low-performance preset). Prioritize incremental item popouts, detached sprite/card observer cleanup, cache retention, selective rendering and hidden animation handling. Preserve every feature and preference; do not delay timers or live alerts. Measure against the recorded owner baseline. Add localized Performance settings only for implemented, verifiable controls, with Balanced default and meaningful Lightweight/Custom options after the default improves. Re-run affected browser regressions and native measurements before version bump; Windows and distribution gates remain. No new release or main merge.
+
+## Final verification procedure (source candidate)
+
+Use the same harness from the candidate checkout for both the pre-optimization baseline (3c8b634cc9afee24b82e53f5281736cce9a7611e) and the current candidate, in separate clean checkouts and fresh profiles. Install psutil in the existing QA environment only. Keep the desktop/session, monitor resolution, Qt/Python versions and workload constant; avoid playing PokeMMO or doing other heavy work during the comparison.
+
+```sh
+python tools/native_performance_check.py --repo /path/to/baseline --output baseline-native.json
+python tools/native_performance_check.py --repo /path/to/candidate --output candidate-native.json
+python -m pytest -q --tb=short
+python tools/clean_install_check.py
+```
+
+The native tool requires PySide6 and a real desktop. Both native JSONs must say passed and confirm actual normal versus static GIF rendering. Compare like-for-like PSS and CPU, both recovery cycles, item tile counts and startup-to-render. Repeat anomalous results rather than setting arbitrary numerical guarantees. It does not prove packaged-app behavior or Windows compatibility. If measurements and regression are acceptable, close the optimization phase; do not require further speculative tuning. Build and verify the Linux and Windows candidates under the release gates above, after explicit version/distribution approval. For now the version remains 0.1.0.

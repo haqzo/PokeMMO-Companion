@@ -415,7 +415,8 @@ def test_default_home_defers_unused_catalog_and_guides(app, page):
 
 
 def test_empty_live_countdowns_do_not_schedule_work(app, page):
-    go(page, app, "#/home")
+    go(page, app, "#/tools/calculator")
+    page.wait_for_selector(".calc-key")
     result = page.evaluate("""async () => {
         const {startTimers} = await import('/js/pages/live.js');
         const interval = window.setInterval, frame = window.requestAnimationFrame;
@@ -435,7 +436,8 @@ def test_empty_live_countdowns_do_not_schedule_work(app, page):
 
 
 def test_live_source_response_cannot_restart_disposed_page(app, page):
-    go(page, app, "#/home")
+    go(page, app, "#/tools/calculator")
+    page.wait_for_selector(".calc-key")
     result = page.evaluate("""async () => {
         const live = await import('/js/pages/live.js');
         const host = document.createElement('div');
