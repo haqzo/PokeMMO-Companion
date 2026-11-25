@@ -5,7 +5,7 @@
 import { get, post, api, on, toast, setting, state, POPOUT, SHELL } from './core.js';
 import { lang, t } from './i18n.js';
 import { gameTerm } from './game-locale.js';
-import { walkthroughStep } from './walkthrough-locales.js';
+import { walkthroughReader } from './walkthrough-loader.js';
 
 let bindings = {};       // action id -> combo
 let byCombo = {};        // combo -> action id
@@ -68,13 +68,14 @@ function inScope(scope) {
 }
 
 // Localize the application-authored wrapper and the hash-matched bundled objective.
-export function guideActionMessage(result) {
+export async function guideActionMessage(result) {
   if (lang() === 'en') return result.message;
   const kind = result.message_kind;
   if (kind === 'no_steps' || kind === 'stale') return t('shortcutui.' + kind);
   if (kind === 'first' || kind === 'last') return t('shortcutui.' + kind, { region: gameTerm('region', result.message_region) });
   if (['step', 'ticked', 'unticked'].includes(kind) && result.message_step) {
-    const step = result.state?.source === 'imported' ? result.message_step.text : walkthroughStep(result.message_step, lang());
+    const read = await walkthroughReader(lang(), result.state?.source);
+    const step = read(result.message_step);
     return t('shortcutui.' + kind, { step: [...String(step ?? '')].slice(0, 80).join(''), current: result.message_index, total: result.message_total });
   }
   return result.message;
@@ -91,7 +92,7 @@ async function guideAction(action) {
     const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const res = await post(`/api/guides/runs/${run}/action`, { action, region, expect_step: guideContext.step || undefined, nonce });
     if (res.duplicate) return;
-    toast(guideActionMessage(res), { kind: res.ok ? 'info' : 'warn', timeout: 2200 });
+    toast(await guideActionMessage(res), { kind: res.ok ? 'info' : 'warn', timeout: 2200 });
     if (guideContext.refresh) guideContext.refresh();
   } catch (e) { toast(e.message, { kind: 'warn' }); } finally { busy = false; }
 }

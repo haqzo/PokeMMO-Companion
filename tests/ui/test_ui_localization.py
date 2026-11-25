@@ -518,7 +518,7 @@ def test_shortcut_labels_and_guide_feedback(clean, pg, language, label, custom):
       const { guideActionMessage } = await import('/js/shortcuts.js');
       return [
         shortcutLabel('Focus Pokédex search'),
-        guideActionMessage({message: 'Ticked: Personal objective', message_kind: 'ticked',
+        await guideActionMessage({message: 'Ticked: Personal objective', message_kind: 'ticked',
           message_step: {text: 'Personal objective'}, state: {source: 'imported'}}),
       ];
     }""")
@@ -705,3 +705,21 @@ def test_performance_settings_and_effective_preferences(clean, pg, language, nam
         assert not pg.errors
     finally:
         clean.ctx.settings.update({"performance.profile": "balanced", "performance.item_batch": "normal", "performance.default_motion": "standard", "sprites.motion": "system", "sprites.animation": {}, "app.language": "en"})
+
+
+def test_walkthrough_tables_loaded_only_when_needed(clean, pg):
+    clean.ctx.settings.update({"app.language": "es", "app.onboarded": True})
+    requested = []
+    pg.on("request", lambda r: requested.append(r.url))
+    try:
+        pg.goto(clean.url("#/tools/typechart"))
+        pg.locator("#main .page").first.wait_for()
+        assert not any("/js/walkthrough-locales.js" in u or "/js/walkthrough-generated.js" in u for u in requested)
+        pg.evaluate("location.hash = '#/guides/storyline?browse=1&region=kanto'")
+        pg.locator(".browse-chapter").first.wait_for()
+        assert any("/js/walkthrough-locales.js" in u for u in requested)
+        assert any("/js/walkthrough-generated.js" in u for u in requested)
+        assert "Baja las escaleras" in pg.locator(".browse-chapter").first.text_content()
+        assert not pg.errors
+    finally:
+        clean.ctx.settings.update({"app.language": "en"})

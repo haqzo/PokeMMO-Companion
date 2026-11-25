@@ -6,7 +6,7 @@ import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDat
 import { go, qaInfo, openPopout } from '../shell.js';
 import { createRun } from './guides.js';
 import { LANGS, lang } from '../i18n.js';
-import { walkthroughStep } from '../walkthrough-locales.js';
+import { walkthroughReader } from '../walkthrough-loader.js';
 import { animatedIn, scaled } from '../sprites.js';
 import { loadList } from './pokedex.js';
 import { currentCard, startTimers, likelyActive } from './live.js';
@@ -682,6 +682,7 @@ async function continueCard(runs, rerender) {
   }
   const st = await get(`/api/guides/runs/${run.id}/state?region=${run.last_region}`);
   const step = st.steps.find((x) => x.id === st.active_step_id);
+  const read = step && st.source === 'walkthrough' ? await walkthroughReader(lang(), st.source) : x => x.text;
   const c = st.source === 'milestones' ? st.counts.mandatory : st.counts.unclassified;
   const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
   return h('section', { class: 'card half home-run stack tight' },
@@ -689,7 +690,7 @@ async function continueCard(runs, rerender) {
       h('div', { class: 'eyebrow-text' }, translateUI('ui.b272_continue')), h('div', { style: { fontWeight: 700 } }, `${run.display} — ${gameTerm('region', cap(st.region))}`)),
       h('button', { class: 'btn small', onclick: () => go('#/guides?jump=1') }, translateUI('ui.b272_open_guide')), h('button', { class: 'btn ghost small', title: translateUI('ui.guide_storyline_window'), onclick: () => openPopout('storyline') }, icon('popout'))),
     h('div', { class: 'row' }, h('div', { class: 'progress grow' }, h('span', { style: { width: pct + '%' } })), h('span', { class: 'small nowrap' }, `${c.done}/${c.total}`)),
-    step ? h('div', { class: 'small' }, h('span', { class: 'muted' }, `${st.source === 'walkthrough' ? gameTerm('location', step.chapter) : step.chapter} · `), st.source === 'walkthrough' ? walkthroughStep(step, lang()) : step.text) : null);
+    step ? h('div', { class: 'small' }, h('span', { class: 'muted' }, `${st.source === 'walkthrough' ? gameTerm('location', step.chapter) : step.chapter} · `), read(step)) : null);
 }
 
 function quickCard() {

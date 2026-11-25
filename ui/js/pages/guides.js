@@ -1,4 +1,4 @@
-import { walkthroughStep } from '../walkthrough-locales.js';
+import { walkthroughReader } from '../walkthrough-loader.js';
 import { lang } from '../i18n.js';
 import { gameTerm, searchText, walkthroughChapter } from '../game-locale.js';
 import { t as translateUI } from '../i18n.js';
@@ -12,7 +12,6 @@ import { guideExtras } from '../guide-extras.js';
 const REGIONS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova'];
 let unsub = [];
 let ui = { chapter: {}, search: '', all: {} };
-const stepLabel = (step) => walkthroughStep(step, lang());
 const STEP_KIND_LABELS = { battle: 'ui.guide_kind_battle', gym: 'ui.guide_kind_gym',
   item: 'ui.item', league: 'ui.guide_kind_league', story: 'ui.guide_kind_story' };
 
@@ -88,7 +87,7 @@ export async function render(el, route) {
   }), region, async (r) => { await api('PATCH', `/api/guides/runs/${run.id}`, { region: r }); go(`#/guides/storyline?region=${r}`); }, translateUI('ui.guide_regions'))));
 
   const steps = st.steps;
-  const displayStep = st.source === 'imported' ? (step) => step.text : stepLabel;
+  const displayStep = await walkthroughReader(lang(), st.source);
   const displayChapter = st.source === 'imported' ? (name) => name : walkthroughChapter;
   const done = new Set(st.done);
   const src = st.sources.find((s) => s.id === st.source);
@@ -239,6 +238,7 @@ export const WALKTHROUGH_CREDIT = 'Walkthrough text by the original guide author
 async function browse(page, route, runs, el) {
   const region = REGIONS.includes(route.query.get('region')) ? route.query.get('region') : 'kanto';
   const cat = await get('/api/guides/catalog/' + region);
+  const stepLabel = await walkthroughReader(lang());
   const q = (route.query.get('q') || '').toLowerCase();
   page.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, translateUI('ui.storyline')),
     h('div', { class: 'sub' }, translateUI('ui.guide_source_readonly'))),

@@ -1,4 +1,4 @@
-import { walkthroughStep } from './walkthrough-locales.js';
+import { walkthroughReader } from './walkthrough-loader.js';
 import { gameTerm, walkthroughChapter } from './game-locale.js';
 import { lang, uiLabel } from './i18n.js';
 import { t as translateUI } from './i18n.js';
@@ -210,6 +210,7 @@ async function storyline(el) {
     h('button', { class: 'btn', onclick: () => openInMain('#/guides/storyline') }, translateUI('ui.guide_popout_create_run')))); return; }
   const region = storyRegion || run.last_region;
   const st = await get(`/api/guides/runs/${run.id}/state?region=${region}`);
+  const readStep = await walkthroughReader(lang(), st.source);
   const steps = st.steps.filter((s) => st.show_optional || s.mandatory !== false);
   const done = new Set(st.done);
   const i = Math.max(0, steps.findIndex((s) => s.id === st.active_step_id));
@@ -228,7 +229,7 @@ async function storyline(el) {
     steps: Object.fromEntries(st.steps.map((s) => [s.id, s.text.slice(0, 40)])) }, { open: mode === 'expanded' });
   const stepLabel = (s, big) => h('label', { class: 'step' + (done.has(s.id) ? ' done' : '') + (s.id === cur.id ? ' current' : ''), style: { gridTemplateColumns: 'auto 1fr', cursor: 'pointer', padding: big ? '10px' : '7px 9px' } },
     h('input', { type: 'checkbox', class: 'check', checked: done.has(s.id), onchange: (e) => toggle(s, e.target.checked) }),
-    h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, st.source === 'imported' ? s.text : walkthroughStep(s, lang())), big ? h('div', { class: 'tiny muted' }, displayChapter(s.chapter)) : null));
+    h('div', null, h('div', { class: big ? 'objective s-text' : 's-text small' }, readStep(s)), big ? h('div', { class: 'tiny muted' }, displayChapter(s.chapter)) : null));
   const stepEl = (s, big) => h('div', { class: 'pop-step' }, stepLabel(s, big), h('div', { style: { marginLeft: '30px' } }, gx.stepTimers(s.id)));
   const header = h('div', { class: 'stack tight', style: { marginBottom: '8px' } },
     h('div', { class: 'row' }, h('span', { class: 'initial' }, run.character_name.charAt(0).toUpperCase()), h('div', { class: 'grow', style: { minWidth: 0 } },
