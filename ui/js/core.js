@@ -177,7 +177,7 @@ export function applyAppearance() {
 export function toast(message, { kind = 'info', timeout = 3800, action } = {}) {
   const stack = document.getElementById('toasts');
   if (!stack) return;
-  const close = h('button', { class: 'icon-btn', 'aria-label': 'Dismiss', onclick: () => el.remove() }, icon('close'));
+  const close = h('button', { class: 'icon-btn', 'aria-label': translateUI('shared.dismiss'), onclick: () => el.remove() }, icon('close'));
   const el = h('div', { class: `toast msg ${kind}` },
     h('div', null, h('div', { class: 't-line', style: { color: 'var(--text-primary)' } }, message),
       action ? h('button', { class: 'btn small ghost', style: { marginTop: '4px' }, onclick: () => { action.fn(); el.remove(); } }, action.label) : null),
@@ -195,13 +195,13 @@ export function reportToast(p, openFn) {
   const el = h('div', { class: 'toast' + (p.is_test ? ' test' : ''), role: 'alert' },
     h('div', { class: 't-icon' }, img),
     h('div', null,
-      h('div', { class: `kind-label kind-${p.kind}` }, p.is_test ? 'TEST · not a real report' : p.kind),
+      h('div', { class: `kind-label kind-${p.kind}` }, p.is_test ? translateUI('shared.test') : ({ alpha: translateUI('ui.live_alpha'), swarm: translateUI('ui.live_swarm'), timer: translateUI('ui.guide_extra_timer'), other: translateUI('ui.live_other') }[p.kind] || p.kind)),
       h('div', { class: 't-title' }, p.title),
       p.line ? h('div', { class: 't-line' }, p.line) : null,
-      h('div', { class: 't-meta' }, p.meta || ['Reported ', relTime(p.reported)]),
+      h('div', { class: 't-meta' }, p.meta || [translateUI('shared.reported'), relTime(p.reported)]),
       h('div', { class: 'row', style: { marginTop: '6px' } },
-        h('button', { class: 'btn small', onclick: () => { openFn && openFn(p.id, p); el.remove(); } }, p.open_label || 'Open in Live'))),
-    h('button', { class: 'icon-btn', 'aria-label': 'Dismiss', onclick: () => el.remove() }, icon('close')));
+        h('button', { class: 'btn small', onclick: () => { openFn && openFn(p.id, p); el.remove(); } }, p.open_label && p.open_label !== 'Open in Live' ? p.open_label : translateUI('shared.open_live')))),
+    h('button', { class: 'icon-btn', 'aria-label': translateUI('shared.dismiss'), onclick: () => el.remove() }, icon('close')));
   stack.append(el);
   while (stack.children.length > 4) stack.firstChild.remove();
   setTimeout(() => el.remove(), (p.duration || 8) * 1000);
@@ -227,7 +227,7 @@ export function modal({ title, body, actions = [], onClose, wide }) {
     (first || m).focus && setTimeout(() => (first || m).focus(), 10);
   });
 }
-export const confirmDialog = (title, text, okLabel = 'Confirm', danger = false) =>
+export const confirmDialog = (title, text, okLabel = translateUI('shared.confirm'), danger = false) =>
   modal({ title, body: h('p', { style: { margin: 0 } }, text), actions: [
     { label: translateUI('ui.cancel'), value: false, kind: 'ghost' }, { label: okLabel, value: true, kind: danger ? 'danger' : 'primary' }] });
 
@@ -363,7 +363,7 @@ export function stillArt(still, sp, size = 72, { cap = 1.5, eager = false } = {}
 export function silhouette(sp, size = 60) {
   const t = (sp.types && sp.types[0]) || 'normal';
   return h('div', { class: `silhouette t-${t}`, style: { '--tc': `var(--type-${t})`, width: size * 0.83 + 'px', height: size * 0.83 + 'px' },
-    title: 'No sprite available for this Pokémon' }, '#' + pad3(sp.id));
+    title: translateUI('shared.no_sprite') }, '#' + pad3(sp.id));
 }
 export function extLink(url, label) {
   return h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, label || url, ' ', icon('external', 'inline-ic'));
