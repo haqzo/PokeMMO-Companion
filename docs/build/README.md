@@ -1,6 +1,6 @@
 # v0.1.0 Implementation Package
 
-**Updated:** 2026-11-22 · **Status:** additional owner-approved requirements and full unsent Claude handoff committed as documentation; implementation remains pending on `develop`; video correction pass implemented, second video reviewed; urgent PokeMMO data correction and feature roadmap prepared · **Branch:** `develop`.
+**Updated:** 2026-11-25 · **Status:** Build 29 localization continuation; feature implementation reports preserved below; full current regression and closed-alpha approval outstanding · **Branch:** `develop`.
 
 - [Full first-pass v0.1.0 plan](00-V0.1.0-FIRST-PASS-PLAN.md)
 - [Claude full implementation assignment](01-CLAUDE-V0.1.0-KICKOFF.md)
@@ -34,3 +34,12 @@ The v0.1.0 code lives in `companion/` (Python core + Qt shell) and `ui/` (interf
 - [**25 — Phenomena reference and verified links**](25-PHENOMENA-REFERENCE.md)
 - [**26 — Linux AppImage external links**](26-LINUX-EXTERNAL-LINKS.md)
 - [**27 — Offline localization checkpoint**](27-OFFLINE-LOCALIZATION.md)
+
+- [**ACTIVE DEVELOPMENT CHECKPOINT — current priorities, verification and release gates**](../roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md)
+- [**28 — Localization audit**](28-LOCALIZATION-AUDIT.md)
+- [**29 — Localization continuation**](29-LOCALIZATION-CONTINUATION.md)
+- [29 — Tools and news](29-LOCALIZATION-TOOLS-NEWS.md)
+- [29 — Live and service errors](29-LOCALIZATION-LIVE-ERRORS.md)
+- [29 — Timers and items](29-LOCALIZATION-TIMERS-ITEMS.md)
+- [29 — Imported item safeguards](29-LOCALIZATION-ITEM-IMPORTS.md)
+- [**29 — Service errors and roadmap reconciliation**](29-LOCALIZATION-SERVICE-ERRORS.md)

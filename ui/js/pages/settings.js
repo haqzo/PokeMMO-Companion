@@ -4,7 +4,7 @@ import { t as translateUI } from '../i18n.js';
 // Settings (docs/design/16) + data import + first-run onboarding.
 import { CONTEXTS } from '../sprites.js';
 import { appearanceSec, layoutSec, homeSec } from './settings-theme.js';
-import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
+import { h, mount, icon, get, post, api, apiErrorText, isShortcutConflict, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { createRun } from './guides.js';
@@ -67,11 +67,11 @@ async function shortcutsSec(b) {
       if (e.key === 'Escape') { draw(); return; }
       const combo = comboFromEvent(e);
       if (!combo) { toast(translateUI('ui.b272_settings_002'), { kind: 'warn' }); draw(); return; }
-      try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${a.label}: ${displayCombo(combo)}`); }
+      try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${uiLabel(a.label)}: ${displayCombo(combo)}`); }
       catch (err) {
-        if (/already used/.test(err.message) && await confirmDialog(translateUI('ui.b272_settings_003'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) {
+        if (isShortcutConflict(err) && await confirmDialog(translateUI('ui.b272_settings_003'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) {
           try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo, replace: true }); } catch (x) { toast(x.message, { kind: 'warn' }); }
-        } else if (!/already used/.test(err.message)) toast(err.message, { kind: 'warn' });
+        } else if (!isShortcutConflict(err)) toast(err.message, { kind: 'warn' });
       }
       await loadShortcuts(); draw();
     };
@@ -79,7 +79,7 @@ async function shortcutsSec(b) {
   };
   const draw = () => {
     const groups = {};
-    for (const a of data.actions.filter((x) => !q || x.label.toLowerCase().includes(q) || x.group.toLowerCase().includes(q) || (x.binding || '').toLowerCase().includes(q))) (groups[a.group] ||= []).push(a);
+    for (const a of data.actions.filter((x) => !q || x.label.toLowerCase().includes(q) || uiLabel(x.label).toLowerCase().includes(q) || x.group.toLowerCase().includes(q) || uiLabel(x.group).toLowerCase().includes(q) || (x.binding || '').toLowerCase().includes(q))) (groups[a.group] ||= []).push(a);
     mount(listEl, Object.entries(groups).map(([g, acts]) => h('section', { class: 'stack tight' }, h('h3', { style: { margin: '8px 0 0' } }, uiLabel(g)),
       acts.map((a) => {
         const rec = h('button', { class: 'btn small kb-rec', 'aria-label': translateUI('settings.shortcut_change_for', { label: uiLabel(a.label) }), onclick: (e) => record(a, e.currentTarget) }, a.binding ? translateUI('settings.shortcut_change') : translateUI('settings.shortcut_assign'));
@@ -90,7 +90,9 @@ async function shortcutsSec(b) {
           a.binding ? h('button', { class: 'btn ghost small', 'aria-label': translateUI('settings.shortcut_clear_for', { label: uiLabel(a.label) }), onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
           a.default !== a.binding ? h('button', { class: 'btn ghost small', onclick: async () => {
             try { data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true }); } catch (err) {
-              if (await confirmDialog(translateUI('ui.b272_settings_004'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
+              if (isShortcutConflict(err)) {
+                if (await confirmDialog(translateUI('ui.b272_settings_004'), err.message + translateUI('settings.replace_question'), translateUI('settings.replace'))) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true });
+              } else toast(err.message, { kind: 'warn' }); }
             await loadShortcuts(); draw(); } }, t('common.reset')) : null));
       }))));
   };
@@ -207,7 +209,7 @@ async function sources(b) {
           onchange: (e) => set('updates.check_hours')(Number(e.target.value)) }), h('span', { class: 'small' }, translateUI('settings.hours')))),
     row(translateUI('ui.b272_settings_073'), translateUI('ui.b272_settings_074'),
       h('div', { class: 'stack tight' }, h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; const r = await post('/api/news/check');
-        toast(r.ok ? translateUI('settings.checked_posts', { count: r.count }) : translateUI('settings.refresh_failed', { error: r.error }), { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), translateUI('settings.check_now')),
+        toast(r.ok ? translateUI('settings.checked_posts', { count: r.count }) : translateUI('settings.refresh_failed', { error: apiErrorText(r.error) }), { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), translateUI('settings.check_now')),
       n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? translateUI('settings.last_check_ok', { date: relTime(n.feed.checked_at) }) : translateUI('settings.last_check_failed', { date: relTime(n.feed.checked_at), error: n.feed.error })) : h('span', { class: 'small muted' }, translateUI('settings.never_checked')))),
     row(translateUI('ui.b272_settings_075'), translateUI('settings.no_feed'), badge('UNKNOWN', translateUI('settings.not_connected'))));
 }
@@ -449,9 +451,9 @@ async function updatesSec(b) {
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.updates')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('system.updates_intro')),
     h('h3', null, translateUI('system.official_news')),
-    row(translateUI('ui.b272_settings_087'), f ? translateUI('system.last_success', { date: f.last_ok_at ? relTime(f.last_ok_at) : translateUI('system.never'), failure: f.ok === false ? translateUI('system.last_failure', { error: f.error }) : '' }) : translateUI('system.not_checked'),
+    row(translateUI('ui.b272_settings_087'), f ? translateUI('system.last_success', { date: f.last_ok_at ? relTime(f.last_ok_at) : translateUI('system.never'), failure: f.ok === false ? translateUI('system.last_failure', { error: apiErrorText(f.error) }) : '' }) : translateUI('system.not_checked'),
       switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }))),
-    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? translateUI('system.news_done') : translateUI('system.check_error', { error: r.error }), { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), translateUI('settings.check_now'))),
+    h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? translateUI('system.news_done') : translateUI('system.check_error', { error: apiErrorText(r.error) }), { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), translateUI('settings.check_now'))),
     h('h3', null, translateUI('system.reference')),
     h('div', { class: 'small' }, refUsing, '.'),
     ref.private_superseded ? notice('info', translateUI('system.superseded', { date: fmtDate(ref.private_superseded.private_date) })) : null,
@@ -472,7 +474,7 @@ async function updatesSec(b) {
         saveSettings({ 'app_updates.channel': v });
       }, translateUI('ui.b272_settings_090'))),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), translateUI('system.check_updates'))),
-    app.ok === false ? notice('warn', translateUI('system.check_error', { error: app.error })) : null,
+    app.ok === false ? notice('warn', translateUI('system.check_error', { error: apiErrorText(app.error) })) : null,
     app.ok && !latest ? h('div', { class: 'small muted' }, translateUI('system.no_release')) : null,
     latest ? h('div', { class: 'card inset stack tight' },
       h('div', null, h('strong', null, app.available ? translateUI('system.version_available', { version: latest.version }) : (latest.prerelease ? translateUI('system.latest_pre', { version: latest.version }) : translateUI('system.latest_release', { version: latest.version }))),

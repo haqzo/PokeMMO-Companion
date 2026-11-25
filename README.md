@@ -146,7 +146,7 @@ Home can be hidden in *Settings › Home*. New releases are announced there auto
 
 ## Documentation
 Build reports and decisions: [`docs/build/`](docs/build/README.md) — latest:
-[22 — safe shutdown, comparison polish, community Discord](docs/build/22-SHUTDOWN-COMPARISON-DISCORD-LIVE.md) (after [21](docs/build/21-NATIVE-BETA-FIXES.md), [20 — beta preparation](docs/build/20-BETA-PREP-THEMES-ASSETS.md)). Design: [`docs/design/`](docs/design/README.md).
+[29 — localization and verification](docs/build/29-LOCALIZATION-SERVICE-ERRORS.md). Current priorities and outstanding gates: [active development checkpoint](docs/roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md). Design: [`docs/design/`](docs/design/README.md).
 Research: [`docs/research/`](docs/research/README.md).
 
 ## Branches

@@ -23,6 +23,8 @@ Use **Settings → Backup & recovery** to make a complete ZIP before replacing a
 
 ## Release gates
 
+Localization is a closed-alpha development requirement: complete Spanish and Simplified Chinese interface and walkthrough coverage, review terminology and gameplay instructions, run the full rendered-interface and regression audit, and verify native glyph rendering. Coverage counts alone do not establish language quality. See the [active development checkpoint](roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md).
+
 | Stage | Open items |
 |---|---|
 | Friends-only alpha | Confirm redistribution rights for the full asset bundle, including original sprite art, PokeMMO icons, reference data and maps. Confirm walkthrough permission scope and attribution. A Git checkout or a private audience alone does not establish permission. Approve the alpha version and distribution method. Verify native installation, compositor behavior and instant relaunch on tester machines. Windows ZIP delivery depends on a clean Windows build and smoke test. |

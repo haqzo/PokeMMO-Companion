@@ -1,5 +1,5 @@
 import { t as translateUI } from './i18n.js';
-import { lang, locale, t } from './i18n.js';
+import { lang, locale, t, uiLabel } from './i18n.js';
 import { gameTerm, speciesLabel } from './game-locale.js';
 // Core helpers: API client, DOM builder, icons, live sync, toasts, dialogs, formatting.
 import { applyTheme } from './themes.js';
@@ -13,6 +13,70 @@ export const WINDOW_ID = (POPOUT ? 'popout-' + POPOUT : 'main') + '-' + Math.ran
 export const state = { boot: null, settings: {}, caps: {}, dexCache: null };
 
 const API_ERROR_KEYS = {
+  "Not found": "errorui.not_found",
+  "Unknown form": "errorui.form",
+  "Unknown region": "errorui.region",
+  "Import data and choose a species": "errorui.import_species",
+  "Companion is closing": "errorui.closing",
+  "Missing or invalid session token": "errorui.session",
+  "Request too large": "errorui.request_large",
+  "Invalid JSON": "errorui.json",
+  "tags must be a list": "errorui.tags_list",
+  "A tag can be at most 40 characters": "errorui.tag_length",
+  "At most 20 tags per note": "errorui.tag_limit",
+  "links must be a list of at most 50 entries": "errorui.links_limit",
+  "Link reference missing": "errorui.link_ref",
+  "state must be active, archived, trash or all": "errorui.note_state",
+  "Restore the note from the trash before editing it": "errorui.note_restore",
+  "Unknown note colour": "errorui.note_color",
+  "Only notes in the trash can be deleted permanently": "errorui.note_purge",
+  "Choose a species": "errorui.choose_species",
+  "EV total cannot exceed 510": "errorui.ev_total",
+  "A Pokémon can have at most 4 moves": "errorui.move_limit",
+  "Unknown gender": "errorui.gender",
+  "Unknown obtain method": "errorui.obtain_method",
+  "Obtained date must be YYYY-MM-DD": "errorui.obtained_date",
+  "Unknown character run": "errorui.character_run",
+  "Unknown status": "errorui.status",
+  "status must be seen, owned or caught_ot": "errorui.collection_status",
+  "Unknown template": "errorui.template",
+  "A showcase can hold at most 60 entries": "errorui.showcase_limit",
+  "Unknown motion": "errorui.motion",
+  "Unknown background": "errorui.background",
+  "Unknown guide type": "errorui.guide_type",
+  "A guide can have at most 2000 steps": "errorui.guide_limit",
+  "Unknown step kind": "errorui.step_kind",
+  "Image data is not valid base64": "errorui.image_base64",
+  "Images can be at most 5 MB": "errorui.image_size",
+  "Only PNG, JPEG, GIF or WebP images can be attached": "errorui.image_type",
+  "Date must be YYYY-MM-DD": "errorui.date",
+  "Enter at least one counter as shown in your game": "errorui.counter",
+  "PDF import is not supported yet — copy the text into a .txt/.md file, or paste it into the editor.": "errorui.guide_pdf",
+  "Supported guide files: .txt, .md, .odt, .docx, .html": "errorui.guide_files",
+  "File data is not valid base64": "errorui.file_base64",
+  "Guide files can be at most 8 MB": "errorui.guide_size",
+  "The file could not be read as a document": "errorui.guide_read",
+  "Not a PokeMMO Companion backup file": "errorui.backup_format",
+  "Backup was made by a newer Companion version": "errorui.backup_version",
+  "mode must be merge or replace": "errorui.backup_mode",
+  "Backup archive is too large": "errorui.backup_archive_large",
+  "Not a PokeMMO Companion backup archive": "errorui.backup_archive_format",
+  "Backup data is too large": "errorui.backup_data_large",
+  "No update available": "errorui.update_none",
+  "Verified downloads are not configured in this build — use the release page": "errorui.update_unconfigured",
+  "This release has no checksum file, so it cannot be verified": "errorui.update_checksum",
+  "Download is not from the approved release location": "errorui.update_origin",
+  "Checksum file signature is not valid": "errorui.update_signature",
+  "The checksum file does not list this download": "errorui.update_unlisted",
+  "Download is larger than allowed": "errorui.update_download_large",
+  "Downloaded file does not match its checksum — deleted": "errorui.update_mismatch",
+  "No approved data source is configured in this build": "errorui.ref_unconfigured",
+  "data index signature is not valid — ignored": "errorui.ref_signature",
+  "package checksum does not match the signed index": "errorui.ref_checksum",
+  "No previous dataset to go back to": "errorui.ref_previous",
+  "Use at least one modifier (Ctrl, Alt, Shift or Meta) so typing never triggers it": "errorui.shortcut_mod",
+  "Shift + a letter types a capital letter; add Ctrl or Alt": "errorui.shortcut_shift",
+  "bindings must be an object": "errorui.shortcut_object",
   "Quantity must be between 0 and 999999": "errorui.item_quantity",
   "Invalid timer owner": "errorui.timer_owner",
   "Timer not found": "errorui.timer_missing",
@@ -53,9 +117,20 @@ const API_ERROR_KEYS = {
   "observed_at must be an ISO date/time": "errorui.observed",
   "in_dex must be yes, no or clear": "errorui.dex_state"
 };
+// Match only the shortcut registry's structured conflict message; never branch on localized text.
+const shortcutConflict = (message) => /^([^\n]+) is already used by “([^”]+)”(\. Choose another key or replace it\.)?$/.exec(message);
+export const isShortcutConflict = (error) => Boolean(shortcutConflict(error?.rawMessage ?? error?.message ?? ''));
+
 export function apiErrorText(message) {
   if (Object.hasOwn(API_ERROR_KEYS, message)) return translateUI(API_ERROR_KEYS[message]);
   if (typeof message !== 'string') return message;
+  const conflict = shortcutConflict(message);
+  if (conflict) return translateUI(conflict[3] ? 'errorui.shortcut_conflict' : 'errorui.shortcut_conflict_short',
+    { combo: conflict[1], action: uiLabel(conflict[2]) });
+  const reserved = /^([^\n]+) is reserved by the system or the Companion$/.exec(message);
+  if (reserved) return translateUI('errorui.shortcut_reserved', { combo: reserved[1] });
+  const checksum = /^Backup archive is damaged \(checksum mismatch in (.+)\)$/.exec(message);
+  if (checksum) return translateUI('errorui.backup_checksum', { file: checksum[1] });
   const status = /^Request failed \((\d+)\)$/.exec(message);
   if (status) return translateUI('errorui.request', { status: status[1] });
   const limit = /^You can keep up to (\d+) (timers|presets)$/.exec(message);
