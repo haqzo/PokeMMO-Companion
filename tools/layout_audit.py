@@ -15,7 +15,7 @@ ROUTES = ["#/home", "#/pokedex", "#/pokedex/6", "#/tools", "#/tools/typechart", 
           "#/tools/breeding", "#/tools/team", "#/tools/ev", "#/tools/catch", "#/tools/calculator", "#/tools/timers",
           "#/tools/items", "#/tools/notes", "#/tools/box", "#/tools/showcase", "#/tools/locations", "#/tools/links",
           "#/collection", "#/live", "#/live/phenomena", "#/live/legendaries", "#/live/cave", "#/guides", "#/guides/storyline", "#/guides/mine",
-          "#/settings/appearance", "#/settings/language", "#/settings/windows", "#/settings/shortcuts",
+          "#/settings/appearance", "#/settings/performance", "#/settings/language", "#/settings/windows", "#/settings/shortcuts",
           "#/settings/notifications", "#/settings/sources", "#/settings/guides", "#/settings/backup", "#/settings/data",
           "#/settings/about"]
 

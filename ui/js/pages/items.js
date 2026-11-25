@@ -6,6 +6,7 @@ import { h, mount, clear, icon, get, api, state, setting, saveSettings, on, noti
 import { go, popoutButton, pinButton } from '../shell.js';
 import { t, lang } from '../i18n.js';
 import { linkedNotes, openRoute } from '../links.js';
+import { itemBatchSize } from '../performance.js';
 
 const SOURCE_KEYS = {"name is a placeholder":"itemui.basis_placeholder","name starts with TM/HM":"itemui.basis_tm","name ends with “Ball”":"itemui.basis_ball","name ends with “Berry”":"itemui.basis_berry","name ends with “Mail”":"itemui.basis_mail","description says cosmetic / dye / particle effect":"itemui.basis_cosmetic","description mentions an unknown reward / dated event item":"itemui.basis_reward","name contains “Fossil”":"itemui.basis_fossil","name/description mentions seeds or planting":"itemui.basis_farming","known breeding item":"itemui.basis_breeding","used by an evolution in the game data":"itemui.basis_evolution","evolution stone description":"itemui.basis_stone","description mentions stats / EVs / nature / level":"itemui.basis_training","description mentions use in battle":"itemui.basis_battle","description mentions use outside battle / lures":"itemui.basis_field","description mentions restoring / healing":"itemui.basis_medicine","description mentions holding":"itemui.basis_hold","name looks like a key item":"itemui.basis_key","no rule matched":"itemui.basis_other","PokeMMO game data. Region codes are the game data's raw values.":"itemui.provenance","Install (or re-install) your PokeMMO data to build the Item Library from your own dump.":"itemui.unavailable"};
 const itemSource = (value) => SOURCE_KEYS[value] ? translateUI(SOURCE_KEYS[value]) : uiLabel(value);
@@ -23,7 +24,7 @@ export function renderItemBatches(grid, list, tile, root = null, batchSize = 240
   cancelBatches();
   clear(grid);
   let shown = 0, observer = null, stopped = false;
-  const stop = () => { stopped = true; observer?.disconnect(); observer = null; };
+  const stop = () => { stopped = true; observer?.disconnect(); observer = null; if (stopBatches === stop) stopBatches = null; };
   stopBatches = stop;
   const more = () => {
     if (stopped) return;
@@ -31,11 +32,11 @@ export function renderItemBatches(grid, list, tile, root = null, batchSize = 240
     for (const item of list.slice(shown, shown + batchSize)) frag.append(tile(item));
     shown += batchSize;
     grid.append(frag);
-    if (shown >= list.length) { observer?.disconnect(); observer = null; return; }
+    if (shown >= list.length) { stop(); return; }
     const sentinel = h('div', { class: 'more-sentinel', style: { gridColumn: '1/-1', height: '1px' } });
     grid.append(sentinel);
     observer = new IntersectionObserver((entries, obs) => {
-      if (stopped || !grid.isConnected) { obs.disconnect(); return; }
+      if (stopped || !grid.isConnected) { stop(); return; }
       if (entries.some(e => e.isIntersecting)) { obs.disconnect(); sentinel.remove(); more(); }
     }, { root, rootMargin: '200px 0px' });
     observer.observe(sentinel);
@@ -43,8 +44,9 @@ export function renderItemBatches(grid, list, tile, root = null, batchSize = 240
   if (typeof IntersectionObserver !== 'function') {
     const frag = document.createDocumentFragment();
     for (const item of list) frag.append(tile(item));
-    grid.append(frag);
+    grid.append(frag); stop();
   } else if (list.length) more();
+  else stop();
   return stop;
 }
 
@@ -112,7 +114,7 @@ export async function render(el, route) {
   const draw = () => {
     const list = applyItemFilters(data.items, F);
     count.textContent = translateUI('ui.item_counts', { count: number(list.length), total: number(data.items.filter((i) => i.category !== 'placeholder').length) });
-    renderItemBatches(grid, list, i => itemTile(i, { selected: i.id === sel, onOpen: id => go(`#/tools/items/${id}`) }), scroll);
+    renderItemBatches(grid, list, i => itemTile(i, { selected: i.id === sel, onOpen: id => go(`#/tools/items/${id}`) }), scroll, itemBatchSize());
     if (!list.length) grid.append(h('div', { class: 'empty', style: { gridColumn: '1/-1' } }, h('h3', null, translateUI('ui.item_empty')), h('button', { class: 'btn small', onclick: () => { F = { ...F0 }; persist(); draw(); } }, translateUI('ui.b272_item_clear_filter'))));
   };
   const chip = (label, key) => h('button', { class: 'chip btnlike' + (F[key] ? ' active' : ''), 'aria-pressed': String(!!F[key]), onclick: (e) => { F[key] = !F[key]; e.currentTarget.classList.toggle('active', F[key]); e.currentTarget.setAttribute('aria-pressed', String(F[key])); persist(); draw(); } }, label);
@@ -202,7 +204,7 @@ export async function renderItemsPopout(el, mode) {
   const draw = () => {
     const list = applyItemFilters(data.items, F);
     countEl.textContent = translateUI('itemui.count', { count: number(list.length), total: number(data.items.filter((i) => i.category !== 'placeholder').length) });
-    renderItemBatches(grid, list, i => itemTile(i, { compact: mode === 'compact', onOpen: id => { location.hash = `#/item/${id}`; } }), el, 120);
+    renderItemBatches(grid, list, i => itemTile(i, { compact: mode === 'compact', onOpen: id => { location.hash = `#/item/${id}`; } }), el, itemBatchSize(true));
   };
   mount(el, h('div', { class: 'row', style: { marginBottom: '6px' } },
     h('input', { class: 'input', type: 'search', placeholder: t('common.search'), 'aria-label': translateUI('ui.search_items'), value: F.q, oninput: debounce((e) => { F.q = e.target.value; draw(); }, 120) }),

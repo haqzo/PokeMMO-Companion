@@ -16,7 +16,11 @@ async function boot() {
   connectEvents();
   on('settings', async (data) => {
     const keys = Object.keys(data || {});
-    if (keys.length && keys.every((k) => k.endsWith('.geometry'))) return;  // window moves don't affect pages
+    // Saved route/last selection and geometry are metadata, not visual preferences.
+    // Apply those exact values without querying settings or redrawing every open window.
+    if (keys.length && keys.every(k => k.endsWith('.geometry') || k === 'app.last_route' || k === 'pokedex.last_species')) {
+      Object.assign(state.settings, data); return;
+    }
     state.settings = await get('/api/settings');
     applyAppearance();
     document.dispatchEvent(new CustomEvent('settings-changed', { detail: data || {} }));

@@ -682,3 +682,26 @@ def test_incremental_item_batches_cancel_stale_observers(clean, pg):
     assert result["next"] > 120
     assert result["final"] == [299]
     assert not pg.errors
+
+
+@pytest.mark.parametrize(("language", "name"), [("en", "Performance profile"), ("es", "Perfil de rendimiento"), ("zh", "性能配置")])
+def test_performance_settings_and_effective_preferences(clean, pg, language, name):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": True, "performance.profile": "balanced", "sprites.motion": "on", "sprites.animation": {}})
+    try:
+        pg.goto(clean.url("#/settings/performance"))
+        profile = pg.get_by_role("combobox", name=name, exact=True)
+        profile.wait_for()
+        assert profile.input_value() == "balanced"
+        pg.wait_for_function("""async () => { const p = await import('/js/performance.js'); return p.itemBatchSize(true) === 120; }""")
+        profile.select_option("lightweight")
+        pg.wait_for_function("""async () => { const p = await import('/js/performance.js'); const s = await import('/js/sprites.js'); return p.itemBatchSize(true) === 60 && !s.animatedIn('summary'); }""")
+        profile.select_option("quality")
+        pg.wait_for_function("""async () => { const p = await import('/js/performance.js'); const s = await import('/js/sprites.js'); return p.itemBatchSize(true) === 240 && s.animatedIn('dex_grid'); }""")
+        profile.select_option("custom")
+        pg.locator(".settings-layout .card select").last.wait_for()
+        pg.wait_for_function("""async () => { const p = await import('/js/performance.js'); return p.itemBatchSize(true) === 120; }""")
+        pg.reload()
+        assert pg.get_by_role("combobox", name=name, exact=True).input_value() == "custom"
+        assert not pg.errors
+    finally:
+        clean.ctx.settings.update({"performance.profile": "balanced", "performance.item_batch": "normal", "performance.default_motion": "standard", "sprites.motion": "system", "sprites.animation": {}, "app.language": "en"})

@@ -2,7 +2,7 @@ import { formLabel, gameTerm, speciesLabel } from '../game-locale.js';
 import { uiLabel, shortcutLabel } from '../i18n.js';
 import { t as translateUI } from '../i18n.js';
 // Settings (docs/design/16) + data import + first-run onboarding.
-import { CONTEXTS } from '../sprites.js';
+import { CONTEXTS, defaultAnimation } from '../sprites.js';
 import { appearanceSec, layoutSec, homeSec } from './settings-theme.js';
 import { h, mount, icon, get, post, api, apiErrorText, isShortcutConflict, state, setting, saveSettings, badge, notice, cap, seg, switchEl, toast, confirmDialog, modal, on, fmtDate, relTime, SHELL, extLink } from '../core.js';
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
@@ -11,7 +11,7 @@ import { createRun } from './guides.js';
 import { LANGS, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
-const SECTIONS = [['appearance', 'Appearance & themes'], ['layout', 'Layout & scaling'], ['sprites', 'Pokémon & sprites'], ['home', 'Home'], ['language', 'Language'],
+const SECTIONS = [['appearance', 'Appearance & themes'], ['layout', 'Layout & scaling'], ['sprites', 'Pokémon & sprites'], ['performance', 'Performance'], ['home', 'Home'], ['language', 'Language'],
   ['startup', 'Startup & game'], ['windows', 'Windows & popouts'], ['shortcuts', 'Shortcuts'], ['notifications', 'Notifications'], ['sources', 'Live sources & news'],
   ['guides', 'Guides & characters'], ['updates', 'Updates'], ['backup', 'Backup & recovery'], ['data', 'Advanced'], ['about', 'About & credits']];
 const ALIASES = { advanced: 'data', themes: 'appearance', scaling: 'layout' };
@@ -31,7 +31,7 @@ export async function render(el, route) {
   const body = h('div', { class: 'card' });
   page.append(h('div', { class: 'settings-layout' }, h('nav', { class: 'settings-nav', 'aria-label': translateUI('ui.settings_sections') },
     SECTIONS.map(([k, l]) => h('button', { class: 'chapter-btn' + (k === sec ? ' active' : ''), onclick: () => go('#/settings/' + k) }, uiLabel(l)))), body));
-  await ({ appearance: appearanceSec, layout: layoutSec, home: homeSec, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, sprites: spritesSec, data, about })[sec](body);
+  await ({ appearance: appearanceSec, layout: layoutSec, home: homeSec, language, windows, shortcuts: shortcutsSec, notifications, sources, guides: guidesSec, backup: backupSec, updates: updatesSec, startup: startupSec, sprites: spritesSec, performance: performanceSec, data, about })[sec](body);
 }
 
 // --------------------------------------------------------------- language
@@ -379,6 +379,28 @@ async function formArtReport() {
 
 // ---------------------------------------------------------------- about
 // --------------------------------------------------------------- Pokémon & sprites
+async function performanceSec(b) {
+  const profile = setting('performance.profile') || 'balanced';
+  const choices = (key, values, fallback, label, onChange) => h('select', { class: 'input', 'aria-label': label,
+    onchange: async e => { try { await saveSettings({ [key]: e.target.value }); if (onChange) onChange(); toast(translateUI('ui.saved')); }
+      catch (err) { toast(apiErrorText(err), { kind: 'warn' }); } } },
+    values.map(v => h('option', { value: v, selected: (setting(key) || fallback) === v ? 'selected' : null }, translateUI('performance.' + v))));
+  const redraw = () => { if (b.isConnected) { b.replaceChildren(); performanceSec(b); } };
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.performance')),
+    h('p', { class: 'small muted' }, translateUI('performance.intro')),
+    row(translateUI('performance.profile'), translateUI('performance.' + profile + '_help'),
+      choices('performance.profile', ['lightweight', 'balanced', 'quality', 'custom'], 'balanced', translateUI('performance.profile'), redraw)),
+    profile === 'custom' ? row(translateUI('performance.batch'), translateUI('performance.batch_help'),
+      choices('performance.item_batch', ['small', 'normal', 'large'], 'normal', translateUI('performance.batch'))) : null,
+    profile === 'custom' ? row(translateUI('performance.motion'), translateUI('performance.motion_help'),
+      choices('performance.default_motion', ['conservative', 'standard', 'enhanced'], 'standard', translateUI('performance.motion'))) : null,
+    h('p', { class: 'small muted' }, translateUI('performance.overrides')),
+    h('p', { class: 'small muted' }, translateUI('performance.always')),
+    h('button', { class: 'btn ghost small', onclick: async () => {
+      await saveSettings({ 'performance.profile': 'balanced', 'performance.item_batch': 'normal', 'performance.default_motion': 'standard' }); redraw();
+    } }, translateUI('performance.reset')));
+}
+
 async function spritesSec(b) {
   const s = state.settings;
   const anim = { ...(s['sprites.animation'] || {}) };
@@ -392,9 +414,9 @@ async function spritesSec(b) {
       seg([['normal', translateUI('ui.normal')], ['shiny', translateUI('ui.shiny')]], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), translateUI('ui.b272_settings_078'))),
     h('h3', null, translateUI('settings.sprite_context')),
     h('div', { class: 'sprite-prefs' }, CONTEXTS.map(([id, label, def, hasSize]) => h('div', { class: 'set-row' },
-      h('div', null, h('div', { style: { fontWeight: 600 } }, uiLabel(label)), h('div', { class: 'desc' }, translateUI('settings.sprite_default', { mode: def === 'animated' ? translateUI('ui.animated') : translateUI('ui.static') }))),
+      h('div', null, h('div', { style: { fontWeight: 600 } }, uiLabel(label)), h('div', { class: 'desc' }, translateUI('settings.sprite_default', { mode: defaultAnimation(id) === 'animated' ? translateUI('ui.animated') : translateUI('ui.static') }))),
       h('div', { class: 'row wrap tight' },
-        seg([['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]], anim[id] || def, async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, translateUI('settings.sprite_animation', { label: uiLabel(label) })),
+        seg([['static', translateUI('ui.static')], ['animated', translateUI('ui.animated')]], anim[id] || defaultAnimation(id), async (v) => { anim[id] = v; await saveSettings({ 'sprites.animation': { ...anim } }); }, translateUI('settings.sprite_animation', { label: uiLabel(label) })),
         hasSize ? h('label', { class: 'row tight small' }, translateUI('theme.size'), h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('settings.sprite_size', { label: uiLabel(label) }),
           onchange: async (e) => { const v = Number(e.target.value); if (v === 100) delete size[id]; else size[id] = v; await saveSettings({ 'sprites.size': { ...size } }); } },
           [70, 85, 100, 115, 130, 150].map((p) => h('option', { value: p, selected: (size[id] || 100) === p ? 'selected' : null }, p + ' %')))) : null)))),

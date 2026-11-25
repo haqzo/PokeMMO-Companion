@@ -36,7 +36,7 @@ function openInMain(route) {
 const NO_SPRITE_BODY = new Set(['calculator', 'timers', 'natures', 'typechart']);
 export function popoutSettingsImpact(tool, keys, detail = false) {
   const dexKeys = tool === 'pokedex' && keys.some(k => k.startsWith('pokedex.') && k !== 'pokedex.last_species');
-  const sprites = !NO_SPRITE_BODY.has(tool) && keys.some(k => k.startsWith('sprites.') ||
+  const sprites = !NO_SPRITE_BODY.has(tool) && keys.some(k => k.startsWith('sprites.') || k.startsWith('performance.') ||
     k === `window.${tool}.sprite_scale` || k === `window.${tool}.sprite_motion`);
   return { body: !!(dexKeys || sprites), filters: !!(dexKeys && !detail && keys.includes('pokedex.filters')) };
 }

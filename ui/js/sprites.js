@@ -2,6 +2,7 @@
 // per context. One global switch ("Animations: system / on / off") overrides every context; "system" follows the
 // operating system's reduced-motion setting.
 import { setting, POPOUT } from './core.js';
+import { profileMotionDefault } from './performance.js';
 
 export const CONTEXTS = [
   // id, label, default, has size control
@@ -16,6 +17,7 @@ export const CONTEXTS = [
   ['compare', 'Pokémon comparison', 'static', true],
 ];
 const DEFAULTS = Object.fromEntries(CONTEXTS.map(([id, , d]) => [id, d]));
+export const defaultAnimation = ctx => profileMotionDefault(ctx, DEFAULTS[ctx] || 'static');
 
 export function motionGlobal() {
   const g = setting('sprites.motion') || 'system';
@@ -32,7 +34,7 @@ export function animatedIn(ctx) {
   // a popout can override for itself (its text-size popover); the global switch above still wins
   const own = POPOUT && setting(`window.${POPOUT}.sprite_motion`);
   if (own === 'static' || own === 'animated') return own === 'animated';
-  const pref = (setting('sprites.animation') || {})[ctx] || DEFAULTS[ctx] || 'static';
+  const pref = (setting('sprites.animation') || {})[ctx] || defaultAnimation(ctx);
   if (ctx === 'summary' && setting('pokedex.animate') === false && !(setting('sprites.animation') || {}).summary) return false;
   return pref === 'animated';
 }

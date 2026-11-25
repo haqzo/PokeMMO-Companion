@@ -87,6 +87,9 @@ DEFAULTS: dict[str, Any] = {
     "pokedex.scope": "reference",            # reference (all 649, default) | pokemmo (hide species YOU marked "Not listed")
     "pokedex.density": "standard",           # compact | standard | large
     "pokedex.progress_run": None,            # run id whose manual registration is shown, or None (= not tracked)
+    "performance.profile": "balanced",       # lightweight | balanced | quality | custom
+    "performance.item_batch": "normal",       # custom profile only
+    "performance.default_motion": "standard", # custom profile only
     "sprites.motion": "system",              # system (follow reduced motion) | on | off — overrides every context
     "sprites.animation": {},                 # per context: static | animated (missing = default, see ui/js/sprites.js)
     "sprites.size": {},                      # per context: percent 50..200
@@ -135,6 +138,9 @@ _ENUMS = {
     "appearance.stat_bars": ("soft", "accent"),
     "appearance.density": ("comfortable", "compact"),
     "app.close_behavior": ("quit", "tray"),
+    "performance.profile": ("lightweight", "balanced", "quality", "custom"),
+    "performance.item_batch": ("small", "normal", "large"),
+    "performance.default_motion": ("conservative", "standard", "enhanced"),
     "sprites.motion": ("system", "on", "off"),
     "game.on_exit": ("keep", "minimize", "quit"),
     "app.window_backend": ("auto", "wayland", "xwayland"),
