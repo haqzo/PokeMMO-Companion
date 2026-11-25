@@ -43,7 +43,7 @@ function swatches(colors) {
 // ------------------------------------------------------------ appearance & themes
 export async function appearanceSec(b, { personal } = {}) {
   const cat = catalog();
-  if (!cat) { b.append(h('p', null, 'Themes are unavailable in this build.')); return; }
+  if (!cat) { b.append(h('p', null, translateUI('ui.b272_settings_092'))); return; }
   personal = personal || (await get('/api/themes')).personal;
   const s = state.settings;
   const redraw = (p = personal) => { mount(b); appearanceSec(b, { personal: p }); };
@@ -60,18 +60,18 @@ export async function appearanceSec(b, { personal } = {}) {
   const unpreview = () => applyAppearance();
   const card = (key, t, label, sub, isActive) => h('button', {
     class: 'theme-card' + (isActive ? ' active' : ''), 'aria-pressed': isActive ? 'true' : 'false', dataset: { theme: key },
-    onclick: () => pick(t, key), onmouseenter: () => preview(withLayout(t)), onmouseleave: unpreview, title: 'Hover to preview, click to use' },
+    onclick: () => pick(t, key), onmouseenter: () => preview(withLayout(t)), onmouseleave: unpreview, title: translateUI('ui.b272_settings_093') },
     swatches(resolve(t).colors), h('div', { class: 'theme-name' }, label), h('div', { class: 'tiny muted' }, sub));
 
   const presetCards = cat.order.map((k) => card(k, { base: k, name: cat.presets[k].name }, cat.presets[k].name,
     k === cat.default ? 'Default' : cat.sources[k] ? 'Built-in · ' + (k === 'catppuccin-mocha' ? 'Catppuccin' : 'enkia') : 'Built-in', id === k));
   const customCard = h('button', { class: 'theme-card custom' + (modified && !mine ? ' active' : ''), onclick: () => b.querySelector('#theme-editor')?.scrollIntoView({ behavior: 'smooth' }) },
-    swatches(resolved.colors), h('div', { class: 'theme-name' }, 'Custom'), h('div', { class: 'tiny muted' }, 'Change any colour below'));
+    swatches(resolved.colors), h('div', { class: 'theme-name' }, 'Custom'), h('div', { class: 'tiny muted' }, translateUI('ui.b272_settings_094')));
   const personalCards = personal.map((p) => card(p.id, p, p.name, 'Yours · from ' + (cat.presets[p.base]?.name || 'Default'), id === p.id));
 
   // ---- actions
   const askName = async (title, value) => {
-    const inp = h('input', { class: 'input', value: value || '', maxlength: 40, 'aria-label': 'Theme name' });
+    const inp = h('input', { class: 'input', value: value || '', maxlength: 40, 'aria-label': translateUI('ui.b272_settings_095') });
     const r = await modal({ title, body: h('div', { class: 'field' }, h('label', null, translateUI('ui.name')), inp), actions: [
       { label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: translateUI('ui.save'), kind: 'primary', handler: () => inp.value.trim() || false }] });
     return r;
@@ -84,16 +84,16 @@ export async function appearanceSec(b, { personal } = {}) {
     } catch (e) { toast(e.message, { kind: 'warn' }); }
   };
   const actions = h('div', { class: 'row wrap tight' },
-    h('button', { class: 'btn small', onclick: async () => { const n = await askName('Save as a new theme', modified ? activeName + ' (custom)' : activeName + ' copy'); if (n) saveNew(theme, n); } }, 'Save as new theme…'),
+    h('button', { class: 'btn small', onclick: async () => { const n = await askName(translateUI('ui.b272_settings_096'), modified ? activeName + ' (custom)' : activeName + ' copy'); if (n) saveNew(theme, n); } }, translateUI('ui.b272_settings_097')),
     mine && modified ? h('button', { class: 'btn small primary', onclick: async () => {
-      try { const res = await api('PUT', '/api/themes/' + mine.id, { ...theme, name: mine.name }); commitTheme(res, mine.id); toast('Theme saved'); redraw((await get('/api/themes')).personal); }
-      catch (e) { toast(e.message, { kind: 'warn' }); } } }, 'Save changes') : null,
-    modified ? h('button', { class: 'btn small ghost', onclick: () => { commitTheme({ ...savedRef, shape: theme.shape, layout: theme.layout }, id); redraw(); } }, 'Discard changes') : null,
-    mine ? h('button', { class: 'btn small ghost', onclick: async () => { const n = await askName('Rename theme', mine.name); if (!n) return;
+      try { const res = await api('PUT', '/api/themes/' + mine.id, { ...theme, name: mine.name }); commitTheme(res, mine.id); toast(translateUI('ui.b272_settings_098')); redraw((await get('/api/themes')).personal); }
+      catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.b272_settings_099')) : null,
+    modified ? h('button', { class: 'btn small ghost', onclick: () => { commitTheme({ ...savedRef, shape: theme.shape, layout: theme.layout }, id); redraw(); } }, translateUI('ui.b272_settings_100')) : null,
+    mine ? h('button', { class: 'btn small ghost', onclick: async () => { const n = await askName(translateUI('ui.b272_settings_101'), mine.name); if (!n) return;
       try { const res = await api('PUT', '/api/themes/' + mine.id, { ...mine, name: n }); commitTheme({ ...theme, name: res.name }, mine.id); redraw((await get('/api/themes')).personal); } catch (e) { toast(e.message, { kind: 'warn' }); } } }, translateUI('ui.rename')) : null,
     mine ? h('button', { class: 'btn small ghost', onclick: () => saveNew(mine, (mine.name + ' copy').slice(0, 40)) }, translateUI('ui.duplicate')) : null,
     mine ? h('button', { class: 'btn small ghost', onclick: async () => {
-      if (!await confirmDialog('Delete theme', `Delete “${mine.name}”? The built-in themes are not affected.`, 'Delete', true)) return;
+      if (!await confirmDialog(translateUI('ui.b272_settings_102'), `Delete “${mine.name}”? The built-in themes are not affected.`, 'Delete', true)) return;
       await api('DELETE', '/api/themes/' + mine.id); commitTheme({ ...theme }, mine.base); redraw((await get('/api/themes')).personal); } }, translateUI('ui.delete')) : null,
     h('span', { class: 'grow' }),
     h('button', { class: 'btn small ghost', onclick: async () => {
@@ -107,8 +107,8 @@ export async function appearanceSec(b, { personal } = {}) {
     } }, icon('upload'), translateUI('ui.import_more')),
     h('button', { class: 'btn small ghost', onclick: () => downloadJson(`companion-theme-${(activeName || 'theme').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, exportDoc({ ...theme, name: activeName })) }, icon('download'), translateUI('ui.export')),
     id !== cat.default || !isPristineDefault(theme) ? h('button', { class: 'btn small ghost', onclick: async () => {
-      if (await confirmDialog('Restore Companion Default', 'Switch back to the Companion Default theme and clear colour, border and layout changes? Your saved themes are kept.')) {
-        commitTheme({ base: cat.default }, cat.default); redraw(); } } }, 'Restore Companion Default') : null);
+      if (await confirmDialog(translateUI('ui.b272_settings_103'), translateUI('ui.b272_settings_104'))) {
+        commitTheme({ base: cat.default }, cat.default); redraw(); } } }, translateUI('ui.b272_settings_103')) : null);
 
   // ---- colour editor
   const issues = contrastIssues(resolved);
@@ -128,7 +128,7 @@ export async function appearanceSec(b, { personal } = {}) {
     const bad = issues.filter((i) => i.fg === key || i.bg === key);
     return h('div', { class: 'color-row', dataset: { key } },
       h('span', { class: 'cr-label' }, label, value !== baseValue ? h('span', { class: 'tiny muted' }, ' · changed') : null),
-      h('div', { class: 'row tight' }, pickEl, hex, op, value !== baseValue ? h('button', { class: 'btn ghost small', title: 'Back to the preset colour', onclick: () => onSet(null, true) }, translateUI('ui.reset')) : null),
+      h('div', { class: 'row tight' }, pickEl, hex, op, value !== baseValue ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_105'), onclick: () => onSet(null, true) }, translateUI('ui.reset')) : null),
       bad.length ? h('span', { class: 'tiny warn-text', title: bad.map((i) => `${i.label}: ${i.ratio}:1 (needs ${i.min}:1)`).join('\n') }, '⚠ low contrast') : null, err);
   };
   const editColors = (section, key) => (v, reset) => {
@@ -142,7 +142,7 @@ export async function appearanceSec(b, { personal } = {}) {
   const refreshIssues = (resolvedTheme) => {
     const list = contrastIssues(resolvedTheme);
     mount(issueBox, list.length ? h('div', { class: 'notice warn small' }, h('strong', null, 'Readability: '),
-      list.map((i) => `${i.label} ${i.ratio}:1 (aim for ${i.min}:1)`).join(' · ')) : h('span', { class: 'muted' }, 'All checked text colours meet the WCAG contrast targets.'));
+      list.map((i) => `${i.label} ${i.ratio}:1 (aim for ${i.min}:1)`).join(' · ')) : h('span', { class: 'muted' }, translateUI('ui.b272_settings_106')));
   };
   refreshIssues(resolved);
   const p = cat.presets[theme.base].colors;
@@ -154,20 +154,20 @@ export async function appearanceSec(b, { personal } = {}) {
     COLOR_GROUPS.map(([title, keys], gi) => h('details', { class: 'color-group', open: gi === 0 ? '' : null },
       h('summary', null, title, h('span', { class: 'tiny muted' }, ` · ${keys.filter(([k]) => theme.colors[k]).length || 'none'} changed`)),
       h('div', { class: 'color-grid' }, keys.map(([k, l]) => colorRow(k, l, resolved.colors[k], p[k], editColors('colors', k)))))),
-    h('details', { class: 'color-group' }, h('summary', null, 'Type colours (optional)', h('span', { class: 'tiny muted' }, ` · ${Object.keys(theme.types).length || 'none'} changed`)),
-      h('p', { class: 'tiny muted' }, 'Used on type badges and the type chart. Badge text switches between dark and light for readability.'),
+    h('details', { class: 'color-group' }, h('summary', null, translateUI('ui.b272_settings_107'), h('span', { class: 'tiny muted' }, ` · ${Object.keys(theme.types).length || 'none'} changed`)),
+      h('p', { class: 'tiny muted' }, translateUI('ui.b272_settings_108')),
       h('div', { class: 'color-grid' }, TYPES.map((t) => colorRow('type_' + t, t[0].toUpperCase() + t.slice(1), resolved.types[t], cat.type_colors[t], editColors('types', t))))));
 
   mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.appearance_themes')),
     h('div', { class: 'row wrap tight theme-status' }, h('strong', null, activeName), modified ? h('span', { class: 'chip' }, `${changeCount(theme)} change${changeCount(theme) === 1 ? '' : 's'}`) : null),
     h('div', { class: 'theme-grid', role: 'group', 'aria-label': translateUI('ui.themes') }, presetCards, customCard),
-    personalCards.length ? h('div', null, h('h3', null, 'Your themes'), h('div', { class: 'theme-grid' }, personalCards)) : null,
+    personalCards.length ? h('div', null, h('h3', null, translateUI('ui.b272_settings_109')), h('div', { class: 'theme-grid' }, personalCards)) : null,
     actions,
     editor,
     h('h3', null, translateUI('ui.accessibility')),
-    row('High contrast', 'Stronger borders and pure white text. Overrides theme colours while on.', switchEl(s['appearance.high_contrast'], async (v) => { await saveSettings({ 'appearance.high_contrast': v }); redraw(); })),
-    row('Reduced motion', 'Turns off transitions and shimmer. Sprite animation has its own switch in Pokémon & sprites.', switchEl(s['appearance.reduced_motion'], (v) => saveSettings({ 'appearance.reduced_motion': v }))),
-    row('Stat bars', 'Soft colours per stat or a single accent colour.', seg([['soft', 'Soft colours'], ['accent', 'Accent']], s['appearance.stat_bars'], (v) => saveSettings({ 'appearance.stat_bars': v }))),
+    row(translateUI('ui.b272_settings_110'), translateUI('ui.b272_settings_111'), switchEl(s['appearance.high_contrast'], async (v) => { await saveSettings({ 'appearance.high_contrast': v }); redraw(); })),
+    row(translateUI('ui.b272_settings_112'), 'Turns off transitions and shimmer. Sprite animation has its own switch in Pokémon & sprites.', switchEl(s['appearance.reduced_motion'], (v) => saveSettings({ 'appearance.reduced_motion': v }))),
+    row(translateUI('ui.b272_settings_113'), translateUI('ui.b272_settings_114'), seg([['soft', translateUI('ui.b272_settings_115')], ['accent', translateUI('ui.b272_settings_116')]], s['appearance.stat_bars'], (v) => saveSettings({ 'appearance.stat_bars': v }))),
     h('p', { class: 'tiny muted' }, 'Catppuccin Mocha uses the Catppuccin palette (MIT); Tokyo Night uses enkia’s Tokyo Night palette (MIT). Theme files hold colours and numbers only — no scripts, styles, web addresses or file paths.'));
 }
 
@@ -194,25 +194,25 @@ export function layoutSec(b) {
   mount(b, h('h2', { style: { marginTop: 0 } }, translateUI('ui.layout_scaling')),
     h('h3', { style: { marginTop: 0 } }, 'Size'),
     pct('Text size', 'Text only (60–200%). Layout, icons and sprites keep their size. Popouts have their own text size.', 'appearance.text_scale', 60, 200, true),
-    pct('Interface scale', 'Everything in the main window — text, controls, spacing and sprites — together (75–150%). Applied once on top of your desktop’s own display scaling.', 'appearance.ui_scale', 75, 150, false),
-    row('Font weight', 'Body text weight.', seg([['light', 'Light'], ['normal', translateUI('ui.normal')], ['medium', translateUI('ui.medium')]], r.layout.font_weight, (v) => setPart('layout', { font_weight: v }), 'Font weight')),
+    pct(translateUI('ui.b272_settings_117'), 'Everything in the main window — text, controls, spacing and sprites — together (75–150%). Applied once on top of your desktop’s own display scaling.', 'appearance.ui_scale', 75, 150, false),
+    row(translateUI('ui.b272_settings_118'), translateUI('ui.b272_settings_119'), seg([['light', 'Light'], ['normal', translateUI('ui.normal')], ['medium', translateUI('ui.medium')]], r.layout.font_weight, (v) => setPart('layout', { font_weight: v }), translateUI('ui.b272_settings_118'))),
     h('h3', null, 'Spacing'),
-    row('Density', 'Sets spacing, card padding and gaps together. Fine-tune them below.',
-      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', 'Comfortable']], r.layout.density, (v) => setPart('layout', { density: v, ...DENSITY_PRESET[v] }, true), 'Density')),
-    slider('Card padding', null, 'layout', 'card_padding', 6, 28, 1),
-    slider('Grid gap', 'Space between cards and Pokédex tiles.', 'layout', 'grid_gap', 4, 24, 1),
-    slider('Section spacing', null, 'layout', 'section_gap', 6, 32, 1),
-    row('Table rows', null, seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', 'Comfortable']], r.layout.table_density, (v) => setPart('layout', { table_density: v }), 'Table density')),
+    row(translateUI('ui.b272_settings_120'), translateUI('ui.b272_settings_121'),
+      seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', translateUI('ui.b272_settings_127')]], r.layout.density, (v) => setPart('layout', { density: v, ...DENSITY_PRESET[v] }, true), translateUI('ui.b272_settings_120'))),
+    slider(translateUI('ui.b272_settings_122'), null, 'layout', 'card_padding', 6, 28, 1),
+    slider(translateUI('ui.b272_settings_123'), translateUI('ui.b272_settings_124'), 'layout', 'grid_gap', 4, 24, 1),
+    slider(translateUI('ui.b272_settings_125'), null, 'layout', 'section_gap', 6, 32, 1),
+    row(translateUI('ui.b272_settings_126'), null, seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['comfortable', translateUI('ui.b272_settings_127')]], r.layout.table_density, (v) => setPart('layout', { table_density: v }), translateUI('ui.b272_settings_128'))),
     h('h3', null, 'Borders & corners'),
-    row('Borders', null, switchEl(r.shape.border_visible, (v) => setPart('shape', { border_visible: v }, true), 'Show borders')),
+    row(translateUI('ui.b272_settings_129'), null, switchEl(r.shape.border_visible, (v) => setPart('shape', { border_visible: v }, true), translateUI('ui.b272_settings_130'))),
     r.shape.border_visible ? slider('Border thickness', null, 'shape', 'border_width', 1, 3, 1) : null,
     r.shape.border_visible ? slider('Border opacity', 'Border colours are in Appearance & themes › Borders.', 'shape', 'border_opacity', 0, 100, 5, '%') : null,
-    slider('Corner radius', '0 is square; 20 is very round.', 'shape', 'radius', 0, 20, 1),
+    slider(translateUI('ui.b272_settings_131'), translateUI('ui.b272_settings_132'), 'shape', 'radius', 0, 20, 1),
     h('h3', null, 'Navigation & scrollbars'),
-    row('Navigation', 'Vertical sidebar or horizontal top bar.', seg([['vertical', 'Vertical'], ['horizontal', 'Horizontal']], s['appearance.nav'], (v) => saveSettings({ 'appearance.nav': v }).then(changed), 'Navigation')),
-    row('Sidebar labels', 'Automatic shows icons only when the window is narrow.', seg([['auto', 'Automatic'], ['icons', 'Icons only'], ['full', 'Always labels']], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(changed), 'Sidebar labels')),
-    slider('Sidebar width', null, 'layout', 'sidebar_width', 150, 300, 2),
-    row('Scrollbars', null, seg([['hidden', 'Hidden'], ['thin', 'Thin'], ['standard', translateUI('ui.standard')], ['wide', 'Wide']], r.layout.scrollbar, (v) => setPart('layout', { scrollbar: v }), 'Scrollbars')),
+    row(translateUI('ui.b272_settings_133'), translateUI('ui.b272_settings_134'), seg([['vertical', translateUI('ui.b272_settings_135')], ['horizontal', translateUI('ui.b272_settings_136')]], s['appearance.nav'], (v) => saveSettings({ 'appearance.nav': v }).then(changed), translateUI('ui.b272_settings_133'))),
+    row(translateUI('ui.b272_settings_137'), translateUI('ui.b272_settings_138'), seg([['auto', 'Automatic'], ['icons', translateUI('ui.b272_settings_139')], ['full', translateUI('ui.b272_settings_140')]], s['appearance.sidebar'] || 'auto', (v) => saveSettings({ 'appearance.sidebar': v }).then(changed), translateUI('ui.b272_settings_137'))),
+    slider(translateUI('ui.b272_settings_141'), null, 'layout', 'sidebar_width', 150, 300, 2),
+    row(translateUI('ui.b272_settings_142'), null, seg([['hidden', translateUI('ui.b272_settings_143')], ['thin', translateUI('ui.b272_settings_144')], ['standard', translateUI('ui.standard')], ['wide', translateUI('ui.b272_settings_145')]], r.layout.scrollbar, (v) => setPart('layout', { scrollbar: v }), translateUI('ui.b272_settings_142'))),
     h('p', { class: 'tiny muted' }, 'Pokédex grid density and sprite sizes are in Pokémon & sprites. Popout size, opacity and scale are per window in Windows & popouts.'),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
       if (!await confirmDialog('Reset layout', 'Reset spacing, borders, corners, scrollbars, text size and interface scale? Colours and themes are not changed.')) return;

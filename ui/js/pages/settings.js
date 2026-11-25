@@ -56,7 +56,7 @@ async function shortcutsSec(b) {
   const listEl = h('div', { class: 'stack tight' });
   const record = (a, btn) => {
     setRecording(true);
-    btn.textContent = 'Press keys… (Esc cancels)';
+    btn.textContent = translateUI('ui.b272_settings_001');
     btn.classList.add('recording');
     const stop = () => { setRecording(false); document.removeEventListener('keydown', onKey, true); };
     const onKey = async (e) => {
@@ -65,10 +65,10 @@ async function shortcutsSec(b) {
       stop();
       if (e.key === 'Escape') { draw(); return; }
       const combo = comboFromEvent(e);
-      if (!combo) { toast('That key cannot be used for a shortcut.', { kind: 'warn' }); draw(); return; }
+      if (!combo) { toast(translateUI('ui.b272_settings_002'), { kind: 'warn' }); draw(); return; }
       try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo }); toast(`${a.label}: ${displayCombo(combo)}`); }
       catch (err) {
-        if (/already used/.test(err.message) && await confirmDialog('Shortcut in use', err.message + ' Replace it?', 'Replace')) {
+        if (/already used/.test(err.message) && await confirmDialog(translateUI('ui.b272_settings_003'), err.message + ' Replace it?', 'Replace')) {
           try { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: combo, replace: true }); } catch (x) { toast(x.message, { kind: 'warn' }); }
         } else if (!/already used/.test(err.message)) toast(err.message, { kind: 'warn' });
       }
@@ -83,23 +83,23 @@ async function shortcutsSec(b) {
       acts.map((a) => {
         const rec = h('button', { class: 'btn small kb-rec', 'aria-label': `Change shortcut for ${a.label}`, onclick: (e) => record(a, e.currentTarget) }, a.binding ? 'Change' : 'Assign');
         return h('div', { class: 'set-row kb-row' }, h('div', null, h('div', { style: { fontWeight: 600 } }, a.label),
-          h('div', { class: 'desc' }, { app: 'Any Companion window', guides: 'Guides page or Storyline popout', pokedex: 'Pokédex page or popout', notes: 'Notes page or popout', items: 'Item Library', links: 'Websites page' }[a.scope] || a.scope,
+          h('div', { class: 'desc' }, { app: translateUI('ui.b272_settings_005'), guides: translateUI('ui.b272_settings_006'), pokedex: translateUI('ui.b272_settings_007'), notes: translateUI('ui.b272_settings_008'), items: 'Item Library', links: translateUI('ui.b272_settings_009') }[a.scope] || a.scope,
             a.default && a.default !== a.binding ? ` · default ${displayCombo(a.default)}` : '')),
         h('div', { class: 'row' }, h('kbd', { class: 'kb' + (a.binding ? '' : ' none') }, displayCombo(a.binding)), rec,
           a.binding ? h('button', { class: 'btn ghost small', 'aria-label': `Clear shortcut for ${a.label}`, onclick: async () => { data = await api('PUT', '/api/shortcuts/' + a.id, { binding: null }); await loadShortcuts(); draw(); } }, translateUI('ui.clear')) : null,
           a.default !== a.binding ? h('button', { class: 'btn ghost small', onclick: async () => {
             try { data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true }); } catch (err) {
-              if (await confirmDialog('Default in use', err.message + ' Replace it?', 'Replace')) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
+              if (await confirmDialog(translateUI('ui.b272_settings_004'), err.message + ' Replace it?', 'Replace')) data = await api('PUT', '/api/shortcuts/' + a.id, { reset: true, replace: true }); }
             await loadShortcuts(); draw(); } }, t('common.reset')) : null));
       }))));
   };
   b.append(h('h2', { style: { marginTop: 0 } }, t('shortcuts.title')),
     notice('info', data.global_note),
-    row('Shortcuts on', 'Turn all Companion shortcuts off without losing your bindings.', switchEl(setting('shortcuts.enabled') !== false, set('shortcuts.enabled'))),
-    row('System-wide (global) shortcuts', 'Not available in v0.1.0 — always off. The Companion never captures keys while PokeMMO has focus.', switchEl(false, () => toast('System-wide shortcuts are not available.', { kind: 'warn' }))),
-    h('div', { class: 'row', style: { margin: '8px 0' } }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: 'Search actions or keys', 'aria-label': 'Search shortcuts',
+    row(translateUI('ui.b272_settings_010'), translateUI('ui.b272_settings_011'), switchEl(setting('shortcuts.enabled') !== false, set('shortcuts.enabled'))),
+    row(translateUI('ui.b272_settings_012'), translateUI('ui.b272_settings_013'), switchEl(false, () => toast(translateUI('ui.b272_settings_014'), { kind: 'warn' }))),
+    h('div', { class: 'row', style: { margin: '8px 0' } }, h('div', { class: 'search grow' }, icon('search'), h('input', { class: 'input', type: 'search', placeholder: translateUI('ui.b272_settings_015'), 'aria-label': translateUI('ui.b272_settings_016'),
       oninput: (e) => { q = e.target.value.toLowerCase(); draw(); } })),
-    h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog('Reset all shortcuts?', 'Every action goes back to its default key (or unassigned).', t('common.reset'))) { data = await post('/api/shortcuts/reset'); await loadShortcuts(); draw(); } } }, 'Reset all')),
+    h('button', { class: 'btn ghost', onclick: async () => { if (await confirmDialog(translateUI('ui.b272_settings_017'), translateUI('ui.b272_settings_018'), t('common.reset'))) { data = await post('/api/shortcuts/reset'); await loadShortcuts(); draw(); } } }, translateUI('ui.b272_settings_019'))),
     listEl,
     h('p', { class: 'tiny muted' }, 'Shortcuts never fire while you type in a text field or while a dialog is open. Holding a key down does not repeat a tick. Storyline actions always use the character run and region shown in the Guides page or Storyline popout; at the first/last step nothing is changed.'));
   draw();
@@ -112,21 +112,21 @@ async function windows(b) {
   const s = state.settings;
   const capRow = (label, ok) => h('div', { class: 'row small' }, h('span', { class: 'dot ' + (ok ? 'connected' : '') }), label, h('span', { class: 'muted' }, ok ? 'supported' : 'not available'));
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.windows_popouts')),
-    h('div', { class: 'card inset stack tight' }, h('div', null, h('strong', null, caps.mode === 'qt' ? 'Native window shell' : 'Browser mode'), h('span', { class: 'muted small' }, ` · platform: ${caps.platform}`)),
-      h('div', { class: 'grid-3' }, capRow('Separate popout windows', caps.native_windows || caps.mode === 'browser'), capRow('Pin / always on top', caps.pin), capRow('Window opacity', caps.window_opacity),
-        capRow('Companion toast window', caps.toast_window), capRow('Tray icon', caps.tray), capRow('Restore window position', caps.position)),
+    h('div', { class: 'card inset stack tight' }, h('div', null, h('strong', null, caps.mode === 'qt' ? translateUI('ui.b272_settings_020') : translateUI('ui.b272_settings_021')), h('span', { class: 'muted small' }, ` · platform: ${caps.platform}`)),
+      h('div', { class: 'grid-3' }, capRow(translateUI('ui.b272_settings_022'), caps.native_windows || caps.mode === 'browser'), capRow(translateUI('ui.b272_settings_023'), caps.pin), capRow(translateUI('ui.b272_settings_024'), caps.window_opacity),
+        capRow(translateUI('ui.b272_settings_025'), caps.toast_window), capRow(translateUI('ui.b272_settings_026'), caps.tray), capRow(translateUI('ui.b272_settings_027'), caps.position)),
       (caps.notes || []).map((n) => h('div', { class: 'small muted' }, '• ', n))),
-    row('Window backend (Linux)', 'Applies at next launch. Auto uses XWayland on KDE Wayland so pinning and toast placement work; native Wayland may ignore them.',
-      seg([['auto', 'Auto'], ['xwayland', 'XWayland'], ['wayland', 'Native Wayland']], s['app.window_backend'], set('app.window_backend'))),
-    row('Closing the main window', 'Quit stops everything, including alerts. Tray keeps popouts and alerts running until you choose Quit from the tray menu.',
-      seg([['quit', 'Quit the Companion'], ['tray', 'Keep running in tray']], s['app.close_behavior'], (v) => {
-        if (v === 'tray' && !caps.tray) { toast('No tray icon is available in this mode — the Companion will quit on close.', { kind: 'warn' }); }
+    row(translateUI('ui.b272_settings_028'), translateUI('ui.b272_settings_029'),
+      seg([['auto', 'Auto'], ['xwayland', 'XWayland'], ['wayland', translateUI('ui.b272_settings_030')]], s['app.window_backend'], set('app.window_backend'))),
+    row(translateUI('ui.b272_settings_031'), translateUI('ui.b272_settings_032'),
+      seg([['quit', translateUI('ui.b272_settings_033')], ['tray', translateUI('ui.b272_settings_034')]], s['app.close_behavior'], (v) => {
+        if (v === 'tray' && !caps.tray) { toast(translateUI('ui.b272_settings_035'), { kind: 'warn' }); }
         set('app.close_behavior')(v); })),
-    h('h3', null, 'Popout windows'),
+    h('h3', null, translateUI('ui.b272_settings_036')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Each mode opens at its own starting size. Resize freely afterwards — your size is remembered for that tool and mode. Background opacity fades only the panel behind the text; window opacity fades the whole window (native shell only).'),
     h('div', { class: 'tool-pref-grid' }, Object.entries(POPOUT_TOOLS).map(([t, def]) => toolPrefCard(t, def, caps))),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn ghost', onclick: async () => {
-      if (await confirmDialog('Reset window preferences', 'Reset popout modes, sizes, opacity, pin and lock for every tool? Your data is not touched.')) { await post('/api/settings/reset', { prefix: 'window.' }); location.reload(); } } }, 'Reset all window preferences')));
+      if (await confirmDialog(translateUI('ui.b272_settings_037'), translateUI('ui.b272_settings_038'))) { await post('/api/settings/reset', { prefix: 'window.' }); location.reload(); } } }, translateUI('ui.b272_settings_039'))));
 }
 function toolPrefCard(t, def, caps) {
   const s = state.settings;
@@ -137,17 +137,17 @@ function toolPrefCard(t, def, caps) {
     const c = sizes[m];
     return h('div', { class: 'row small', style: { justifyContent: 'space-between' } }, h('span', { class: 'muted' }, cap(m)),
       h('span', null, c ? `${c.w}×${c.h} (yours)` : `${p[0]}×${p[1]} (preset)`),
-      c ? h('button', { class: 'btn ghost small', title: 'Forget your size for this mode', onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
+      c ? h('button', { class: 'btn ghost small', title: translateUI('ui.b272_settings_040'), onclick: async () => { const nx = { ...sizes }; delete nx[m]; await set(`window.${t}.sizes`)(nx); render(document.getElementById('main'), { parts: ['windows'] }); } }, translateUI('ui.reset')) : h('span', { style: { width: '52px' } }));
   });
   return h('div', { class: 'card tool-pref stack tight' },
     h('div', { class: 'row' }, h('strong', null, def.title), h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => openPopout(t) }, icon('popout'), 'Open')),
-    h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, 'Default mode'),
+    h('div', { class: 'row wrap' }, h('span', { class: 'label', style: { width: '90px' } }, translateUI('ui.b272_settings_041')),
       seg([['compact', translateUI('ui.compact')], ['standard', translateUI('ui.standard')], ['expanded', translateUI('ui.expanded')]], s[`window.${t}.mode`], set(`window.${t}.mode`), 'Mode')),
     h('div', { class: 'stack tight' }, sizeLine),
-    h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${t}.keep_size`], onchange: (e) => set(`window.${t}.keep_size`)(e.target.checked) }), h('span', null, 'Keep my size when switching modes')),
+    h('label', { class: 'switch small' }, h('input', { type: 'checkbox', checked: s[`window.${t}.keep_size`], onchange: (e) => set(`window.${t}.keep_size`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_042'))),
     h('div', { class: 'row wrap' },
-      h('label', { class: 'switch small', title: caps.pin ? '' : 'Not supported in this mode' }, h('input', { type: 'checkbox', checked: s[`window.${t}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${t}.pinned`)(e.target.checked) }), h('span', null, 'Pin on open')),
-      h('label', { class: 'switch small', title: caps.native_windows ? '' : 'Native shell only' }, h('input', { type: 'checkbox', checked: s[`window.${t}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${t}.locked`)(e.target.checked) }), h('span', null, 'Lock position'))),
+      h('label', { class: 'switch small', title: caps.pin ? '' : translateUI('ui.b272_settings_043') }, h('input', { type: 'checkbox', checked: s[`window.${t}.pinned`], disabled: caps.pin ? null : 'disabled', onchange: (e) => set(`window.${t}.pinned`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_044'))),
+      h('label', { class: 'switch small', title: caps.native_windows ? '' : translateUI('ui.b272_settings_045') }, h('input', { type: 'checkbox', checked: s[`window.${t}.locked`], disabled: caps.native_windows ? null : 'disabled', onchange: (e) => set(`window.${t}.locked`)(e.target.checked) }), h('span', null, translateUI('ui.b272_settings_046')))),
     h('div', { class: 'pref-sliders' }, h('span', { class: 'label' }, translateUI('ui.background')), rangeCell(`window.${t}.bg_opacity`, 35, 100),
       h('span', { class: 'label' }, translateUI('ui.window')), rangeCell(`window.${t}.window_opacity`, 40, 100, !caps.window_opacity),
       h('span', { class: 'label' }, translateUI('ui.text_size')), rangeCell(`window.${t}.text_scale`, 70, 180)));
@@ -165,18 +165,18 @@ async function notifications(b) {
   const routes = [['off', 'Off'], ['toast', 'Toast'], ['os', 'OS'], ['both', 'Both']];
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.notifications')),
     notice('info', 'Every received report is saved to Live › history whatever you choose here. Toasts are the Companion’s own small window; OS notifications go through your desktop’s notification centre (its Do-Not-Disturb rules apply).'),
-    row('Alpha reports', null, seg(routes, s['notify.alpha'], set('notify.alpha'))),
-    row('Swarm reports', null, seg(routes, s['notify.swarm'], set('notify.swarm'))),
-    row('Other reports', 'Messages without an Alpha/Swarm keyword.', seg(routes, s['notify.other'], set('notify.other'))),
-    row('TEST notifications', 'For the “Send TEST notification” button in Live.', seg(routes, s['notify.test'], set('notify.test'))),
+    row(translateUI('ui.b272_settings_047'), null, seg(routes, s['notify.alpha'], set('notify.alpha'))),
+    row(translateUI('ui.b272_settings_048'), null, seg(routes, s['notify.swarm'], set('notify.swarm'))),
+    row(translateUI('ui.b272_settings_049'), translateUI('ui.b272_settings_050'), seg(routes, s['notify.other'], set('notify.other'))),
+    row(translateUI('ui.b272_settings_051'), translateUI('ui.b272_settings_052'), seg(routes, s['notify.test'], set('notify.test'))),
     row(translateUI('ui.timers'), 'When one of your Tools › Timers finishes. Do not disturb silences these too (the timer still completes).', seg(routes, s['notify.timer'], set('notify.timer'))),
-    row('Do not disturb', 'Manual switch: saves reports silently (TEST notifications still show).', switchEl(s['notify.quiet'], set('notify.quiet'))),
-    row('Toast corner', 'On Native Wayland the compositor may decide placement.', seg([['top-left', '↖'], ['top-right', '↗'], ['bottom-left', '↙'], ['bottom-right', '↘']], s['notify.toast_corner'], set('notify.toast_corner'))),
-    row('Toast screen', null, seg([['primary', 'Primary screen'], ['main-window', 'Screen with main window']], s['notify.toast_screen'], set('notify.toast_screen'))),
-    row('Toast duration', null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 3, max: 60, value: s['notify.toast_duration'], style: { width: '90px' }, onchange: (e) => set('notify.toast_duration')(Number(e.target.value)) }), 'seconds')),
-    row('Toast opacity', null, rangeCell('notify.toast_opacity', 60, 100)),
-    row('Keep history for', null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 1, max: 365, value: s['notify.retention_days'], style: { width: '90px' }, onchange: (e) => set('notify.retention_days')(Number(e.target.value)) }), 'days')),
-    row('OS notification backend', n.available ? 'Detected and available.' : n.reason, h('span', { class: 'badge ' + (n.available ? 'verified' : 'unknown') }, n.backend)),
+    row(translateUI('ui.b272_settings_053'), translateUI('ui.b272_settings_054'), switchEl(s['notify.quiet'], set('notify.quiet'))),
+    row(translateUI('ui.b272_settings_055'), translateUI('ui.b272_settings_056'), seg([['top-left', '↖'], ['top-right', '↗'], ['bottom-left', '↙'], ['bottom-right', '↘']], s['notify.toast_corner'], set('notify.toast_corner'))),
+    row(translateUI('ui.b272_settings_057'), null, seg([['primary', translateUI('ui.b272_settings_058')], ['main-window', translateUI('ui.b272_settings_059')]], s['notify.toast_screen'], set('notify.toast_screen'))),
+    row(translateUI('ui.b272_settings_060'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 3, max: 60, value: s['notify.toast_duration'], style: { width: '90px' }, onchange: (e) => set('notify.toast_duration')(Number(e.target.value)) }), 'seconds')),
+    row(translateUI('ui.b272_settings_061'), null, rangeCell('notify.toast_opacity', 60, 100)),
+    row(translateUI('ui.b272_settings_062'), null, h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 1, max: 365, value: s['notify.retention_days'], style: { width: '90px' }, onchange: (e) => set('notify.retention_days')(Number(e.target.value)) }), 'days')),
+    row(translateUI('ui.b272_settings_063'), n.available ? translateUI('ui.b272_settings_064') : n.reason, h('span', { class: 'badge ' + (n.available ? 'verified' : 'unknown') }, n.backend)),
     h('div', { class: 'row', style: { marginTop: '12px' } }, h('button', { class: 'btn', onclick: async () => { const r = await post('/api/live/test', { kind: 'alpha' }); const d = r.delivery || {};
       toast(`TEST sent — toast: ${d.toast ? (d.toast.delivered ? 'shown' : 'not shown') : 'off'}, OS: ${d.os ? (d.os.delivered ? 'sent' : 'failed: ' + (d.os.error || '')) : 'off'}`, { timeout: 6000 }); } }, icon('bell'), 'Send TEST notification')));
 }
@@ -185,37 +185,37 @@ async function notifications(b) {
 async function sources(b) {
   const [src, n] = await Promise.all([get('/api/live/source'), get('/api/news')]);
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')),
-    row('Alpha/Swarm report feed', 'Read-only subscription to the public Alphapedia ntfy topics (alphapings, swarmpings). Off until you connect it in Live.',
+    row(translateUI('ui.b272_settings_065'), translateUI('ui.b272_settings_066'),
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? cap(src.status) : 'Off',
         src.last_success_at ? h('span', { class: 'small muted' }, ' · last data ', relTime(src.last_success_at)) : null),
       h('div', { class: 'tiny muted' }, src.payload_note || ''),
       src.enabled ? h('button', { class: 'btn small', onclick: async () => { await saveSettings({ 'live.ntfy.enabled': false }); render(document.getElementById('main'), { parts: ['sources'] }); } }, 'Turn off') :
         h('button', { class: 'btn small', onclick: () => go('#/live/reports') }, 'Connect in Live…'))),
-    row('Feed server and topic', 'Advanced. HTTPS only.', h('div', { class: 'row wrap' },
+    row(translateUI('ui.b272_settings_067'), translateUI('ui.b272_settings_068'), h('div', { class: 'row wrap' },
       h('input', { class: 'input', style: { width: '260px' }, value: state.settings['live.ntfy.server'], onchange: (e) => set('live.ntfy.server')(e.target.value.trim()) }),
       h('input', { class: 'input', style: { width: '200px' }, value: state.settings['live.ntfy.topic'], title: 'Comma-separated topics', onchange: (e) => set('live.ntfy.topic')(e.target.value.trim()) }))),
-    row('Swarm duration estimate', 'Used only for the “≈ time left” estimate on swarm reports. Community reports disagree (≈15, 20 or 30 min); this is not an official despawn time. Alphas use 75 min from the official changelog.',
+    row(translateUI('ui.b272_settings_069'), 'Used only for the “≈ time left” estimate on swarm reports. Community reports disagree (≈15, 20 or 30 min); this is not an official despawn time. Alphas use 75 min from the official changelog.',
       h('div', { class: 'row' }, h('input', { class: 'input', type: 'number', min: 5, max: 120, value: state.settings['live.swarm_estimate_minutes'], style: { width: '80px' },
         'aria-label': 'Swarm duration estimate in minutes', onchange: (e) => set('live.swarm_estimate_minutes')(Math.max(5, Math.min(120, Number(e.target.value) || 20))) }), h('span', { class: 'small' }, 'minutes'))),
-    row('Reports caught up on reconnect', 'When the Companion starts or reconnects it catches up on recent reports. Show those in “Current” if their own report time is still recent (they never trigger alerts).',
+    row(translateUI('ui.b272_settings_070'), 'When the Companion starts or reconnects it catches up on recent reports. Show those in “Current” if their own report time is still recent (they never trigger alerts).',
       switchEl(state.settings['live.current_include_catchup'] !== false, set('live.current_include_catchup'))),
-    row('Official news snapshot', `Bundled, independently written summaries checked ${fmtDate(n.snapshot_checked_at)}.`, h('span', { class: 'small' }, `${n.articles.length} posts · ${n.events.length} events`)),
-    row('Automatic check of official news', 'Fetches only the official Updates feed (titles, dates, links) in the background, at most hourly. New titles show “Summary pending verification”.',
+    row(translateUI('ui.b272_settings_071'), `Bundled, independently written summaries checked ${fmtDate(n.snapshot_checked_at)}.`, h('span', { class: 'small' }, `${n.articles.length} posts · ${n.events.length} events`)),
+    row(translateUI('ui.b272_settings_072'), 'Fetches only the official Updates feed (titles, dates, links) in the background, at most hourly. New titles show “Summary pending verification”.',
       h('div', { class: 'row wrap' }, switchEl(state.settings['updates.auto_check'], set('updates.auto_check')),
         h('span', { class: 'small' }, 'every'), h('input', { class: 'input', type: 'number', min: 1, max: 24, value: state.settings['updates.check_hours'], style: { width: '70px' },
           onchange: (e) => set('updates.check_hours')(Number(e.target.value)) }), h('span', { class: 'small' }, 'hours'))),
-    row('Check official forum now', 'Same feed, on demand (at most once a minute).',
+    row(translateUI('ui.b272_settings_073'), translateUI('ui.b272_settings_074'),
       h('div', { class: 'stack tight' }, h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; const r = await post('/api/news/check');
         toast(r.ok ? `Checked: ${r.count} posts` : `Could not refresh: ${r.error}`, { kind: r.ok ? 'info' : 'warn', timeout: 6000 }); render(document.getElementById('main'), { parts: ['sources'] }); } }, icon('refresh'), 'Check now'),
       n.feed ? h('span', { class: 'small muted' }, n.feed.ok ? `Last check OK ${relTime(n.feed.checked_at)}` : `Last check failed ${relTime(n.feed.checked_at)}: ${n.feed.error}`) : h('span', { class: 'small muted' }, 'Never checked'))),
-    row('Altering Cave live source', 'No verified, permitted feed exists in this build; Live shows Unknown plus your own observations.', badge('UNKNOWN', 'Not connected')));
+    row(translateUI('ui.b272_settings_075'), 'No verified, permitted feed exists in this build; Live shows Unknown plus your own observations.', badge('UNKNOWN', 'Not connected')));
 }
 
 // --------------------------------------------------------------- guides
 async function guidesSec(b) {
   const runs = await get('/api/guides/runs');
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.guides_characters')),
-    row('Active run', 'Used by Home, the Storyline popout and legendary tracking.', runs.runs.length ? h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => set('guides.active_run')(e.target.value) },
+    row(translateUI('ui.b272_settings_076'), 'Used by Home, the Storyline popout and legendary tracking.', runs.runs.length ? h('select', { class: 'input', style: { width: 'auto' }, onchange: (e) => set('guides.active_run')(e.target.value) },
       runs.runs.map((r) => h('option', { value: r.id, selected: r.id === runs.active ? 'selected' : null }, r.display))) : h('button', { class: 'btn', onclick: async () => { await createRun(); render(document.getElementById('main'), { parts: ['guides'] }); } }, 'Create a run')),
     h('h3', null, 'Runs'),
     h('table', { class: 'table compact' }, h('thead', null, h('tr', null, [translateUI('ui.select_character'), 'Label', 'Last region', 'Updated', ''].map((c) => h('th', null, c)))),
@@ -370,10 +370,10 @@ async function spritesSec(b) {
   const lib = await get('/api/sprites/library').catch(() => null);
   const redraw = () => { b.innerHTML = ''; spritesSec(b); };
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.pokemon_sprites')),
-    row('Animations', 'Follow the system’s reduced-motion setting, always allow, or switch every animation off. This overrides the choices below.',
-      seg([['system', 'Follow system'], ['on', 'On'], ['off', translateUI('ui.status_off')]], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, 'Animations')),
-    row('Pokédex colours', 'Show the whole Pokédex grid in normal or shiny colours. Display only — nothing is marked as owned.',
-      seg([['normal', translateUI('ui.normal')], ['shiny', translateUI('ui.shiny')]], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), 'Pokédex colours')),
+    row(translateUI('ui.b272_settings_077'), 'Follow the system’s reduced-motion setting, always allow, or switch every animation off. This overrides the choices below.',
+      seg([['system', 'Follow system'], ['on', 'On'], ['off', translateUI('ui.status_off')]], s['sprites.motion'] || 'system', async (v) => { await saveSettings({ 'sprites.motion': v }); document.dispatchEvent(new CustomEvent('sprites-changed')); }, translateUI('ui.b272_settings_077'))),
+    row(translateUI('ui.b272_settings_078'), 'Show the whole Pokédex grid in normal or shiny colours. Display only — nothing is marked as owned.',
+      seg([['normal', translateUI('ui.normal')], ['shiny', translateUI('ui.shiny')]], s['pokedex.shiny'] ? 'shiny' : 'normal', (v) => saveSettings({ 'pokedex.shiny': v === 'shiny' }), translateUI('ui.b272_settings_078'))),
     h('h3', null, 'Where sprites move'),
     h('div', { class: 'sprite-prefs' }, CONTEXTS.map(([id, label, def, hasSize]) => h('div', { class: 'set-row' },
       h('div', null, h('div', { style: { fontWeight: 600 } }, label), h('div', { class: 'desc' }, `Default: ${def === 'animated' ? 'animated' : 'static'}`)),
@@ -401,7 +401,7 @@ async function startupSec(b) {
     try { await post('/api/game/integration', { kind, enable: on_, ...extra }); toast(on_ ? 'Added' : 'Removed'); } catch (e) { toast(e.message, { kind: 'warn' }); }
     redraw();
   };
-  const pathIn = h('input', { class: 'input', value: g.manual || '', placeholder: g.platform.startsWith('win') ? 'C:\\…\\PokeMMO.exe' : '/home/you/PokeMMO/PokeMMO.sh', 'aria-label': 'PokeMMO launcher' });
+  const pathIn = h('input', { class: 'input', value: g.manual || '', placeholder: g.platform.startsWith('win') ? 'C:\\…\\PokeMMO.exe' : '/home/you/PokeMMO/PokeMMO.sh', 'aria-label': translateUI('ui.b272_settings_081') });
   const savePath = async (v) => { try { await api('PUT', '/api/game/launcher', { path: v }); toast(v ? 'Launcher saved' : 'Using the detected launcher'); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); };
   if (native) unsub.push(on('shell.file', (d) => { if (d && d.purpose === 'launcher' && d.path) savePath(d.path); }));
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, 'Startup & game integration'),
@@ -411,9 +411,9 @@ async function startupSec(b) {
         + 'This uses a tiny helper that starts with your login and only watches for the PokeMMO process — it never reads, changes or closes the game. '
         + 'The helper has to be running: after turning this on, log out and in once (or restart). Turn it off here at any time.',
         switchEl(g.integrations.watcher, integ('watcher')))),
-    row('Reopen last page', 'Start where you left off.', switchEl(s['app.restore_last_page'], set('app.restore_last_page'))),
+    row(translateUI('ui.b272_settings_079'), translateUI('ui.b272_settings_080'), switchEl(s['app.restore_last_page'], set('app.restore_last_page'))),
     h('h3', null, 'PokeMMO'),
-    row('PokeMMO launcher', g.chosen ? g.chosen.label : 'Not found automatically. Choose PokeMMO.exe or PokeMMO.sh — or the Flatpak is used when installed.',
+    row(translateUI('ui.b272_settings_081'), g.chosen ? g.chosen.label : 'Not found automatically. Choose PokeMMO.exe or PokeMMO.sh — or the Flatpak is used when installed.',
       h('div', { class: 'row wrap' }, h('button', { class: 'btn primary', disabled: g.chosen ? null : 'disabled', onclick: async () => {
         try { const r = await post('/api/game/launch'); toast(r.already_running ? 'PokeMMO is already running' : r.already_starting ? 'PokeMMO is already starting' : 'Starting PokeMMO…'); } catch (e) { toast(e.message, { kind: 'warn', timeout: 7000 }); } } }, icon('play'), g.running ? 'PokeMMO is running' : 'Launch PokeMMO'))),
     h('div', { class: 'row wrap', style: { margin: '4px 0 10px' } },
@@ -421,14 +421,14 @@ async function startupSec(b) {
         : [h('div', { class: 'grow', style: { minWidth: '220px' } }, pathIn), h('button', { class: 'btn small', onclick: () => savePath(pathIn.value.trim()) }, translateUI('ui.save'))],
       g.manual ? h('button', { class: 'btn small ghost', onclick: () => savePath('') }, 'Use detected launcher') : null),
     g.launchers.length > 1 ? h('div', { class: 'tiny muted' }, 'Also found: ', g.launchers.slice(1).map((l) => l.label).join(' · ')) : null,
-    row('When PokeMMO closes', 'Companion keeps running by default. It never closes PokeMMO.',
-      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'When PokeMMO closes', onchange: (e) => saveSettings({ 'game.on_exit': e.target.value }) },
+    row(translateUI('ui.b272_settings_082'), translateUI('ui.b272_settings_083'),
+      h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.b272_settings_082'), onchange: (e) => saveSettings({ 'game.on_exit': e.target.value }) },
         [['keep', 'Keep Companion running'], ['minimize', 'Minimise Companion'], ['quit', 'Quit Companion']].map(([v, l]) => h('option', { value: v, selected: s['game.on_exit'] === v ? 'selected' : null }, l)))),
     h('h3', null, 'Starting Companion'),
-    row('Start Companion when you log in', 'Adds a normal autostart entry you can see in your system settings.', switchEl(g.integrations.login, integ('login', { minimized: !!s['app.start_minimized'] }))),
-    row('Start minimised to the tray', 'Companion starts in the background; open it from the tray icon.', switchEl(!!s['app.start_minimized'], async (v) => {
+    row(translateUI('ui.b272_settings_084'), 'Adds a normal autostart entry you can see in your system settings.', switchEl(g.integrations.login, integ('login', { minimized: !!s['app.start_minimized'] }))),
+    row(translateUI('ui.b272_settings_085'), 'Companion starts in the background; open it from the tray icon.', switchEl(!!s['app.start_minimized'], async (v) => {
       await saveSettings({ 'app.start_minimized': v }); if (g.integrations.login) await post('/api/game/integration', { kind: 'login', enable: true, minimized: v }); })),
-    row('Reopen floating tools', 'Popouts that were open when Companion closed open again.', switchEl(!!s['app.restore_popouts'], (v) => saveSettings({ 'app.restore_popouts': v }))),
+    row(translateUI('ui.b272_settings_086'), 'Popouts that were open when Companion closed open again.', switchEl(!!s['app.restore_popouts'], (v) => saveSettings({ 'app.restore_popouts': v }))),
     row('“PokeMMO + Companion” shortcut', 'A menu/desktop shortcut that starts both. PokeMMO is never started twice.', switchEl(g.integrations.shortcut, integ('shortcut'))),
     h('div', { class: 'tiny muted' }, 'Opening Companion together with PokeMMO is the first option on this page.'),
     h('div', { class: 'row', style: { marginTop: '10px' } }, h('button', { class: 'btn ghost small', onclick: async () => {
@@ -448,14 +448,14 @@ async function updatesSec(b) {
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.updates')),
     h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Three separate things, each checked in the background. Nothing interrupts a game or a running timer.'),
     h('h3', null, 'Official PokeMMO news'),
-    row('Check automatically', f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
+    row(translateUI('ui.b272_settings_087'), f ? `Last successful check ${f.last_ok_at ? relTime(f.last_ok_at) : 'never'}${f.ok === false ? ` · last attempt failed (${f.error})` : ''}.` : 'Not checked yet.',
       switchEl(!!s['updates.auto_check'], (v) => saveSettings({ 'updates.auto_check': v }))),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async () => { const r = await post('/api/news/check'); toast(r.ok ? 'Official news checked' : `Could not check: ${r.error}`, { kind: r.ok ? 'info' : 'warn' }); redraw(); } }, icon('refresh'), 'Check now')),
     h('h3', null, 'PokeMMO reference data'),
     h('div', { class: 'small' }, refUsing, '.'),
     ref.private_superseded ? notice('info', `Your own client import (${fmtDate(ref.private_superseded.private_date)}) is older than this data, so the newer data is used. Your sprites and icons are still shown.`) : null,
     ref.configured ? [
-      row('Install verified data updates automatically', ref.last_check_at ? `Last check ${relTime(ref.last_check_at)}.` : 'Not checked yet.', switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }))),
+      row(translateUI('ui.b272_settings_088'), ref.last_check_at ? `Last check ${relTime(ref.last_check_at)}.` : 'Not checked yet.', switchEl(!!s['reference.auto_update'], (v) => saveSettings({ 'reference.auto_update': v }))),
       ref.last_error ? notice('warn', ref.last_error) : null,
       h('div', { class: 'row wrap' },
         h('button', { class: 'btn small', onclick: async () => { try { const r = await post('/api/reference/install'); toast(r.installed ? `Reference data updated (${fmtDate(r.dump_date)})` : r.reason); } catch (e) { toast(e.message, { kind: 'warn' }); } redraw(); } }, icon('refresh'), 'Check and update'),
@@ -463,13 +463,13 @@ async function updatesSec(b) {
         ref.downloaded ? h('button', { class: 'btn small ghost', onclick: async () => { await post('/api/reference/reset'); toast('Using the built-in data'); redraw(); } }, 'Use built-in data') : null)]
       : h('div', { class: 'small muted' }, 'Data updates are not set up in this build yet; the built-in data works fully offline. When they are, approved and signed data packages install here automatically, and the previous data is kept so you can go back.'),
     h('h3', null, 'PokeMMO Companion'),
-    row('Check for new versions', `This is version ${app.current}.${app.checked_at ? ` Last check ${relTime(app.checked_at)}.` : ''} Companion never installs or restarts by itself.`,
+    row(translateUI('ui.b272_settings_089'), `This is version ${app.current}.${app.checked_at ? ` Last check ${relTime(app.checked_at)}.` : ''} Companion never installs or restarts by itself.`,
       switchEl(!!s['app_updates.auto_check'], (v) => saveSettings({ 'app_updates.auto_check': v }))),
-    row('Release channel', 'Stable releases only, or also pre-releases. Development builds are never offered.',
+    row(translateUI('ui.b272_settings_090'), translateUI('ui.b272_settings_091'),
       seg([['stable', 'Stable'], ['prerelease', 'Beta & pre-releases']], s['app_updates.channel'] || 'stable', async (v) => {
         if (v === 'prerelease' && !await confirmDialog('Beta releases', 'Beta and pre-release versions are for testing: they can contain bugs. Make a backup first (Settings › Backup & recovery). You can switch back to Stable at any time; Companion will then offer the next stable release.', 'Use beta releases')) { redraw(); return; }
         saveSettings({ 'app_updates.channel': v });
-      }, 'Release channel')),
+      }, translateUI('ui.b272_settings_090'))),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), 'Check for updates')),
     app.ok === false ? notice('warn', `Could not check: ${app.error}`) : null,
     app.ok && !latest ? h('div', { class: 'small muted' }, 'No release has been published yet.') : null,
