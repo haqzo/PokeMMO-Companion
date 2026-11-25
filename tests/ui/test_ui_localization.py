@@ -130,3 +130,18 @@ def test_shared_species_picker_retains_canonical_id(clean, pg):
     pg.locator('.cmp-side input[type="search"]').first.fill("皮卡")
     pg.get_by_role("option", name="皮卡丘").first.click()
     pg.locator(".cmp-name").get_by_text("皮卡丘", exact=True).wait_for()
+
+
+@pytest.mark.parametrize(("language", "welcome", "calc_keys", "timer_add"), [
+    ("es", "Bienvenido", "Teclas de la calculadora", "Añadir e iniciar"),
+    ("zh", "欢迎", "计算器按键", "添加并启动"),
+])
+def test_remaining_home_calculator_timer_labels(clean, pg, language, welcome, calc_keys, timer_add):
+    clean.ctx.settings.update({"app.language": language, "app.onboarded": False})
+    pg.goto(clean.url("#/home"))
+    pg.get_by_role("heading", name=welcome, exact=True).wait_for()
+    pg.goto(clean.url("#/tools/calculator"))
+    pg.get_by_role("group", name=calc_keys, exact=True).wait_for()
+    pg.goto(clean.url("#/tools/timers"))
+    pg.get_by_role("button", name=timer_add, exact=True).wait_for()
+    assert not pg.errors
