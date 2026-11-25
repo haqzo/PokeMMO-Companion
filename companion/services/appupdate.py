@@ -10,11 +10,11 @@
 """
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import logging
 import re
+import sys
 import threading
 import time
 import urllib.request
@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Callable
 
 from .. import __version__
+from ..release import parse_version, release_channel
 from ..storage import StorageClosedError
 
 log = logging.getLogger("companion.appupdate")
@@ -32,27 +33,20 @@ CHECK_HOURS = 24
 MAX_RELEASES_BYTES = 2_000_000
 MAX_DOWNLOAD_BYTES = 600_000_000
 
-_VER = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$")
-
-
-def parse_version(v: str) -> tuple | None:
-    m = _VER.match((v or "").strip())
-    if not m:
-        return None
-    pre = m.group(4)
-    pre_key = () if pre is None else tuple((0, int(p)) if p.isdigit() else (1, p) for p in pre.split("."))
-    # a release without a pre-release part sorts after all of its pre-releases (semver)
-    return (int(m.group(1)), int(m.group(2)), int(m.group(3)), 1 if pre is None else 0, pre_key)
-
 
 def newer(a: str, b: str) -> bool:
     pa, pb = parse_version(a), parse_version(b)
     return bool(pa and pb and pa > pb)
 
 
-def platform_assets(assets: list[dict], platform: str) -> list[dict]:
-    pats = {"linux": (r"\.AppImage$", r"linux.*\.(tar\.gz|tar\.xz|zip)$"), "windows": (r"\.exe$", r"(win|windows).*\.zip$")}.get(platform, ())
-    return [a for a in assets if any(re.search(p, a.get("name", ""), re.I) for p in pats)]
+def platform_assets(assets: list[dict], platform: str, version: str | None = None) -> list[dict]:
+    suffix = {"linux": r"-x86_64\.AppImage", "windows": r"-windows-x86_64\.zip"}.get(platform)
+    if not suffix:
+        return []
+    pattern = re.compile(r"PokeMMO-Companion-(v?[0-9A-Za-z.-]+)" + suffix)
+    return [asset for asset in assets
+            if isinstance(asset.get("name"), str) and (match := pattern.fullmatch(asset["name"]))
+            and parse_version(match[1]) and (version is None or match[1].lstrip("v") == version)]
 
 
 class AppUpdateChecker:
@@ -69,9 +63,20 @@ class AppUpdateChecker:
 
     def status(self) -> dict:
         st = self.db.get_setting("app_updates.cache", None) or {}
-        return {"current": self.current, "channel": self.settings.get("app_updates.channel") or "stable",
+        channel = self.settings.get("app_updates.channel") or "stable"
+        if st.get("channel") != channel:
+            st = {}
+        latest = st.get("latest")
+        if latest and channel == "stable" and release_channel(latest["version"], latest["prerelease"]) != "stable":
+            latest = None
+        if latest:
+            platform = "windows" if sys.platform == "win32" else sys.platform
+            latest = {**latest, "packages": platform_assets(latest["assets"], platform, latest["version"])}
+        return {"current": self.current, "channel": channel,
                 "auto": bool(self.settings.get("app_updates.auto_check")), "verified_downloads": bool(self.public_key),
-                **{k: v for k, v in st.items() if not k.startswith("_")}, "download": self.progress or None}
+                **{k: v for k, v in st.items() if not k.startswith("_")},
+                "latest": latest, "available": bool(latest and newer(latest["version"], self.current)),
+                "download": self.progress or None}
 
     def check(self, timeout: float = 15.0) -> dict:
         channel = self.settings.get("app_updates.channel") or "stable"
@@ -86,36 +91,45 @@ class AppUpdateChecker:
                 raise ValueError("unexpected response")
         except Exception as exc:
             res.update(ok=False, error=f"{type(exc).__name__}: {str(exc)[:160]}")
-            self.db.set_settings({"app_updates.cache": {**(self.db.get_setting("app_updates.cache", None) or {}), **res}})
+            cached = self.db.get_setting("app_updates.cache", None) or {}
+            self.db.set_settings({"app_updates.cache": {**(cached if cached.get("channel") == channel else {}), **res}})
             return self.status()
-        cands = [r for r in releases if not r.get("draft") and parse_version(r.get("tag_name", ""))
-                 and (channel == "prerelease" or not r.get("prerelease"))]
+        cands = [r for r in releases if isinstance(r, dict) and not r.get("draft") and parse_version(r.get("tag_name"))
+                 and (channel == "prerelease" or release_channel(r["tag_name"], r.get("prerelease")) == "stable")]
         cands.sort(key=lambda r: parse_version(r["tag_name"]), reverse=True)
         latest = cands[0] if cands else None
-        res.update(ok=True, releases_seen=len(releases), latest=None, available=False)
+        res.update(ok=True, releases_seen=len(releases), latest=None)
         if latest:
-            res["latest"] = {"version": latest["tag_name"].lstrip("v"), "name": latest.get("name") or latest["tag_name"],
-                             "prerelease": bool(latest.get("prerelease")), "published_at": latest.get("published_at"),
-                             "url": latest.get("html_url"), "notes": (latest.get("body") or "")[:20000],
+            version = latest["tag_name"].strip().lstrip("v")
+            assets = latest.get("assets")
+            if not isinstance(assets, list):
+                assets = []
+            res["latest"] = {"version": version, "name": latest.get("name") or latest["tag_name"],
+                             "prerelease": release_channel(latest["tag_name"], latest.get("prerelease")) != "stable", "published_at": latest.get("published_at"),
+                             "url": latest.get("html_url"), "notes": str(latest.get("body") or "")[:20000],
                              "assets": [{"name": a.get("name"), "url": a.get("browser_download_url"), "bytes": a.get("size")}
-                                        for a in latest.get("assets", [])]}
-            res["available"] = newer(res["latest"]["version"], self.current)
+                                        for a in assets if isinstance(a, dict) and isinstance(a.get("name"), str)
+                                        and a.get("state", "uploaded") == "uploaded"]}
         self.db.set_settings({"app_updates.cache": res})
-        if self.bus and res["available"]:
-            self.bus.publish("app_update", {"version": res["latest"]["version"]})
-        return self.status()
+        status = self.status()
+        if self.bus and status.get("available"):
+            self.bus.publish("app_update", {"version": status["latest"]["version"]})
+        return status
 
     def download(self, asset_name: str, dest_dir: Path, timeout: float = 60.0) -> dict:
         """Download one asset of the latest release and verify it. Never installs it."""
-        st = self.db.get_setting("app_updates.cache", None) or {}
-        latest = st.get("latest")
-        if not latest or not st.get("available"):
+        status = self.status()
+        latest = status.get("latest")
+        if not latest or not status.get("available"):
             raise ValueError("No update available")
         if not self.public_key:
             raise ValueError("Verified downloads are not configured in this build — use the release page")
-        assets = {a["name"]: a for a in latest["assets"]}
-        a, sums, sig = assets.get(asset_name), assets.get("SHA256SUMS"), assets.get("SHA256SUMS.sig")
-        if not a or not sums or not sig:
+        a = next((item for item in latest["packages"] if item["name"] == asset_name), None)
+        if not a:
+            raise ValueError("This package is not available for your platform")
+        assets = {item["name"]: item for item in latest["assets"]}
+        sums, sig = assets.get("SHA256SUMS"), assets.get("SHA256SUMS.sig")
+        if not sums or not sig:
             raise ValueError("This release has no checksum file, so it cannot be verified")
         for x in (a, sums, sig):
             if not str(x["url"]).startswith(APPROVED_DOWNLOAD_PREFIXES):

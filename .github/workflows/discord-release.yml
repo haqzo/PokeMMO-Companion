@@ -14,7 +14,7 @@ on:
         description: "test = post a connection-test message; dry-run = show the test payload without posting"
         type: choice
         options: [test, dry-run]
-        default: test
+        default: dry-run
 
 permissions:
   contents: read
@@ -31,7 +31,11 @@ jobs:
       - name: Check out the announcement script
         uses: actions/checkout@v4
         with:
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            companion/__init__.py
+            companion/release.py
+          sparse-checkout-cone-mode: false
           persist-credentials: false
 
       - name: Announce the release

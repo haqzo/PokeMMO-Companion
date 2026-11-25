@@ -20,6 +20,10 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from companion.release import package_names, release_channel
 
 TITLE_MAX, DESC_MAX, FOOTER_MAX, EMBED_MAX = 256, 4096, 2048, 6000
 STABLE_COLOUR, BETA_COLOUR, TEST_COLOUR = 0x3BA55D, 0xE0A030, 0x5865F2
@@ -38,26 +42,29 @@ def clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
-def is_beta(release: dict) -> bool:
-    tag = str(release.get("tag_name") or "")
-    return bool(release.get("prerelease")) or bool(re.search(r"-(alpha|beta|rc|pre)", tag, re.I))
-
-
 def release_payload(release: dict, repo: str = "haqzo/PokeMMO-Companion") -> dict:
     tag = str(release.get("tag_name") or "").strip()
     version = tag[1:] if tag.lower().startswith("v") else tag
-    beta = is_beta(release)
-    kind = "Beta / pre-release" if beta else "Stable release"
+    channel = release_channel(tag, bool(release.get("prerelease")))
+    kind = {"alpha": "Alpha", "beta": "Beta", "prerelease": "Prerelease", "stable": "Stable"}[channel]
+    prerelease = channel != "stable"
     name = (release.get("name") or "").strip() or f"PokeMMO Companion {tag}"
     url = str(release.get("html_url") or f"https://github.com/{repo}/releases/tag/{tag}")
     body = (release.get("body") or "").strip() or "No changelog was written for this release."
     more = f"\n\n[Full changelog on GitHub]({url})"
     desc = clip(neutralise(body), DESC_MAX - len(more)) + more
-    title = clip(neutralise(f"{'🧪 ' if beta else ''}{name}"), TITLE_MAX)
-    footer = clip(f"{kind} · version {version or '?'} · {repo}", FOOTER_MAX)
+    title = clip(neutralise(f"{'🧪 ' if prerelease else ''}{name}"), TITLE_MAX)
+    footer = clip(f"{kind} release · version {version or '?'} · {repo}", FOOTER_MAX)
     fields = [{"name": "Version", "value": clip(version or "?", 1024), "inline": True},
-              {"name": "Channel", "value": "Beta — may contain bugs, back up first" if beta else "Stable", "inline": True}]
-    embed = {"title": title, "url": url, "description": desc, "color": BETA_COLOUR if beta else STABLE_COLOUR,
+              {"name": "Channel", "value": f"{kind} — may contain bugs, back up first" if prerelease else kind, "inline": True}]
+    assets = {a.get("name") for a in release.get("assets", []) if a.get("state", "uploaded") == "uploaded"}
+    downloads = [label for platform, label in (("linux", "Linux x86-64 AppImage"), ("windows", "Windows x86-64 portable ZIP"))
+                 if package_names(version)[platform] in assets]
+    if downloads:
+        fields.append({"name": "Downloads", "value": f"[{' · '.join(downloads)}]({url}#assets)"})
+    if "SHA256SUMS" in assets:
+        fields.append({"name": "Checksums", "value": f"[SHA256SUMS]({url}#assets)"})
+    embed = {"title": title, "url": url, "description": desc, "color": BETA_COLOUR if prerelease else STABLE_COLOUR,
              "fields": fields, "footer": {"text": footer}}
     if release.get("published_at"):
         embed["timestamp"] = release["published_at"]
@@ -65,7 +72,7 @@ def release_payload(release: dict, repo: str = "haqzo/PokeMMO-Companion") -> dic
     over = embed_length(embed) - EMBED_MAX
     if over > 0:
         embed["description"] = clip(neutralise(body), max(0, DESC_MAX - len(more) - over - 1)) + more
-    content = f"**New {'beta' if beta else 'stable'} release of PokeMMO Companion: {neutralise(version or tag)}**"
+    content = f"**New {kind.lower()} release of PokeMMO Companion: {neutralise(version or tag)}**"
     return {"content": clip(content, 2000), "embeds": [embed], "allowed_mentions": {"parse": []}}
 
 
@@ -104,8 +111,8 @@ def main(argv: list[str]) -> int:
         with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as fh:
             event = json.load(fh)
         release = event.get("release") or {}
-        if release.get("draft"):
-            print("Draft release: nothing announced.")
+        if not release.get("tag_name") or release.get("draft"):
+            print("Draft or missing release: nothing announced.")
             return 0
         payload = release_payload(release, os.environ.get("GITHUB_REPOSITORY", "haqzo/PokeMMO-Companion"))
     elif mode == "test":

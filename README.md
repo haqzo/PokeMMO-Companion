@@ -20,7 +20,7 @@ Uninstall: delete the AppImage / the extracted folder. Your personal data is kep
 removed if you delete that folder yourself. Optional startup entries are removed in
 *Settings › Startup & game › Remove all startup entries* first.
 
-> Packaging scripts exist (`packaging/`) but no package has been built or tested yet.
+> The internal Linux AppImage passed CachyOS KDE testing. Windows package and desktop verification are pending. [Alpha release preparation](docs/build/32-ALPHA-RELEASE-PREPARATION.md)
 
 **Development preview (today, Linux):**
 ```bash
@@ -118,7 +118,7 @@ Offline, everything except these checks and the optional Alpha/Swarm feed keeps 
 
 ## Closed alpha
 
-The development version remains 0.1.0 while localization is completed, verification and a quick performance check are run, and material issues are stabilized. The agreed friends-only alpha is 0.8.0, including the owner, invited friends and Spanish/Simplified Chinese translation reviewers; distribution is not yet approved. [Review and alpha readiness checklist](docs/build/30-TRANSLATION-REVIEW-AND-ALPHA-GATES.md).
+Development stays at 0.1.0 while the first 0.8.0 alpha is prepared. Spanish and Simplified Chinese terminology review is planned for alpha testing. GitHub Releases is the intended download location after owner approval. [Approval checklist](docs/build/32-ALPHA-RELEASE-PREPARATION.md)
 
 **Live → Phenomena** is an offline Unova encounter reference. Find current callouts and location pictures in `#phenomenon-callouts`. [PokeMMO Companion Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
 

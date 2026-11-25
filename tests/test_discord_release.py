@@ -28,15 +28,30 @@ def _rel(**kw):
 
 
 def test_stable_and_beta_are_clearly_distinguished():
-    s = dr.release_payload(_rel())
+    s = dr.release_payload(_rel(tag_name="v1.0.0", name="PokeMMO Companion 1.0.0",
+                                html_url="https://github.com/haqzo/PokeMMO-Companion/releases/tag/v1.0.0"))
     b = dr.release_payload(_rel(tag_name="v0.9.0-beta.1", prerelease=True, name="0.9.0 beta 1"))
     assert "stable" in s["content"].lower() and "beta" in b["content"].lower()
     assert s["embeds"][0]["color"] != b["embeds"][0]["color"]
     assert {f["value"] for f in b["embeds"][0]["fields"]} >= {"0.9.0-beta.1"}
     assert "Beta" in b["embeds"][0]["footer"]["text"] and "Stable" in s["embeds"][0]["footer"]["text"]
-    assert dr.is_beta(_rel(tag_name="v1.0.0-rc.2")) and not dr.is_beta(_rel())
+    assert "Prerelease" in dr.release_payload(_rel(tag_name="v1.0.0-rc.2"))["embeds"][0]["footer"]["text"]
     e = s["embeds"][0]
-    assert e["url"].endswith("/v0.9.0") and "Themes" in e["description"] and e["title"] == "PokeMMO Companion 0.9.0"
+    assert e["url"].endswith("/v1.0.0") and "Themes" in e["description"] and e["title"] == "PokeMMO Companion 1.0.0"
+
+
+@pytest.mark.parametrize(("version", "channel"), [("0.8.0", "Alpha"), ("0.8.12", "Alpha"), ("0.9.0", "Beta")])
+def test_series_and_downloads_follow_uploaded_assets(version, channel):
+    url = f"https://github.com/haqzo/PokeMMO-Companion/releases/tag/v{version}"
+    p = dr.release_payload(_rel(tag_name=f"v{version}", html_url=url, assets=[
+        {"name": f"PokeMMO-Companion-{version}-x86_64.AppImage", "state": "uploaded"},
+        {"name": f"PokeMMO-Companion-{version}-windows-x86_64.zip", "state": "starter"},
+        {"name": "SHA256SUMS"},
+    ]))
+    fields = {field["name"]: field["value"] for field in p["embeds"][0]["fields"]}
+    assert fields["Channel"].startswith(channel)
+    assert fields["Downloads"] == f"[Linux x86-64 AppImage]({url}#assets)"
+    assert fields["Checksums"] == f"[SHA256SUMS]({url}#assets)"
 
 
 def test_mentions_never_ping():

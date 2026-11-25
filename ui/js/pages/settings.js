@@ -506,7 +506,8 @@ async function updatesSec(b) {
     row(translateUI('ui.b272_settings_090'), translateUI('ui.b272_settings_091'),
       seg([['stable', translateUI('system.stable')], ['prerelease', translateUI('system.beta_pre')]], s['app_updates.channel'] || 'stable', async (v) => {
         if (v === 'prerelease' && !await confirmDialog(translateUI('system.beta'), translateUI('system.beta_help'), translateUI('system.use_beta'))) { redraw(); return; }
-        saveSettings({ 'app_updates.channel': v });
+        await saveSettings({ 'app_updates.channel': v });
+        redraw();
       }, translateUI('ui.b272_settings_090'))),
     h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: async (e) => { e.currentTarget.disabled = true; await post('/api/app-update/check'); redraw(); } }, icon('refresh'), translateUI('system.check_updates'))),
     app.ok === false ? notice('warn', translateUI('system.check_error', { error: apiErrorText(app.error) })) : null,

@@ -207,6 +207,8 @@ def test_update_check_channels_and_no_release(ctx):
     assert c.check()["latest"]["version"] == "0.2.0-beta.1"
     ctx.settings.update({"app_updates.channel": "stable"})
     assert all(u.startswith("https://api.github.com/repos/haqzo/PokeMMO-Companion/releases") for u in calls)
+    assert not c.status().get("available")
+    assert c.check()["latest"]["version"] == "0.1.1"
     with pytest.raises(ValueError, match="not configured"):
         c.download("PokeMMO-Companion-v0.1.1-x86_64.AppImage", ctx.paths.root / "updates")
     assert [a["name"] for a in platform_assets(st["latest"]["assets"], "linux")]
@@ -232,3 +234,56 @@ def test_verified_download_and_checksum_mismatch(ctx, tmp_path):
     with pytest.raises(ValueError, match="checksum"):
         c.download(name, tmp_path / "updates2")
     assert not (tmp_path / "updates2" / name).exists()
+    files[base + "SHA256SUMS"] = sums.replace(b"  ", b" *")
+    del files[base + name]
+    with pytest.raises(ValueError, match="signature"):
+        c.download(name, tmp_path / "updates3")
+    assert not (tmp_path / "updates3").exists()
+
+
+@pytest.mark.parametrize(("current", "target"), [
+    ("0.8.0", "0.8.1"), ("0.8.1", "0.8.12"), ("0.8.12", "0.9.0"),
+    ("0.9.0", "0.9.11"), ("0.9.11", "1.0.0"), ("1.0.0", "1.0.1"),
+])
+def test_release_series_progression(ctx, current, target):
+    checker = AppUpdateChecker(ctx.storage, ctx.settings, current=current, public_key="",
+                               opener=lambda *_: _Resp(_releases((f"v{target}", False, False),
+                                                                  ("v8.0.0", False, True))))
+    stable = checker.check()
+    assert stable["available"] == target.startswith("1.")
+    ctx.settings.update({"app_updates.channel": "prerelease"})
+    prerelease = checker.check()
+    assert prerelease["available"] and prerelease["latest"]["version"] == target
+    assert prerelease["latest"]["prerelease"] == target.startswith("0.")
+    installed = AppUpdateChecker(ctx.storage, ctx.settings, current=target, public_key="")
+    assert not installed.status()["available"]
+    ctx.settings.update({"app_updates.channel": "stable"})
+    assert not checker.status().get("available")
+
+    def offline(*_):
+        raise TimeoutError("offline")
+
+    checker.opener = offline
+    failed = checker.check()
+    assert not failed["ok"] and not failed.get("available") and not failed.get("latest")
+
+
+@pytest.mark.parametrize(("system", "selected"), [("win32", "windows"), ("linux", "linux"), ("darwin", None)])
+def test_platform_specific_release_packages(ctx, monkeypatch, system, selected):
+    from companion.services import appupdate
+
+    monkeypatch.setattr(appupdate.sys, "platform", system)
+    names = {"linux": "PokeMMO-Companion-0.8.0-x86_64.AppImage",
+             "windows": "PokeMMO-Companion-0.8.0-windows-x86_64.zip"}
+    release = json.loads(_releases(("v0.8.0", True, False)))[0]
+    release["assets"] = [{"name": name} for name in [
+        *names.values(), "PokeMMO-Companion-0.8.0-arm64.AppImage",
+        "PokeMMO-Companion-0.8.11-windows-x86_64.zip", "SHA256SUMS",
+    ]]
+    ctx.settings.update({"app_updates.channel": "prerelease"})
+    checker = AppUpdateChecker(ctx.storage, ctx.settings, public_key="example",
+                               opener=lambda *_: _Resp(json.dumps([release]).encode()))
+    assert [p["name"] for p in checker.check()["latest"]["packages"]] == ([names[selected]] if selected else [])
+    wrong = names["linux" if selected == "windows" else "windows"]
+    with pytest.raises(ValueError, match="not available for your platform"):
+        checker.download(wrong, ctx.paths.root / "updates")

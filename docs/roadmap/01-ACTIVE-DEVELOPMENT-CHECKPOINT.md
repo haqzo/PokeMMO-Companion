@@ -1,6 +1,6 @@
 # Active development checkpoint — 25 November 2026
 
-Development remains **0.1.0** on `develop`. The owner will approve the version change to **0.8.0** for the friends-only closed alpha. The [final optimization and packaging report](../build/31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md) records the tested source, measurements, package checksum and verification limits.
+Development remains **0.1.0** on `develop`. **0.8.0** is the first planned official alpha. The version change, main merge and GitHub publication each require owner approval. [Build 32 release checklist](../build/32-ALPHA-RELEASE-PREPARATION.md) The [final optimization and packaging report](../build/31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md) records the tested source, measurements, package checksum and verification limits.
 
 | Area | Current state | Remaining work |
 |---|---|---|
