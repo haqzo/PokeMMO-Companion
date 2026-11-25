@@ -285,7 +285,7 @@ async function reports(el) {
   const link = (x) => { const row = reportRow(x, false, mode !== 'expanded'); row.onclick = null; row.addEventListener('click', () => openInMain('#/live/reports/' + x.id)); return row; };
   mount(el, h('div', { class: 'stack tight' }, sourceBar(r.source, { compact: true }),
     mode === 'compact' && r.reports.length > 1 ? h('div', { class: 'tiny muted' }, `+${r.reports.length - 1} more in history`) : null,
-    list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? 'No reports received yet — this does not mean none are active.' : 'Report feed is off; nothing is claimed about current activity.')));
+    list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? translateUI('ui.live_popout_no_reports') : translateUI('ui.live_popout_off'))));
 }
 
 async function typechart(el) { clear(el); await renderTypeChart(el, null, { compact: mode !== 'expanded' }); }

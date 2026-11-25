@@ -207,3 +207,25 @@ def test_offline_popout_inventory(clean, pg, language, locale):
     finally:
         clean.ctx.settings.update({"guides.active_run": None})
         clean.ctx.guides.delete_run(run)
+
+
+@pytest.mark.parametrize(("language", "title", "search", "consent", "minutes", "method"), [
+    ("es", "En vivo", "Buscar avisos", "¿Conectar la fuente de avisos de Alphapedia?", "12 min", "Individual"),
+    ("zh", "实时", "搜索报告", "连接 Alphapedia 报告订阅？", "12 分钟", "单只遭遇"),
+])
+def test_live_and_cave_localize_offline_without_changing_values(clean, pg, language, title, search, consent, minutes, method):
+    clean.ctx.settings.update({"app.language": language, "live.ntfy.enabled": False})
+    pg.goto(clean.url("#/live/reports"))
+    pg.get_by_role("heading", name=title, exact=True).wait_for()
+    pg.get_by_placeholder(search).wait_for()
+    pg.locator(".source-bar .primary").click()
+    pg.get_by_role("dialog", name=consent).wait_for()
+    assert minutes in pg.evaluate("""async () => {
+      const { timerText } = await import('/js/pages/live.js');
+      return timerText({ state: 'recent', duration_min: 20, ends_at: new Date(12 * 60_000).toISOString() }, 0);
+    }""")
+    pg.goto(clean.url("#/live/cave"))
+    field = pg.locator('select[name="method"]')
+    assert field.locator('option[value="Single"]').inner_text() == method
+    assert field.input_value() == 'Single'
+    assert not pg.errors
