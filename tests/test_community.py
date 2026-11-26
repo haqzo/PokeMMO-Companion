@@ -49,7 +49,8 @@ def test_opt_in_and_authenticated_local_api(ctx, client):
 
 
 @pytest.mark.parametrize(("changes", "error"), [
-    ({"kind": "seasonal"}, "choose_kind"),
+    ({"kind": "unsupported"}, "choose_kind"),
+    ({"kind": "seasonal"}, "seasonal_inactive"),
     ({"region": ""}, "choose_region"),
     ({"species_id": True}, "choose_species"),
     ({"species_id": None}, "choose_species"),
