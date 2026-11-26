@@ -134,6 +134,12 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 
 [Hoenn main view](batch03-1/storyline-main-hoenn.png) · [Spanish Compact](batch03-1/storyline-compact-es.png) · [English Standard](batch03-1/storyline-standard-en.png) · [Simplified Chinese Expanded](batch03-1/storyline-expanded-zh.png)
 
+### Batch 03.1 verification
+
+- Linux backend reported 482 passed and 31 ROM/dump-dependent skips in 246.13 seconds. Selected Chromium regressions reported 139 passed and eight dump-dependent skips in 332.96 seconds. The focused set covered all 2,845 bundled steps, the Hoenn reproduction and both windows. All six focused browser cases passed again after making the browser input assertions independent of scroll-animation timing.
+- The Linux offline clean-install and both media guards passed. Offscreen Qt 6.12 on Linux verified Compact, Standard and Expanded at the native 260×180 minimum with 200% text scaling, saved background opacity and the always-on-top flag. The tests used synthetic profiles, including the v8-to-v9 migration and its backup.
+- Windows Server 2025 x64 passed offline clean install and all 181 selected regressions in 183.53 seconds at `c2f4b0c04dc4ddb809c3e4f7bd5afa06b2b95b71`. Two earlier runs each timed out in the same test's exact-bottom End-key assertion. The final test exercises Page Down, the wheel and thumb dragging independently. Native interactive Windows desktop QA remains pending. [Successful Windows regression](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45894052987)
+
 ## Next development phase
 
 - **0.8.x Alpha:** prioritize real user feedback, interactive Windows QA, Linux compatibility, reproducible bug fixes, data accuracy, translation and performance corrections, and regressions. Preserve existing tools and user data. No new large feature batch unless the owner explicitly approves it.
