@@ -612,15 +612,16 @@ def build_router(ctx: AppContext) -> Router:
     def run_steps(req: Request) -> dict:
         rid = req.params["rid"]
         ids = req.json("steps") or ([req.json("step")] if req.json("step") else [])
-        res = G.set_steps(rid, ids, bool(req.json("done")))
-        if req.json("advance") and req.json("region") and req.json("next_active"):
-            G.set_region_prefs(rid, req.json("region"), active_step_id=req.json("next_active"))
+        if region := req.json("region"):
+            res = G.progress_steps(rid, region, ids, bool(req.json("done")), source=req.json("source"))
+        else:
+            res = G.set_steps(rid, ids, bool(req.json("done")))
         ctx.bus.publish("guides", {"run": rid, "steps": ids}, origin=req.q("origin"))
         return res
 
     def run_mark_through(req: Request) -> dict:
         rid = req.params["rid"]
-        res = G.mark_through(rid, req.json("region"), req.json("step"), bool(req.json("preview")))
+        res = G.mark_through(rid, req.json("region"), req.json("step"), bool(req.json("preview")), req.json("source"))
         if not req.json("preview"):
             ctx.bus.publish("guides", {"run": rid})
         return res
@@ -657,7 +658,8 @@ def build_router(ctx: AppContext) -> Router:
         if nonce:
             _recent_actions[nonce] = now
         try:
-            res = G.step_action(req.params["rid"], req.json("region"), str(req.json("action")), req.json("expect_step"))
+            res = G.step_action(req.params["rid"], req.json("region"), str(req.json("action")), req.json("expect_step"),
+                                req.json("source"), req.json("step"))
         except GuideError as exc:
             raise ApiError(400, str(exc))
         if res.get("ok"):

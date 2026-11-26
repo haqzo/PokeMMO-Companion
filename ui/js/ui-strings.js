@@ -401,6 +401,8 @@ export const UI_STRINGS = {
   'ui.guide_read_before_run': ["Browse the walkthroughs first", "Consultar primero las guías", "先浏览攻略"],
   'ui.guide_source_control': ["Guide source", "Fuente de la guía", "攻略来源"],
   'ui.guide_jump_current': ["Jump to current", "Ir al paso actual", "跳转到当前步骤"],
+  'ui.guide_show_optional': ["Show optional steps", "Mostrar pasos opcionales", "显示可选步骤"],
+  'ui.guide_finished': ["All displayed steps completed", "Todos los pasos visibles completados", "已完成所有显示的步骤"],
   'ui.guide_undo_step': ["Undo the last checkbox change", "Deshacer el último cambio de una casilla", "撤销上次勾选更改"],
   'ui.guide_undo_none': ["Nothing to undo", "No hay cambios para deshacer", "没有可撤销的更改"],
   'ui.guide_check_current': ["Mark up to current…", "Marcar hasta el paso actual…", "标记到当前步骤…"],

@@ -105,6 +105,7 @@ def test_storyline_region_timer_and_step_timer(app, page):  # noqa: F811
     app.ctx.settings.update({"guides.active_run": run2["id"]})
     go(page, app, "#/guides/storyline?region=kanto")
     page.reload()
+    page.locator(".gx-story > summary").click()
     page.wait_for_selector(".gx-timers")
     _until(page, "document.querySelector('.run-pill').textContent.includes('Other')")
     assert page.locator(".gx-step-timer").count() == 0

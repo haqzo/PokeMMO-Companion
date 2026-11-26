@@ -52,7 +52,8 @@ DEFAULTS: dict[str, Any] = {
     "pokedex.filters": {},
     # Guides
     "guides.active_run": None,
-    "guides.extras_open": True,              # storyline: "Timers & team for this region" panel expanded
+    "guides.extras_open": False,
+    "guides.popout_extras_open": False,
     # Live / notifications
     "live.community.enabled": False,         # local structured observations
     "live.community.receive": False,         # optional loopback test feed

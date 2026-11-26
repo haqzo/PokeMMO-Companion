@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -153,6 +153,10 @@ MIGRATIONS: dict[int, list[str]] = {
                contributor TEXT NOT NULL, action TEXT NOT NULL, target TEXT, remote_id TEXT,
                state TEXT NOT NULL, error TEXT, payload TEXT NOT NULL)""",
         "CREATE INDEX community_remote_id ON community_publications(service_id, remote_id)",
+    ],
+    9: [
+        "ALTER TABLE run_regions ADD COLUMN manual_step INTEGER",
+        "ALTER TABLE step_history ADD COLUMN objective_change TEXT",
     ],
 }
 
