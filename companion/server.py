@@ -501,6 +501,25 @@ def build_router(ctx: AppContext) -> Router:
     r.add("POST", "/api/live/clear", lambda req: {"deleted": ctx.live.clear(bool(req.json("tests_only")))})
     r.add("GET", "/api/live/source", lambda req: ctx.live.source_status())
 
+    from .services.community import CommunityError
+
+    def community_call(fn):
+        def handle(req):
+            try:
+                return fn(req)
+            except CommunityError as exc:
+                raise ApiError(exc.status, str(exc)) from exc
+        return handle
+
+    r.add("GET", "/api/live/community/source", lambda req: ctx.live.community.source_status())
+    r.add("GET", "/api/live/community/options", lambda req: ctx.live.community.options())
+    r.add("GET", "/api/live/community/phenomena", lambda req: {"reports": ctx.live.community.phenomena()})
+    r.add("POST", "/api/live/community/reports", community_call(lambda req: ctx.live.community.submit(req.body)))
+    r.add("POST", "/api/live/community/reports/<rid>/correct",
+          community_call(lambda req: ctx.live.community.submit(req.body, correction=req.params["rid"])))
+    r.add("POST", "/api/live/community/reports/<rid>/actions",
+          community_call(lambda req: ctx.live.community.act(req.params["rid"], req.json("action"))))
+
     def legend(req: Request) -> dict:
         return ctx.live.legendaries(req.q("run") or S.get("guides.active_run"))
     r.add("GET", "/api/live/legendaries", legend)

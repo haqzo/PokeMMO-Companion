@@ -10,6 +10,7 @@ import { POPOUT_TOOLS, popoutSize } from './shell.js';
 import { t } from './i18n.js';
 import { guideContext } from './shortcuts.js';
 import { installTimerSound } from './timer-sound.js';
+import { communityActions, communityBar, communitySavedRoute } from './pages/community.js';
 
 let root, bodyEl, mode, savedMode;
 const MODES = [['compact', 'C', 'Compact'], ['standard', 'S', 'Standard'], ['expanded', 'E', 'Expanded']];
@@ -26,7 +27,8 @@ export function popoutSettingsImpact(tool, keys, detail = false) {
   const dexKeys = tool === 'pokedex' && keys.some(k => k.startsWith('pokedex.') && k !== 'pokedex.last_species');
   const sprites = !NO_SPRITE_BODY.has(tool) && keys.some(k => k.startsWith('sprites.') || k.startsWith('performance.') ||
     k === `window.${tool}.sprite_scale` || k === `window.${tool}.sprite_motion`);
-  return { body: !!(dexKeys || sprites), filters: !!(dexKeys && !detail && keys.includes('pokedex.filters')) };
+  const community = ['reports', 'phenomena'].includes(tool) && keys.includes('live.community.enabled');
+  return { body: !!(dexKeys || sprites || community), filters: !!(dexKeys && !detail && keys.includes('pokedex.filters')) };
 }
 
 export function startPopout(el) {
@@ -50,7 +52,8 @@ export function startPopout(el) {
     if (keys.some(k => k === `window.${POPOUT}.bg_opacity` || k === `window.${POPOUT}.text_scale`)) drawBar();
   });
   const refresh = debounce(() => renderBody(), 120);
-  for (const t of ({ notes: ['notes'], items: ['items'], showcase: ['showcase', 'box'], customguide: ['cguides'], box: ['box'], storyline: ['guides'], reports: ['live.report', 'live.source'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async (d, ev) => {
+  for (const t of ({ notes: ['notes'], items: ['items'], showcase: ['showcase', 'box'], customguide: ['cguides'], box: ['box'], storyline: ['guides'], reports: ['live.report', 'live.source'], phenomena: ['live.report'], pokedex: ['favourites', 'notes', 'dex.roster', 'dex.progress'], breeding: [], legendaries: ['legendaries', 'guides'], cave: ['cave'] })[POPOUT] || []) on(t, async (d, ev) => {
+    if (POPOUT === 'phenomena' && d?.kind !== 'phenomena') return;
     if (ev && ev.origin === WINDOW_ID && ['notes', 'items', 'showcase', 'customguide', 'box'].includes(POPOUT)) return;  // our own edit: don't redraw under the cursor
     if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
   window.addEventListener('hashchange', () => renderBody());
@@ -167,7 +170,7 @@ function mainRoute() {
 async function renderBody() {
   const keep = bodyEl.scrollTop;
   try {
-    const fn = { storyline, pokedex, reports, phenomena: (el) => import('./pages/phenomena.js').then(m => m.renderPhenomena(el, { variant: mode })), typechart, breeding, legendaries, cave, natures,
+    const fn = { storyline, pokedex, reports, phenomena: (el) => import('./pages/phenomena.js').then(m => m.renderPhenomena(el, { variant: mode, open: openInMain })), typechart, breeding, legendaries, cave, natures,
       notes: (el) => import('./pages/notes.js').then(m => m.renderNotesPopout(el, mode)), items: (el) => import('./pages/items.js').then(m => m.renderItemsPopout(el, mode)), showcase: (el) => import('./pages/box.js').then(m => m.renderShowcasePopout(el, mode)),
       customguide: (el) => import('./pages/cguides.js').then(m => m.renderCustomGuidePopout(el, mode)), locations: (el) => import('./pages/locations.js').then(m => m.renderLocationsPopout(el, mode)), box: (el) => import('./pages/box.js').then(m => m.renderBoxPopout(el, mode)),
       calculator: (el) => import('./pages/calculator.js').then((m) => m.renderCalculator(el, { compact: mode === 'compact' })),
@@ -289,8 +292,22 @@ async function reports(el) {
   const { sourceBar, reportRow } = await import('./pages/live.js');
   const r = await get('/api/live/reports?tests=1');
   const list = mode === 'compact' ? r.reports.slice(0, 1) : r.reports;  // compact = latest only; others show full history
-  const link = (x) => { const row = reportRow(x, false, mode !== 'expanded'); row.onclick = null; row.addEventListener('click', () => openInMain('#/live/reports/' + x.id)); return row; };
+  const link = (x) => {
+    const row = reportRow(x, false, mode !== 'expanded');
+    row.onclick = null;
+    row.onkeydown = null;
+    const open = () => openInMain(communitySavedRoute(x));
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
+    const actions = communityActions(x, { compact: true });
+    return actions ? h('div', { class: 'community-encounter' }, row, actions) : row;
+  };
   mount(el, h('div', { class: 'stack tight' }, sourceBar(r.source, { compact: true }),
+    communityBar('alpha', (saved) => {
+      if (saved.kind === 'phenomena') toast(translateUI('community.saved_here'), {
+        action: { label: translateUI('community.view_report'), fn: () => openInMain(communitySavedRoute(saved)) },
+      });
+    }),
     mode === 'compact' && r.reports.length > 1 ? h('div', { class: 'tiny muted' }, translateUI('ui.floating_report_count', { count: r.reports.length - 1 })) : null,
     list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? translateUI('ui.live_popout_no_reports') : translateUI('ui.live_popout_off'))));
 }

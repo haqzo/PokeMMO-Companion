@@ -383,7 +383,7 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0 3px; }
 .mult.m4 { background: #2f7c33; } .mult.m2 { background: var(--good); } .mult.m05 { background: var(--bad); } .mult.m025 { background: #7d2b28; } .mult.m0 { background: var(--zero); } .mult.m1 { background: var(--bg-control); color: var(--text-muted); }
 
 /* ---------------------------------------------------------------- live */
-.source-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius); background: var(--bg-window); border: var(--bw) solid var(--border-subtle); }
+.source-bar, .community-source { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius); background: var(--bg-window); border: var(--bw) solid var(--border-subtle); }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--st-unknown); flex: none; }
 .dot.connected { background: var(--st-verified); } .dot.offline, .dot.error { background: var(--danger); } .dot.connecting { background: var(--warn); }
 .report-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--bg-card); border-radius: var(--radius); cursor: pointer; border: 1px solid transparent; }
@@ -1363,3 +1363,18 @@ body { font-weight: var(--weight); }
 .home-phenomena { border-top: 1px solid var(--border-subtle); padding-top: 10px; }
 .phenomenon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
 .phenomenon-card { min-width: 0; overflow-wrap: anywhere; }
+
+/* Local reporting uses the same dialog in the workspace and floating windows. */
+.community-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); gap: 10px; }
+.community-form [hidden] { display: none; }
+.community-form select, .community-form textarea { width: 100%; }
+.community-form textarea { resize: vertical; }
+.community-actions-wrap { padding: 0 4px 4px; }
+.community-actions { margin-top: 4px; }
+.community-actions-wrap summary, .community-history summary { cursor: pointer; }
+.community-encounter > .cur-card, .community-encounter > .report-row { width: 100%; }
+@media (max-height: 460px) {
+  .modal:has(.community-form) > :is(.m-head, .m-body, .m-foot) { padding: 8px 10px; }
+  .community-form.stack { gap: 8px; }
+  .community-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

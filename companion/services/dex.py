@@ -728,6 +728,13 @@ class DexService:
                       key=lambda x: (["kanto", "johto", "hoenn", "sinnoh", "unova"].index(x["region"])
                                      if x["region"] in ("kanto", "johto", "hoenn", "sinnoh", "unova") else 9, x["name"]))
 
+    def location_reference(self, key: str) -> dict | None:
+        """Canonical identity for an explicitly selected encounter location."""
+        loc = self._locations.get(key)
+        if loc and not str(loc["location_id"]).startswith("-") and "???" not in loc["name"]:
+            return {field: loc[field] for field in ("id", "region", "name")}
+        return None
+
     def location(self, key: str) -> dict | None:
         if not hasattr(self, "_locations"):
             self._build_locations()

@@ -589,7 +589,7 @@ function liveCard(cur) {
     const src = c.source;
     const last = src.last_success_at ? translateUI('ui.home_feed_last', { age: relTime(src.last_success_at) }) : '';
     mount(head, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), h('span', { class: 'muted' },
-      !src.enabled ? (c.current.length ? translateUI('ui.home_feed_cached') : translateUI('ui.home_feed_unknown')) : src.status === 'connected' ? translateUI('ui.home_feed_connected', { last })
+      !src.enabled ? (c.current.some(g => !g.community) ? translateUI('ui.home_feed_cached') : translateUI('ui.home_feed_unknown')) : src.status === 'connected' ? translateUI('ui.home_feed_connected', { last })
         : translateUI('ui.home_feed_degraded', { status: uiLabel(src.status), last })));
     const list = c.current.slice(0, 4);
     const skew = Date.parse(c.now) - Date.now();

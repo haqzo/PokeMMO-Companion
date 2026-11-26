@@ -31,6 +31,7 @@ from ..events import EventBus
 from ..settings import Settings
 from ..localization import native_text
 from ..storage import Storage, utcnow
+from .community import Community
 from .dex import DexService, normalize_location_text
 from .notify import Notifier
 from .phenomena import Phenomena
@@ -56,7 +57,7 @@ DUPLICATE_NOTICE = "Same Alpha/Swarm already reported — saved to history, not 
 EXPIRED_NOTICE = "The estimated report window has passed — saved to history only"
 REPORTS_WITH_ANCHOR = """
     SELECT r.*, a.source_time AS anchor_source_time, a.received_at AS anchor_received_at,
-        a.is_replay AS anchor_is_replay
+        a.is_replay AS anchor_is_replay, a.community AS anchor_community
     FROM reports r
     LEFT JOIN reports a ON a.rowid = (
         SELECT rowid FROM reports WHERE event_id=r.event_id ORDER BY event_at, rowid LIMIT 1
@@ -79,7 +80,7 @@ def report_status(r: dict, now: datetime, swarm_minutes: int = 20) -> dict:
     received = _parse_iso(r.get("received_at")) or now
     reported = _parse_iso(r.get("source_time"))
     notes = []
-    start, basis = reported, "report time"
+    start, basis = reported, "observation time" if r.get("community") else "report time"
     if reported is None:
         start, basis = received, "time received"
         notes.append("The report has no timestamp; the time it reached the Companion is used.")
@@ -146,6 +147,7 @@ class LiveService:
         self.dex = dex
         self.notifier = notifier
         self.phenomena = Phenomena(self)
+        self.community = Community(self)
         self.toast_backend: Callable[[dict], bool] | None = None  # set by the Qt shell
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -241,10 +243,7 @@ class LiveService:
                 row = dict(c.execute("SELECT * FROM reports WHERE id=?", (rid,)).fetchone())
                 event_id, status = self._assign_event(c, row, swarm_minutes)
                 if deliver and (event_id != rid or status["state"] != "recent"):
-                    result = {"suppressed": DUPLICATE_NOTICE if event_id != rid else EXPIRED_NOTICE, "at": received}
-                    if event_id != rid:
-                        result["same_as"] = event_id
-                    c.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(result), rid))
+                    self._store_suppression(c, rid, event_id, received)
                     deliver = False
         report = self.get(rid)
         if deliver:
@@ -252,8 +251,23 @@ class LiveService:
         self.bus.publish("live.report", {"id": rid, "replay": replay})
         return report
 
+    @staticmethod
+    def _store_suppression(conn, rid, event_id, received, *, correction=False):
+        reason = "community.correction_silent" if correction else DUPLICATE_NOTICE if event_id != rid else EXPIRED_NOTICE
+        result = {"suppressed": reason, "at": received}
+        if event_id != rid:
+            result["same_as"] = event_id
+        conn.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(result), rid))
+
     # ------------------------------------------------------------ queries
     def _location_match(self, r: dict) -> dict:
+        if r.get("community"):
+            meta = r["community"]
+            if isinstance(meta, str):
+                meta = json.loads(meta)
+            if meta["location_id"]:
+                return {"status": "verified", "id": meta["location_id"], "name": r["location"]}
+            return {"status": "unverified"}
         region, place = reported_location(r.get("body") or "")
         return self.dex.match_location(region or r.get("region"), place or r.get("location"))
 
@@ -273,14 +287,14 @@ class LiveService:
             for row in rows:
                 self._assign_event(c, dict(row), swarm_minutes)
 
-    def _assign_event(self, c, row: dict, swarm_minutes: int) -> tuple[str, dict]:
+    def _assign_event(self, c, row: dict, swarm_minutes: int, *, preferred=None) -> tuple[str, dict]:
         """Assign one observation atomically. A window never grows past one estimated duration."""
         status = report_status(row, _parse_iso(row["received_at"]), swarm_minutes)
-        trustworthy_time = status["start_basis"] == "report time"
+        trustworthy_time = status["start_basis"] in ("report time", "observation time")
         at = int(_parse_iso(status["start"]).timestamp()) if trustworthy_time or not row["is_replay"] else None
         key = self._event_key(row) if trustworthy_time else None
-        event_id = row["id"]
-        if key:
+        event_id = preferred or row["id"]
+        if key and not preferred:
             seconds = status["duration_min"] * 60
             lower, upper = at - seconds, at + seconds
             # Check both ends, so an out-of-order report cannot chain two windows together.
@@ -291,7 +305,7 @@ class LiveService:
                     SELECT event_id FROM reports WHERE event_key=? AND event_at>? AND event_at<?
                 )
                 GROUP BY event_id
-                HAVING MIN(event_at)>? AND MAX(event_at)<?
+                HAVING MIN(event_at)>? AND MAX(event_at)<? AND SUM(withdrawn_at IS NULL)>0
                 ORDER BY MIN(event_at)>?, MIN(event_at) DESC, event_id LIMIT 1
             """, (key, lower, upper, lower, upper, at)).fetchone()
             if candidate:
@@ -302,6 +316,7 @@ class LiveService:
     def _row(self, r: dict, *, status: dict | None = None) -> dict:
         r["tags"] = json.loads(r["tags"] or "[]")
         r["delivery"] = json.loads(r["delivery"]) if r.get("delivery") else None
+        r["community"] = json.loads(r["community"]) if r.get("community") else None
         sid = r.get("species_id")
         r["species_name"] = self.dex.name(sid) if sid else None
         # Sprites are shown only when the report names its species unambiguously (display-only check; the
@@ -345,7 +360,7 @@ class LiveService:
             groups.setdefault(row["event_id"], []).append(row)
         out = []
         for observations in groups.values():
-            visible = observations if include_catchup else [row for row in observations if not row["is_replay"]]
+            visible = [row for row in observations if not row["withdrawn_at"] and (include_catchup or not row["is_replay"])]
             if not visible:
                 continue
             first = observations[0]
@@ -354,10 +369,11 @@ class LiveService:
                 continue
             out.append({**self._row(visible[0], status=st), "duplicates": len(visible) - 1,
                         "report_ids": [row["id"] for row in visible], "latest_id": visible[-1]["id"],
-                        "caught_up": bool(visible[0]["is_replay"])})
+                        "caught_up": bool(visible[0]["is_replay"]),
+                        "own_report_id": next((row["id"] for row in reversed(visible) if row["community"]), None)})
         out.sort(key=lambda x: (x["status"]["state"] != "recent", -_parse_iso(x["status"]["start"]).timestamp()))
         src = self.source_status()
-        return {"now": now.isoformat(timespec="seconds"), "current": out, "source": src,
+        return {"now": now.isoformat(timespec="seconds"), "current": self.community.decorate(out), "source": src,
                 "estimates": {"alpha_minutes": ALPHA_MINUTES, "alpha_basis": "official PokeMMO changelog",
                               "swarm_minutes": sw, "swarm_basis": "provisional community estimate (reports say ~15, 20 or 30 min)"},
                 "complete": False}
@@ -380,10 +396,11 @@ class LiveService:
         r = self.db.query_one(REPORTS_WITH_ANCHOR + " WHERE r.id=?", (rid,))
         if not r:
             raise KeyError(rid)
-        return self._event_row(r, datetime.now(timezone.utc), self.swarm_minutes())
+        report = self._event_row(r, datetime.now(timezone.utc), self.swarm_minutes())
+        return self.community.decorate([report], history=True)[0]
 
     def _event_row(self, row: dict, now: datetime, swarm_minutes: int) -> dict:
-        anchor = {key: row.pop(f"anchor_{key}") for key in ("source_time", "received_at", "is_replay")}
+        anchor = {key: row.pop(f"anchor_{key}") for key in ("source_time", "received_at", "is_replay", "community")}
         timeline = {**row, **anchor} if anchor["received_at"] else row
         return self._row(row, status=report_status(timeline, now, swarm_minutes))
 
@@ -402,10 +419,10 @@ class LiveService:
         if q:
             sql += " AND (r.title LIKE ? OR r.body LIKE ?)"
             args += [f"%{q}%", f"%{q}%"]
-        sql += " ORDER BY COALESCE(r.source_time, r.received_at) DESC LIMIT ?"
+        sql += " ORDER BY COALESCE(r.source_time, r.received_at) DESC, r.received_at DESC, r.rowid DESC LIMIT ?"
         args.append(limit)
         now, swarm_minutes = datetime.now(timezone.utc), self.swarm_minutes()
-        return [self._event_row(r, now, swarm_minutes) for r in self.db.query(sql, args)]
+        return self.community.decorate([self._event_row(r, now, swarm_minutes) for r in self.db.query(sql, args)])
 
     def mark_seen(self, rid: str | None = None) -> int:
         if rid:
@@ -420,7 +437,7 @@ class LiveService:
     def prune(self) -> int:
         days = int(self.settings.get("notify.retention_days") or 30)
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-        return self.db.execute("DELETE FROM reports WHERE kind<>'phenomena' AND received_at < ?", (cutoff,))
+        return self.db.execute("DELETE FROM reports WHERE (kind<>'phenomena' OR community IS NOT NULL) AND received_at < ?", (cutoff,))
 
     # ------------------------------------------------------------ delivery
     def deliver(self, report: dict) -> dict:

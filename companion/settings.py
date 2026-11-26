@@ -54,6 +54,7 @@ DEFAULTS: dict[str, Any] = {
     "guides.active_run": None,
     "guides.extras_open": True,              # storyline: "Timers & team for this region" panel expanded
     # Live / notifications
+    "live.community.enabled": False,         # local structured observations
     "live.phenomena.enabled": None,  # Legacy profiles used a non-empty override as opt-in.
     "live.phenomena.endpoint": "",
     "notify.phenomena": "off",

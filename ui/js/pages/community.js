@@ -1,0 +1,201 @@
+import { h, mount, get, post, setting, saveSettings, modal, confirmDialog, toast, fmtDate } from '../core.js';
+import { speciesPicker } from '../components.js';
+import { compareLabels, gameTerm, searchText } from '../game-locale.js';
+import { t } from '../i18n.js';
+
+const ROOT = '/api/live/community';
+const ENABLED = 'live.community.enabled';
+const REGIONS = ['Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova'];
+const KINDS = { alpha: 'ui.live_alpha', swarm: 'ui.live_swarm', phenomena: 'ui.phenomena' };
+const PHENOMENA = { grass: 'ui.grass_rustling', water: 'ui.water_rippling', dust: 'ui.dust_cloud', shadow: 'ui.shadow_moving' };
+const errorText = (e) => e.rawMessage?.startsWith('community.') ? t(e.rawMessage) : e.message;
+
+export const phenomenonType = (value) => PHENOMENA[value] ? t(PHENOMENA[value]) : value;
+export const communityEnabled = () => setting(ENABLED) === true;
+
+function select(name, options, value) {
+  return h('select', { class: 'input', 'aria-label': name },
+    h('option', { value: '' }, name), options.map(([key, label]) =>
+      h('option', { value: key, selected: key === value ? true : null }, label)));
+}
+const field = (label, control) => h('label', { class: 'field' }, h('span', { class: 'label' }, label), control);
+
+export function communitySourceText() {
+  return t(communityEnabled() ? 'community.source_local' : 'community.source_off');
+}
+
+export function communityBar(kind, onSaved) {
+  const box = h('div', { class: 'community-source' });
+  const draw = () => mount(box, h('div', { class: 'grow' }, h('strong', null, t('community.name')),
+    h('div', { class: 'small muted' }, communitySourceText(), ' · ', t('community.source_unavailable'))),
+  communityEnabled()
+    ? h('button', { class: 'btn primary small', onclick: async () => {
+      const saved = await reportDialog(kind);
+      if (saved && box.isConnected) onSaved?.(saved);
+    } }, t('community.new'))
+    : h('button', { class: 'btn small', onclick: async (event) => {
+      event.currentTarget.disabled = true;
+      try {
+        await saveSettings({ [ENABLED]: true });
+        draw();
+      } catch (e) { toast(errorText(e), { kind: 'warn' }); draw(); }
+    } }, t('community.enable')));
+  draw();
+  return box;
+}
+
+let dialogOpen = false;
+
+async function reportDialog(kind, report) {
+  if (dialogOpen) return null;
+  dialogOpen = true;
+  try {
+    const observed = new Date().toISOString();
+    const options = await get(ROOT + '/options');
+    const meta = report?.community;
+    const category = select(t('ui.live_report_type'), options.kinds.map(k => [k, t(KINDS[k])]), kind);
+    category.disabled = Boolean(report);
+    const region = select(t('ui.region'), REGIONS.map(r => [r.toLowerCase(), gameTerm('region', r)]), report?.region);
+    const placeModes = [['catalog', t('community.location_catalog')], ['unlisted', t('community.location_unlisted')]];
+    const mode = select(t('community.location_mode'), [...placeModes, ['unknown', t('community.location_unknown')]],
+      meta?.location_id || !report ? 'catalog' : report.location ? 'unlisted' : 'unknown');
+    const unknownMode = mode.querySelector('[value="unknown"]');
+    const search = h('input', { class: 'input', type: 'search', 'aria-label': t('community.search_location'), placeholder: t('community.search_location') });
+    const place = select(t('community.choose_location'), [], '');
+    const unlisted = h('input', { class: 'input', 'aria-label': t('community.location_unlisted'), maxlength: 100,
+      value: meta && !meta.location_id ? report.location || '' : '' });
+    const catalog = h('div', { class: 'stack tight' }, h('div', { class: 'community-fields' },
+      field(t('community.search_location'), search), field(t('community.choose_location'), place)),
+      h('div', { class: 'small muted' }, t('community.location_hint')));
+    const unlistedField = field(t('community.location_unlisted'), unlisted);
+    let speciesId = report?.species_id ?? null;
+    const species = speciesPicker({ label: t('ui.species'), value: speciesId, onChange: (id) => { speciesId = id; } });
+    const type = select(t('community.choose_phenomenon'), options.phenomenon_types.map(p => [p, phenomenonType(p)]), meta?.phenomenon_type);
+    const typeField = field(t('community.choose_phenomenon'), type);
+    const onset = select(t('community.choose_onset'),
+      [['just_appeared', t('community.just_appeared')], ['already_active', t('community.already_active')]], meta?.onset);
+    const provenance = select(t('community.choose_provenance'),
+      [['firsthand', t('community.firsthand')], ['relayed', t('community.relayed')]], meta?.provenance);
+    const details = h('textarea', { class: 'input', rows: 2, maxlength: 240, 'aria-label': t('community.details') }, report?.body || '');
+    const error = h('div', { role: 'alert', class: 'small', style: { color: 'var(--bad)' } });
+    const drawPlaces = (selected = '') => {
+      const names = options.locations.filter(p => p.region === region.value)
+        .map(p => ({ ...p, localized: gameTerm('location', p.name) }));
+      const counts = new Map();
+      names.forEach(p => counts.set(p.localized, (counts.get(p.localized) || 0) + 1));
+      const q = searchText(search.value);
+      const matches = names.filter(p => !q || searchText(p.localized).includes(q) || searchText(p.name).includes(q));
+      matches.sort((a, b) => compareLabels(a.localized, b.localized));
+      mount(place, h('option', { value: '' }, t('community.choose_location')), matches.map(p =>
+        h('option', { value: p.id }, counts.get(p.localized) > 1 ? p.localized + ' · ' + p.id.split(':').slice(1).join(':') : p.localized)));
+      if (matches.some(p => p.id === selected)) place.value = selected;
+    };
+    const draw = () => {
+      const pheno = category.value === 'phenomena';
+      unknownMode.hidden = !pheno;
+      unknownMode.disabled = !pheno;
+      if (!pheno && mode.value === 'unknown') mode.value = 'catalog';
+      catalog.hidden = mode.value !== 'catalog';
+      unlistedField.hidden = mode.value !== 'unlisted';
+      species.hidden = pheno;
+      typeField.hidden = !pheno;
+    };
+    category.addEventListener('change', draw);
+    mode.addEventListener('change', draw);
+    region.addEventListener('change', () => { search.value = ''; drawPlaces(); });
+    search.addEventListener('input', () => drawPlaces(place.value));
+    drawPlaces(meta?.location_id);
+    draw();
+    const observationId = crypto.randomUUID();
+    let saving = false;
+    return await modal({
+      title: t(report ? 'community.correct' : 'community.new'),
+      body: h('div', { class: 'stack community-form', oninput: () => { error.textContent = ''; } },
+        h('div', { class: 'small muted' }, t('community.local_only')),
+        h('div', { class: 'community-fields' }, field(t('ui.live_report_type'), category), field(t('ui.region'), region)),
+        field(t('community.location_mode'), mode), catalog, unlistedField,
+        h('div', { class: 'community-fields' }, species, typeField, field(t('community.choose_onset'), onset),
+          field(t('community.choose_provenance'), provenance)),
+        field(t('community.details'), details), error),
+      actions: [{ label: t('ui.cancel'), kind: 'ghost' }, { label: t('community.save'), kind: 'primary', handler: async () => {
+        if (saving) return false;
+        saving = true;
+        error.textContent = '';
+        try {
+          const url = ROOT + '/reports' + (report ? '/' + report.id + '/correct' : '');
+          return await post(url, {
+            observation_id: observationId, kind: category.value, region: region.value, observed_at: observed,
+            location_id: mode.value === 'catalog' ? place.value || null : null,
+            location_text: mode.value === 'unlisted' ? unlisted.value : '',
+            location_unknown: mode.value === 'unknown',
+            species_id: category.value !== 'phenomena' ? speciesId : null,
+            phenomenon_type: category.value === 'phenomena' ? type.value || null : null,
+            onset: onset.value, provenance: provenance.value, details: details.value,
+          });
+        } catch (e) {
+          error.textContent = errorText(e);
+          return false;
+        } finally { saving = false; }
+      } }],
+    });
+  } catch (e) { toast(errorText(e), { kind: 'warn' }); return null; }
+  finally { dialogOpen = false; }
+}
+
+export const communitySavedRoute = (report) => report.kind === 'phenomena'
+  ? '#/live/phenomena/' + report.id : '#/live/reports/' + report.id;
+
+export function localFeedback(report) {
+  const seen = report.local_feedback?.sighting;
+  const completed = report.local_feedback?.personal?.action === 'complete';
+  if (!seen && !completed) return null;
+  return h('div', { class: 'tiny muted community-feedback' },
+    [seen && t('community.local_result', { action: t('community.' + seen.action) }), completed && t('community.personal_completed')]
+      .filter(Boolean).join(' · '));
+}
+
+export function communityEvidence(report) {
+  const meta = report.community;
+  if (!meta) return null;
+  return h('div', { class: 'small muted community-evidence' },
+    [t('community.local_label'), t('community.' + meta.provenance), t('community.' + meta.onset),
+      report.withdrawn_at && t('community.inactive_label')].filter(Boolean).join(' · '));
+}
+
+export function communityHistory(report) {
+  const list = report.local_history || [];
+  if (!list.length && !report.community?.corrects) return null;
+  const ref = (id, label) => h('a', { href: communitySavedRoute({ kind: report.kind, id }) }, t(label));
+  return h('details', { class: 'small community-history' }, h('summary', null, t('community.history')),
+    report.community?.corrects ? ref(report.community.corrects, 'community.previous_report') : null,
+    h('ul', null, list.map(a => h('li', null, t('community.' + a.action), ' · ', fmtDate(a.created_at, true),
+      a.related_id ? [' · ', ref(a.related_id, 'community.replacement_report')] : null))));
+}
+
+export function communityActions(report, { compact = false, onSaved } = {}) {
+  if (!communityEnabled() || report.withdrawn_at || report.is_test || !Object.hasOwn(KINDS, report.kind)) return null;
+  const own = report.community ? report.id : report.own_report_id;
+  let running = false;
+  const run = async (fn) => {
+    if (running) return;
+    running = true;
+    try { await fn(); }
+    catch (e) { toast(errorText(e), { kind: 'warn' }); }
+    finally { running = false; }
+  };
+  const act = (id, action) => run(async () => {
+    if (action === 'withdraw' && !await confirmDialog(t('community.withdraw'), t('community.withdraw_hint'), t('community.withdraw'), true)) return;
+    await post(ROOT + '/reports/' + id + '/actions', { action });
+  });
+  const buttons = (action, id = report.id) => h('button', { class: 'btn ghost small', onclick: () => act(id, action) }, t('community.' + action));
+  const controls = h('div', { class: 'row wrap community-actions' },
+    buttons('still_here'), buttons('not_found'),
+    buttons(report.local_feedback?.personal?.action === 'complete' ? 'reopen' : 'complete'),
+    own ? h('button', { class: 'btn ghost small', onclick: () => run(async () => {
+      const saved = await reportDialog(report.kind, own === report.id && report.community ? report : await get('/api/live/reports/' + own));
+      if (saved) onSaved?.(saved);
+    }) }, t('community.correct')) : null,
+    own ? buttons('withdraw', own) : null);
+  return compact ? h('details', { class: 'small community-actions-wrap' },
+    h('summary', null, t('community.actions')), controls) : controls;
+}

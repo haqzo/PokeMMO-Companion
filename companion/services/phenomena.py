@@ -188,7 +188,7 @@ class Phenomena:
     def history(self, mid=None, now=None, *, home=False):
         now = now or datetime.now(timezone.utc)
         source = self.source_status()
-        rows = self.db.query("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' "
+        rows = self.db.query("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' AND provider='discord-relay' "
                              "ORDER BY source_time DESC, message_id DESC LIMIT 300")
         reports = [{**json.loads(row["phenomenon"]), "caught_up": bool(row["is_replay"])} for row in rows]
         earliest, latest = cutoff(now, RECENT_MINUTES), timestamp(now.isoformat())
@@ -200,7 +200,8 @@ class Phenomena:
                 "recent_minutes": RECENT_MINUTES}
 
     def report(self, mid):
-        row = self.db.query_one("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' AND message_id=?", (mid,))
+        row = self.db.query_one("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' AND provider='discord-relay' "
+                                "AND message_id=?", (mid,))
         return {**json.loads(row["phenomenon"]), "caught_up": bool(row["is_replay"])} if row else None
 
 

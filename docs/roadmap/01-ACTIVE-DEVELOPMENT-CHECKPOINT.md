@@ -79,6 +79,24 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 - Windows Server 2025 x64 passed the offline clean-install check and all 103 selected tests at `71404266d9a04d7c246e141b9234874a65c8ee3d`. The initial run stopped on console encoding during the clean-install report. The successful run used UTF-8 and exercised source and Chromium tests. [Successful run](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45853373475)
 - The snapshot policy excludes the new development workflow. The inventory audit still identifies `AGENTS.md` and `CLAUDE.md` as unclassified on both the starting and updated trees.
 
+## Batch 02 — In-app community reporting
+
+- Started from `b8925b9d17334aabb4fd5f728d35beeec5cfc9cb`. Companion Community is opt-in under Live and Settings. Report forms are available in the Alpha/Swarm and Phenomena workspaces and their floating windows. Reports and actions are saved in the local profile. The source panel identifies the shared feed as unavailable.
+- Alpha and Swarm use canonical species and region-scoped location IDs. The searchable selector requires an explicit location entry for ambiguous names. Unlisted locations stay visibly unverified and separate from matching. Manual Phenomena may record an unknown exact location and have no countdown. The existing Phenomena relay and its rules remain separate.
+- A report stores the observation time from opening the form and the local receipt time from saving it. Firsthand and relayed evidence and the reported onset are explicit. Countdown estimates use the earliest observation and retain the existing Alpha and Swarm durations. The form records no confirmed spawn time.
+- Local and Alphapedia records retain their individual provider, message ID and timestamps. The existing transactional event assignment reserves only one notification for a matching Alpha or Swarm window. Corrections keep the original observation time and category, append a new revision and retain prior revisions under the usual history retention. Withdrawing the only observation removes a card. Other observations keep their original deadline.
+- Still here, Not found and personal completion apply to this profile. They neither confirm an encounter independently nor change its global state. Manual Phenomena observations stay separate from the relay and have no alert or automatic correlation in this batch.
+- Schema v7 adds structured metadata, withdrawals and local actions to the existing database. Migration makes a pre-migration copy using the existing backup mechanism. The release inventory still needs explicit classification for `AGENTS.md` and `CLAUDE.md` before a release snapshot.
+
+### Batch 03 integration
+
+- `Community.submit` accepts a validated structured observation and a stable request ID for retries. The local provider is fixed to `companion-local`. A shared adapter should supply its own provider namespace and stable observation IDs, retain separate reported, received and any corroborated spawn times, and pass eligible Alpha and Swarm observations through the same `LiveService._assign_event` transaction. Keep arrivals independent so a local or Alphapedia report can appear immediately.
+- `live_actions` records local actions and correction links. Shared reporting will need contributor ownership and retry semantics at its own boundary. A local repeated action or relayed report supplies no additional independent confirmation.
+
+### Reporting views
+
+[English Live workspace](batch02/community-live-en.png) · [English expanded report window](batch02/community-popout-en.png) · [Spanish compact report window](batch02/community-popout-es.png) · [Simplified Chinese Phenomena window](batch02/community-popout-zh.png)
+
 ## Next development phase
 
 - **0.8.x Alpha:** prioritize real user feedback, interactive Windows QA, Linux compatibility, reproducible bug fixes, data accuracy, translation and performance corrections, and regressions. Preserve existing tools and user data. No new large feature batch unless the owner explicitly approves it.

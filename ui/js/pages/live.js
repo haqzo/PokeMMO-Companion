@@ -6,6 +6,7 @@ import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, no
   on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite, sourceInfo } from '../core.js';
 import { go, popoutButton } from '../shell.js';
 import { renderPhenomena } from './phenomena.js';
+import { communityActions, communityBar, communityEvidence, communityHistory, communitySavedRoute, localFeedback } from './community.js';
 
 const LIVE_TEXT_KEYS = {
   "Turned off by you": "liveui.disabled",
@@ -115,9 +116,14 @@ export function currentCard(g, { compact = false, animate = false, sprite = null
     h('div', { class: 'cur-name ellipsis' }, name),
     sure || !g.species_name ? null : h('div', { class: 'tiny muted ellipsis' }, translateUI('ui.live_ambiguous')),
     where ? h('div', { class: 'small ellipsis cur-where' }, where) : h('div', { class: 'small muted' }, translateUI('ui.live_no_location')),
-    h('div', { class: 'tiny muted' }, translateUI(reported ? 'ui.live_reported_ago' : 'ui.live_received_ago', { time: timeOf(time), relative: relTime(time) }), g.duplicates ? translateUI('ui.live_duplicates', { count: number(g.duplicates + 1) }) : '', g.caught_up ? translateUI('ui.live_caught_up') : ''),
+    h('div', { class: 'tiny muted' }, translateUI(g.community ? 'community.observed_ago' : reported ? 'ui.live_reported_ago' : 'ui.live_received_ago',
+      { time: timeOf(time), relative: relTime(time) }),
+    g.duplicates ? translateUI(g.own_report_id ? 'community.observation_count' : 'ui.live_duplicates', { count: number(g.duplicates + 1) }) : '',
+    g.caught_up ? translateUI('ui.live_caught_up') : ''),
     h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
-    compact ? null : h('div', { class: 'tiny muted' }, translateUI('ui.live_provider', { provider: g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider }), st.notes.length ? ' · ⚠ ' + uiLabel(st.notes[0]) : '')));
+    localFeedback(g),
+    g.community ? communityEvidence(g) : g.own_report_id ? h('div', { class: 'tiny muted' }, translateUI('community.also_local')) : null,
+    compact || g.community ? null : h('div', { class: 'tiny muted' }, translateUI('ui.live_provider', { provider: g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider }), st.notes.length ? ' · ⚠ ' + uiLabel(st.notes[0]) : '')));
 }
 export function estimatesNote(est) {
   return h('p', { class: 'tiny muted', style: { margin: 0 } }, translateUI('ui.live_estimate_note', { alpha: number(est.alpha_minutes), swarm: number(est.swarm_minutes) }));
@@ -145,7 +151,12 @@ export async function render(el, route) {
   page.append(body);
   if (sub === 'legendaries') return renderLegendaries(body);
   if (sub === 'cave') return renderCave(body);
-  if (sub === 'phenomena') return renderPhenomena(body);
+  if (sub === 'phenomena') {
+    const draw = () => renderPhenomena(body, { selectedId: route.parts[1] });
+    unsub.push(on('live.report', (d) => { if (d?.kind === 'phenomena') draw(); }));
+    unsub.push(on('settings', (d) => { if (Object.hasOwn(d || {}, 'live.community.enabled')) draw(); }));
+    return draw();
+  }
   const src = await get('/api/live/source');
   if (epoch !== renderEpoch || !body.isConnected) return;
   return renderReports(body, route.parts[1], src, epoch);
@@ -159,7 +170,7 @@ function sourceStatus(src) {
 export function sourceBar(src, { compact = false } = {}) {
   const label = sourceStatus(src);
   return h('div', { class: 'source-bar' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }),
-    h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, label),
+    h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Alphapedia · ', label),
       compact ? null : h('div', { class: 'small muted' }, src.enabled ? `${src.server}/${src.topic} · ${liveText(src.detail) || ''}` : translateUI('ui.live_opt_in'),
         src.last_success_at ? translateUI('ui.live_last_data_short', { relative: relTime(src.last_success_at) }) : ''),
       compact ? null : h('div', { class: 'row wrap small' }, extLink(state.boot.alphapedia.website, 'Alphapedia'),
@@ -201,6 +212,7 @@ async function renderReports(el, selectedId, src, epoch) {
   let listRequest = 0;
   const listBox = h('div', { class: 'stack tight' });
   const inspector = h('div');
+  const openSaved = (saved) => go(communitySavedRoute(saved));
   const load = async () => {
     if (!active()) return;
     const request = ++listRequest;
@@ -216,7 +228,7 @@ async function renderReports(el, selectedId, src, epoch) {
       h('h3', null, translateUI('ui.no_reports')), h('p', null, src.enabled ? translateUI('ui.live_empty_feed') :
         translateUI('ui.live_disabled_feed'))));
     if (selectedId) {
-      try { const detail = await get('/api/live/reports/' + selectedId); if (current()) renderReportDetail(inspector, detail); } catch (_) { if (current()) mount(inspector); }
+      try { const detail = await get('/api/live/reports/' + selectedId); if (current()) renderReportDetail(inspector, detail, openSaved); } catch (_) { if (current()) mount(inspector); }
     } else mount(inspector, h('div', { class: 'card muted small' }, translateUI('ui.live_select_report')));
   };
   const notifier = state.boot.notifier;
@@ -231,10 +243,14 @@ async function renderReports(el, selectedId, src, epoch) {
     const c = await get('/api/live/current');
     if (!active()) return;
     const skew = Date.parse(c.now) - Date.now();
-    const warn = !c.source.enabled ? (c.current.length ? notice('info', translateUI('ui.live_cached_feed')) : null)
+    const warn = !c.source.enabled ? (c.current.some(g => !g.community) ? notice('info', translateUI('ui.live_cached_feed')) : null)
       : c.source.status === 'connected' ? notice('info', translateUI('ui.live_feed_partial'))
         : notice('warn', translateUI('ui.live_feed_incomplete', { state: sourceStatus(c.source), last: c.source.last_success_at ? translateUI('ui.live_last_data', { relative: relTime(c.source.last_success_at) }) : '' }));
-    mount(curBox, c.current.length ? c.current.map((g) => currentCard(g)) :
+    mount(curBox, c.current.length ? c.current.map((g) => {
+      const card = currentCard(g);
+      const actions = communityActions(g, { compact: true, onSaved: openSaved });
+      return actions ? h('div', { class: 'community-encounter' }, card, actions) : card;
+    }) :
       h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? translateUI('ui.live_none_recent') : translateUI('ui.live_enable_feed')));
     mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
     if (stopTimers) stopTimers();
@@ -248,7 +264,7 @@ async function renderReports(el, selectedId, src, epoch) {
   const every = setInterval(refreshCurrent, 60000);
   document.addEventListener('visibilitychange', refreshCurrent);
   unsub.push(() => { clearInterval(every); document.removeEventListener('visibilitychange', refreshCurrent); if (stopTimers) stopTimers(); });
-  el.append(h('div', { class: 'stack' }, sourceBar(src),
+  el.append(h('div', { class: 'stack' }, sourceBar(src), communityBar('alpha', openSaved),
     h('section', { class: 'stack tight', 'aria-labelledby': 'cur-h' }, h('div', { class: 'row' }, h('h2', { class: 'section-title', id: 'cur-h' }, translateUI('ui.current_feed')),
       sourceInfo('REPORTED', translateUI('ui.live_recent_info'))), curBox, curNote),
     h('h2', { class: 'section-title history-title' }, translateUI('ui.report_history')),
@@ -271,6 +287,12 @@ async function renderReports(el, selectedId, src, epoch) {
   if (!active()) return;
   unsub.push(on('live.report', () => { if (active()) { load().catch(e => console.warn('Live history refresh failed', e)); refreshCurrent(); } }));
   unsub.push(on('live.source', (s) => { const bar = el.querySelector('.source-bar'); if (bar) bar.replaceWith(sourceBar(s)); }));
+  unsub.push(on('settings', (d) => {
+    if (!active() || !Object.hasOwn(d || {}, 'live.community.enabled')) return;
+    el.querySelector('.community-source')?.replaceWith(communityBar('alpha', openSaved));
+    load();
+    refreshCurrent();
+  }));
 }
 
 /** Pokémon sprite for a report, or a neutral fallback when the report doesn't name one species clearly.
@@ -355,42 +377,50 @@ export function reportRow(r, selected, compact) {
   h('div', { style: { minWidth: 0 } }, h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? translateUI('ui.live_test_badge') : reportKind(kind)),
     r.species_name && (r.species_icon || r.species_still) ? h('span', { class: 'small rep-species' }, speciesLabel(r.species_id, r.species_name)) : null,
     r.kind_basis === 'text-keyword' ? h('span', { class: 'tiny muted' }, translateUI('ui.live_detected')) : null,
-    r.status && !r.is_test ? h('span', { class: `cur-state ${STATE_CLASS[r.status.state]}` }, r.status.state === 'recent' ? translateUI('ui.active_likely') : uiLabel(r.status.label)) : null,
+    !r.withdrawn_at && r.status && !r.is_test ? h('span', { class: `cur-state ${STATE_CLASS[r.status.state]}` }, r.status.state === 'recent' ? translateUI('ui.active_likely') : uiLabel(r.status.label)) : null,
     r.is_replay ? h('span', { class: 'tiny muted' }, translateUI('ui.live_replayed_short')) : null),
-  h('div', { class: 'ellipsis', style: { fontWeight: 600 } }, reportTitle(r) || reportBody(r)), compact ? null : h('div', { class: 'small muted ellipsis' }, reportBody(r))),
+  h('div', { class: 'ellipsis', style: { fontWeight: 600 } },
+    r.community && r.species_id ? speciesLabel(r.species_id, r.species_name) : reportTitle(r) || reportBody(r)),
+  communityEvidence(r), localFeedback(r), compact ? null : h('div', { class: 'small muted ellipsis' }, reportBody(r))),
   h('div', { class: 'small muted nowrap' }, translateUI('ui.live_reported_prefix'), relTime(r.source_time || r.received_at)));
 }
 
-function renderReportDetail(el, r) {
+function renderReportDetail(el, r, onSaved) {
   const kind = r.is_test ? 'test' : r.kind;
   const d = r.delivery || {};
   mount(el, h('div', { class: 'card stack' },
     h('div', { class: 'row' }, h('span', { class: `kind-label kind-${kind}` }, kind === 'test' ? translateUI('ui.live_test_notification') : translateUI('ui.live_kind_report', { kind: reportKind(kind) })), h('span', { class: 'grow' }),
       r.is_test ? badge('TEST', translateUI('ui.live_test_badge_full')) : sourceInfo('REPORTED', translateUI('ui.live_community_report'))),
     h('div', { class: 'rep-detail-head' }, reportSprite(r, { battle: true, animate: animatedIn('live_history') }),
-      h('div', { style: { minWidth: 0 } }, h('h3', { style: { margin: 0 } }, reportTitle(r) || translateUI('ui.live_no_title')),
+      h('div', { style: { minWidth: 0 } }, h('h3', { style: { margin: 0 } },
+        r.community ? speciesLabel(r.species_id, r.species_name) : reportTitle(r) || translateUI('ui.live_no_title')),
         r.species_name && (r.species_name !== r.title || r.species_match === 'ambiguous') ? h('div', { class: 'small muted' }, speciesLabel(r.species_id, r.species_name),
           r.species_match === 'ambiguous' ? translateUI('ui.live_detail_ambiguous') : '') : null)),
+    communityEvidence(r), localFeedback(r), communityActions(r, { onSaved }), communityHistory(r),
+    r.community?.location_id ? h('div', { class: 'small muted' }, gameTerm('region', cap(r.region)), ' · ', gameTerm('location', r.location)) : null,
+    r.community && !r.community.location_id && r.location ? h('div', { class: 'small muted' }, r.location) : null,
     r.body ? h('p', { style: { margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' } }, reportBody(r)) : null,
     ['alpha', 'swarm'].includes(kind) && r.location_match?.status !== 'verified'
       ? h('p', { class: 'small muted', style: { margin: 0 } }, r.location ? locationStatus(r.location_match) : translateUI('ui.live_no_location')) : null,
     r.species_id ? h('div', { class: 'row' }, h('span', { class: 'small muted' }, translateUI('ui.live_mentioned')),
       h('button', { class: 'btn small', onclick: () => go('#/pokedex/' + r.species_id) }, speciesLabel(r.species_id, r.species_name), icon('chev'))) : null,
     h('dl', { class: 'kv small' },
-      h('dt', null, translateUI('ui.reported')), h('dd', null, r.source_time ? fmtDate(r.source_time, true) + ` (${relTime(r.source_time)})` : translateUI('ui.live_no_source_time')),
+      h('dt', null, translateUI(r.community ? 'community.observed' : 'ui.reported')), h('dd', null, r.source_time ? fmtDate(r.source_time, true) + ` (${relTime(r.source_time)})` : translateUI('ui.live_no_source_time')),
       h('dt', null, translateUI('ui.received')), h('dd', null, fmtDate(r.received_at, true) + (r.is_replay ? translateUI('ui.live_replayed_history') : '')),
       h('dt', null, translateUI('ui.status')), h('dd', null, r.status ? [uiLabel(r.status.label), r.status.duration_min ? ` — ${timerText(r.status, Date.now()) || translateUI('ui.live_estimate_passed')}` : '',
         h('div', { class: 'tiny muted' }, r.status.estimate ? translateUI('ui.live_estimate_detail', {
           estimate: r.kind === 'swarm' ? translateUI('ui.live_swarm_estimate', { minutes: number(r.status.duration_min) }) : uiLabel(r.status.estimate),
-          basis: uiLabel(r.status.start_basis),
+          basis: r.status.start_basis === 'observation time' ? translateUI('community.observation_time') : uiLabel(r.status.start_basis),
         }) : translateUI('ui.live_no_timer'),
           ...r.status.notes.map((n) => h('div', null, '⚠ ' + uiLabel(n))))] : translateUI('ui.live_unconfirmed')),
-      h('dt', null, translateUI('ui.source')), h('dd', null, translateUI('ui.live_message_source', { source: r.topic ? r.provider + ' / ' + r.topic : r.provider, id: r.message_id })),
+      h('dt', null, translateUI('ui.source')), h('dd', null, translateUI('ui.live_message_source', {
+        source: r.community ? translateUI('community.name') : r.topic ? r.provider + ' / ' + r.topic : r.provider, id: r.message_id })),
       h('dt', null, translateUI('ui.live_parser')), h('dd', null, r.parser_version + (r.provider === 'ntfy' ? translateUI('ui.live_payload_note') : '')),
       h('dt', null, translateUI('ui.live_delivery')), h('dd', null, deliveryText(d))),
     r.tags && r.tags.length ? h('div', { class: 'row wrap' }, r.tags.map((t) => h('span', { class: 'chip' }, t))) : null));
 }
 function deliveryText(d) {
+  if (d?.suppressed === 'community.correction_silent') return translateUI(d.suppressed);
   if (d?.suppressed) return d.suppressed === 'The estimated report window has passed — saved to history only'
     ? translateUI('ui.live_suppressed_expired') : uiLabel(d.suppressed);
   if (!d?.route) return translateUI('ui.live_history_delivery');

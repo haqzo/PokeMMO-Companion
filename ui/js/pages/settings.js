@@ -8,6 +8,7 @@ import { h, mount, icon, get, post, api, apiErrorText, isShortcutConflict, state
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { createRun } from './guides.js';
+import { communityEnabled, communitySourceText } from './community.js';
 import { LANGS, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
@@ -191,7 +192,14 @@ async function notifications(b) {
 // -------------------------------------------------------------- sources
 async function sources(b) {
   const [src, n] = await Promise.all([get('/api/live/source'), get('/api/news')]);
+  const communityStatus = h('span', { class: 'small muted' }, communitySourceText(), ' · ', translateUI('community.source_unavailable'));
   b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')),
+    row(translateUI('community.name'), translateUI('community.local_only'),
+      h('label', { class: 'row wrap' }, h('input', { type: 'checkbox', class: 'check', checked: communityEnabled(),
+        'aria-label': translateUI('community.enable'), onchange: async (e) => {
+          await set('live.community.enabled')(e.target.checked);
+          communityStatus.textContent = communitySourceText() + ' · ' + translateUI('community.source_unavailable');
+        } }), communityStatus)),
     row(translateUI('ui.b272_settings_065'), translateUI('ui.b272_settings_066'),
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? uiLabel(cap(src.status)) : translateUI('settings.off'),
         src.last_success_at ? h('span', { class: 'small muted' }, translateUI('settings.last_data'), relTime(src.last_success_at)) : null),
