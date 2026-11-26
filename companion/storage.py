@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -145,6 +145,14 @@ MIGRATIONS: dict[int, list[str]] = {
                id INTEGER PRIMARY KEY, report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
                event_id TEXT NOT NULL, action TEXT NOT NULL, created_at TEXT NOT NULL, related_id TEXT)""",
         "CREATE INDEX live_actions_event ON live_actions(event_id, id)",
+    ],
+    8: [
+        "CREATE TABLE community_cursors (service_id TEXT PRIMARY KEY, seq INTEGER NOT NULL)",
+        """CREATE TABLE community_publications (
+               report_id TEXT PRIMARY KEY REFERENCES reports(id) ON DELETE CASCADE, service_id TEXT NOT NULL,
+               contributor TEXT NOT NULL, action TEXT NOT NULL, target TEXT, remote_id TEXT,
+               state TEXT NOT NULL, error TEXT, payload TEXT NOT NULL)""",
+        "CREATE INDEX community_remote_id ON community_publications(service_id, remote_id)",
     ],
 }
 

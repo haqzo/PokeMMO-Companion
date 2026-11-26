@@ -27,7 +27,7 @@ export function popoutSettingsImpact(tool, keys, detail = false) {
   const dexKeys = tool === 'pokedex' && keys.some(k => k.startsWith('pokedex.') && k !== 'pokedex.last_species');
   const sprites = !NO_SPRITE_BODY.has(tool) && keys.some(k => k.startsWith('sprites.') || k.startsWith('performance.') ||
     k === `window.${tool}.sprite_scale` || k === `window.${tool}.sprite_motion`);
-  const community = ['reports', 'phenomena'].includes(tool) && keys.includes('live.community.enabled');
+  const community = ['reports', 'phenomena'].includes(tool) && keys.some(k => k.startsWith('live.community.'));
   return { body: !!(dexKeys || sprites || community), filters: !!(dexKeys && !detail && keys.includes('pokedex.filters')) };
 }
 
@@ -56,6 +56,7 @@ export function startPopout(el) {
     if (POPOUT === 'phenomena' && d?.kind !== 'phenomena') return;
     if (ev && ev.origin === WINDOW_ID && ['notes', 'items', 'showcase', 'customguide', 'box'].includes(POPOUT)) return;  // our own edit: don't redraw under the cursor
     if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
+  if (['reports', 'phenomena'].includes(POPOUT)) on('live.community', refresh);
   window.addEventListener('hashchange', () => renderBody());
   window.addEventListener('resize', () => { rememberSize(); });
 }

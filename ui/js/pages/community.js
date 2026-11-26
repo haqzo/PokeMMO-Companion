@@ -20,14 +20,19 @@ function select(name, options, value) {
 }
 const field = (label, control) => h('label', { class: 'field' }, h('span', { class: 'label' }, label), control);
 
-export function communitySourceText() {
-  return t(communityEnabled() ? 'community.source_local' : 'community.source_off');
+export function communitySourceText(source = {}) {
+  if (!(source.enabled ?? communityEnabled())) return t('community.source_off');
+  if (!source.receive_enabled) return t('community.source_local');
+  const states = { connecting: 'community.source_connecting', connected: 'community.source_connected',
+    disconnected: 'community.source_disconnected', unavailable: 'community.source_unavailable' };
+  return t(states[source.connection] || states.unavailable);
 }
 
-export function communityBar(kind, onSaved) {
+export function communityBar(kind, onSaved, initialSource) {
   const box = h('div', { class: 'community-source' });
+  let source = initialSource;
   const draw = () => mount(box, h('div', { class: 'grow' }, h('strong', null, t('community.name')),
-    h('div', { class: 'small muted' }, communitySourceText(), ' · ', t('community.source_unavailable'))),
+    h('div', { class: 'small muted' }, communitySourceText(source))),
   communityEnabled()
     ? h('button', { class: 'btn primary small', onclick: async () => {
       const saved = await reportDialog(kind);
@@ -37,10 +42,12 @@ export function communityBar(kind, onSaved) {
       event.currentTarget.disabled = true;
       try {
         await saveSettings({ [ENABLED]: true });
+        source = await get(ROOT + '/source');
         draw();
       } catch (e) { toast(errorText(e), { kind: 'warn' }); draw(); }
     } }, t('community.enable')));
   draw();
+  if (!source) get(ROOT + '/source').then((value) => { source = value; if (box.isConnected) draw(); }).catch(() => {});
   return box;
 }
 
@@ -53,6 +60,8 @@ async function reportDialog(kind, report) {
     const observed = new Date().toISOString();
     const options = await get(ROOT + '/options');
     const meta = report?.community;
+    const shareCorrection = Boolean(report?.is_own && report.publication?.state === 'shared');
+    const share = h('input', { type: 'checkbox', class: 'check' });
     const category = select(t('ui.live_report_type'), options.kinds.map(k => [k, t(KINDS[k])]), kind);
     category.disabled = Boolean(report);
     const region = select(t('ui.region'), REGIONS.map(r => [r.toLowerCase(), gameTerm('region', r)]), report?.region);
@@ -111,12 +120,14 @@ async function reportDialog(kind, report) {
     return await modal({
       title: t(report ? 'community.correct' : 'community.new'),
       body: h('div', { class: 'stack community-form', oninput: () => { error.textContent = ''; } },
-        h('div', { class: 'small muted' }, t('community.local_only')),
+        h('div', { class: 'small muted' }, t(shareCorrection ? 'community.shared_correction' : 'community.local_only')),
         h('div', { class: 'community-fields' }, field(t('ui.live_report_type'), category), field(t('ui.region'), region)),
         field(t('community.location_mode'), mode), catalog, unlistedField,
         h('div', { class: 'community-fields' }, species, typeField, field(t('community.choose_onset'), onset),
           field(t('community.choose_provenance'), provenance)),
-        field(t('community.details'), details), error),
+        field(t('community.details'), details),
+        !report && options.source.can_share
+          ? h('label', { class: 'row small' }, share, t('community.share_report')) : null, error),
       actions: [{ label: t('ui.cancel'), kind: 'ghost' }, { label: t('community.save'), kind: 'primary', handler: async () => {
         if (saving) return false;
         saving = true;
@@ -130,7 +141,7 @@ async function reportDialog(kind, report) {
             location_unknown: mode.value === 'unknown',
             species_id: category.value !== 'phenomena' ? speciesId : null,
             phenomenon_type: category.value === 'phenomena' ? type.value || null : null,
-            onset: onset.value, provenance: provenance.value, details: details.value,
+            onset: onset.value, provenance: provenance.value, details: details.value, share: shareCorrection || share.checked,
           });
         } catch (e) {
           error.textContent = errorText(e);
@@ -157,9 +168,20 @@ export function localFeedback(report) {
 export function communityEvidence(report) {
   const meta = report.community;
   if (!meta) return null;
+  const publication = report.publication;
+  const label = !report.is_own ? t('community.shared_label', { contributor: meta.contributor })
+    : publication ? t('community.publication_' + publication.state) : t('community.local_label');
   return h('div', { class: 'small muted community-evidence' },
-    [t('community.local_label'), t('community.' + meta.provenance), t('community.' + meta.onset),
-      report.withdrawn_at && t('community.inactive_label')].filter(Boolean).join(' · '));
+    [label, t('community.' + meta.provenance), t('community.' + meta.onset),
+      report.withdrawn_at && t('community.inactive_label'), publication?.error && t(publication.error)].filter(Boolean).join(' · '));
+}
+
+export function sharedSources(report) {
+  if (!report.sources?.includes('companion-shared')) return null;
+  const labels = { ntfy: 'Alphapedia', 'companion-local': t('community.local_label'),
+    'companion-shared': t('community.name') };
+  const sources = report.sources.map(source => labels[source] || source);
+  return h('div', { class: 'tiny muted community-sources' }, sources.join(' · '));
 }
 
 export function communityHistory(report) {
@@ -173,8 +195,8 @@ export function communityHistory(report) {
 }
 
 export function communityActions(report, { compact = false, onSaved } = {}) {
-  if (!communityEnabled() || report.withdrawn_at || report.is_test || !Object.hasOwn(KINDS, report.kind)) return null;
-  const own = report.community ? report.id : report.own_report_id;
+  if (!communityEnabled() || report.is_test || !Object.hasOwn(KINDS, report.kind)) return null;
+  const own = report.is_own ? report.id : report.own_report_id;
   let running = false;
   const run = async (fn) => {
     if (running) return;
@@ -184,15 +206,21 @@ export function communityActions(report, { compact = false, onSaved } = {}) {
     finally { running = false; }
   };
   const act = (id, action) => run(async () => {
-    if (action === 'withdraw' && !await confirmDialog(t('community.withdraw'), t('community.withdraw_hint'), t('community.withdraw'), true)) return;
+    const info = id === report.id ? report : await get('/api/live/reports/' + id);
+    if (action === 'withdraw' && !await confirmDialog(t('community.withdraw'),
+      t(info.publication ? 'community.shared_withdrawal' : 'community.withdraw_hint'), t('community.withdraw'), true)) return;
     await post(ROOT + '/reports/' + id + '/actions', { action });
   });
   const buttons = (action, id = report.id) => h('button', { class: 'btn ghost small', onclick: () => act(id, action) }, t('community.' + action));
+  const retry = report.is_own && ['pending', 'failed'].includes(report.publication?.state)
+    ? h('button', { class: 'btn ghost small', onclick: () => run(() => post(ROOT + '/reports/' + report.id + '/retry-share', {})) },
+      t('community.retry_share')) : null;
+  if (report.withdrawn_at) return retry;
   const controls = h('div', { class: 'row wrap community-actions' },
-    buttons('still_here'), buttons('not_found'),
+    retry, buttons('still_here'), buttons('not_found'),
     buttons(report.local_feedback?.personal?.action === 'complete' ? 'reopen' : 'complete'),
     own ? h('button', { class: 'btn ghost small', onclick: () => run(async () => {
-      const saved = await reportDialog(report.kind, own === report.id && report.community ? report : await get('/api/live/reports/' + own));
+      const saved = await reportDialog(report.kind, own === report.id && report.is_own ? report : await get('/api/live/reports/' + own));
       if (saved) onSaved?.(saved);
     }) }, t('community.correct')) : null,
     own ? buttons('withdraw', own) : null);

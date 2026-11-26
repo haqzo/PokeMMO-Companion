@@ -109,6 +109,8 @@ def build_router(ctx: AppContext) -> Router:
         ctx.bus.publish("settings", clean, origin=req.q("origin"))
         if any(k.startswith("live.ntfy.") for k in clean):
             ctx.live.apply_settings()
+        if any(k.startswith("live.community.") for k in clean):
+            ctx.live.community.sync.apply_settings()
         return {"ok": True, "applied": clean}
     r.add("GET", "/api/settings", settings_get)
     r.add("PATCH", "/api/settings", settings_patch)
@@ -519,6 +521,8 @@ def build_router(ctx: AppContext) -> Router:
           community_call(lambda req: ctx.live.community.submit(req.body, correction=req.params["rid"])))
     r.add("POST", "/api/live/community/reports/<rid>/actions",
           community_call(lambda req: ctx.live.community.act(req.params["rid"], req.json("action"))))
+    r.add("POST", "/api/live/community/reports/<rid>/retry-share",
+          community_call(lambda req: ctx.live.community.retry_share(req.params["rid"])))
 
     def legend(req: Request) -> dict:
         return ctx.live.legendaries(req.q("run") or S.get("guides.active_run"))

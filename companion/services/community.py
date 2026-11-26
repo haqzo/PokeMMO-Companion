@@ -1,24 +1,16 @@
 """Structured, profile-local observations and encounter actions."""
 
 import json
-import re
 import uuid
 from collections import defaultdict
 
-from ..phenomenon_protocol import REGIONS, plain, timestamp
+from ..community_protocol import CommunityError, KINDS, PHENOMENA, validate_observation
 from ..storage import utcnow
+from .community_sync import CommunitySync
 
 PROVIDER = "companion-local"
-KINDS = ("alpha", "swarm", "phenomena")
-PHENOMENA = ("grass", "water", "dust", "shadow")
 FEEDBACK = ("still_here", "not_found")
 PERSONAL = ("complete", "reopen")
-
-
-class CommunityError(ValueError):
-    def __init__(self, key, status=400):
-        super().__init__(f"community.{key}")
-        self.status = status
 
 
 class Community:
@@ -26,10 +18,10 @@ class Community:
         self.live = live
         self.db = live.db
         self.dex = live.dex
+        self.sync = CommunitySync(self)
 
     def source_status(self):
-        enabled = self.live.settings.get("live.community.enabled")
-        return {"enabled": enabled, "status": "local-test" if enabled else "disabled", "connection": "unavailable"}
+        return self.sync.status()
 
     def options(self):
         return {"source": self.source_status(), "kinds": KINDS, "phenomenon_types": PHENOMENA,
@@ -40,68 +32,17 @@ class Community:
         if not self.source_status()["enabled"]:
             raise CommunityError("disabled", 403)
 
-    def _validate(self, data, received, previous=None):
-        if not isinstance(data, dict):
-            raise CommunityError("invalid_report")
-        mid = data.get("observation_id")
-        if not isinstance(mid, str) or not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", mid):
-            raise CommunityError("invalid_id")
-        kind, region = data.get("kind"), data.get("region")
-        if kind not in KINDS or previous and kind != previous["kind"]:
-            raise CommunityError("choose_kind")
-        if not isinstance(region, str) or region not in REGIONS:
-            raise CommunityError("choose_region")
-        observed = previous["source_time"] if previous else timestamp(data.get("observed_at"))
-        if not observed:
-            raise CommunityError("invalid_time")
-        # Retain the same UTC second precision and ordering used by the live engine.
-        observed = observed.split(".")[0] + "Z" if "." in observed else observed
-        if observed > received:
-            raise CommunityError("invalid_time")
-        location_id, raw_place = data.get("location_id"), data.get("location_text", "")
-        if location_id is not None and not isinstance(location_id, str):
-            raise CommunityError("choose_location")
-        if not isinstance(raw_place, str) or len(raw_place) > 100 or location_id and raw_place.strip():
-            raise CommunityError("choose_location")
-        place = plain(raw_place, 100)
-        if location_id:
-            ref = self.dex.location_reference(location_id)
-            if not ref or ref["region"] != region:
-                raise CommunityError("choose_location")
-            place = ref["name"]
-        elif place and self.dex.match_location(region, place)["status"] != "unverified":
-            raise CommunityError("explicit_location")
-        elif not place and (kind != "phenomena" or data.get("location_unknown") is not True):
-            raise CommunityError("choose_location")
-        species, phenomenon = data.get("species_id"), data.get("phenomenon_type")
-        if kind == "phenomena":
-            if phenomenon not in PHENOMENA or species is not None:
-                raise CommunityError("choose_phenomenon")
-            title = phenomenon
-        else:
-            if type(species) is not int or species not in self.dex.index or phenomenon is not None:
-                raise CommunityError("choose_species")
-            title = self.dex.name(species)
-        if data.get("onset") not in ("just_appeared", "already_active"):
-            raise CommunityError("onset_required")
-        if data.get("provenance") not in ("firsthand", "relayed"):
-            raise CommunityError("provenance_required")
-        details = data.get("details", "")
-        if not isinstance(details, str) or len(details) > 240:
-            raise CommunityError("short_details")
-        body = plain(details, 240) or ""
-        meta = {"location_id": location_id or None, "onset": data["onset"], "provenance": data["provenance"],
-                "phenomenon_type": phenomenon, "corrects": previous["id"] if previous else None}
-        return (mid, kind, region, place, species, title, body, observed, json.dumps(meta))
-
     def submit(self, data, correction=None):
         """Insert one observation and reserve its notification in the same write transaction."""
         self._require_enabled()
         received, rid = utcnow(), uuid.uuid4().hex[:16]
         swarm_minutes = self.live.swarm_minutes()
+        sharing = False
         with self.db.tx() as conn:
             previous = self._target(conn, correction, own=True) if correction else None
-            fields = self._validate(data, received, previous)
+            fields = validate_observation(self.dex, data, received, previous)
+            if type(data.get("share", False)) is not bool:
+                raise CommunityError("invalid_report")
             mid, kind, region, place, species, title, body, observed, meta = fields
             existing = conn.execute("SELECT * FROM reports WHERE provider=? AND message_id=?", (PROVIDER, mid)).fetchone()
             if existing:
@@ -110,6 +51,11 @@ class Community:
                 if stored != fields:
                     raise CommunityError("id_conflict", 409)
                 rid, notify, changed = existing["id"], False, False
+                prior_publication = self.sync.publication(conn, rid)
+                if data.get("share") and not prior_publication:
+                    raise CommunityError("id_conflict", 409)
+                sharing = bool(data.get("share") and prior_publication and prior_publication["action"] != "withdraw"
+                               and not existing["withdrawn_at"])
             else:
                 if previous and previous["withdrawn_at"]:
                     raise CommunityError("inactive", 409)
@@ -129,11 +75,15 @@ class Community:
                         self.live._store_suppression(conn, rid, event_id, received, correction=bool(previous))
                 if previous:
                     self._remove(conn, previous, "correct", received, rid)
+                sharing = self.sync.prepare(conn, rid, fields, previous, explicit=data.get("share", False))
         report = self.live.get(rid)
         if notify:
             report["delivery"] = self.live.deliver(report)
         if changed:
             self.live.bus.publish("live.report", {"id": rid, "kind": report["kind"]})
+        if sharing:
+            self.sync.publish(rid, report["kind"])
+            report = self.live.get(rid)
         return report
 
     @staticmethod
@@ -158,6 +108,7 @@ class Community:
         self._require_enabled()
         if action not in (*FEEDBACK, *PERSONAL, "withdraw"):
             raise CommunityError("invalid_action")
+        sharing = False
         with self.db.tx() as conn:
             row = self._target(conn, rid, own=action == "withdraw")
             if row["withdrawn_at"]:
@@ -168,6 +119,7 @@ class Community:
                 raise CommunityError("inactive", 409)
             now = utcnow()
             if action == "withdraw":
+                sharing = self.sync.prepare_withdrawal(conn, rid)
                 self._remove(conn, row, action, now)
             else:
                 lane = FEEDBACK if action in FEEDBACK else PERSONAL
@@ -177,7 +129,18 @@ class Community:
                     return {"updated": False}
                 self._append(conn, row, action, now)
         self.live.bus.publish("live.report", {"id": rid, "kind": row["kind"]})
+        if sharing:
+            self.sync.publish(rid, row["kind"])
         return {"updated": True}
+
+    def retry_share(self, rid):
+        self._require_enabled()
+        with self.db.tx() as conn:
+            row = self._target(conn, rid, own=True)
+            if not self.sync.publication(conn, rid):
+                raise CommunityError("missing", 404)
+        self.sync.publish(rid, row["kind"])
+        return self.live.get(rid)
 
     def decorate(self, reports, *, history=False):
         """Attach this profile's feedback. A profile is one observer, regardless of report count."""
@@ -200,9 +163,10 @@ class Community:
                     "SELECT report_id, action, created_at, related_id FROM live_actions WHERE report_id=? "
                     "OR (event_id=? AND action IN ('still_here','not_found','complete','reopen')) "
                     "ORDER BY id DESC LIMIT 50", (report["id"], event))
+        self.sync.decorate(reports)
         return reports
 
     def phenomena(self):
-        rows = self.db.query("SELECT * FROM reports WHERE kind='phenomena' AND provider=? "
-                             "ORDER BY received_at DESC, rowid DESC LIMIT 100", (PROVIDER,))
+        rows = self.db.query("SELECT * FROM reports WHERE kind='phenomena' AND community IS NOT NULL "
+                             "ORDER BY received_at DESC, rowid DESC LIMIT 100")
         return self.decorate([self.live._row(row) for row in rows])

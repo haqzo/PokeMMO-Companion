@@ -31,7 +31,8 @@ from ..events import EventBus
 from ..settings import Settings
 from ..localization import native_text
 from ..storage import Storage, utcnow
-from .community import Community
+from .community import Community, PROVIDER
+from .community_sync import SHARED
 from .dex import DexService, normalize_location_text
 from .notify import Notifier
 from .phenomena import Phenomena
@@ -314,6 +315,8 @@ class LiveService:
         return event_id, status
 
     def _row(self, r: dict, *, status: dict | None = None) -> dict:
+        r["is_own"] = r["provider"] == PROVIDER
+        r["sources"] = [r["provider"].split(":")[0] if r["provider"].startswith(SHARED + ":") else r["provider"]]
         r["tags"] = json.loads(r["tags"] or "[]")
         r["delivery"] = json.loads(r["delivery"]) if r.get("delivery") else None
         r["community"] = json.loads(r["community"]) if r.get("community") else None
@@ -370,7 +373,9 @@ class LiveService:
             out.append({**self._row(visible[0], status=st), "duplicates": len(visible) - 1,
                         "report_ids": [row["id"] for row in visible], "latest_id": visible[-1]["id"],
                         "caught_up": bool(visible[0]["is_replay"]),
-                        "own_report_id": next((row["id"] for row in reversed(visible) if row["community"]), None)})
+                        "sources": list(dict.fromkeys(row["provider"].split(":")[0] if row["provider"].startswith(SHARED + ":")
+                                                      else row["provider"] for row in visible)),
+                        "own_report_id": next((row["id"] for row in reversed(visible) if row["provider"] == PROVIDER), None)})
         out.sort(key=lambda x: (x["status"]["state"] != "recent", -_parse_iso(x["status"]["start"]).timestamp()))
         src = self.source_status()
         return {"now": now.isoformat(timespec="seconds"), "current": self.community.decorate(out), "source": src,
@@ -518,6 +523,7 @@ class LiveService:
 
     def stop(self) -> None:
         self._stop.set()
+        self.community.sync.stop()
         self.phenomena.stop()
 
     def _run(self) -> None:

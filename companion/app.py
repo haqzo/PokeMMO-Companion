@@ -169,6 +169,7 @@ class AppContext:
         for t in self._oneoff:
             t.start()
         self.live.apply_settings()
+        self.live.community.sync.apply_settings()
         self.news.start_auto(self.settings, self.bus)
         self.timers.start()
         self.refdata.start_auto()
@@ -194,7 +195,8 @@ class AppContext:
             if svc is not None:
                 svc.stop()
         threads = [getattr(svc, "_thread", None) for svc in services if svc is not None]
-        threads += [self.live.phenomena._thread, getattr(self.news, "_auto_thread", None)] + list(getattr(self, "_oneoff", []))
+        threads += [self.live.phenomena._thread, self.live.community.sync._thread,
+                    getattr(self.news, "_auto_thread", None)] + list(getattr(self, "_oneoff", []))
         deadline = time.monotonic() + join_timeout
         for t in threads:
             if t is not None and t.is_alive() and t is not threading.current_thread():

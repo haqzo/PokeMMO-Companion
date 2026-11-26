@@ -6,7 +6,7 @@ import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, no
   on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite, sourceInfo } from '../core.js';
 import { go, popoutButton } from '../shell.js';
 import { renderPhenomena } from './phenomena.js';
-import { communityActions, communityBar, communityEvidence, communityHistory, communitySavedRoute, localFeedback } from './community.js';
+import { communityActions, communityBar, communityEvidence, communityHistory, communitySavedRoute, localFeedback, sharedSources } from './community.js';
 
 const LIVE_TEXT_KEYS = {
   "Turned off by you": "liveui.disabled",
@@ -122,8 +122,9 @@ export function currentCard(g, { compact = false, animate = false, sprite = null
     g.caught_up ? translateUI('ui.live_caught_up') : ''),
     h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
     localFeedback(g),
+    sharedSources(g),
     g.community ? communityEvidence(g) : g.own_report_id ? h('div', { class: 'tiny muted' }, translateUI('community.also_local')) : null,
-    compact || g.community ? null : h('div', { class: 'tiny muted' }, translateUI('ui.live_provider', { provider: g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider }), st.notes.length ? ' · ⚠ ' + uiLabel(st.notes[0]) : '')));
+    compact || g.community || g.sources?.includes('companion-shared') ? null : h('div', { class: 'tiny muted' }, translateUI('ui.live_provider', { provider: g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider }), st.notes.length ? ' · ⚠ ' + uiLabel(st.notes[0]) : '')));
 }
 export function estimatesNote(est) {
   return h('p', { class: 'tiny muted', style: { margin: 0 } }, translateUI('ui.live_estimate_note', { alpha: number(est.alpha_minutes), swarm: number(est.swarm_minutes) }));
@@ -154,6 +155,7 @@ export async function render(el, route) {
   if (sub === 'phenomena') {
     const draw = () => renderPhenomena(body, { selectedId: route.parts[1] });
     unsub.push(on('live.report', (d) => { if (d?.kind === 'phenomena') draw(); }));
+    unsub.push(on('live.community', draw));
     unsub.push(on('settings', (d) => { if (Object.hasOwn(d || {}, 'live.community.enabled')) draw(); }));
     return draw();
   }
@@ -287,6 +289,9 @@ async function renderReports(el, selectedId, src, epoch) {
   if (!active()) return;
   unsub.push(on('live.report', () => { if (active()) { load().catch(e => console.warn('Live history refresh failed', e)); refreshCurrent(); } }));
   unsub.push(on('live.source', (s) => { const bar = el.querySelector('.source-bar'); if (bar) bar.replaceWith(sourceBar(s)); }));
+  unsub.push(on('live.community', (s) => {
+    if (active()) el.querySelector('.community-source')?.replaceWith(communityBar('alpha', openSaved, s));
+  }));
   unsub.push(on('settings', (d) => {
     if (!active() || !Object.hasOwn(d || {}, 'live.community.enabled')) return;
     el.querySelector('.community-source')?.replaceWith(communityBar('alpha', openSaved));

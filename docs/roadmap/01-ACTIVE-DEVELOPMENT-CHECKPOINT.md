@@ -88,7 +88,7 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 - Still here, Not found and personal completion apply to this profile. They neither confirm an encounter independently nor change its global state. Manual Phenomena observations stay separate from the relay and have no alert or automatic correlation in this batch.
 - Schema v7 adds structured metadata, withdrawals and local actions to the existing database. Migration makes a pre-migration copy using the existing backup mechanism. The release inventory still needs explicit classification for `AGENTS.md` and `CLAUDE.md` before a release snapshot.
 
-### Batch 03 integration
+### Batch 03 integration handoff
 
 - `Community.submit` accepts a validated structured observation and a stable request ID for retries. The local provider is fixed to `companion-local`. A shared adapter should supply its own provider namespace and stable observation IDs, retain separate reported, received and any corroborated spawn times, and pass eligible Alpha and Swarm observations through the same `LiveService._assign_event` transaction. Keep arrivals independent so a local or Alphapedia report can appear immediately.
 - `live_actions` records local actions and correction links. Shared reporting will need contributor ownership and retry semantics at its own boundary. A local repeated action or relayed report supplies no additional independent confirmation.
@@ -102,6 +102,16 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 - Tested implementation commit `bda9948da3e6b0126a1b7654f1389a448eebb29f`. Linux backend recorded 465 passed and 31 ROM/dump-dependent skips. The selected Chromium suites recorded 146 passed and 8 dump-dependent skips. All 21 focused backend cases and four reporting browser cases passed. The browser cases passed again after the final compact layout adjustment.
 - Offline clean-install checks and Linux Qt 6.12 offscreen smoke passed. Native smoke covered opening and fitting the Compact Reports and Standard Phenomena reporting dialogs. Screenshots use synthetic reports and temporary profiles.
 - Windows Server 2025 x64 passed the offline clean-install check and all 128 selected tests at the implementation commit, including the new reporting API and Chromium cases. [Windows develop regression](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45859019065)
+
+## Batch 03 — Shared community reporting prototype
+
+- Started from `7f732f2bbabf6204fa4f54247e6bd31094b5cbed`. The standalone loopback service keeps Alpha, Swarm and Phenomena in a versioned SQLite journal with bounded requests, stable IDs, contributor-scoped idempotency, and a separate read credential. Corrections and withdrawals append to the journal and require the original contributor's write credential.
+- Sharing is explicit per new report. The client preserves local reports during an outage and tracks pending, shared, failed and withdrawn states. The next feed read can confirm a write whose response was lost. A failed request can be retried explicitly with the original request ID. Existing local history never becomes a publication queue. A fresh publication older than ten minutes is rejected by the service.
+- Each profile keeps its feed cursor across restarts. Historical catch-up remains silent. The existing Alpha/Swarm correlation groups compatible shared and Alphapedia observations under one deadline and alert while retaining each observation's time and provenance. Unknown or unverified places remain separate. Relayed evidence does not count as independent confirmation. Shared Phenomena keep their own observation history without a countdown and continue alongside the existing Phenomena relay.
+- The expanded and compact reporting views use the same connection states. Shared observations show their contributor without exposing another contributor's correction or withdrawal controls. Still here, Not found and personal completion remain local. Schema v8 adds feed cursors and publication records through the existing backup-before-migration path.
+- The service uses plain HTTP, static synthetic bearer tokens and an append-only test journal. A feed reader can see all shared notes and all earlier revisions. Only use synthetic reports and credentials on one machine. For eventual public hosting, deploy a separate service under HTTPS with authenticated identities and revocable scoped credentials, request and contributor rate limits, abuse reporting and moderation, a retention and deletion policy, monitored backups with tested recovery, load tests and a security review. Keep Companion's desktop API private.
+
+[Loopback setup and test commands](../../relay/README.md#shared-community-test-service)
 
 ## Next development phase
 
