@@ -1,5 +1,6 @@
 """The Live UI and popouts display the same shared feed from isolated profiles."""
 
+import re
 import time
 
 import pytest
@@ -27,9 +28,9 @@ def submit(page, share, note):
     dialog.locator("select").nth(1).select_option("kanto")
     dialog.get_by_role("searchbox", name="Search locations").fill("Route 1")
     dialog.get_by_role("combobox", name="Choose a location").select_option(label="Route 1")
-    species = dialog.locator("input[list]")
+    species = dialog.locator("input[role=combobox]")
     species.fill("Pikachu")
-    species.dispatch_event("change")
+    dialog.get_by_role("option", name=re.compile(r"#025")).click()
     dialog.get_by_role("combobox", name="When observed").select_option("already_active")
     dialog.get_by_role("combobox", name="Source of observation").select_option("firsthand")
     dialog.get_by_role("textbox", name="Short details (optional)").fill(note)

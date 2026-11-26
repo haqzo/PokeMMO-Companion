@@ -325,6 +325,28 @@ def test_type_chart_badges_and_optional_unlock_in_each_language(app, page, lang,
         cell.press("Enter")
         readout.get_by_role("button", name=unlock).click()
         assert page.locator("td.hl-x").count() == 0 and "null" not in readout.text_content()
+        group = page.get_by_role("radiogroup", name={"en": "Column header orientation", "es": "Orientación de las columnas", "zh": "列标题方向"}[lang])
+        assert page.locator(".typechart").get_attribute("data-header-orientation") == "vertical"
+        for index, orientation in enumerate(("vertical", "horizontal")):
+            if index:
+                group.get_by_role("radio").nth(index).click()
+            assert chip.evaluate("el => getComputedStyle(el.parentElement).writingMode") == (
+                "vertical-rl" if orientation == "vertical" else "horizontal-tb")
+            for row, column, value in [(1, 4, "2×"), (4, 1, "½×")]:
+                target = page.locator(f'td[data-r="{row}"][data-c="{column}"]')
+                target.hover()
+                pw.expect(readout).to_contain_text(value)
+                pw.expect(target).to_have_class(re.compile("hl-x"))
+                assert page.locator("td.hl-row").count() == 17 and page.locator("td.hl-col").count() == 17
+        pw.expect(group.get_by_role("radio").nth(1)).to_have_attribute("aria-checked", "true")
+        for _ in range(30):
+            if app.ctx.settings.get("typechart.header_orientation") == "horizontal":
+                break
+            time.sleep(.03)
+        assert app.ctx.settings.get("typechart.header_orientation") == "horizontal"
+        app.ctx.settings.update({"appearance.text_scale": 120, "appearance.high_contrast": lang == "zh",
+                                 "appearance.theme": {"base": "arctic"} if lang == "es" else None})
+        page.set_viewport_size({"width": 410, "height": 580})
         for mode in ("compact", "standard", "expanded"):
             page.goto(app.srv.url("", popout="typechart", mode=mode))
             body = page.locator(f".mode-{mode} .popout-body")
@@ -333,6 +355,8 @@ def test_type_chart_badges_and_optional_unlock_in_each_language(app, page, lang,
                 assert body.locator(".typechart").count() == 0
                 body.get_by_role("radio", name=full, exact=True).click()
             assert body.locator("th.colhead").count() == 17 and body.locator("td").count() == 289
+            assert body.locator("table.typechart").get_attribute("data-header-orientation") == "horizontal"
+            assert body.locator(".tc-scroll").evaluate("el => el.scrollWidth > el.clientWidth")
             assert body.locator("thead th.colhead").first.evaluate("el => getComputedStyle(el).position") == "sticky"
             assert body.locator("tbody th.rowhead").first.evaluate("el => getComputedStyle(el).position") == "sticky"
             assert body.locator(".compare-panel").count() == 0
@@ -342,6 +366,7 @@ def test_type_chart_badges_and_optional_unlock_in_each_language(app, page, lang,
                 assert checker.locator(".mult.m2").inner_text() == "2×"
         assert page.errors == []
     finally:
+        app.ctx.settings.update({"typechart.header_orientation": "vertical", "appearance.text_scale": 100, "appearance.high_contrast": False, "appearance.theme": None})
         app.ctx.settings.update({"app.language": "en"})
 
 

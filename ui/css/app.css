@@ -359,6 +359,7 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0 3px; }
 .typechart td.x2 { background: var(--good); } .typechart td.x05 { background: var(--bad); } .typechart td.x0 { background: var(--zero); }
 .typechart td.hl, .typechart th.hl { outline: 1px solid var(--accent); }
 .typechart .tc { writing-mode: vertical-rl; padding: 4px 0; }
+.typechart[data-header-orientation="horizontal"] .tc { display: inline-block; writing-mode: horizontal-tb; padding: 0 .18rem; white-space: nowrap; }
 .breed-cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr) minmax(0,1fr); gap: var(--sp-3); }
 @media (max-width: 1050px) { .breed-cols { grid-template-columns: 1fr; } }
 .parent-card { background: var(--bg-window); border: var(--bw) solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -1409,6 +1410,14 @@ body { font-weight: var(--weight); }
 /* Local reporting uses the same dialog in the workspace and floating windows. */
 .community-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); gap: 10px; }
 .community-form [hidden] { display: none; }
+.report-species-results { max-height: clamp(5rem, 28vh, 13rem); overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-card); }
+.report-species-option { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-height: 32px;
+  padding: .15rem .45rem; cursor: pointer; border-bottom: 1px solid var(--border-subtle); }
+.report-species-option:last-child { border-bottom: 0; }
+.report-species-option:hover, .report-species-option[aria-selected="true"] { background: var(--bg-selected); outline: 1px solid var(--focus); outline-offset: -1px; }
+.report-species-icon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; }
+.report-species-name { font-weight: 600; overflow-wrap: anywhere; }
 .community-form select, .community-form textarea { width: 100%; }
 .community-form textarea { resize: vertical; }
 .community-actions-wrap { padding: 0 4px 4px; }

@@ -47,6 +47,7 @@ DEFAULTS: dict[str, Any] = {
     # Home (2026-11-23): storyline run and favourites are opt-in; lists saved by older builds are translated in the UI.
     "home.sections": ["roamers", "live", "update", "news", "events", "quick"],
     "home.shortcuts": ["guide", "pokedex_last", "breeding"],
+    "typechart.header_orientation": "vertical",
     # Pokédex
     "pokedex.last_species": None,
     "pokedex.filters": {},
@@ -139,6 +140,7 @@ _ENUMS = {
     "locations.style": ("game", "companion"),
     "locations.region": ("kanto", "johto", "hoenn", "sinnoh", "unova"),
     "appearance.nav": ("vertical", "horizontal"),
+    "typechart.header_orientation": ("vertical", "horizontal"),
     "appearance.sidebar": ("auto", "icons", "full"),
     "app_updates.channel": ("stable", "prerelease"),
     "appearance.stat_bars": ("soft", "accent"),

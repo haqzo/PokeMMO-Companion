@@ -6,7 +6,7 @@ import { teamEditor, purposeLabel } from '../team-editor.js';
 import { t as tr } from '../i18n.js';
 import * as calcPage from './calculator.js';
 import { legacyRoute } from './collection.js';
-import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on } from '../core.js';
+import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on, setting, saveSettings } from '../core.js';
 import { go, popoutButton, pinButton, makePinDraggable, openPopout, isPinned, pinToSidebar } from '../shell.js';
 import { speciesPicker, speciesIndex, natureSelect } from '../components.js';
 import * as breeding from './breeding.js';
@@ -172,6 +172,9 @@ export function typeChartReadout(a, d) {
 export async function renderTypeChart(el, route, { compact = false, compare = false } = {}) {
   tc = tc || await get('/api/tools/typechart');
   const T = tc.types;
+  const orientationKey = 'typechart.header_orientation';
+  let orientation = setting(orientationKey) === 'horizontal' ? 'horizontal' : 'vertical';
+  let orientationPending = false;
   let lock = null;          // {r, c} locked cell
   let focusView = compact;  // compact windows start in the focused row/column view
   let focusAxis = 'attacker', focusType = 'flying';
@@ -202,7 +205,7 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     if (cell) cell.classList.add('hl-x');
   };
   const buildMatrix = () => {
-    table = h('table', { class: 'typechart', role: 'grid', 'aria-label': translateUI('ui.b272_chart_aria') },
+    table = h('table', { class: 'typechart', dataset: { headerOrientation: orientation }, role: 'grid', 'aria-label': translateUI('ui.b272_chart_aria') },
       h('thead', null, h('tr', null, h('th', { class: 'corner', scope: 'col' }, h('div', null, translateUI('ui.b272_chart_defender')), h('div', null, translateUI('ui.b272_chart_attacker'))),
         T.map((t, j) => h('th', { scope: 'col', dataset: { c: j }, class: 'colhead' }, h('span', { class: 'tc' }, typeChip(t, true)))))),
       h('tbody', null, T.map((a, i) => h('tr', null, h('th', { scope: 'row', dataset: { r: i }, class: 'rowhead' }, typeChip(a, true)), T.map((d, j) => {
@@ -284,10 +287,38 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
         [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0']].map(([m, l, cls]) => by(m).length ? h('div', { class: 'row wrap' },
           h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), by(m).map((t) => typeChip(t, true))) : null)) : null);
   };
+  const orientations = [['vertical', translateUI('typechart.vertical')], ['horizontal', translateUI('typechart.horizontal')]];
+  let orientationSwitch;
+  const updateOrientation = () => {
+    if (table) table.dataset.headerOrientation = orientation;
+    [...orientationSwitch.children].forEach((button, i) => {
+      const active = orientations[i][0] === orientation;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-checked', String(active));
+    });
+  };
+  const changeOrientation = async (next) => {
+    if (next === orientation || orientationPending) {
+      updateOrientation();
+      return;
+    }
+    const previous = orientation;
+    orientationPending = true;
+    orientation = next;
+    updateOrientation();
+    try {
+      await saveSettings({ [orientationKey]: next });
+    } catch (e) {
+      state.settings[orientationKey] = orientation = previous;
+      updateOrientation();
+      toast(e.message, { kind: 'warn' });
+    } finally { orientationPending = false; }
+  };
   const draw = () => {
     const viewSwitch = seg([['matrix', translateUI('ui.b272_chart_full')], ['focus', translateUI('ui.b272_chart_focus')]], focusView ? 'focus' : 'matrix', (v) => { focusView = v === 'focus'; draw(); }, translateUI('ui.b272_chart_view'));
+    orientationSwitch = seg(orientations, orientation, changeOrientation, translateUI('typechart.header_orientation'));
     lock = null;
-    mount(out, h('div', { class: 'row wrap' }, viewSwitch, h('span', { class: 'grow' }), legend),
+    mount(out, h('div', { class: 'row wrap' }, viewSwitch, orientationSwitch, h('span', { class: 'grow' }), legend),
       focusView ? focusPanel() : h('div', { class: 'stack tight' }, readout, h('div', { class: 'tc-scroll' }, buildMatrix())),
       h('div', { class: compact ? 'stack' : 'grid-2' }, defensive(), offensive()),
       h('p', { class: 'small muted', style: { margin: 0 } }, calcMessage(tc.note)));

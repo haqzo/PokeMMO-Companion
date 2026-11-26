@@ -1,5 +1,6 @@
 """Offline reporting and local actions in the Live workspace and floating windows."""
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -37,10 +38,10 @@ def test_reporting_and_own_report_actions_on_live(reporter, page):
     save.click()
     pw.expect(dialog.get_by_role("alert")).to_have_text("Choose a location")
     places.select_option(label="Cerulean Cave (1F)")
-    species = dialog.locator("input[list]")
+    species = dialog.locator("input[role=combobox]")
     species.fill("Pikachu")
-    species.dispatch_event("change")
-    dialog.locator("span").get_by_text("#025", exact=True).wait_for()
+    dialog.get_by_role("option", name=re.compile(r"#025")).click()
+    pw.expect(dialog.get_by_role("listbox")).to_be_hidden()
     dialog.get_by_role("combobox", name="When observed").select_option("just_appeared")
     dialog.get_by_role("combobox", name="Source of observation").select_option("firsthand")
     dialog.get_by_role("textbox", name="Short details (optional)").fill("Synthetic first-floor sighting")
@@ -66,6 +67,7 @@ def test_reporting_and_own_report_actions_on_live(reporter, page):
 
     inspector.get_by_role("button", name="Correct own report").click()
     correction = page.get_by_role("dialog", name="Correct own report")
+    pw.expect(correction.locator("input[role=combobox]")).to_have_value("Pikachu")
     pw.expect(correction.get_by_role("combobox", name="Choose a location")).to_have_value(reporter.ctx.live.list()[0]["community"]["location_id"])
     correction.get_by_role("textbox", name="Short details (optional)").fill("Corrected synthetic note")
     correction.get_by_role("button", name="Save report").click()
@@ -84,6 +86,7 @@ def test_reporting_and_own_report_actions_on_live(reporter, page):
 @pytest.mark.parametrize(("language", "tool", "mode", "size", "title", "save", "catalog_location"), [
     ("en", "reports", "expanded", (720, 620), "Report an encounter", "Save report", "Route 1"),
     ("es", "reports", "compact", (340, 235), "Avisar de un encuentro", "Guardar aviso", "Ruta 1"),
+    ("zh", "reports", "standard", (420, 370), "报告遭遇", "保存报告", "1号道路"),
     ("zh", "phenomena", "standard", (420, 520), "报告遭遇", "保存报告", "1号道路"),
 ])
 def test_localized_report_forms_in_floating_windows(reporter, page, language, tool, mode, size, title, save, catalog_location):
@@ -105,10 +108,12 @@ def test_localized_report_forms_in_floating_windows(reporter, page, language, to
         target = next(l["id"] for l in reporter.ctx.live.community.options()["locations"] if l["region"] == "unova" and l["name"] == "Route 1")
         assert options.filter(has_text=catalog_location).count() >= 1
         selections.nth(3).select_option(target)
-        species = dialog.locator("input[list]")
-        species.fill("Pikachu")
-        species.dispatch_event("change")
-        dialog.locator("span").get_by_text("#025", exact=True).wait_for()
+        species = dialog.locator("input[role=combobox]")
+        species.fill("皮卡丘" if language == "zh" else "#025")
+        dialog.get_by_role("option", name=re.compile(r"#025")).wait_for()
+        species.press("ArrowDown")
+        species.press("Enter")
+        pw.expect(dialog.get_by_role("listbox")).to_be_hidden()
     selections.nth(5).select_option("already_active")
     selections.nth(6).select_option("relayed")
     pw.expect(dialog.get_by_role("button", name=save, exact=True)).to_be_enabled()
@@ -126,3 +131,58 @@ def test_localized_report_forms_in_floating_windows(reporter, page, language, to
         assert row["kind"] == "swarm" and row["species_id"] == 25
         assert row["community"]["provenance"] == "relayed"
     assert not page.errors
+
+
+def test_species_results_scroll_and_keep_report_fields(reporter, page):
+    reporter.ctx.settings.update({"live.community.enabled": True})
+    page.set_viewport_size({"width": 355, "height": 330})
+    page.goto(reporter.srv.url("", popout="reports", mode="standard"))
+    page.get_by_role("button", name="Report an encounter", exact=True).click()
+    dialog = page.get_by_role("dialog")
+    region = dialog.get_by_role("combobox", name="Region", exact=True)
+    region.select_option("kanto")
+    location = dialog.get_by_role("combobox", name="Choose a location")
+    location.select_option(label="Route 1")
+    initial_location = location.input_value()
+    details = dialog.get_by_role("textbox", name="Short details (optional)")
+    details.fill("Preserve this report draft")
+    region.select_option("unova")
+    region.select_option("kanto")
+    assert location.input_value() == initial_location
+    dialog.get_by_role("searchbox", name="Search locations").fill("Cerulean")
+    assert location.input_value() == initial_location
+
+    species = dialog.locator("input[role=combobox]")
+    species.fill("Hit")
+    results = dialog.get_by_role("listbox")
+    pw.expect(results.get_by_role("option").nth(2)).to_be_visible()
+    assert [entry.split("#")[0].strip() for entry in results.get_by_role("option").all_inner_texts()[:3]] == [
+        "Hitmonchan", "Hitmonlee", "Hitmontop",
+    ]
+    species.press("Enter")
+    assert species.input_value() == "Hit"
+    species.press("Escape")
+    pw.expect(results).to_be_hidden()
+    pw.expect(dialog).to_be_visible()
+    species.fill("a")
+    pw.expect(results).to_be_visible()
+    assert results.evaluate("el => el.scrollHeight > el.clientHeight")
+    results.evaluate("el => el.scrollTop = 80")
+    assert results.evaluate("el => el.scrollTop") > 0
+    species.fill("definitely not a Pokémon")
+    pw.expect(dialog.get_by_text("No matching Pokémon.")).to_be_visible()
+    dialog.get_by_role("button", name="Save report").click()
+    pw.expect(dialog.get_by_role("alert")).to_have_text("Choose a Pokémon from the search results.")
+    assert details.input_value() == "Preserve this report draft"
+    species.fill("Hit")
+    species.press("ArrowDown")
+    species.press("ArrowDown")
+    species.press("Enter")
+    assert species.input_value() == "Hitmonlee"
+    capture(page, "qa01-report-hitmonlee")
+    dialog.get_by_role("button", name="Clear", exact=True).click()
+    assert species.input_value() == ""
+    species.fill("#237")
+    species.press("ArrowDown")
+    species.press("Enter")
+    assert species.input_value() == "Hitmontop"

@@ -1,5 +1,5 @@
 import { h, mount, get, post, setting, saveSettings, modal, confirmDialog, toast, fmtDate } from '../core.js';
-import { speciesPicker } from '../components.js';
+import { reportSpeciesPicker } from '../components.js';
 import { compareLabels, gameTerm, searchText } from '../game-locale.js';
 import { t } from '../i18n.js';
 
@@ -83,12 +83,14 @@ async function reportDialog(kind, report, defaults) {
       h('div', { class: 'small muted' }, t('community.location_hint')));
     const unlistedField = field(t('community.location_unlisted'), unlisted);
     let speciesId = report?.species_id ?? null;
-    const species = speciesPicker({ label: t('ui.species'), value: speciesId, onChange: (id) => { speciesId = id; } });
+    const species = reportSpeciesPicker({ value: speciesId, onChange: (id) => { speciesId = id; } });
     const type = select(t('community.choose_phenomenon'), options.phenomenon_types.map(p => [p, phenomenonType(p)]), meta?.phenomenon_type || defaults?.type);
     const typeField = field(t('community.choose_phenomenon'), type);
     const spot = select(t('phenomena.exact_spot'), [], '');
     const spotField = field(t('phenomena.exact_spot'), spot);
-    const drawSpots = (selected = spot.value) => {
+    const spotsByLocation = new Map();
+    const spotKey = () => place.value + ':' + type.value;
+    const drawSpots = (selected = spotsByLocation.get(spotKey())) => {
       const matches = reference.entries.filter(item => item.spot && item.area.id === place.value && item.type === type.value);
       spotField.hidden = !matches.length || mode.value !== 'catalog' || category.value !== 'phenomena';
       mount(spot, h('option', { value: '' }, t('phenomena.area_only')), matches.map(item =>
@@ -101,13 +103,14 @@ async function reportDialog(kind, report, defaults) {
       [['firsthand', t('community.firsthand')], ['relayed', t('community.relayed')]], meta?.provenance);
     const details = h('textarea', { class: 'input', rows: 2, maxlength: 240, 'aria-label': t('community.details') }, report?.body || '');
     const error = h('div', { role: 'alert', class: 'small', style: { color: 'var(--bad)' } });
+    const placesByRegion = new Map();
     const drawPlaces = (selected = '') => {
       const names = options.locations.filter(p => p.region === region.value)
         .map(p => ({ ...p, localized: gameTerm('location', p.name) }));
       const counts = new Map();
       names.forEach(p => counts.set(p.localized, (counts.get(p.localized) || 0) + 1));
       const q = searchText(search.value);
-      const matches = names.filter(p => !q || locationSearchTerms(p.name).some(name => searchText(name).includes(q)));
+      const matches = names.filter(p => p.id === selected || !q || locationSearchTerms(p.name).some(name => searchText(name).includes(q)));
       matches.sort((a, b) => compareLabels(a.localized, b.localized));
       mount(place, h('option', { value: '' }, t('community.choose_location')), matches.map(p =>
         h('option', { value: p.id }, counts.get(p.localized) > 1 ? p.localized + ' · ' + p.id.split(':').slice(1).join(':') : p.localized)));
@@ -127,13 +130,16 @@ async function reportDialog(kind, report, defaults) {
     };
     category.addEventListener('change', draw);
     mode.addEventListener('change', draw);
-    region.addEventListener('change', () => { search.value = ''; drawPlaces(); });
+    region.addEventListener('change', () => { search.value = ''; drawPlaces(placesByRegion.get(region.value)); });
     search.addEventListener('input', () => drawPlaces(place.value));
-    place.addEventListener('change', () => drawSpots(''));
-    type.addEventListener('change', () => drawSpots(''));
+    place.addEventListener('change', () => { placesByRegion.set(region.value, place.value); drawSpots(); });
+    type.addEventListener('change', () => drawSpots());
+    spot.addEventListener('change', () => spotsByLocation.set(spotKey(), spot.value));
     drawPlaces(meta?.location_id || defaults?.locationId);
+    if (place.value) placesByRegion.set(region.value, place.value);
     draw();
     drawSpots(meta?.spot_id || defaults?.spot);
+    if (spot.value) spotsByLocation.set(spotKey(), spot.value);
     const observationId = crypto.randomUUID();
     let saving = false;
     return await modal({
@@ -142,7 +148,7 @@ async function reportDialog(kind, report, defaults) {
         h('div', { class: 'small muted' }, t(shareCorrection ? 'community.shared_correction' : 'community.local_only')),
         h('div', { class: 'community-fields' }, field(t('ui.live_report_type'), category), field(t('ui.region'), region)),
         field(t('community.location_mode'), mode), catalog, unlistedField,
-        h('div', { class: 'community-fields' }, species, typeField, field(t('community.choose_onset'), onset),
+        species, h('div', { class: 'community-fields' }, typeField, field(t('community.choose_onset'), onset),
           field(t('community.choose_provenance'), provenance)), spotField,
         field(t('community.details'), details),
         !report && options.source.can_share
@@ -164,7 +170,7 @@ async function reportDialog(kind, report, defaults) {
             onset: onset.value, provenance: provenance.value, details: details.value, share: shareCorrection || share.checked,
           });
         } catch (e) {
-          error.textContent = errorText(e);
+          error.textContent = e.rawMessage === 'community.choose_species' ? t('community.species_choose_result') : errorText(e);
           return false;
         } finally { saving = false; }
       } }],
