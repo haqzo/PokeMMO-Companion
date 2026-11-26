@@ -23,6 +23,19 @@ An unofficial desktop companion for PokeMMO — Pokémon reference data, regiona
 
 The bundled references and most tools work offline. No ROMs, dumps or separate Python installation are required. Reference listings are not a guarantee of current in-game availability.
 
+## Development status & roadmap to 1.0
+
+PokeMMO Companion is already a functional application: most existing tools are available for everyday use in the public 0.8.0 Alpha. The Alpha label reflects ongoing testing and refinement, not a lack of functional features.
+
+Our current priorities on the road to 1.0 are:
+
+- **Chat-log integration** — Explore optional, read-only, local processing of PokeMMO's saved logs to improve existing tools and enable reliable progression and gameplay statistics. This is planned work, not a feature of the current release.
+- **Stability & performance** — Improve reliability, responsiveness and Windows/Linux compatibility.
+- **Tool accuracy & refinement** — Validate reference data, calculations and translations, and improve existing workflows.
+- **Community feedback** — Fix reported issues and use real-world testing to guide improvements.
+
+The planned release progression is **0.8.x Alpha → 0.9.x Beta → 1.0 Stable**, with milestones driven by testing and readiness rather than fixed dates. Both successful installations and bug reports are welcome. Interactive Windows testing and broader compatibility feedback are still needed.
+
 ## Showcase
 
 ![Floating Pokédex alongside PokeMMO gameplay](showcase/screenshots/12-floating-pokedex-in-gameplay.png)
