@@ -97,6 +97,12 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 
 [English Live workspace](batch02/community-live-en.png) · [English expanded report window](batch02/community-popout-en.png) · [Spanish compact report window](batch02/community-popout-es.png) · [Simplified Chinese Phenomena window](batch02/community-popout-zh.png)
 
+### Batch 02 verification
+
+- Tested implementation commit `bda9948da3e6b0126a1b7654f1389a448eebb29f`. Linux backend recorded 465 passed and 31 ROM/dump-dependent skips. The selected Chromium suites recorded 146 passed and 8 dump-dependent skips. All 21 focused backend cases and four reporting browser cases passed. The browser cases passed again after the final compact layout adjustment.
+- Offline clean-install checks and Linux Qt 6.12 offscreen smoke passed. Native smoke covered opening and fitting the Compact Reports and Standard Phenomena reporting dialogs. Screenshots use synthetic reports and temporary profiles.
+- Windows Server 2025 x64 passed the offline clean-install check and all 128 selected tests at the implementation commit, including the new reporting API and Chromium cases. [Windows develop regression](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45859019065)
+
 ## Next development phase
 
 - **0.8.x Alpha:** prioritize real user feedback, interactive Windows QA, Linux compatibility, reproducible bug fixes, data accuracy, translation and performance corrections, and regressions. Preserve existing tools and user data. No new large feature batch unless the owner explicitly approves it.
