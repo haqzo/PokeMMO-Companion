@@ -54,6 +54,14 @@ ALPHA_MINUTES = 75
 FUTURE_TOLERANCE = timedelta(minutes=2)
 DUPLICATE_NOTICE = "Same Alpha/Swarm already reported — saved to history, not notified again"
 EXPIRED_NOTICE = "The estimated report window has passed — saved to history only"
+REPORTS_WITH_ANCHOR = """
+    SELECT r.*, a.source_time AS anchor_source_time, a.received_at AS anchor_received_at,
+        a.is_replay AS anchor_is_replay
+    FROM reports r
+    LEFT JOIN reports a ON a.rowid = (
+        SELECT rowid FROM reports WHERE event_id=r.event_id ORDER BY event_at, rowid LIMIT 1
+    )
+"""
 
 
 def _parse_iso(v: str | None) -> datetime | None:
@@ -369,32 +377,35 @@ class LiveService:
         return "single-mention" if found == {sid} else "ambiguous"
 
     def get(self, rid: str) -> dict:
-        r = self.db.query_one("SELECT * FROM reports WHERE id=?", (rid,))
+        r = self.db.query_one(REPORTS_WITH_ANCHOR + " WHERE r.id=?", (rid,))
         if not r:
             raise KeyError(rid)
-        anchor = self.db.query_one("SELECT * FROM reports WHERE event_id=? ORDER BY event_at, rowid LIMIT 1",
-                                   (r["event_id"],)) if r["event_id"] else None
-        status = report_status(anchor, datetime.now(timezone.utc), self.swarm_minutes()) if anchor else None
-        return self._row(r, status=status)
+        return self._event_row(r, datetime.now(timezone.utc), self.swarm_minutes())
+
+    def _event_row(self, row: dict, now: datetime, swarm_minutes: int) -> dict:
+        anchor = {key: row.pop(f"anchor_{key}") for key in ("source_time", "received_at", "is_replay")}
+        timeline = {**row, **anchor} if anchor["received_at"] else row
+        return self._row(row, status=report_status(timeline, now, swarm_minutes))
 
     def list(self, kind: str | None = None, q: str | None = None, include_tests: bool = True,
              limit: int = 300, region: str | None = None) -> list[dict]:
-        sql = "SELECT * FROM reports WHERE kind<>'phenomena'"
+        sql = REPORTS_WITH_ANCHOR + " WHERE r.kind<>'phenomena'"
         args: list = []
         if region in REGION_NAMES:
-            sql += " AND region=?"
+            sql += " AND r.region=?"
             args.append(region)
         if kind in ("alpha", "swarm", "other", "test"):
-            sql += " AND kind=?"
+            sql += " AND r.kind=?"
             args.append(kind)
         if not include_tests:
-            sql += " AND is_test=0"
+            sql += " AND r.is_test=0"
         if q:
-            sql += " AND (title LIKE ? OR body LIKE ?)"
+            sql += " AND (r.title LIKE ? OR r.body LIKE ?)"
             args += [f"%{q}%", f"%{q}%"]
-        sql += " ORDER BY COALESCE(source_time, received_at) DESC LIMIT ?"
+        sql += " ORDER BY COALESCE(r.source_time, r.received_at) DESC LIMIT ?"
         args.append(limit)
-        return [self._row(r) for r in self.db.query(sql, args)]
+        now, swarm_minutes = datetime.now(timezone.utc), self.swarm_minutes()
+        return [self._event_row(r, now, swarm_minutes) for r in self.db.query(sql, args)]
 
     def mark_seen(self, rid: str | None = None) -> int:
         if rid:

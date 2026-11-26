@@ -69,6 +69,13 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 - Linux Chromium screenshots were inspected for English, Spanish and Simplified Chinese and Compact, Standard and Expanded popouts. Linux Qt 6.12.0 offscreen smoke passed the main chart, all three native popout modes and top-right toast. The offline fresh-profile acceptance check passed with bundled reference data and zero ROM/dump files.
 - No Windows package or interactive desktop run was available for this batch. The Windows development workflow requires a private repository with `develop` as its default branch. The successful automated package verification covers the released `v0.8.0` baseline at `1d79fe31c850816c55fa0037cc0d898bcd52807a`. [Release package CI](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45708065896)
 
+## Batch 01.1 — Maintenance follow-up
+
+- Started from `cb76130e2588a5c54bd92413619f55d54c745532`. Breeding recalculates from the current editor state. Saved-plan writes are serialized per plan, later edits are retained during a save, and a failed save can be retried. An unsaved draft stays in the current window when switching plans or tabs. Export/import and pairing preview use the selected plan. Changing goals asks before clearing marked steps.
+- Live history and report details use the same earliest event observation as Home and Live cards. The individual observation retains its own source, report time, receipt time and message ID.
+- The two media guards now recognize the 30 already-published showcase files by exact path and SHA-256. Additional or modified showcase files still fail. Existing restrictions on ROMs, dumps, archives and other media remain in force.
+- The public Windows regression job runs source tests and the offline clean-install check on a standard Windows runner with temporary profiles. The private package job and official release workflows keep their existing gates. While the regression workflow lives only on `develop`, add `[windows-regression]` to the tip commit message to opt in on push. Ordinary pushes skip the Windows job. GitHub's standalone manual dispatch requires the workflow on the default branch. [GitHub Actions triggers](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
+
 ## Next development phase
 
 - **0.8.x Alpha:** prioritize real user feedback, interactive Windows QA, Linux compatibility, reproducible bug fixes, data accuracy, translation and performance corrections, and regressions. Preserve existing tools and user data. No new large feature batch unless the owner explicitly approves it.

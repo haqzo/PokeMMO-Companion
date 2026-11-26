@@ -437,10 +437,14 @@ def build_router(ctx: AppContext) -> Router:
     r.add("POST", "/api/tools/breeding/plan", lambda req: breeding.plan_summary(req.body or {}))
     r.add("GET", "/api/tools/breeding/eggmoves/<sid>",
           lambda req: breeding.egg_move_candidates(ctx.dex, int_param(req.params["sid"], "species")))
-    r.add("GET", "/api/tools/breeding/items", lambda req: {
-        "items": breeding.ITEMS, "braces": breeding.BRACES,
-        "icons": {k: (f"/assets/private/items/{v['icon_id']}.png" if v.get("icon_id") is not None else None)
-                  for k, v in ctx.dex.extras.get("breeding_items", {}).items()}})
+    def breeding_items(req: Request) -> dict:
+        icons = {}
+        for name, item in ctx.dex.extras.get("breeding_items", {}).items():
+            filename = f"{item['icon_id']}.png" if item.get("icon_id") is not None else None
+            imported = filename if filename and (ctx.paths.assets_dir / "items" / filename).is_file() else None
+            icons[name] = ctx.items.icon_url({"icon": imported, "records": [item]})
+        return {"items": breeding.ITEMS, "braces": breeding.BRACES, "icons": icons}
+    r.add("GET", "/api/tools/breeding/items", breeding_items)
 
     # Generic saved documents (breeding plans, pairings, teams, EV plans)
     DOC_KINDS = ("breeding_plan", "pairing", "team", "ev_plan")

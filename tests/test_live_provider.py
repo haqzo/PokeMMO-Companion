@@ -245,6 +245,27 @@ def test_expired_reports_are_never_shown_as_active(ctx, delivered):
     assert ctx.live.current()["current"] == []
 
 
+@pytest.mark.parametrize(("age_minutes", "state"), [(21, "uncertain"), (36, "ended")])
+def test_history_uses_the_expired_event_window_for_repeated_observations(ctx, delivered, monkeypatch, age_minutes, state):
+    now = int(time.time())
+    received = iter((live.iso_from_epoch(now - 2), live.iso_from_epoch(now)))
+    monkeypatch.setattr(live, "utcnow", lambda: next(received))
+    original = ctx.live.ingest(_msg("swarm", "original", time=now - age_minutes * 60))
+    repeat = ctx.live.ingest(_msg("swarm", "repeat", time=now - (age_minutes - 18) * 60), provider="second-source")
+    assert repeat["event_id"] == original["event_id"]
+    latest, = ctx.live.list(kind="swarm", region="johto", limit=1)
+    detail = ctx.live.get(repeat["id"])
+    for report in (latest, detail):
+        assert report["status"]["start"] == original["status"]["start"]
+        assert report["status"]["ends_at"] == original["status"]["ends_at"]
+        assert report["status"]["state"] == state and report["status"]["remaining_s"] == 0
+        assert report["source_time"] != original["source_time"] and report["received_at"] != original["received_at"]
+        assert report["provider"] == "second-source" and report["message_id"] == "repeat"
+    featured = ctx.live.current()["current"]
+    assert [card["status"]["state"] for card in featured] == ([state] if state == "uncertain" else [])
+    assert delivered == []
+
+
 @pytest.mark.parametrize("bad", [
     {"event": "keepalive", "id": "k"}, {"event": "open", "id": "o"}, {"id": "", "title": "Ditto"}, {"id": "x"},
     {"id": "t", "title": ["not", "text"], "message": {"x": 1}}, {"id": "u" * 500, "title": "A" * 5000, "message": "B" * 50000},

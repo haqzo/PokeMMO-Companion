@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from tests.ui.test_ui_flows import Running, browser  # noqa: F401  (fixtures)
+from showcase_media import approved_showcase_media
 
 pytestmark = pytest.mark.ui
 FIRST = {"kanto": "Route 1", "johto": "Route 29", "hoenn": "Route 101", "sinnoh": "Route 201", "unova": "Route 1"}
@@ -194,10 +195,13 @@ def test_map_assets_and_personal_marks_are_kept(clean):
 def test_no_rom_or_dump_files_in_repository():
     root = Path(__file__).resolve().parents[2]
     import subprocess
-    files = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True).stdout.split()
+    files = subprocess.check_output(["git", "ls-files", "-z"], cwd=root).decode("utf-8").split("\0")[:-1]
+    approved = approved_showcase_media(root)
+    assert {f for f in files if f.lower().startswith("showcase/")} == approved | {"showcase/README.md"}
     banned = [f for f in files if f.lower().endswith((".gba", ".nds", ".png", ".gif", ".zip", ".webm", ".mp4", ".jpg", ".sav"))
-              and not f.startswith(("ui/", "docs/", "companion/data/maps/game/",     # in-game maps: owner decision 2026-11-23
-                                    "companion/data/sprites/", "companion/data/item-icons/"))]   # built-in artwork: owner decision 2026-11-24
+              and f not in approved
+              and not f.startswith(("ui/", "docs/", "companion/data/maps/game/",
+                                    "companion/data/sprites/", "companion/data/item-icons/"))]
     assert banned == []
     # never ROMs, dumps or archives anywhere
     assert not [f for f in files if f.lower().endswith((".gba", ".nds", ".zip", ".sav", ".nsp", ".xci"))]
@@ -205,5 +209,6 @@ def test_no_rom_or_dump_files_in_repository():
     assert all(m["file"].endswith(".svg") or m.get("style") == "game" for m in maps["maps"])
     # no ROM, dump archive, Synergy/Serebii material or reference recordings anywhere in the repository
     media = (".png", ".jpg", ".jpeg", ".webp", ".webm", ".mp4", ".gif")
-    assert not [f for f in files if ("synergy" in f.lower() or "serebii" in f.lower() or "screenshot" in f.lower()) and f.lower().endswith(media)]
+    assert not [f for f in files if f.lower().endswith(media) and
+                ("synergy" in f.lower() or "serebii" in f.lower() or ("screenshot" in f.lower() and f not in approved))]
     assert not [f for f in files if f.lower().endswith((".gba", ".nds", ".zip", ".7z"))]

@@ -13,6 +13,7 @@ from companion.config import BUNDLED_DATA_DIR
 from companion.services.sprite_library import SpriteLibrary, image_info
 
 from gifgen import make_gif, make_png
+from showcase_media import approved_showcase_media
 
 ART = json.loads((BUNDLED_DATA_DIR / "form_art.json").read_text(encoding="utf-8"))
 FORMS = json.loads((BUNDLED_DATA_DIR / "forms.json").read_text(encoding="utf-8"))
@@ -51,12 +52,15 @@ def test_external_sources_are_names_only_with_reuse_notes():
 
 
 def test_artwork_only_in_the_prepared_builtin_library():
-    """Since 2026-11-24 the prepared sprite library ships in companion/data/sprites (owner decision); no other
-    animated artwork lives in the repository."""
+    """Animated artwork may ship in the sprite library or the approved public showcase."""
     root = Path(__file__).resolve().parents[1]
+    approved = approved_showcase_media(root)
     generated = {".git", ".venv", ".build-venv", "build", "dist", "node_modules"}
-    gifs = [p for p in root.rglob("*.gif") if not generated.intersection(p.relative_to(root).parts)]
-    assert gifs and all((root / "companion" / "data" / "sprites") in p.parents for p in gifs)
+    gifs = [p.relative_to(root) for p in root.rglob("*")
+            if p.suffix.lower() == ".gif" and not generated.intersection(p.relative_to(root).parts)]
+    sprites = "companion/data/sprites/"
+    assert any(p.as_posix().startswith(sprites) for p in gifs)
+    assert not [p for p in gifs if not p.as_posix().startswith(sprites) and p.as_posix() not in approved]
 
 
 # ---------------------------------------------------------------- real dump
