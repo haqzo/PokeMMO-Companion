@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -130,6 +130,14 @@ MIGRATIONS: dict[int, list[str]] = {
                seed_key TEXT, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""",
     ],
     5: ["ALTER TABLE reports ADD COLUMN phenomenon TEXT"],
+    6: [
+        "ALTER TABLE reports ADD COLUMN event_id TEXT",
+        "ALTER TABLE reports ADD COLUMN event_key TEXT",
+        "ALTER TABLE reports ADD COLUMN event_at INTEGER",
+        "CREATE INDEX reports_event_lookup ON reports(event_key, event_at)",
+        "CREATE INDEX reports_event_members ON reports(event_id, event_at)",
+        "CREATE INDEX reports_event_time ON reports(event_at)",
+    ],
 }
 
 

@@ -187,9 +187,9 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
 
   const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, translateUI('ui.b272_chart_hover'));
   const setReadout = (r, c, locked) => {
-    if (r == null) { readout.replaceChildren(translateUI('ui.b272_chart_hover')); return; }
+    if (r == null) { mount(readout, translateUI('ui.b272_chart_hover')); return; }
     const { m, text } = typeChartReadout(T[r], T[c]);
-    readout.replaceChildren(h('span', { class: 'mult ' + ({ 2: 'm2', 0.5: 'm05', 0: 'm0', 1: 'm1' }[m]) }, multLabel(m)), ' ', text,
+    mount(readout, h('span', { class: 'mult ' + ({ 2: 'm2', 0.5: 'm05', 0: 'm0', 1: 'm1' }[m]) }, multLabel(m)), ' ', text,
       locked ? h('button', { class: 'btn ghost small', style: { marginLeft: '8px' }, onclick: () => { lock = null; paint(null, null); setReadout(null); } }, translateUI('ui.b272_chart_unlock')) : null);
   };
   let table;

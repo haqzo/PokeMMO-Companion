@@ -266,8 +266,8 @@ def _seed(app):
     now = int(time.time())
     ing = lambda mid, topic, t, b, ago, rep=False: app.ctx.live.ingest(  # noqa: E731
         {"id": mid, "event": "message", "time": now - ago * 60, "topic": topic, "title": t, "message": b}, replay=rep)
-    ing("s1", "swarmpings", "Houndoom", "Johto\nBurned Tower", 6)
-    ing("s2", "swarmpings", "Houndoom", "Johto\nBurned Tower", 4)
+    ing("s1", "swarmpings", "Houndoom", "Johto\nBurned Tower (1F)", 6)
+    ing("s2", "swarmpings", "Houndoom", "Johto\nBurned Tower 1F", 4)
     ing("a1", "alphapings", "Magmortar", "Sinnoh, Stark Mountain", 12)
     ing("o1", "swarmpings", "Slakoth", "Unova\nRoute 2", 300, True)
     app.ctx.live.create_test("alpha")

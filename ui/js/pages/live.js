@@ -93,12 +93,17 @@ export function startTimers(root, skewMs, onExpire) {
   return stop;
 }
 const timeOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+const locationStatus = (match) => match?.status === 'ambiguous' ? translateUI('ui.live_location_ambiguous')
+  : match?.status === 'unverified' ? translateUI('ui.live_location_unverified') : '';
 /** Card for one current Alpha/Swarm (several identical reports are one card, timed from the earliest). */
 export function currentCard(g, { compact = false, animate = false, sprite = null } = {}) {
   const st = g.status;
   const sure = g.species_name && g.species_match !== 'ambiguous';  // a report naming several Pokémon shows its own title
   const name = (sure ? speciesLabel(g.species_id, g.species_name) : g.title) || translateUI('ui.live_no_title');
-  const where = [g.region && gameTerm('region', cap(g.region)), gameTerm('location', g.location)].filter(Boolean).join(' · ');
+  const place = g.location_match?.name ? gameTerm('location', g.location_match.name) : g.location;
+  const where = [g.region && gameTerm('region', cap(g.region)), place, place && locationStatus(g.location_match)].filter(Boolean).join(' · ');
+  const reported = g.source_time && st.start_basis === 'report time';
+  const time = reported ? g.source_time : g.received_at;
   return h('button', { class: `cur-card kind-${g.kind}${compact ? ' compact' : ''}`, dataset: { report: g.id, state: st.state },
     onclick: () => go('#/live/reports/' + g.id), 'aria-label': [reportKind(g.kind), name, where, uiLabel(st.label)].filter(Boolean).join(', ') },
   sprite || reportSprite(g, { animate }),
@@ -110,7 +115,7 @@ export function currentCard(g, { compact = false, animate = false, sprite = null
     h('div', { class: 'cur-name ellipsis' }, name),
     sure || !g.species_name ? null : h('div', { class: 'tiny muted ellipsis' }, translateUI('ui.live_ambiguous')),
     where ? h('div', { class: 'small ellipsis cur-where' }, where) : h('div', { class: 'small muted' }, translateUI('ui.live_no_location')),
-    h('div', { class: 'tiny muted' }, translateUI('ui.live_reported_ago', { time: timeOf(st.start), relative: relTime(st.start) }), g.duplicates ? translateUI('ui.live_duplicates', { count: number(g.duplicates + 1) }) : '', g.caught_up ? translateUI('ui.live_caught_up') : ''),
+    h('div', { class: 'tiny muted' }, translateUI(reported ? 'ui.live_reported_ago' : 'ui.live_received_ago', { time: timeOf(time), relative: relTime(time) }), g.duplicates ? translateUI('ui.live_duplicates', { count: number(g.duplicates + 1) }) : '', g.caught_up ? translateUI('ui.live_caught_up') : ''),
     h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
     compact ? null : h('div', { class: 'tiny muted' }, translateUI('ui.live_provider', { provider: g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider }), st.notes.length ? ' · ⚠ ' + uiLabel(st.notes[0]) : '')));
 }
@@ -226,9 +231,9 @@ async function renderReports(el, selectedId, src, epoch) {
     const c = await get('/api/live/current');
     if (!active()) return;
     const skew = Date.parse(c.now) - Date.now();
-    const warn = !c.source.enabled ? notice('info', c.current.length ? translateUI('ui.live_cached_feed')
-      : null)
-      : !c.complete ? notice('warn', translateUI('ui.live_feed_incomplete', { state: sourceStatus(c.source), last: c.source.last_success_at ? translateUI('ui.live_last_data', { relative: relTime(c.source.last_success_at) }) : '' })) : null;
+    const warn = !c.source.enabled ? (c.current.length ? notice('info', translateUI('ui.live_cached_feed')) : null)
+      : c.source.status === 'connected' ? notice('info', translateUI('ui.live_feed_partial'))
+        : notice('warn', translateUI('ui.live_feed_incomplete', { state: sourceStatus(c.source), last: c.source.last_success_at ? translateUI('ui.live_last_data', { relative: relTime(c.source.last_success_at) }) : '' }));
     mount(curBox, c.current.length ? c.current.map((g) => currentCard(g)) :
       h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? translateUI('ui.live_none_recent') : translateUI('ui.live_enable_feed')));
     mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
@@ -367,6 +372,8 @@ function renderReportDetail(el, r) {
         r.species_name && (r.species_name !== r.title || r.species_match === 'ambiguous') ? h('div', { class: 'small muted' }, speciesLabel(r.species_id, r.species_name),
           r.species_match === 'ambiguous' ? translateUI('ui.live_detail_ambiguous') : '') : null)),
     r.body ? h('p', { style: { margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' } }, reportBody(r)) : null,
+    ['alpha', 'swarm'].includes(kind) && r.location_match?.status !== 'verified'
+      ? h('p', { class: 'small muted', style: { margin: 0 } }, r.location ? locationStatus(r.location_match) : translateUI('ui.live_no_location')) : null,
     r.species_id ? h('div', { class: 'row' }, h('span', { class: 'small muted' }, translateUI('ui.live_mentioned')),
       h('button', { class: 'btn small', onclick: () => go('#/pokedex/' + r.species_id) }, speciesLabel(r.species_id, r.species_name), icon('chev'))) : null,
     h('dl', { class: 'kv small' },
@@ -384,8 +391,9 @@ function renderReportDetail(el, r) {
     r.tags && r.tags.length ? h('div', { class: 'row wrap' }, r.tags.map((t) => h('span', { class: 'chip' }, t))) : null));
 }
 function deliveryText(d) {
-  if (!d || !d.route) return translateUI('ui.live_history_delivery');
-  if (d.suppressed) return uiLabel(d.suppressed);
+  if (d?.suppressed) return d.suppressed === 'The estimated report window has passed — saved to history only'
+    ? translateUI('ui.live_suppressed_expired') : uiLabel(d.suppressed);
+  if (!d?.route) return translateUI('ui.live_history_delivery');
   const parts = [translateUI('ui.live_delivery_route', { route: routeLabel(d.route) })];
   if (d.toast) parts.push(notificationResult('toast', d.toast));
   if (d.os) parts.push(notificationResult('os', d.os));

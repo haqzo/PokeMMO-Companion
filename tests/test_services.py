@@ -1,6 +1,7 @@
 """Guides, breeding, live, news, backup and importer logic (no real dump needed)."""
 import io
 import json
+import time
 import zipfile
 from datetime import datetime, timezone
 
@@ -237,7 +238,8 @@ class FakeNotifier:
 def test_ingest_dedupes_and_replay_never_alerts(ctx):
     fake = FakeNotifier()
     ctx.live.notifier = fake
-    msg = {"id": "abc123", "time": 1763800000, "event": "message", "topic": "alphapings",
+    ctx.settings.update({"notify.alpha": "os"})
+    msg = {"id": "abc123", "time": int(time.time()), "event": "message", "topic": "alphapings",
            "title": "Pikachu", "message": "Kanto, Route 1 \x07", "tags": [], "expires": 1763900000}
     first = ctx.live.ingest(msg, replay=False)
     assert first and first["kind"] == "alpha" and first["kind_basis"] == "topic" and first["species_id"] == 25
@@ -267,8 +269,8 @@ def test_quiet_mode_saves_without_alerting(ctx):
     fake = FakeNotifier()
     ctx.live.notifier = fake
     ctx.settings.update({"notify.quiet": True, "notify.alpha": "both"})
-    r = ctx.live.ingest({"id": "q1", "event": "message", "title": "alpha", "message": "x", "time": 1})
-    assert not fake.sent and "suppressed" in ctx.live.get(r["id"])["delivery"]
+    r = ctx.live.ingest({"id": "q1", "event": "message", "title": "alpha", "message": "x", "time": int(time.time())})
+    assert not fake.sent and ctx.live.get(r["id"])["delivery"]["quiet"]
 
 
 @pytest.mark.parametrize("month,kanto,johto", [(11, 146, 245), (1, 145, 244), (3, 144, 243), (12, 144, 243)])

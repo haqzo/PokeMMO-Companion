@@ -90,15 +90,22 @@ def test_multiple_concurrent_timers_and_duplicate_delete(env):
     assert len(svc.list()["timers"]) == 2
 
 
-def test_completion_notified_once_and_wall_clock_change_ignored(env):
+@pytest.mark.parametrize("system_opt_in", [False, True])
+def test_completion_notified_once_and_wall_clock_change_ignored(env, system_opt_in):
     ctx, clk, bus, notif, svc = env
+    if system_opt_in:
+        ctx.settings.update({"notify.timer": "both"})
     t = svc.create("Egg", 60, start=True)
     clk.wall_t += 3600                         # someone changes the system clock: the boot clock is unaffected
     assert svc.tick() == []
     clk.advance(60)
     svc.tick(); svc.tick(); svc.tick()
-    assert len(done_events(bus)) == 1 and len(notif.sent) == 1
-    assert "Egg" in notif.sent[0][0]
+    assert len(done_events(bus)) == 1
+    toasts = [payload for topic, payload in bus.events if topic == "toast"]
+    assert len(toasts) == 1 and "Egg" in toasts[0]["title"] and toasts[0]["corner"] == "top-right"
+    assert len(notif.sent) == int(system_opt_in)
+    if system_opt_in:
+        assert "Egg" in notif.sent[0][0]
 
 
 def test_sleep_fires_once_late_and_repeat_skips_periods(env):

@@ -358,7 +358,7 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0 3px; }
 .typechart td { width: 30px; height: 24px; text-align: center; border-radius: 3px; background: var(--bg-card); font-weight: 700; color: #fff; }
 .typechart td.x2 { background: var(--good); } .typechart td.x05 { background: var(--bad); } .typechart td.x0 { background: var(--zero); }
 .typechart td.hl, .typechart th.hl { outline: 1px solid var(--accent); }
-.typechart .tc { writing-mode: vertical-rl; transform: rotate(180deg); padding: 4px 0; }
+.typechart .tc { writing-mode: vertical-rl; padding: 4px 0; }
 .breed-cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr) minmax(0,1fr); gap: var(--sp-3); }
 @media (max-width: 1050px) { .breed-cols { grid-template-columns: 1fr; } }
 .parent-card { background: var(--bg-window); border: var(--bw) solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }

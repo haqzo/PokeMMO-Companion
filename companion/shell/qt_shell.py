@@ -782,7 +782,7 @@ class QtShell:
         if not self.toasts:
             return
         p = self.toasts[-1].payload
-        corner = p.get("corner") or "bottom-right"
+        corner = p.get("corner") or "top-right"
         screen = QGuiApplication.primaryScreen()
         if p.get("screen") == "main-window" and self.main.windowHandle() is not None:
             screen = self.main.windowHandle().screen() or screen

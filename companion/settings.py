@@ -63,11 +63,11 @@ DEFAULTS: dict[str, Any] = {
     "live.ntfy.consented": False,
     "live.ntfy.server": "https://ntfy.pokemmotools.org",
     "live.ntfy.topic": "alphapings,swarmpings",   # Alphapedia publishes Alphas and Swarms on separate topics
-    "notify.alpha": "both",
-    "notify.swarm": "both",
+    "notify.alpha": "toast",
+    "notify.swarm": "toast",
     "notify.other": "toast",
-    "notify.timer": "both",                  # Tools › Timers completions
-    "notify.test": "both",
+    "notify.timer": "toast",                 # Tools › Timers completions
+    "notify.test": "toast",
     "notify.toast_corner": "top-right",      # owner default (video review); all four corners remain selectable
     "notify.toast_screen": "primary",        # primary | main-window | <index>
     "notify.toast_duration": 8,              # seconds

@@ -109,9 +109,9 @@ def _ingest(ctx, mid, topic, title, body, ago_min, replay=False):
 
 
 def test_current_groups_duplicates_and_excludes_tests_old_and_history(ctx):
-    _ingest(ctx, "s1", "swarmpings", "Houndoom", "Johto\nBurned Tower", 6)
-    _ingest(ctx, "s2", "swarmpings", "Houndoom", "Johto\nBurned Tower", 4)       # same swarm, reported again
-    _ingest(ctx, "s2", "swarmpings", "Houndoom", "Johto\nBurned Tower", 4)       # exact re-delivery (same message id)
+    _ingest(ctx, "s1", "swarmpings", "Houndoom", "Johto\nBurned Tower (1F)", 6)
+    _ingest(ctx, "s2", "swarmpings", "Houndoom", "Johto\nBurned Tower 1F", 4)       # same floor, reported again
+    _ingest(ctx, "s2", "swarmpings", "Houndoom", "Johto\nBurned Tower 1F", 4)       # exact re-delivery (same message id)
     _ingest(ctx, "a1", "alphapings", "Magmortar", "Sinnoh, Stark Mountain", 12)
     _ingest(ctx, "b1", "swarmpings", "Blissey", "Hoenn\nArtisan Cave", 14, replay=True)  # caught up on reconnect
     _ingest(ctx, "z1", "swarmpings", "Zangoose", "Kanto\nRoute 14", 26)

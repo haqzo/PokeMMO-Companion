@@ -12,6 +12,8 @@ import json
 import logging
 import re
 import threading
+import unicodedata
+from collections import defaultdict
 
 from ..config import BUNDLED_DATA_DIR, Paths
 from ..data import reference as ref
@@ -35,6 +37,15 @@ PROGRESS_LEVELS = ["unregistered", "seen", "owned", "caught_ot"]
 
 
 log = logging.getLogger("companion.dex")
+
+
+def normalize_location_text(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
+
+
+def _location_label(value: str) -> str:
+    return re.sub(r"\s*\(\s*(.+?)\s*\)", r" (\1)", normalize_location_text(value))
+
 
 def load_bundled_reference() -> dict | None:
     """The offline PokeMMO reference shipped with the app (built by tools/build_reference.py)."""
@@ -671,7 +682,42 @@ class DexService:
                 if l.get("season"):
                     loc["seasons"].add(l["season"])
                 loc["horde"] = loc["horde"] or l["horde3"] or l["horde5"]
+        names, parents = defaultdict(set), defaultdict(set)
+        for key, loc in idx.items():
+            name = _location_label(loc["name"])
+            region = loc["region"]
+            names[region, name].add(key)
+            qualifier = re.fullmatch(r"(.+) \((.+)\)", name)
+            if qualifier:
+                base, suffix = qualifier.groups()
+                parents[region, base].add(key)
+                # Retain the full qualifier when accepting the spelling without parentheses.
+                names[region, f"{base} {suffix}"].add(key)
+        self._location_catalog = (idx, names, parents)
         self._locations = idx
+
+    def match_location(self, region: str | None, name: str | None) -> dict:
+        """Resolve only an explicit, unique name in the reported region."""
+        if not region or not name:
+            return {"status": "unverified"}
+        if not hasattr(self, "_location_catalog"):
+            self._build_locations()
+        locations, names, parents = self._location_catalog
+        label_key = (region, _location_label(name))
+        keys = names.get(label_key, set())
+        subareas = parents.get(label_key, set())
+        # A numbered route has its own catalog entry. Its gate or tower is named separately.
+        if subareas and keys and re.fullmatch(r"route [0-9]+", label_key[1]):
+            subareas = set()
+        if len(keys | subareas) > 1:
+            return {"status": "ambiguous"}
+        if not keys:
+            return {"status": "unverified"}
+        key = next(iter(keys))
+        loc = locations[key]
+        if str(loc["location_id"]).startswith("-") or "???" in loc["name"]:
+            return {"status": "unverified"}
+        return {"status": "verified", "id": key, "name": loc["name"]}
 
     def locations(self) -> list[dict]:
         if not hasattr(self, "_locations"):

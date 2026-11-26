@@ -1,4 +1,4 @@
-# Active development checkpoint — 25 November 2026
+# Active development checkpoint — 26 November 2026
 
 ## Current status: public 0.8.0 Alpha
 
@@ -47,6 +47,27 @@ The two packages, signed checksums and provenance were published together. The o
 ## Product baseline
 
 The public app includes Home, Pokédex and manual per-character registration, moves and items, Location Explorer, five regional walkthroughs and custom recurring guides, type matchups and Pokémon comparisons, team and breeding planning, EV/horde, catch and stat calculators, natures, arithmetic calculator, timers, notes, bookmarks, My Pokémon and Shiny Showcase, optional Alpha/Swarm reports, Legendary rotations, Phenomena and Altering Cave reference/observations, customizable floating windows, themes, language and performance settings, backup/recovery and update checks. Use the released source to verify exact feature limits rather than inferring from old design documents.
+
+## Batch 01 — Live reliability and Type Chart
+
+- Started from verified `develop` at `3d24fdd713ad3ce2f1d19699faeb03b13ee11fb6`. Type Chart columns now use the same vertical writing mode without the extra rotation. Hover and focus readouts omit the optional Unlock button until needed. The grid, sticky headers, checkers, floating presets and main-page comparison retain their existing layouts and behavior.
+- Alpha/Swarm reports keep the provider's text, source, message ID, report timestamp and receipt timestamp. Region-scoped catalog matching accepts case, spacing, Unicode and fully qualified spelling variants. General cave names with several floors, shared catalog labels and unknown places stay visibly unresolved.
+- A local event links observations with a verified species and place within one estimated window. A repeat shares the earliest eligible report time and keeps its own history row. Source/message IDs deduplicate retry deliveries, while event assignment and the alert decision share a SQLite transaction. Migration v6 indexes saved reports without re-alerting them and makes a pre-migration database backup.
+- Reconnect requests up to 12 hours of provider cache, subject to availability. Replayed messages and reports whose estimated window has passed are silent. Home and Live show that a connected feed can still miss encounters, and history survives an outage. Alpha estimates remain 75 minutes. Swarm estimates remain provisional and configurable, with a 20-minute default. The timestamps record reports and receipts. Actual spawn times are unknown.
+- The default routes for Alpha, Swarm, timer and test notifications use top-right toasts. Saved notification routes, corners and quiet mode remain in effect. Phenomena keeps its separate opt-in and notification preferences.
+
+### Community reporting handoff
+
+- `LiveService.ingest` is the current Alpha/Swarm entry point. A future adapter should map the source into an observation with a stable provider-scoped message ID, kind, species, explicit region and place, report time and replay state. Record receipt time locally and route the observation through the existing transactional event assignment and notification decision. `reports.event_id` is a local correlation identifier. An earlier valid observation can shorten a countdown. Later repeats keep its original deadline.
+- The correlation window is an estimate. Two spawns of the same species at the same verified location within that window may be indistinguishable without more information. An unresolved place or missing reliable timestamp leaves the observation separate. If a future source provides a corroborated spawn identifier or spawn time, preserve that separately.
+- Phenomena still enters through `Phenomena._store` with its relay message ID, edit merging and catch-up baseline. Reuse the shared `dispatch_notification` path and retain Phenomenon's existing evidence and timing rules when adding another source.
+
+### Batch verification
+
+- Linux backend suite: 441 passed, 31 ROM/dump-dependent skips and one pre-existing showcase-media failure. The failing `test_artwork_only_in_the_prepared_builtin_library` also failed on the starting commit because it rejects the existing showcase GIFs.
+- Linux Chromium suite: 204 passed, 20 dump-dependent skips and one pre-existing showcase-media failure. The failing `test_no_rom_or_dump_files_in_repository` also failed on the starting commit because it rejects the existing showcase screenshots, GIFs and videos.
+- Linux Chromium screenshots were inspected for English, Spanish and Simplified Chinese and Compact, Standard and Expanded popouts. Linux Qt 6.12.0 offscreen smoke passed the main chart, all three native popout modes and top-right toast. The offline fresh-profile acceptance check passed with bundled reference data and zero ROM/dump files.
+- No Windows package or interactive desktop run was available for this batch. The Windows development workflow requires a private repository with `develop` as its default branch. The successful automated package verification covers the released `v0.8.0` baseline at `1d79fe31c850816c55fa0037cc0d898bcd52807a`. [Release package CI](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45708065896)
 
 ## Next development phase
 

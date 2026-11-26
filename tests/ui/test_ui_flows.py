@@ -6,6 +6,7 @@ Needs: pip install playwright && python -m playwright install chromium
 import os
 import re
 import shutil
+import time
 
 import pytest
 
@@ -297,6 +298,76 @@ def test_type_chart_crosshair_row_and_column(app, page):
         page.locator(f'td[data-r="{types.index(a)}"][data-c="{types.index(d)}"]').hover()
         assert f"{a.capitalize()} attack → {d.capitalize()} defender: {txt}" in page.locator(".tc-readout").inner_text()
     assert "fairy" not in page.locator("table.typechart").inner_text().lower()
+
+
+@pytest.mark.parametrize(("lang", "fire", "full", "unlock", "defensive", "offensive"), [
+    ("en", "Fire", "Full chart", "Unlock (Esc)", "Defensive check", "Offensive check"),
+    ("es", "Fuego", "Tabla completa", "Desbloquear (Esc)", "Análisis defensivo", "Análisis ofensivo"),
+    ("zh", "火", "完整相克表", "解锁（Esc）", "防守分析", "进攻分析"),
+])
+def test_type_chart_badges_and_optional_unlock_in_each_language(app, page, lang, fire, full, unlock, defensive, offensive):
+    app.ctx.settings.update({"app.language": lang})
+    try:
+        go(page, app, "#/tools/typechart")
+        page.locator(".compare-panel").wait_for()
+        chip = page.locator('th.colhead .type-chip.t-fire')
+        assert chip.text_content().casefold() == fire.casefold()
+        assert chip.evaluate("""el => {
+          const s = getComputedStyle(el.parentElement);
+          return [s.writingMode, s.textOrientation, s.transform];
+        }""") == ["vertical-rl", "mixed", "none"]
+        readout = page.locator(".tc-readout")
+        cell = page.locator('td[data-r="9"][data-c="4"]')
+        cell.hover()
+        assert "2×" in readout.inner_text() and "null" not in readout.text_content()
+        assert readout.get_by_role("button").count() == 0
+        cell.focus()
+        cell.press("Enter")
+        readout.get_by_role("button", name=unlock).click()
+        assert page.locator("td.hl-x").count() == 0 and "null" not in readout.text_content()
+        for mode in ("compact", "standard", "expanded"):
+            page.goto(app.srv.url("", popout="typechart", mode=mode))
+            body = page.locator(f".mode-{mode} .popout-body")
+            body.get_by_role("heading", name=offensive, exact=True).wait_for()
+            if mode != "expanded":
+                assert body.locator(".typechart").count() == 0
+                body.get_by_role("radio", name=full, exact=True).click()
+            assert body.locator("th.colhead").count() == 17 and body.locator("td").count() == 289
+            assert body.locator("thead th.colhead").first.evaluate("el => getComputedStyle(el).position") == "sticky"
+            assert body.locator("tbody th.rowhead").first.evaluate("el => getComputedStyle(el).position") == "sticky"
+            assert body.locator(".compare-panel").count() == 0
+            for name in (defensive, offensive):
+                checker = body.locator(".card").filter(has=page.get_by_role("heading", name=name, exact=True))
+                checker.locator("button:has(.t-fire)").click()
+                assert checker.locator(".mult.m2").inner_text() == "2×"
+        assert page.errors == []
+    finally:
+        app.ctx.settings.update({"app.language": "en"})
+
+
+def test_live_and_home_show_partial_coverage_and_keep_cached_reports(app, page):
+    live = app.ctx.live
+    app.ctx.settings.update({"live.ntfy.enabled": True, "live.ntfy.consented": True})
+    try:
+        live._health("connected", success=True)
+        go(page, app, "#/live/reports")
+        page.get_by_text("Community reports cover only some encounters.", exact=False).wait_for()
+        page.get_by_text("No Alpha or Swarm reported recently.", exact=False).wait_for()
+        report = live.ingest({"id": "browser-fixture", "topic": "alphapings", "time": int(time.time()),
+                              "title": "Ditto", "message": "Kanto, Cerulean Cave"}, replay=True)
+        go(page, app, "#/home")
+        page.get_by_text("Reports may be missing", exact=False).wait_for()
+        card = page.locator(f'.cur-card[data-report="{report["id"]}"]')
+        assert "Ambiguous location" in card.inner_text()
+        live._health("offline")
+        go(page, app, f'#/live/reports/{report["id"]}')
+        page.get_by_text("recent reports may be missing", exact=False).wait_for()
+        page.locator("p").get_by_text("Ambiguous location", exact=True).wait_for()
+        card.wait_for()
+        assert page.errors == []
+    finally:
+        app.ctx.settings.update({"live.ntfy.enabled": False, "live.ntfy.consented": False})
+        live.clear()
 
 
 def test_quick_access_pin_reorder_unpin_and_persist(app, page):
