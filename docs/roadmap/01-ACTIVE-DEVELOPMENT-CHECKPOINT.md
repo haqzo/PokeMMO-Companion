@@ -184,3 +184,7 @@ Seasonal reports use the existing Community storage and personal actions locally
 [Synthetic seasonal Live view](batch05/seasonal-live.png) · [Wellspring Cave reference](batch05/phenomena-wellspring.png)
 
 Next checkpoint is feature freeze and independent testing. The release inventory classification from Batch 04 and interactive native Windows testing remain open.
+
+Implementation `93d3e3b94c0ff358beee6fb55357e24a7b78af06`, Community test correction `7094cdbc211f2318b833fa888b619472401f75f8`, and the cross-platform signed package test fixture `d07a34994121577785dfb385506e034e4bee9a89` are on develop. The Linux backend suite recorded **498 passed and 31 skipped**. Chromium recorded **223 passed and 20 skipped**. The skips depend on optional client-dump or ROM assets. The offline clean install passed. The Batch 03 loopback relay at `ac74614d1db6e6dbc9e94aa2ed90b9cf312511c1` passed create, correction, withdrawal, area-level delivery and originator deduplication with two temporary profiles.
+
+Windows Server 2025 x64 at `d07a34994121577785dfb385506e034e4bee9a89` passed the offline clean install and **222 selected regression tests** using temporary profiles. The preceding run exposed a platform-specific update test that offered only an AppImage. The corrected fixture exercises signed Linux and Windows package downloads and checksum rejection. [Windows regression run](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45904875327)
