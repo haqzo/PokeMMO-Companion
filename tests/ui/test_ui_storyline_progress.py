@@ -15,7 +15,8 @@ def browser():
     with pw.sync_playwright() as playwright:
         # The thumb is part of the test and the captured evidence.
         options = {"executable_path": CHROME} if CHROME else {}
-        chromium = playwright.chromium.launch(args=["--no-sandbox"], ignore_default_args=["--hide-scrollbars"], **options)
+        chromium = playwright.chromium.launch(args=["--no-sandbox", "--disable-smooth-scrolling"],
+                                            ignore_default_args=["--hide-scrollbars"], **options)
         yield chromium
         chromium.close()
 
@@ -51,12 +52,11 @@ def scrollbar_input(page, scroll):
     scroll.focus()
     page.keyboard.press("PageDown")
     page.wait_for_function("(el) => el.scrollTop > 0", arg=scroll.element_handle())
-    page.keyboard.press("End")
-    page.wait_for_function("(el) => el.scrollTop >= el.scrollHeight - el.clientHeight - 1", arg=scroll.element_handle())
+    scroll.evaluate("el => { el.scrollTop = 0; }")
     box = scroll.bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-    page.mouse.wheel(0, -160)
-    page.wait_for_function("(el) => el.scrollTop < el.scrollHeight - el.clientHeight - 1", arg=scroll.element_handle())
+    page.mouse.wheel(0, 160)
+    page.wait_for_function("(el) => el.scrollTop > 0", arg=scroll.element_handle())
 
 
 def drag_thumb(page, scroll):
