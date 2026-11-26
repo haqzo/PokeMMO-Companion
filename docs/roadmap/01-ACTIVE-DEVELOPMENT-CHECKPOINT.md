@@ -58,3 +58,7 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 - Android, OCR, cross-device accounts/sync, online statistics and other brainstormed integrations remain future research, not approved implementation scope. No encounter counter, damage simulator, GTL scraping, automated gameplay, code injection or game memory access. Keep ROM-free default installation and opt-in online reports.
 
 See the [release notes](../releases/0.8.0.md), [tester and recovery guide](../closed-alpha.md), [release runbook](../../packaging/README.md#release-packages), [earlier QA](../build/31-FINAL-OPTIMIZATION-AND-ALPHA-QA.md), [original roadmap](00-2026-11-22-FEATURE-STAGING.md) and [decision checkpoint](../build/09-V0.1.0-COMPLETE-DECISION-CHECKPOINT.md).
+
+## Open research brief (not approved implementation)
+
+The owner requested a feedback-driven incremental 0.8.x roadmap, beginning with a proposed 0.8.1, plus research into Android (potentially before desktop 1.0), saved chat-log-assisted tools, live catch-rate estimates, Pokéyen/activity statistics, profiles and optional cross-device progression. These are speculative research directions only. See [post-alpha research brief](02-POST-ALPHA-RESEARCH-BRIEF.md). No version bump, code, infrastructure or feature implementation is authorized by that brief.
