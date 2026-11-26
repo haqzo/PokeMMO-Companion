@@ -3,6 +3,8 @@
 import re
 import unicodedata
 
+from .data.phenomena_community import AREA_TYPES, LOCATIONS
+
 # Spot directions and access requirements come from the owner-verified callouts
 # summarized in tests/fixtures/phenomena.json and docs/build/25-PHENOMENA-REFERENCE.md.
 SPOTS = {
@@ -14,7 +16,7 @@ SPOTS = {
 CALLOUTS = {"三草": ("Route 3", "grass"), "11水": ("Route 11", "water")}
 NAMES = {
     "puente villa": "Village Bridge", "村庄桥": "Village Bridge",
-    "cueva manantial": "Wellspring Cave", "泉源洞穴": "Wellspring Cave",
+    "cueva manantial": "Wellspring Cave", "泉源洞穴": "Wellspring Cave", "地下水脉": "Wellspring Cave",
 }
 TYPES = {
     "grass": ("grass", "rustling grass", "hierba que se agita", "摇动的草丛"),
@@ -62,7 +64,6 @@ def reference(dex):
         ("unova:326", "water", None, "example", 594),
         ("unova:317", "shadow", "route-1-west-middle", "documented", None),
         ("unova:321", "grass", None, "callout", None),
-        ("unova:365", "water", None, "callout", None),
         ("unova:324", None, None, "catalog", None),
         ("unova:325", None, None, "catalog", None),
     ]
@@ -74,4 +75,20 @@ def reference(dex):
     # Victory Road has repeated floor names. Preserve the group-level example separately.
     entries.append({"area": {"name": "Victory Road", "region": "unova"}, "type": "dust",
                     "spot": None, "evidence": "example", "species": 530})
+    for number, kinds in AREA_TYPES.items():
+        area = dex.location_reference(f"unova:{number}")
+        if area:
+            entries.extend({"area": area, "type": kind, "evidence": "community"} for kind in kinds)
+    for number, kind, landmark, species, moves, visibility in LOCATIONS:
+        area = dex.location_reference(f"unova:{number}")
+        if area:
+            entries.append({"area": area, "type": kind, "evidence": "community",
+                            "landmark": dict(zip(("en", "es", "zh"), landmark)) if landmark else None,
+                            "encounters": species, "moves": moves, "visibility": visibility,
+                            "conflict": kind is None,
+                            "aliases": ["11水"] if number == 365 and kind == "water" else []})
+    for name, kinds in (("Victory Road", ("water", "dust")), ("Twist Mountain", ("dust",)),
+                        ("Giant Chasm", ("dust",)), ("Striaton City", ("water",))):
+        entries.extend({"area": {"region": "unova", "name": name}, "type": kind, "evidence": "community"}
+                       for kind in kinds)
     return entries

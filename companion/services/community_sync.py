@@ -25,7 +25,8 @@ FRESH_SECONDS = 5
 
 def _matches_observation(received, sent):
     # The service can have a different catalog display label for the same location ID.
-    return all(received.get(key) == value for key, value in sent.items() if key != "location_label")
+    return all(received.get(key) == value for key, value in sent.items()
+               if key != "location_label" and (key != "spot_id" or key in received))
 
 
 @dataclass(frozen=True)

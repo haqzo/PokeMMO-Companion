@@ -488,6 +488,7 @@ def build_router(ctx: AppContext) -> Router:
         return {"reports": ctx.live.list(req.q("kind"), req.q("q"), req.q("tests", "1") == "1", region=req.q("region")),
                 "source": ctx.live.source_status(), "notifier": ctx.notifier.describe()}
     r.add("GET", "/api/live/reports", live_reports)
+    r.add("GET", "/api/live/seasonal", lambda req: ctx.seasons.view())
     r.add("GET", "/api/live/current", lambda req: ctx.live.current())
     r.add("GET", "/api/live/phenomena/reference", lambda req: ctx.live.phenomena.reference())
     r.add("GET", "/api/live/phenomena/source", lambda req: ctx.live.phenomena.source_status())

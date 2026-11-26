@@ -1,5 +1,7 @@
 """Offline reference and conditionally available Phenomenon relay history."""
 from datetime import datetime, timedelta, timezone
+import os
+from pathlib import Path
 
 import pytest
 
@@ -28,7 +30,7 @@ def test_phenomena_reference_on_home_live_and_popouts(app, page):
     page.get_by_role("heading", name="Unova Phenomena").wait_for()
     assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
     assert page.get_by_role("link", name="PokeMMO Companion Discord").get_attribute("href") == COMPANION_DISCORD
-    page.locator(".phenomenon-card").nth(8).wait_for()
+    page.locator(".phenomenon-card").nth(7).wait_for()
     text = page.locator(".main").inner_text()
     for value in ("Emolga", "Village Bridge", "Alomomola", "Excadrill", "Surf", "#phenomenon-callouts"):
         assert value in text
@@ -40,7 +42,11 @@ def test_phenomena_reference_on_home_live_and_popouts(app, page):
 
     search = page.get_by_role("searchbox", name="Search location")
     search.fill("Cueva Manantial")
-    assert page.locator(".phenomenon-card").count() == 2
+    assert page.locator(".phenomenon-card").count() == 8
+    assert page.get_by_text("Lower section", exact=True).is_visible()
+    if output := os.environ.get("BATCH05_SCREENSHOTS"):
+        page.get_by_text("Lower section", exact=True).scroll_into_view_if_needed()
+        page.screenshot(path=Path(output) / "phenomena-wellspring.png", animations="disabled")
     search.fill("三草")
     assert page.locator(".phenomenon-card").count() == 1
     assert "exact spot unverified" in page.locator(".phenomenon-card").inner_text()
@@ -87,7 +93,7 @@ def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(
     go(page, app, "#/live/phenomena")
     search = page.get_by_role("searchbox", name="Search location")
     search.fill("Puente Villa")
-    card = page.locator(".phenomenon-card")
+    card = page.locator(".phenomenon-card", has_text="Lower left of Village Bridge")
     card.get_by_text("Lower left of Village Bridge", exact=False).wait_for()
     provider = app.ctx.live.phenomena
     instant = datetime.now(timezone.utc)

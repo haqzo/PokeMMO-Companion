@@ -214,8 +214,8 @@ export function communityHistory(report) {
       a.related_id ? [' · ', ref(a.related_id, 'community.replacement_report')] : null))));
 }
 
-export function communityActions(report, { compact = false, onSaved } = {}) {
-  if (!communityEnabled() || report.is_test || !Object.hasOwn(KINDS, report.kind)) return null;
+export function communityActions(report, { compact = false, onSaved, correct } = {}) {
+  if (!communityEnabled() || report.is_test || !(Object.hasOwn(KINDS, report.kind) || report.kind === 'seasonal')) return null;
   const own = report.is_own ? report.id : report.own_report_id;
   let running = false;
   const run = async (fn) => {
@@ -240,7 +240,8 @@ export function communityActions(report, { compact = false, onSaved } = {}) {
     retry, buttons('still_here'), buttons('not_found'),
     buttons(report.local_feedback?.personal?.action === 'complete' ? 'reopen' : 'complete'),
     own ? h('button', { class: 'btn ghost small', onclick: () => run(async () => {
-      const saved = await reportDialog(report.kind, own === report.id && report.is_own ? report : await get('/api/live/reports/' + own));
+      const original = own === report.id && report.is_own ? report : await get('/api/live/reports/' + own);
+      const saved = correct ? await correct(original) : await reportDialog(report.kind, original);
       if (saved) onSaved?.(saved);
     }) }, t('community.correct')) : null,
     own ? buttons('withdraw', own) : null);

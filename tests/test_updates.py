@@ -305,3 +305,22 @@ def test_alpha_channel_default_preserves_explicit_preference(ctx):
     reloaded = Settings(ctx.storage)
     assert reloaded.get("app_updates.channel") == "stable"
     assert reloaded.all()["app_updates.channel"] == "stable"
+
+
+def test_signed_seasonal_data_install_reopen_and_reject_new_schema(tmp_path):
+    from test_seasonal import fixture
+    key, pub = _keys()
+    document = fixture()
+    make = lambda directory, data: (directory / "seasonal.json").write_text(json.dumps(data), encoding="utf-8")
+    p2, e2 = build_package(_bundled_dir(tmp_path / "valid", lambda d: make(d, document)), revision=2)
+    p3, e3 = build_package(_bundled_dir(tmp_path / "bad", lambda d: make(d, {**document, "schema": 2})), revision=3)
+    e2["url"], e3["url"] = "https://data.example.invalid/s2.zip", "https://data.example.invalid/s3.zip"
+    files = {INDEX_URL: _index(key, [e2]), e2["url"]: p2, e3["url"]: p3}
+    updater = _updater(tmp_path, files, pub)
+    assert updater.seasonal_catalog()["events"] == []
+    updater.install(updater.check()["available"])
+    assert _updater(tmp_path, files, pub).seasonal_catalog() == document
+    files[INDEX_URL] = _index(key, [e3])
+    with pytest.raises(RefDataError, match="Unsupported seasonal schema"):
+        updater.install(updater.check()["available"])
+    assert updater.seasonal_catalog() == document

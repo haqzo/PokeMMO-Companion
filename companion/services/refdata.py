@@ -35,6 +35,7 @@ from typing import Callable
 from .. import __version__
 from ..config import BUNDLED_DATA_DIR
 from ..storage import StorageClosedError
+from ..seasonal import validate_catalog
 
 log = logging.getLogger("companion.refdata")
 
@@ -42,7 +43,7 @@ log = logging.getLogger("companion.refdata")
 REFERENCE_INDEX_URL = ""
 REFERENCE_PUBLIC_KEY = ""          # base64 raw Ed25519 public key (32 bytes)
 SUPPORTED_SCHEMA = 1
-ALLOWED_FILES = {"manifest.json", "species.json.gz", "extras.json.gz", "items.json.gz"}
+ALLOWED_FILES = {"manifest.json", "species.json.gz", "extras.json.gz", "items.json.gz", "seasonal.json"}
 REQUIRED_FILES = {"manifest.json", "species.json.gz", "extras.json.gz"}
 MAX_INDEX_BYTES = 1_000_000
 MAX_PACKAGE_BYTES = 60_000_000
@@ -72,6 +73,17 @@ def dataset_key(manifest: dict) -> tuple:
     return (str(manifest.get("dump_date") or ""), int(manifest.get("dataset_revision") or 0))
 
 
+def read_seasonal(path: Path, checksums=None):
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(512_001)
+        if len(raw) > 512_000 or (checksums is not None and checksums.get(path.name) != hashlib.sha256(raw).hexdigest()):
+            raise ValueError("Seasonal reference has the wrong size or checksum")
+        return validate_catalog(json.loads(raw))
+    except (OSError, ValueError, TypeError, RecursionError, OverflowError) as exc:
+        raise RefDataError(f"seasonal.json: {exc}") from exc
+
+
 def read_dataset(d: Path) -> dict:
     """Load and validate a dataset directory. Raises RefDataError when anything is off."""
     try:
@@ -82,6 +94,8 @@ def read_dataset(d: Path) -> dict:
         raise RefDataError(f"unsupported dataset schema {manifest.get('schema')}")
     sums = manifest.get("package_files") or {}
     out = {"manifest": manifest}
+    if (d / "seasonal.json").is_file():
+        out["seasonal"] = read_seasonal(d / "seasonal.json", sums)
     for name, key in (("species.json.gz", "species"), ("extras.json.gz", "extras"), ("items.json.gz", "items")):
         p = d / name
         if not p.is_file():
@@ -332,6 +346,18 @@ class ReferenceUpdater:
             log.warning("Downloaded reference data ignored: %s", exc)
             return None
 
+    def seasonal_catalog(self):
+        """Read the optional validated companion file without decompressing the Dex dataset."""
+        with self._lock:
+            manifest = self.installed_manifest()
+            downloaded = self.active / "seasonal.json"
+            try:
+                if manifest and dataset_key(manifest) > dataset_key(self.bundled_manifest()) and downloaded.is_file():
+                    return read_seasonal(downloaded, manifest.get("package_files") or {})
+            except (RefDataError, TypeError, ValueError, AttributeError) as exc:
+                log.warning("Downloaded seasonal reference ignored: %s", exc)
+            return read_seasonal(BUNDLED_DATA_DIR / "reference" / "seasonal.json")
+
     # ---------------------------------------------------------------- automatic
     def start_auto(self) -> None:
         if self._thread or not self.configured:
@@ -368,7 +394,7 @@ def build_package(src_dir: Path, revision: int) -> tuple[bytes, dict]:
     """Maintainer tool helper: zip a dataset directory into a package and describe it for the index."""
     src_dir = Path(src_dir)
     manifest = json.loads((src_dir / "manifest.json").read_text(encoding="utf-8"))
-    files = {n: (src_dir / n).read_bytes() for n in ("species.json.gz", "extras.json.gz", "items.json.gz") if (src_dir / n).is_file()}
+    files = {n: (src_dir / n).read_bytes() for n in sorted(ALLOWED_FILES - {"manifest.json"}) if (src_dir / n).is_file()}
     manifest = {**manifest, "dataset_revision": revision, "bundled": False,
                 "package_files": {n: hashlib.sha256(b).hexdigest() for n, b in files.items()}}
     buf = io.BytesIO()

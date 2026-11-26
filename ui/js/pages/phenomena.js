@@ -54,14 +54,17 @@ async function referencePanel(panel, compact, open, saved) {
     const type = h('select', { class: 'input', 'aria-label': t('community.choose_phenomenon') },
       h('option', { value: '' }, t('phenomena.all_types')),
       TYPES.map(value => h('option', { value }, phenomenonType(value))));
+    const communityEntries = h('input', { type: 'checkbox' });
     const draw = () => {
       const query = searchText(search.value);
-      const matches = entries.filter(({ area, type: kind, spot, evidence }) =>
+      const matches = entries.filter(({ area, type: kind, spot, evidence, landmark, aliases }) =>
+        (evidence !== 'community' || communityEntries.checked || query || type.value) &&
         (!type.value || type.value === kind) &&
-        [...locationSearchTerms(area.name), spot && spotLabel(spot),
+        [...locationSearchTerms(area.name), area.name.includes('Wellspring Cave') && '地下水脉',
+          ...Object.values(landmark || {}), ...(aliases || []), spot && spotLabel(spot),
           evidence === 'callout' && (kind === 'grass' ? '三草' : '11水')]
           .some(value => value && searchText(value).includes(query)));
-      mount(results, matches.length ? matches.map(({ area, type: kind, spot, species, evidence }) => {
+      mount(results, matches.length ? matches.map(({ area, type: kind, spot, species, evidence, landmark, encounters, moves, visibility, conflict }) => {
         const here = location(area.name);
         const example = species && t(kind === 'dust' ? 'ui.phenomena_example_dust' : 'ui.phenomena_example_water',
           { pokemon: speciesLabel(species), location: here });
@@ -74,18 +77,26 @@ async function referencePanel(panel, compact, open, saved) {
           kind ? h('div', { class: 'small' }, phenomenonType(kind)) : null,
           h('div', { class: 'small muted' }, t('phenomena.reference.' + evidence)),
           example ? h('div', { class: 'small' }, example) : null,
+          landmark ? h('div', { class: 'small' }, landmark[lang()] || landmark.en) : null,
+          encounters?.length ? h('div', { class: 'small' }, t('phenomena.reported_species',
+            { names: encounters.map(id => speciesLabel(id)).join(', ') })) : null,
+          moves?.length ? h('div', { class: 'small' }, moves.map(move => t('phenomena.move.' + move)).join(' · ')) : null,
+          visibility ? h('div', { class: 'small muted' }, t('phenomena.visual_bug')) : null,
+          conflict ? h('div', { class: 'small muted' }, t('phenomena.category_conflict')) : null,
           spot ? h('div', { class: 'small' }, spotLabel(spot), ' · ',
             t(kind === 'grass' ? 'ui.phenomena_grass_requirements' : 'ui.phenomena_shadow_requirements')) : null,
           h('div', { class: 'row wrap' },
             area.id ? h('button', { class: 'btn ghost small', onclick: () => open(locationRoute(area.id)) },
               t('phenomena.open_location')) : null,
-            area.id && communityEnabled() ? h('button', { class: 'btn ghost small', onclick: reportHere },
+            area.id && kind && communityEnabled() ? h('button', { class: 'btn ghost small', onclick: reportHere },
               t('phenomena.report_here')) : null));
       }) : h('div', { class: 'small muted' }, t('phenomena.no_matches')));
     };
     search.addEventListener('input', draw);
     type.addEventListener('change', draw);
-    const controls = h('div', { class: 'row wrap' }, search, type);
+    communityEntries.addEventListener('change', draw);
+    const controls = h('div', { class: 'row wrap' }, search, type,
+      h('label', { class: 'row small' }, communityEntries, t('phenomena.show_community')));
     mount(panel, compact
       ? h('details', { open: true, class: 'stack tight' }, h('summary', null, t('ui.reference_encounter')), controls, results)
       : [h('h3', { class: 'section-title' }, t('ui.reference_encounter')), controls, results]);

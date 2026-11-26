@@ -96,6 +96,9 @@ class AppContext:
         self.news = NewsService(self.storage)
         self.notifier = Notifier()
         self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier)
+        from .services.seasonal import Seasons
+        self.seasons = Seasons(self.refdata, self.live)
+        self.live.community.seasons = self.seasons
         self.region_maps = RegionMaps(self.paths, self.storage, self.bus)
         try:
             self.region_maps.recover()

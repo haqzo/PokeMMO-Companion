@@ -19,6 +19,7 @@ class Community:
         self.db = live.db
         self.dex = live.dex
         self.sync = CommunitySync(self)
+        self.seasons = None
 
     def source_status(self):
         return self.sync.status()
@@ -40,7 +41,9 @@ class Community:
         sharing = False
         with self.db.tx() as conn:
             previous = self._target(conn, correction, own=True) if correction else None
-            fields = validate_observation(self.dex, data, received, previous)
+            seasonal = isinstance(data, dict) and data.get("kind") == "seasonal" and self.seasons is not None
+            fields = (self.seasons.report_fields(data, received, previous) if seasonal
+                      else validate_observation(self.dex, data, received, previous))
             if type(data.get("share", False)) is not bool:
                 raise CommunityError("invalid_report")
             mid, kind, region, place, species, title, body, observed, meta = fields
@@ -65,7 +68,7 @@ class Community:
                     "VALUES(?,?,?,?,'structured',?,?,?,?,?,?,?,?,'community-local-1')",
                     (rid, PROVIDER, mid, kind, region, place, species, title, body, observed, received, meta))
                 notify, changed = False, True
-                if kind != "phenomena":
+                if kind in ("alpha", "swarm"):
                     row = dict(conn.execute("SELECT * FROM reports WHERE id=?", (rid,)).fetchone())
                     same_key = previous and previous["event_key"] == self.live._event_key(row)
                     event_id, status = self.live._assign_event(conn, row, swarm_minutes,
@@ -75,7 +78,8 @@ class Community:
                         self.live._store_suppression(conn, rid, event_id, received, correction=bool(previous))
                 if previous:
                     self._remove(conn, previous, "correct", received, rid)
-                sharing = self.sync.prepare(conn, rid, fields, previous, explicit=data.get("share", False))
+                if not seasonal:
+                    sharing = self.sync.prepare(conn, rid, fields, previous, explicit=data.get("share", False))
         report = self.live.get(rid)
         if notify:
             report["delivery"] = self.live.deliver(report)
@@ -89,7 +93,7 @@ class Community:
     @staticmethod
     def _target(conn, rid, *, own=False):
         row = conn.execute("SELECT * FROM reports WHERE id=?", (rid,)).fetchone()
-        if not row or row["kind"] not in KINDS or row["is_test"] or row["kind"] == "phenomena" and not row["community"]:
+        if not row or row["kind"] not in (*KINDS, "seasonal") or row["is_test"] or row["kind"] == "phenomena" and not row["community"]:
             raise CommunityError("missing", 404)
         if own and row["provider"] != PROVIDER:
             raise CommunityError("own_only", 403)

@@ -170,3 +170,17 @@ The owner requested a feedback-driven incremental 0.8.x roadmap, beginning with 
 - Windows Server 2025 x64 at `59329acbea11aae978092827d8ada100986a5b97` passed the offline clean-install check and **186 selected tests**. Interactive native Windows testing remains pending. [Windows regression run](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45899199864)
 - Exact-spot sharing was verified between two updated profiles running the updated loopback relay. Pairing the new client with an older loopback relay was outside verification.
 - Next checkpoint is independent source review, followed by source review of the missing multilingual reference if it becomes available. Flexible seasonal foundations are a separate batch.
+
+## Batch 04 follow-up and Batch 05 seasonal foundations
+
+Started from verified `66f7c90940734f2bba335faf24ce95714136c5f1`. The owner's private trilingual source was reviewed in full at the supplied SHA-256. MaToRiuKo and yuisigamy are credited in the Phenomena workspace. The offline catalog adds a source-reported area index and selected factual landmarks, possible encounters, requirements and visibility notes. Duplicate Route 1 central grass, Route 3 lake water, Guidance Chamber and Twist Mountain corner descriptions were consolidated at their available level of detail. Route 3's Day Care and across-lake spots, Route 11's separate grass landmarks, and the two basement dust landmarks in Wellspring Cave remain distinct. Ambiguous Victory Road, Twist Mountain and Giant Chasm interiors remain at area level. The separate Route 1 hill entry has a category disagreement. Inconsistent Wellspring water encounters and the Route 3 grass entry without a unique landmark were left out of the specific claims. The document's duration, raw prose and imagery were excluded from the app. Source coverage and PokeMMO game behavior remain unverified.
+
+The existing exact-spot registry remains the match boundary. The client accepts a legacy relay's omission of the optional spot field in an otherwise identical acknowledgment. The originator retains exact detail locally, and legacy downstream reports have area-level precision.
+
+Season definitions have a separate schema version, event year and revision, official links, verification date, confirmed UTC schedule, optional redemption deadline and localized activities. Higher revisions replace previous definitions for the same event and year, and change notes can identify corrections, hotfixes and extensions. The signed reference updater validates the optional checksummed document before activation and preserves its old packages and offline fallback. The bundled catalog is empty. Synthetic definitions exercise the Home and Live views and the existing Reports popout.
+
+Seasonal reports use the existing Community storage and personal actions locally. A timing rule tied to firsthand witnessed onset can show an estimated expiry. Report time and estimated expiry appear separately. Untimed reports use an unknown end, and activity timers are explicit personal timers. No production event mechanics have been added.
+
+[Synthetic seasonal Live view](batch05/seasonal-live.png) · [Wellspring Cave reference](batch05/phenomena-wellspring.png)
+
+Next checkpoint is feature freeze and independent testing. The release inventory classification from Batch 04 and interactive native Windows testing remain open.

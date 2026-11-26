@@ -411,7 +411,7 @@ class LiveService:
 
     def list(self, kind: str | None = None, q: str | None = None, include_tests: bool = True,
              limit: int = 300, region: str | None = None) -> list[dict]:
-        sql = REPORTS_WITH_ANCHOR + " WHERE r.kind<>'phenomena'"
+        sql = REPORTS_WITH_ANCHOR + " WHERE r.kind NOT IN ('phenomena','seasonal')"
         args: list = []
         if region in REGION_NAMES:
             sql += " AND r.region=?"
@@ -435,7 +435,7 @@ class LiveService:
         return self.db.execute("UPDATE reports SET seen=1 WHERE seen=0")
 
     def clear(self, tests_only: bool = False) -> int:
-        n = self.db.execute("DELETE FROM reports WHERE kind<>'phenomena'" + (" AND is_test=1" if tests_only else ""))
+        n = self.db.execute("DELETE FROM reports WHERE kind NOT IN ('phenomena','seasonal')" + (" AND is_test=1" if tests_only else ""))
         self.bus.publish("live.report", {"cleared": n})
         return n
 

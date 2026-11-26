@@ -359,3 +359,31 @@ def test_documented_phenomenon_spot_crosses_shared_feed_and_correction(lab):
     boot(b)
     assert all(r["withdrawn_at"] for r in b.live.community.phenomena())
     assert relay.history()["links"] == {}
+
+
+def test_legacy_relay_echoes_area_only_without_duplicating_owner_report(lab, monkeypatch):
+    import relay.community as relay
+    from companion.services.community_sync import _matches_observation
+
+    wire = relay.wire_observation
+
+    def v1_area_only(fields):
+        data = wire(fields)
+        data.pop("spot_id", None)
+        return data
+
+    monkeypatch.setattr(relay, "wire_observation", v1_area_only)
+    a, b = lab.alice, lab.bob
+    boot(a, b)
+    data = obs(a, kind="phenomena", region="unova", location_id="unova:255", species_id=None,
+               phenomenon_type="grass", spot_id="village-bridge-southwest")
+    saved = a.live.community.submit(data)
+    assert saved["publication"]["state"] == "shared"
+    boot(a, b)
+    assert len(a.live.community.phenomena()) == 1
+    assert a.live.get(saved["id"])["community"]["spot_id"] == data["spot_id"]
+    assert "spot_id" not in b.live.community.phenomena()[0]["community"]
+    assert not _matches_observation({"spot_id": "wrong"}, {"spot_id": data["spot_id"]})
+    a.live.community.act(saved["id"], "withdraw")
+    boot(b)
+    assert b.live.community.phenomena()[0]["withdrawn_at"]

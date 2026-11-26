@@ -1,3 +1,4 @@
+import { bindSeasonal } from './seasonal.js';
 import { locale, number, t as translateUI, uiLabel } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
 // Live workspace (docs/design/10–13): Reports, Legendaries, Altering Cave.
@@ -160,6 +161,9 @@ export async function render(el, route) {
     unsub.push(on('settings', (d) => { if (Object.hasOwn(d || {}, 'live.community.enabled')) draw(); }));
     return draw();
   }
+  const seasonal = h('section', { class: 'stack tight', hidden: true });
+  body.before(seasonal);
+  unsub.push(bindSeasonal(seasonal, { open: go }));
   const src = await get('/api/live/source');
   if (epoch !== renderEpoch || !body.isConnected) return;
   return renderReports(body, route.parts[1], src, epoch);

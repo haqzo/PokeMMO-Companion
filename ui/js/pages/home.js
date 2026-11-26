@@ -1,3 +1,4 @@
+import { bindSeasonal } from './seasonal.js';
 import { locale, number, uiLabel } from '../i18n.js';
 import { plural, t as translateUI } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
@@ -488,6 +489,9 @@ async function renderHome(el) {
     h('div', { class: 'actions' }, communityLink(), h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), translateUI('ui.customize_home')))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, rerender));
   else if (data.update_available) page.append(installBanner(data, rerender, true));
+  const seasonal = h('section', { class: 'stack tight', hidden: true });
+  page.append(seasonal);
+  unsub.push(bindSeasonal(seasonal, { open: go }));
   const grid = h('div', { class: 'home-v3' });
   page.append(grid);
 

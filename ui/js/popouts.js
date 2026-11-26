@@ -1,3 +1,4 @@
+import { bindSeasonal } from './pages/seasonal.js';
 import { walkthroughReader } from './walkthrough-loader.js';
 import { gameTerm, walkthroughChapter } from './game-locale.js';
 import { lang, uiLabel } from './i18n.js';
@@ -365,6 +366,7 @@ async function pokedex(el) {
 }
 
 // ---------------------------------------------------------------- reports
+let releaseSeasonal;
 async function reports(el) {
   const { sourceBar, reportRow } = await import('./pages/live.js');
   const r = await get('/api/live/reports?tests=1');
@@ -379,7 +381,9 @@ async function reports(el) {
     const actions = communityActions(x, { compact: true });
     return actions ? h('div', { class: 'community-encounter' }, row, actions) : row;
   };
-  mount(el, h('div', { class: 'stack tight' }, sourceBar(r.source, { compact: true }),
+  const seasonal = h('section', { class: 'stack tight', hidden: true });
+  releaseSeasonal?.();
+  mount(el, h('div', { class: 'stack tight' }, sourceBar(r.source, { compact: true }), seasonal,
     communityBar('alpha', (saved) => {
       if (saved.kind === 'phenomena') toast(translateUI('community.saved_here'), {
         action: { label: translateUI('community.view_report'), fn: () => openInMain(communitySavedRoute(saved)) },
@@ -387,6 +391,7 @@ async function reports(el) {
     }),
     mode === 'compact' && r.reports.length > 1 ? h('div', { class: 'tiny muted' }, translateUI('ui.floating_report_count', { count: r.reports.length - 1 })) : null,
     list.length ? list.map(link) : h('div', { class: 'small muted' }, r.source.enabled ? translateUI('ui.live_popout_no_reports') : translateUI('ui.live_popout_off'))));
+  releaseSeasonal = bindSeasonal(seasonal, { compact: mode === 'compact', open: openInMain });
 }
 
 async function typechart(el) { const m = await import('./pages/tools.js'); clear(el); await m.renderTypeChart(el, null, { compact: mode !== 'expanded' }); }
