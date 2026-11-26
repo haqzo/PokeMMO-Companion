@@ -64,7 +64,7 @@ export function startPopout(el) {
     if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
   if (['reports', 'phenomena'].includes(POPOUT)) on('live.community', refresh);
   window.addEventListener('hashchange', () => renderBody());
-  window.addEventListener('resize', () => { rememberSize(); });
+  window.addEventListener('resize', () => { fitStory?.(); rememberSize(); });
 }
 
 let barEl, footEl, resizingByUs = false;
@@ -93,6 +93,7 @@ function draw() {
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
   document.title = (def.i18n ? t(def.i18n) : uiLabel(def.title)) + ' — PokeMMO Companion';
   barEl = h('div');
+  fitStory = null;
   footEl = h('div', { class: ['popout-foot', POPOUT === 'storyline' && 'story-pop-foot'] });
   mount(root, h('div', { class: `popout-root mode-${mode}` }, barEl, bodyEl, footEl));
   drawBar();
@@ -213,6 +214,7 @@ export async function loadPopoutExtras() {
 
 // ---------------------------------------------------------------- storyline
 let storyVersion = 0;
+let fitStory = null;
 async function storyline(el) {
   const version = ++storyVersion;
   el.classList.add('story-popout-body');
@@ -222,6 +224,9 @@ async function storyline(el) {
   if (!run) {
     popGx?.dispose();
     popGx = null;
+    fitStory = null;
+    el.classList.remove('story-pop-short');
+    el.after(footEl);
     Object.assign(guideContext, { run: null, region: null, step: null, source: null, refresh: null });
     mount(el, h('div', { class: 'story-pop-scroll story-scroll stack tight' }, h('div', { class: 'objective' }, translateUI('ui.guide_popout_no_run')),
       h('button', { class: 'btn', onclick: () => openInMain('#/guides/storyline') }, translateUI('ui.guide_popout_create_run'))));
@@ -240,6 +245,7 @@ async function storyline(el) {
   const counts = st.source === 'milestones' ? st.counts.mandatory : st.counts.unclassified;
   const scope = `${run.id}:${region}:${st.source}:${mode}`;
   const old = el.querySelector('.story-pop-scroll');
+  const oldShortLayout = el.classList.contains('story-pop-short');
   const sameView = old?.dataset.scope === scope;
   const oldScroll = sameView ? old.scrollTop : 0;
   const focusStep = sameView && old.contains(document.activeElement) ? document.activeElement.closest('[data-step]')?.dataset.step : null;
@@ -284,9 +290,10 @@ async function storyline(el) {
     control(translateUI('ui.guide_popout_next'), 'chev', () => act(() => moveStory(st, 'next')), i < 0 || i === steps.length - 1),
     control(translateUI('ui.guide_jump_current'), 'target', revealCurrent, !cur),
     h('span', { class: 'tiny muted grow' }, st.finished ? translateUI('ui.guide_finished') : cur
-      ? translateUI('ui.guide_popout_position', { step: i + 1, total: steps.length }) : null),
-    mode !== 'compact' && runs.runs.length > 1 ? pick(translateUI('ui.guide_popout_switch'), runs.runs.map(r => [r.id, r.display]), run.id,
-      id => saveSettings({ 'guides.active_run': id })) : null);
+      ? translateUI('ui.guide_popout_position', { step: i + 1, total: steps.length }) : null));
+  const character = mode !== 'compact' && runs.runs.length > 1
+    ? pick(translateUI('ui.guide_popout_switch'), runs.runs.map(r => [r.id, r.display]), run.id,
+      id => saveSettings({ 'guides.active_run': id })) : null;
 
   if (!cur) scroller.append(h('div', { class: 'muted' }, translateUI('ui.guide_popout_empty')));
   else {
@@ -301,12 +308,30 @@ async function storyline(el) {
       sourceInfo(st.sources.find(({ id }) => id === st.source)?.status)));
   }
   mount(el, header, nav, scroller);
+  let shortLayout;
+  fitStory = (reveal = true) => {
+    const short = innerHeight <= 200;
+    if (short === shortLayout) return;
+    shortLayout = short;
+    el.classList.toggle('story-pop-short', short);
+    if (short) {
+      scroller.prepend(header);
+      header.after(footEl);
+      if (character) header.append(character);
+    } else {
+      el.prepend(header);
+      el.after(footEl);
+      if (character) nav.append(character);
+    }
+    if (reveal) revealCurrent();
+  };
+  fitStory(false);
   scroller.scrollTop = oldScroll;
   if (focusStep) [...scroller.querySelectorAll('.pop-step')].find(row => row.dataset.step === focusStep)
     ?.querySelector('input.check').focus({ preventScroll: true });
   if (focusControl) (nav.querySelector(`[data-story-control="${focusControl}"]:enabled`)
     || nav.querySelector('[data-story-control="target"]:enabled'))?.focus({ preventScroll: true });
-  if (!sameView || old.dataset.objective !== cur?.id) revealCurrent();
+  if (!sameView || old.dataset.objective !== cur?.id || shortLayout !== oldShortLayout) revealCurrent();
 }
 
 // ---------------------------------------------------------------- pokédex

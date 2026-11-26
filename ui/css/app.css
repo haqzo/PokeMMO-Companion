@@ -453,6 +453,10 @@ body.shell-qt .popout-root { border-radius: 0 0 10px 10px; border-top: 0; }
 .story-pop-scroll .gx-pop { margin: 0 0 5px; padding-top: 0; border-top: 0; }
 .story-pop-scroll .step-chapter, .story-pop-source { margin: 6px 0; }
 .story-pop-timers { margin-inline-start: 30px; }
+.story-pop-short .story-pop-nav { flex-wrap: nowrap; }
+.story-pop-short .story-pop-nav > .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.story-pop-short .story-pop-head { margin-bottom: 4px; }
+.story-pop-short .story-pop-scroll > .popout-foot { border-top: 0; padding-inline: 0; }
 .popout-foot { border-top: var(--bw) solid var(--border-subtle); padding: 6px 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: .8rem; }
 .story-pop-foot input[type=range] { width: clamp(42px, 16vw, 90px); }
 .story-pop-foot .btn { min-height: 26px; padding: 3px 6px; }

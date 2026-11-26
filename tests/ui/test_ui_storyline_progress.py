@@ -218,3 +218,31 @@ def test_popout_keys_scroll_and_navigation_in_every_preset(story, page, mode, la
     pw.expect(scroller).to_have_attribute("data-objective", route104)
     capture(page, f"storyline-{mode}-{language}")
     assert not page.errors
+
+
+def test_native_minimum_viewport_keeps_navigation_and_objective(story, page):
+    run, steps = create_hoenn(story)
+    story.ctx.guides.create_run("Second character", region="sinnoh")
+    story.ctx.settings.update({"window.storyline.text_scale": 200})
+    route102 = [s["id"] for s in steps if s["chapter_index"] == 4]
+    page.set_viewport_size({"width": 248, "height": 136})
+    url = story.srv.url("", popout="storyline", mode="standard").replace("shell=browser", "shell=qt")
+    page.goto(url)
+    scroller = page.locator(".story-pop-scroll")
+    nav = page.locator(".story-pop-nav")
+    next_button = nav.get_by_role("button", name="Next step")
+    pw.expect(scroller).to_have_attribute("data-objective", route102[0])
+    pw.expect(scroller.locator(".popout-foot")).to_have_count(1)
+    assert scroller.bounding_box()["height"] > 60
+    assert next_button.bounding_box()["y"] < scroller.bounding_box()["y"]
+    next_button.focus()
+    page.keyboard.press("Enter")
+    pw.expect(scroller).to_have_attribute("data-objective", route102[1])
+    current = page.locator(".step.current")
+    assert 0 <= current.bounding_box()["y"] < 136
+    assert story.ctx.guides.state(run["id"], "hoenn")["done"] == sorted(
+        s["id"] for s in steps if s["chapter_index"] < 4)
+    page.set_viewport_size({"width": 455, "height": 410})
+    pw.expect(scroller.locator(".popout-foot")).to_have_count(0)
+    pw.expect(page.locator(".popout-root > .popout-foot")).to_be_visible()
+    assert not page.errors
