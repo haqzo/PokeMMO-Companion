@@ -91,8 +91,9 @@ def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(
     card.get_by_text("Lower left of Village Bridge", exact=False).wait_for()
     provider = app.ctx.live.phenomena
     instant = datetime.now(timezone.utc)
-    provider.poll(LOCAL, 0, fetch=read(snapshot(instant, fixture_at(0, instant - timedelta(seconds=30)))))
-    page.locator("[data-relay]").wait_for()
+    callout = {**fixture_at(0, instant - timedelta(seconds=30)), "message_id": "1574893888588615793"}
+    provider.poll(LOCAL, 0, fetch=read(snapshot(instant, callout)))
+    page.locator(f'[data-relay="{callout["message_id"]}"]').wait_for()
     assert search.input_value() == "Puente Villa"
     card.get_by_role("button", name="Report here").click()
     dialog = page.get_by_role("dialog")
@@ -100,5 +101,6 @@ def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(
     assert dialog.get_by_label("Choose a location", exact=True).input_value() == "unova:255"
     dialog.get_by_role("button", name="Cancel").click()
     card.get_by_role("button", name="Open in Location Explorer").click()
-    page.wait_for_url("**/#/tools/locations/unova%3A255")
+    page.locator(".loc-page").wait_for()
+    assert page.url.endswith("#/tools/locations/unova%3A255")
     assert not page.errors
