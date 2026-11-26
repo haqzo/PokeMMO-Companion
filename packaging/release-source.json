@@ -48,6 +48,7 @@
       "packaging/release-source.json"
     ],
     "Tests, development dependencies and maintenance tools": [
+      ".github/workflows/windows-regression.yml",
       "tests/",
       "tools/",
       "requirements-dev.txt",
