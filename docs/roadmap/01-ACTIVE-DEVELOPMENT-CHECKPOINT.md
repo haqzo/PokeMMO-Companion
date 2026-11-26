@@ -166,5 +166,7 @@ The owner requested a feedback-driven incremental 0.8.x roadmap, beginning with 
 
 [English expanded popout](batch04/phenomena-en-expanded.png) · [Spanish compact popout](batch04/phenomena-es-compact.png) · [Simplified Chinese Wellspring Cave reference](batch04/phenomena-reference-zh.png)
 
-- Focused Phenomena backend, loopback sharing and initial Chromium checks recorded 42 passes. The offline clean-install check passed with zero ROM or dump files. Final Linux suite results and the Windows regression run are tracked in the verification follow-up. Interactive native Windows testing remains pending.
+- Linux backend recorded **484 passed and 31 skipped**. The complete Linux Chromium suite at `59329acbea11aae978092827d8ada100986a5b97` recorded **222 passed and 20 skipped**. Skips depend on optional ROM or client-dump inputs. The offline clean-install check passed with zero ROM or dump files.
+- Windows Server 2025 x64 at `59329acbea11aae978092827d8ada100986a5b97` passed the offline clean-install check and **186 selected tests**. Interactive native Windows testing remains pending. [Windows regression run](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45899199864)
+- Exact-spot sharing was verified between two updated profiles running the updated loopback relay. Pairing the new client with an older loopback relay was outside verification.
 - Next checkpoint is independent source review, followed by source review of the missing multilingual reference if it becomes available. Flexible seasonal foundations are a separate batch.
