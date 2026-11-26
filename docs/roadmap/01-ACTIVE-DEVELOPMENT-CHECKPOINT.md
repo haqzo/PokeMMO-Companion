@@ -113,6 +113,17 @@ The public app includes Home, Pokédex and manual per-character registration, mo
 
 [Loopback setup and test commands](../../relay/README.md#shared-community-test-service)
 
+### Batch 03 reporting views
+
+[Connected Live with both sources](batch03/shared-live-en.png) · [Disconnected Live with retained history](batch03/disconnected-live-en.png) · [Spanish Reports popout](batch03/shared-popout-es.png) · [Simplified Chinese Reports popout](batch03/shared-popout-zh.png)
+
+### Batch 03 verification
+
+- Tested implementation commit `ac74614d1db6e6dbc9e94aa2ed90b9cf312511c1`. On Linux, the standalone service and two separate Companion processes successfully propagated a synthetic report, correction and withdrawal while preserving contributor ownership. The standalone service reopened its journal with the same service ID. An isolated v7-to-v8 migration preserved a local report and personal completion and produced a readable v7 backup.
+- Linux backend reported 474 passed, 31 ROM/dump-dependent skips and 235 UI tests deselected in 246.11 seconds. Selected Chromium suites reported 100 passed and two dump-dependent skips in 233.62 seconds. Offline clean-install and both media guards passed. All development tests used temporary profiles.
+- The Linux loopback measurement used nine synthetic observations, three each for Alpha, Swarm and Phenomena, with a 500 ms polling interval. Submission to storage in the receiving profile took 490.0–522.8 ms, with a median of 502.3 ms. This measures Companion distribution on one machine. It provides no measurement of Alphapedia publication latency.
+- The opt-in Windows Server 2025 x64 job passed offline clean install and 140 selected regressions in 110.60 seconds, including the new two-profile and Chromium cases. Interactive native Windows QA remains pending. [Windows develop regression](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45888756917)
+
 ## Next development phase
 
 - **0.8.x Alpha:** prioritize real user feedback, interactive Windows QA, Linux compatibility, reproducible bug fixes, data accuracy, translation and performance corrections, and regressions. Preserve existing tools and user data. No new large feature batch unless the owner explicitly approves it.
