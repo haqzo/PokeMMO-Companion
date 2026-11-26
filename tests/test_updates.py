@@ -215,10 +215,17 @@ def test_update_check_channels_and_no_release(ctx):
     assert [a["name"] for a in platform_assets(st["latest"]["assets"], "linux")]
 
 
-def test_verified_download_and_checksum_mismatch(ctx, tmp_path):
+@pytest.mark.parametrize(("system", "suffix"), [
+    ("linux", "x86_64.AppImage"),
+    ("win32", "windows-x86_64.zip"),
+])
+def test_verified_download_and_checksum_mismatch(ctx, tmp_path, monkeypatch, system, suffix):
+    from companion.services import appupdate
+
+    monkeypatch.setattr(appupdate.sys, "platform", system)
     key, pub = _keys()
-    payload = b"APPIMAGE"
-    name = "PokeMMO-Companion-v0.1.1-x86_64.AppImage"
+    payload = b"PACKAGE"
+    name = f"PokeMMO-Companion-v0.1.1-{suffix}"
     sums = f"{hashlib.sha256(payload).hexdigest()}  {name}\n".encode()
     base = "https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.1.1/"
     rel = json.dumps([{"tag_name": "v0.1.1", "prerelease": False, "draft": False, "assets": [
