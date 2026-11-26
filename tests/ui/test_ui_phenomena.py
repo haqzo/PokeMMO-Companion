@@ -1,4 +1,4 @@
-"""The offline reference replaces live Phenomenon UI without deleting saved reports."""
+"""Offline reference and conditionally available Phenomenon relay history."""
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -28,14 +28,23 @@ def test_phenomena_reference_on_home_live_and_popouts(app, page):
     page.get_by_role("heading", name="Unova Phenomena").wait_for()
     assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
     assert page.get_by_role("link", name="PokeMMO Companion Discord").get_attribute("href") == COMPANION_DISCORD
-    assert page.locator(".phenomenon-card").count() == 4
+    page.locator(".phenomenon-card").nth(8).wait_for()
     text = page.locator(".main").inner_text()
     for value in ("Emolga", "Village Bridge", "Alomomola", "Excadrill", "Surf", "#phenomenon-callouts"):
         assert value in text
     assert "Obsolete cached report" not in text
+    assert page.get_by_text("More relay history").is_visible()
     assert page.locator(".main img").count() == 0
     assert page.get_by_role("button", name="Enlarge location screenshot").count() == 0
-    assert not relay_requests
+    assert relay_requests and all(url.startswith(app.srv.base_url) for url in relay_requests)
+
+    search = page.get_by_role("searchbox", name="Search location")
+    search.fill("Cueva Manantial")
+    assert page.locator(".phenomenon-card").count() == 2
+    search.fill("三草")
+    assert page.locator(".phenomenon-card").count() == 1
+    assert "exact spot unverified" in page.locator(".phenomenon-card").inner_text()
+    search.fill("")
 
     with page.expect_popup() as pending:
         page.get_by_role("button", name="Pop out", exact=True).click()
@@ -71,3 +80,25 @@ def test_verified_provider_links_and_no_relay_setup(app, page):
     assert page.get_by_role("link", name="GitHub", exact=True).get_attribute("href") == "https://github.com/haqzo"
     assert page.get_by_role("link", name="Alphapedia", exact=True).get_attribute("href") == WEBSITE
     assert page.get_by_role("link", name="Alphapedia Discord").get_attribute("href") == ALPHAPEDIA_DISCORD
+
+
+def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(app, page):
+    app.ctx.settings.update({"live.community.enabled": True, "app.language": "en"})
+    go(page, app, "#/live/phenomena")
+    search = page.get_by_role("searchbox", name="Search location")
+    search.fill("Puente Villa")
+    card = page.locator(".phenomenon-card")
+    card.get_by_text("Lower left of Village Bridge", exact=False).wait_for()
+    provider = app.ctx.live.phenomena
+    instant = datetime.now(timezone.utc)
+    provider.poll(LOCAL, 0, fetch=read(snapshot(instant, fixture_at(0, instant - timedelta(seconds=30)))))
+    page.locator("[data-relay]").wait_for()
+    assert search.input_value() == "Puente Villa"
+    card.get_by_role("button", name="Report here").click()
+    dialog = page.get_by_role("dialog")
+    assert dialog.get_by_label("Exact spot").input_value() == "village-bridge-southwest"
+    assert dialog.get_by_label("Choose a location", exact=True).input_value() == "unova:255"
+    dialog.get_by_role("button", name="Cancel").click()
+    card.get_by_role("button", name="Open in Location Explorer").click()
+    page.wait_for_url("**/#/tools/locations/unova%3A255")
+    assert not page.errors

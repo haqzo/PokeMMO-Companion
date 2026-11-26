@@ -312,3 +312,54 @@ def test_stored_phenomenon_settings_do_not_start_relay_or_remove_history(ctx, cl
     assert all(ctx.settings.get(key) == value for key, value in saved.items())
     assert service.report(report["message_id"])["reported_at"] == phenomena.timestamp(report["reported_at"])
     assert client.call("GET", f'/api/live/phenomena/{report["message_id"]}/image')[0] == 404
+
+
+def test_batch04_reference_and_conservative_relay_matching(ctx, client):
+    from companion.phenomenon_reference import match_area, relay_location
+    from test_community import observation
+
+    service = ctx.live.phenomena
+    community = ctx.live.community
+    ctx.settings.update({"live.community.enabled": True})
+    code, reference = client.call("GET", "/api/live/phenomena/reference")
+    assert code == 200
+    assert {entry["area"]["id"] for entry in reference["entries"] if entry["evidence"] == "catalog"} == {
+        "unova:324", "unova:325"}
+    assert match_area(ctx.dex, "unova", "Cueva Manantial") == {"status": "ambiguous"}
+    assert match_area(ctx.dex, "unova", "泉源洞穴（B1F）")["id"] == "unova:325"
+    assert match_area(ctx.dex, "unova", "Ruta 3")["id"] == "unova:321"
+    assert match_area(ctx.dex, "unova", "三草")["id"] == "unova:321"
+    assert match_area(ctx.dex, "unova", "１１水")["id"] == "unova:365"
+
+    now = datetime.now(timezone.utc)
+    raw = fixture_at(0, now - timedelta(seconds=30))
+    assert relay_location(ctx.dex, {**raw, "notes": "Across the bridge"})["spot_id"] is None
+    service.poll(LOCAL, 0, fetch=read(snapshot(now, raw)))
+    payload = dict(kind="phenomena", region="unova", location_id="unova:255", species_id=None,
+                   phenomenon_type="grass", provenance="relayed")
+    exact = community.submit(observation(ctx, **payload, spot_id="village-bridge-southwest"))
+    area = community.submit(observation(ctx, **payload))
+    distant = community.submit(observation(ctx, **payload, spot_id="village-bridge-southwest",
+                                            observed_at=(now - timedelta(minutes=10)).isoformat()))
+    history = service.history()
+    assert history["links"] == {raw["message_id"]: [exact["id"]]}
+    assert {r["id"] for r in history["observations"]} == {area["id"], distant["id"], exact["id"]}
+    assert history["recent"][0]["received_at"] and history["recent"][0]["caught_up"]
+    assert exact["status"]["ends_at"] is None
+    assert community.act(exact["id"], "complete")["updated"]
+    assert community.act(area["id"], "not_found")["updated"]
+    assert service.history()["links"] == history["links"]
+
+    ambiguous = {**raw, "message_id": str(int(raw["message_id"]) + 1)}
+    service.poll(LOCAL, 0, fetch=read(snapshot(now, raw, ambiguous)))
+    assert service.history()["links"] == {}
+    service.poll(LOCAL, 0, fetch=read(snapshot(now, raw, {**ambiguous, "notes": "Other spot", "edited_at": now.isoformat()})))
+    assert service.history()["links"] == history["links"]
+    service.poll(LOCAL, 0, fetch=read(snapshot(now, raw, ambiguous)))
+    assert service.history()["links"] == history["links"]
+
+    corrected = community.submit(observation(ctx, **payload), correction=exact["id"])
+    assert service.history()["links"] == {}
+    assert community.act(corrected["id"], "withdraw")["updated"]
+    with pytest.raises(ValueError, match="choose_phenomenon_spot"):
+        community.submit(observation(ctx, **payload, spot_id="route-1-west-middle"))

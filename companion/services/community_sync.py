@@ -240,7 +240,7 @@ class CommunitySync:
             ref = self.community.dex.location_reference(location_id)
             if not ref or ref["region"] != observation.get("region"):
                 # Preserve a label from a different reference catalog without correlating it.
-                data = {**observation, "location_id": None, "location_text": "", "location_unknown": True}
+                data = {**observation, "location_id": None, "location_text": "", "location_unknown": True, "spot_id": None}
                 if observation.get("kind") != "phenomena":
                     data["location_text"] = "Uncatalogued location"
                 fields = list(validate_observation(self.community.dex, data, received))

@@ -156,6 +156,7 @@ export async function render(el, route) {
     const draw = () => renderPhenomena(body, { selectedId: route.parts[1] });
     unsub.push(on('live.report', (d) => { if (d?.kind === 'phenomena') draw(); }));
     unsub.push(on('live.community', draw));
+    unsub.push(on('live.phenomena', draw));
     unsub.push(on('settings', (d) => { if (Object.hasOwn(d || {}, 'live.community.enabled')) draw(); }));
     return draw();
   }

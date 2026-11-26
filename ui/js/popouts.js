@@ -63,6 +63,7 @@ export function startPopout(el) {
     if (ev && ev.origin === WINDOW_ID && ['notes', 'items', 'showcase', 'customguide', 'box'].includes(POPOUT)) return;  // our own edit: don't redraw under the cursor
     if (POPOUT === 'pokedex') { state.dexCache = null; } refresh(); });
   if (['reports', 'phenomena'].includes(POPOUT)) on('live.community', refresh);
+  if (POPOUT === 'phenomena') on('live.phenomena', refresh);
   window.addEventListener('hashchange', () => renderBody());
   window.addEventListener('resize', () => { fitStory?.(); rememberSize(); });
 }

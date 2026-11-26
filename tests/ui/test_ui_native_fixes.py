@@ -156,5 +156,5 @@ def test_live_region_filter_and_phenomena_reference(app, page):  # noqa: F811
     assert page.locator(".cur-card", has_text="Phenomen").count() == 0
     page.get_by_role("tab", name="Phenomena").click()
     page.get_by_role("heading", name="Unova Phenomena").wait_for()
-    assert page.locator(".phenomenon-card").count() == 4
+    page.locator(".phenomenon-card").nth(8).wait_for()
     assert not page.errors

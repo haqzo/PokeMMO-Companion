@@ -53,18 +53,23 @@ export function communityBar(kind, onSaved, initialSource) {
 
 let dialogOpen = false;
 
-async function reportDialog(kind, report) {
+export const reportPhenomenon = (defaults) => reportDialog('phenomena', null, defaults);
+export const locationSearchTerms = (name) => ['en', 'es', 'zh'].map(id => gameTerm('location', name, id));
+export const spotLabel = (id) => t('phenomena.spot.' + id);
+
+async function reportDialog(kind, report, defaults) {
   if (dialogOpen) return null;
   dialogOpen = true;
   try {
     const observed = new Date().toISOString();
-    const options = await get(ROOT + '/options');
+    const [options, reference] = await Promise.all([get(ROOT + '/options'),
+      get('/api/live/phenomena/reference')]);
     const meta = report?.community;
     const shareCorrection = Boolean(report?.is_own && report.publication?.state === 'shared');
     const share = h('input', { type: 'checkbox', class: 'check' });
     const category = select(t('ui.live_report_type'), options.kinds.map(k => [k, t(KINDS[k])]), kind);
     category.disabled = Boolean(report);
-    const region = select(t('ui.region'), REGIONS.map(r => [r.toLowerCase(), gameTerm('region', r)]), report?.region);
+    const region = select(t('ui.region'), REGIONS.map(r => [r.toLowerCase(), gameTerm('region', r)]), report?.region || defaults?.region);
     const placeModes = [['catalog', t('community.location_catalog')], ['unlisted', t('community.location_unlisted')]];
     const mode = select(t('community.location_mode'), [...placeModes, ['unknown', t('community.location_unknown')]],
       meta?.location_id || !report ? 'catalog' : report.location ? 'unlisted' : 'unknown');
@@ -79,8 +84,17 @@ async function reportDialog(kind, report) {
     const unlistedField = field(t('community.location_unlisted'), unlisted);
     let speciesId = report?.species_id ?? null;
     const species = speciesPicker({ label: t('ui.species'), value: speciesId, onChange: (id) => { speciesId = id; } });
-    const type = select(t('community.choose_phenomenon'), options.phenomenon_types.map(p => [p, phenomenonType(p)]), meta?.phenomenon_type);
+    const type = select(t('community.choose_phenomenon'), options.phenomenon_types.map(p => [p, phenomenonType(p)]), meta?.phenomenon_type || defaults?.type);
     const typeField = field(t('community.choose_phenomenon'), type);
+    const spot = select(t('phenomena.exact_spot'), [], '');
+    const spotField = field(t('phenomena.exact_spot'), spot);
+    const drawSpots = (selected = spot.value) => {
+      const matches = reference.entries.filter(item => item.spot && item.area.id === place.value && item.type === type.value);
+      spotField.hidden = !matches.length || mode.value !== 'catalog' || category.value !== 'phenomena';
+      mount(spot, h('option', { value: '' }, t('phenomena.area_only')), matches.map(item =>
+        h('option', { value: item.spot }, spotLabel(item.spot))));
+      if (!spotField.hidden && matches.some(item => item.spot === selected)) spot.value = selected;
+    };
     const onset = select(t('community.choose_onset'),
       [['just_appeared', t('community.just_appeared')], ['already_active', t('community.already_active')]], meta?.onset);
     const provenance = select(t('community.choose_provenance'),
@@ -93,11 +107,12 @@ async function reportDialog(kind, report) {
       const counts = new Map();
       names.forEach(p => counts.set(p.localized, (counts.get(p.localized) || 0) + 1));
       const q = searchText(search.value);
-      const matches = names.filter(p => !q || searchText(p.localized).includes(q) || searchText(p.name).includes(q));
+      const matches = names.filter(p => !q || locationSearchTerms(p.name).some(name => searchText(name).includes(q)));
       matches.sort((a, b) => compareLabels(a.localized, b.localized));
       mount(place, h('option', { value: '' }, t('community.choose_location')), matches.map(p =>
         h('option', { value: p.id }, counts.get(p.localized) > 1 ? p.localized + ' · ' + p.id.split(':').slice(1).join(':') : p.localized)));
       if (matches.some(p => p.id === selected)) place.value = selected;
+      drawSpots();
     };
     const draw = () => {
       const pheno = category.value === 'phenomena';
@@ -108,13 +123,17 @@ async function reportDialog(kind, report) {
       unlistedField.hidden = mode.value !== 'unlisted';
       species.hidden = pheno;
       typeField.hidden = !pheno;
+      drawSpots();
     };
     category.addEventListener('change', draw);
     mode.addEventListener('change', draw);
     region.addEventListener('change', () => { search.value = ''; drawPlaces(); });
     search.addEventListener('input', () => drawPlaces(place.value));
-    drawPlaces(meta?.location_id);
+    place.addEventListener('change', () => drawSpots(''));
+    type.addEventListener('change', () => drawSpots(''));
+    drawPlaces(meta?.location_id || defaults?.locationId);
     draw();
+    drawSpots(meta?.spot_id || defaults?.spot);
     const observationId = crypto.randomUUID();
     let saving = false;
     return await modal({
@@ -124,7 +143,7 @@ async function reportDialog(kind, report) {
         h('div', { class: 'community-fields' }, field(t('ui.live_report_type'), category), field(t('ui.region'), region)),
         field(t('community.location_mode'), mode), catalog, unlistedField,
         h('div', { class: 'community-fields' }, species, typeField, field(t('community.choose_onset'), onset),
-          field(t('community.choose_provenance'), provenance)),
+          field(t('community.choose_provenance'), provenance)), spotField,
         field(t('community.details'), details),
         !report && options.source.can_share
           ? h('label', { class: 'row small' }, share, t('community.share_report')) : null, error),
@@ -141,6 +160,7 @@ async function reportDialog(kind, report) {
             location_unknown: mode.value === 'unknown',
             species_id: category.value !== 'phenomena' ? speciesId : null,
             phenomenon_type: category.value === 'phenomena' ? type.value || null : null,
+            spot_id: spotField.hidden ? null : spot.value || null,
             onset: onset.value, provenance: provenance.value, details: details.value, share: shareCorrection || share.checked,
           });
         } catch (e) {

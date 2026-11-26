@@ -580,9 +580,10 @@ function roamersCard(leg) {
 function liveCard(cur) {
   const box = h('div', { class: 'cur-grid home-cur' });
   const head = h('div', { class: 'row small home-feed' });
+  const phenomena = homePhenomena();
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, translateUI('ui.alpha_swarm')), h('span', { class: 'tiny muted' }, translateUI('ui.home_report_recent')),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, homePhenomena());
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, phenomena.section);
   let stop = null, expiry = null, sprites = new Map();
   let disposed = false, refreshing = false, queued = false;
   const draw = (c) => {
@@ -632,7 +633,7 @@ function liveCard(cur) {
     }
   };
   draw(cur);
-  const every = setInterval(refresh, 60000);
+  const every = setInterval(() => { refresh(); phenomena.refresh(); }, 60000);
   document.addEventListener('visibilitychange', refresh);
   unsub.push(() => {
     disposed = true; queued = false;
@@ -641,7 +642,7 @@ function liveCard(cur) {
     if (stop) stop();
     sprites.clear();
   });
-  unsub.push(on('live.report', refresh));
+  unsub.push(on('live.report', refresh), on('live.phenomena', phenomena.refresh));
   return card;
 }
 

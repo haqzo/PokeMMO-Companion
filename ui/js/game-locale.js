@@ -52,8 +52,7 @@ export function compareLabels(a, b) {
   return compare.get(id).compare(a, b);
 }
 
-export function gameTerm(domain, value) {
-  const id = lang();
+export function gameTerm(domain, value, id = lang()) {
   if (!value || id === 'en') return value;
   const key = keyFor(value);
   const name = glossary[id]?.[domain]?.[key] ?? GAME_TERMS[id]?.[domain]?.[key];
@@ -64,7 +63,7 @@ export function gameTerm(domain, value) {
     const named = CHAPTER_BY_KEY.get(key)?.[id === 'es' ? 0 : 1];
     if (named) return named;
     const section = /^(.*?) \(([^)]+)\)$/.exec(value);
-    if (section) return `${gameTerm('location', section[1])} (${gameTerm('location_section', section[2])})`;
+    if (section) return `${gameTerm('location', section[1], id)} (${gameTerm('location_section', section[2], id)})`;
   }
   if (domain === 'location_section') return locationSection(value, id);
   return value;

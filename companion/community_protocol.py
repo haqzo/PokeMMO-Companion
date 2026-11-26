@@ -4,6 +4,7 @@ import json
 import re
 from datetime import datetime
 
+from .phenomenon_reference import SPOTS, match_area
 from .phenomenon_protocol import REGIONS, plain, timestamp
 
 VERSION = 1
@@ -59,7 +60,8 @@ def validate_observation(dex, data, received, previous=None):
         if not ref or ref["region"] != region:
             raise CommunityError("choose_location")
         place = ref["name"]
-    elif place and dex.match_location(region, place)["status"] != "unverified":
+    elif place and (match_area(dex, region, place) if kind == "phenomena" else
+                    dex.match_location(region, place))["status"] != "unverified":
         raise CommunityError("explicit_location")
     elif not place and (kind != "phenomena" or data.get("location_unknown") is not True):
         raise CommunityError("choose_location")
@@ -82,6 +84,12 @@ def validate_observation(dex, data, received, previous=None):
     body = plain(details, 240) or ""
     meta = {"location_id": location_id or None, "onset": data["onset"], "provenance": data["provenance"],
             "phenomenon_type": phenomenon, "corrects": previous["id"] if previous else None}
+    spot = data.get("spot_id")
+    if spot is not None:
+        if (kind != "phenomena" or not isinstance(spot, str) or spot not in SPOTS
+                or SPOTS[spot][:2] != (location_id, phenomenon)):
+            raise CommunityError("choose_phenomenon_spot")
+        meta["spot_id"] = spot
     return (mid, kind, region, place, species, title, body, observed, json.dumps(meta))
 
 
@@ -92,4 +100,5 @@ def wire_observation(fields):
             "observed_at": observed, "location_id": meta["location_id"], "location_label": place,
             "location_text": "" if meta["location_id"] else place or "",
             "location_unknown": not place, "details": body, "phenomenon_type": meta["phenomenon_type"],
-            "onset": meta["onset"], "provenance": meta["provenance"]}
+            "onset": meta["onset"], "provenance": meta["provenance"],
+            **({"spot_id": meta["spot_id"]} if "spot_id" in meta else {})}

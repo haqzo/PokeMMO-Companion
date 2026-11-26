@@ -489,6 +489,7 @@ def build_router(ctx: AppContext) -> Router:
                 "source": ctx.live.source_status(), "notifier": ctx.notifier.describe()}
     r.add("GET", "/api/live/reports", live_reports)
     r.add("GET", "/api/live/current", lambda req: ctx.live.current())
+    r.add("GET", "/api/live/phenomena/reference", lambda req: ctx.live.phenomena.reference())
     r.add("GET", "/api/live/phenomena/source", lambda req: ctx.live.phenomena.source_status())
     r.add("GET", "/api/live/phenomena", lambda req: ctx.live.phenomena.history(req.q("id"), home=req.q("view") == "home"))
 

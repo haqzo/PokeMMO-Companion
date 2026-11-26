@@ -329,3 +329,33 @@ def test_background_delivery_latency_and_phenomena(lab):
     assert not b.live.phenomena.history()["history"]
     print(f"Loopback submit-to-receiver storage, n={len(samples)}: min={min(samples):.1f} ms, "
           f"median={statistics.median(samples):.1f} ms, max={max(samples):.1f} ms.")
+
+
+def test_documented_phenomenon_spot_crosses_shared_feed_and_correction(lab):
+    from test_phenomena import LOCAL, fixture_at, read, snapshot
+
+    a, b = lab.alice, lab.bob
+    boot(a, b)
+    now = datetime.now(timezone.utc)
+    relay = b.live.phenomena
+    callout = fixture_at(0, now - timedelta(seconds=15))
+    relay.poll(LOCAL, 0, fetch=read(snapshot(now, callout)))
+    payload = {"kind": "phenomena", "region": "unova", "species_id": None,
+               "location_id": "unova:255", "phenomenon_type": "grass", "provenance": "relayed"}
+    original = a.live.community.submit(obs(a, **payload, spot_id="village-bridge-southwest"))
+    boot(b)
+    remote, = b.live.community.phenomena()
+    assert not remote["is_replay"]
+    assert remote["community"]["spot_id"] == "village-bridge-southwest"
+    assert relay.history()["links"] == {callout["message_id"]: [remote["id"]]}
+    assert b.live.community.act(remote["id"], "complete")["updated"]
+    assert not a.live.get(original["id"])["local_feedback"]
+    assert feed(a)["head"] == 1
+
+    corrected = a.live.community.submit(obs(a, **payload), correction=original["id"])
+    boot(b)
+    assert relay.history()["links"] == {}
+    a.live.community.act(corrected["id"], "withdraw")
+    boot(b)
+    assert all(r["withdrawn_at"] for r in b.live.community.phenomena())
+    assert relay.history()["links"] == {}
