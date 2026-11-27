@@ -25,6 +25,17 @@ $stem = "PokeMMO-Companion-$version-windows-x86_64"
 Invoke-Checked $python @("-c", "import shutil, sys; shutil.make_archive(sys.argv[1], 'zip', 'dist', 'pokemmo-companion')",
     "dist\$stem")
 $zip = Get-Item "dist\$stem.zip"
-$hash = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLower()
-Set-Content -Path dist\SHA256SUMS -Encoding ascii -Value "$hash  $($zip.Name)"
+# Use the pinned interpreter for the checksum as well as the ZIP. The isolated build shell
+# need not have the optional Windows PowerShell utility cmdlets available.
+$checksumScript = @'
+import hashlib
+import sys
+from pathlib import Path
+
+package = Path(sys.argv[1])
+with package.open("rb") as stream:
+    digest = hashlib.file_digest(stream, "sha256").hexdigest()
+package.with_name("SHA256SUMS").write_bytes(f"{digest}  {package.name}\n".encode("ascii"))
+'@
+Invoke-Checked $python @("-c", $checksumScript, $zip.FullName)
 Write-Host "$($zip.Length) bytes  $($zip.FullName)"

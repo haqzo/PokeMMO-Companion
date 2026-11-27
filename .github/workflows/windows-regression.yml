@@ -89,7 +89,7 @@ jobs:
           git diff --exit-code "$GITHUB_SHA" "$snapshot" -- companion ui
           printf 'Candidate snapshot %s from develop %s and main parent %s\n' "$snapshot" "$GITHUB_SHA" "$parent"
       - name: Build and verify the extracted Windows x64 candidate
-        shell: pwsh
+        shell: bash
         working-directory: ${{ runner.temp }}/companion-candidate
         run: python packaging/package_release.py build --candidate
       - name: Test offline startup, HTTPS and published-package upgrade
