@@ -402,11 +402,20 @@ def test_live_sprite_preferences_and_legendary_rotation(app, page):
     animated.wait_for()
     prefs({"sprites.motion":"off"})
     animated.wait_for(state="detached")
-    prefs({"sprites.motion":"on","performance.profile":"balanced","sprites.animation":{}})
+    prefs({"sprites.motion": "system", "performance.profile": "quality", "sprites.animation": {}})
+    animated.wait_for()
+    page.emulate_media(reduced_motion="reduce")
+    animated.wait_for(state="detached")
+    page.emulate_media(reduced_motion="no-preference")
+    animated.wait_for()
+    prefs({"performance.profile": "custom", "performance.default_motion": "conservative"})
+    animated.wait_for(state="detached")
+    prefs({"performance.profile": "balanced", "sprites.size": {"roamers": 125}})
     go(page, app, "#/live/legendaries")
     cards = page.locator(".legend-card")
     cards.nth(1).locator("img[src*='.gif']").wait_for()
     assert cards.locator("img[src*='.gif']").count() == 2
+    assert cards.first.locator(".roamer-art").bounding_box()["width"] == 145
     cards.first.get_by_role("checkbox").check()
     species = app.ctx.live.legendaries(run["id"])["current"]["kanto"]["id"]
     _until(page, "() => document.querySelector('.toast')?.textContent.includes('QA Tracker')")
