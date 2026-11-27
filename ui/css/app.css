@@ -972,8 +972,6 @@ a.mv-badge:hover { background: color-mix(in srgb, var(--mv) 34%, transparent); }
 .cur-text { min-width: 0; flex: 1; display: grid; gap: 1px; }
 .cur-name { font-weight: 700; font-size: 1.02rem; color: var(--text-primary); }
 .cur-where { color: var(--text-secondary); }
-.cur-timer { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.cur-timer:empty { display: none; }
 .cur-state { font-size: .7rem; font-weight: 600; padding: 0 6px; border-radius: var(--radius-pill); border: var(--bw) solid var(--border-subtle); color: var(--text-muted); white-space: nowrap; }
 .cur-state.ok { color: var(--st-verified); border-color: color-mix(in srgb, var(--st-verified) 45%, transparent); }
 .cur-state.warn { color: var(--st-dump); border-color: color-mix(in srgb, var(--st-dump) 45%, transparent); }

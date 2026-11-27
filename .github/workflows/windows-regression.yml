@@ -10,9 +10,9 @@ permissions:
 
 jobs:
   tests:
-    if: github.ref == 'refs/heads/develop' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[windows-regression]'))
+    if: github.ref == 'refs/heads/develop' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[windows-regression]') || contains(github.event.head_commit.message, '[windows-candidate]'))
     runs-on: windows-2025
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       COMPANION_NO_SPAWN: '1'
       PYTHONUTF8: '1'
@@ -51,3 +51,56 @@ jobs:
           tests/ui/test_ui_shared_community.py
           tests/ui/test_ui_storyline_progress.py
           tests/ui/test_ui_guides_batch.py
+          tests/ui/test_ui_dashboard.py
+          tests/ui/test_ui_flows.py
+          tests/ui/test_ui_native_fixes.py
+          tests/ui/test_ui_visual.py
+
+  candidate:
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push' && contains(github.event.head_commit.message, '[windows-candidate]')
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: '1'
+      COMPANION_NO_SPAWN: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13.14'
+          architecture: x64
+      - name: Prepare exact untagged candidate snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git config core.autocrlf false
+          export GIT_AUTHOR_NAME='PokeMMO Companion QA' GIT_COMMITTER_NAME='PokeMMO Companion QA'
+          export GIT_AUTHOR_EMAIL='companion-qa@users.noreply.github.com' GIT_COMMITTER_EMAIL='companion-qa@users.noreply.github.com'
+          export GIT_AUTHOR_DATE="@$(git show -s --format=%ct HEAD) +0000"
+          export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+          parent=$(git rev-parse refs/remotes/origin/main)
+          snapshot=$(python tools/release_snapshot.py --source "$GITHUB_SHA" --base "$parent" \
+            --message 'Private Companion release-readiness candidate' --inventory "$RUNNER_TEMP/candidate-inventory.json")
+          git worktree add --detach "$RUNNER_TEMP/companion-candidate" "$snapshot"
+          git diff --exit-code "$GITHUB_SHA" "$snapshot" -- companion ui
+          printf 'Candidate snapshot %s from develop %s and main parent %s\n' "$snapshot" "$GITHUB_SHA" "$parent"
+      - name: Build and verify the extracted Windows x64 candidate
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/companion-candidate
+        run: python packaging/package_release.py build --candidate
+      - name: Test offline startup, HTTPS and published-package upgrade
+        shell: pwsh
+        run: |
+          $candidate = @(Get-ChildItem "$env:RUNNER_TEMP/companion-candidate/dist/*-windows-x86_64.zip")
+          if ($candidate.Count -ne 1) { throw 'Expected one Windows candidate ZIP' }
+          python tools/windows_candidate_check.py $candidate[0].FullName
+      - name: Discard runner-local package
+        if: always()
+        shell: pwsh
+        run: |
+          $candidateDist = Join-Path $env:RUNNER_TEMP 'companion-candidate/dist'
+          if (Test-Path $candidateDist) { Remove-Item -LiteralPath $candidateDist -Recurse -Force }

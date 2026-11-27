@@ -346,7 +346,9 @@ def test_home_and_live_animate_likely_active_reports(app, browser, library):  # 
     app.ctx.storage.execute("DELETE FROM reports")
 
 
-def test_live_countdown_expires_locally_and_preserves_duplicate_timing(app, page):
+@pytest.mark.parametrize(("route", "grid"), [("#/home", ".home-cur"), ("#/live/reports", ".live-cur")])
+def test_current_countdown_expires_locally_and_preserves_duplicate_timing(app, page, route, grid):
+    app.ctx.storage.execute("DELETE FROM reports")
     app.ctx.settings.update({"live.swarm_estimate_minutes": 20, "sprites.motion": "on"})
     now = int(time.time())
     def swarm(identifier, title, location, timestamp=None):
@@ -355,13 +357,13 @@ def test_live_countdown_expires_locally_and_preserves_duplicate_timing(app, page
             raw["time"] = timestamp
         return app.ctx.live.ingest(raw)
 
-    swarm("swarm", "Feebas", "Hoenn, Route 119", now - 1190)
+    swarm("swarm", "Feebas", "Hoenn, Route 119", now - 1180)
     swarm("untimed", "Houndoom", "Johto, Burned Tower")
     swarm("elapsed", "Wailmer", "Hoenn, Route 105", now - 1210)
     app.ctx.live.create_test("swarm")
     page.clock.install()
-    go(page, app, "#/live/reports")
-    active = page.locator(".live-cur .cur-card", has_text="Feebas")
+    go(page, app, route)
+    active = page.locator(f"{grid} .cur-card", has_text="Feebas")
     active.locator("img.rep-ani").wait_for()
     pill = active.locator(".cur-estimate")
     initial_end = pill.get_attribute("data-ends")
@@ -371,17 +373,56 @@ def test_live_countdown_expires_locally_and_preserves_duplicate_timing(app, page
     active.get_by_text("reported 2×", exact=False).wait_for()
     assert pill.get_attribute("data-ends") == initial_end
     assert active.locator("img.rep-ani[data-animation-probe=kept]").count() == 1
-    assert page.locator(".live-cur .cur-card", has_text="Houndoom").locator(".cur-estimate").inner_text() == "Time uncertain"
-    assert page.locator(".live-cur .cur-card", has_text="Wailmer").locator(".cur-estimate").inner_text() == "Estimate ended"
-    assert page.locator(".live-cur .cur-card:not(:has(.cur-estimate[data-tone=ok])) img.rep-ani").count() == 0
-    assert page.locator(".live-cur .cur-card", has_text="TEST").count() == 0
+    assert page.locator(f"{grid} .cur-card", has_text="Houndoom").locator(".cur-estimate").inner_text() == "Time uncertain"
+    assert page.locator(f"{grid} .cur-card", has_text="Wailmer").locator(".cur-estimate").inner_text() == "Estimate ended"
+    assert page.locator(f"{grid} .cur-card:not(:has(.cur-estimate[data-tone=ok])) img.rep-ani").count() == 0
+    assert page.locator(f"{grid} .cur-card", has_text="TEST").count() == 0
     refreshes = []
     page.on("request", lambda request: refreshes.append(request.url) if request.url.endswith("/api/live/current") else None)
-    page.clock.fast_forward(12_000)
+    page.clock.fast_forward(22_000)
     assert not refreshes
     assert pill.inner_text() == "Estimate ended" and pill.get_attribute("data-tone") == "ended"
     assert active.locator("img.rep-ani").count() == 0
     assert active.get_attribute("data-state") == "recent"  # timer leaves server evidence classification intact
+    page.evaluate("location.hash = '#/tools'")
+    page.locator(".tools-layout").wait_for()
+    page.clock.fast_forward(61_000)
+    assert not refreshes and page.locator(grid).count() == 0
+    app.ctx.storage.execute("DELETE FROM reports")
+
+
+@pytest.mark.parametrize(("language", "theme", "uncertain", "ended"), [
+    ("en", None, "Time uncertain", "Estimate ended"),
+    ("es", {"base": "arctic"}, "Tiempo incierto", "Estimación finalizada"),
+    ("zh", {"base": "emerald"}, "时间不确定", "预计已结束"),
+])
+def test_home_and_live_show_consistent_localized_estimates(app, page, language, theme, uncertain, ended):
+    app.ctx.storage.execute("DELETE FROM reports")
+    app.ctx.settings.update({"app.language": language, "appearance.theme": theme, "sprites.motion": "off"})
+    now = int(time.time())
+    for key, species, place, stamp in (
+        ("fresh", "Feebas", "Hoenn, Route 119", now - 180),
+        ("untimed", "Houndoom", "Johto, Burned Tower", None),
+        ("old", "Wailmer", "Hoenn, Route 105", now - 1210),
+    ):
+        app.ctx.live.ingest({"id": key, "event": "message", "time": stamp, "topic": "swarmpings", "title": species, "message": place})
+    snapshots = []
+    try:
+        for route, grid in (("#/home", ".home-cur"), ("#/live/reports", ".live-cur")):
+            go(page, app, route)
+            pills = page.locator(f"{grid} .cur-estimate")
+            pills.nth(2).wait_for()
+            values = pills.evaluate_all("""els => Object.fromEntries(els.map(e => [e.dataset.tone,
+                [e.textContent, getComputedStyle(e).color, getComputedStyle(e).fontSize]]))""")
+            assert values["warn"][0] == uncertain and values["ended"][0] == ended
+            assert values["ok"][0]
+            assert page.locator(f"{grid} img.rep-ani").count() == 0
+            # The numeric remaining minute can tick when navigating between Home and Live.
+            snapshots.append({tone: values[tone][1:] for tone in values})
+        assert snapshots[0] == snapshots[1]
+    finally:
+        app.ctx.storage.execute("DELETE FROM reports")
+        app.ctx.settings.update({"app.language": "en", "appearance.theme": None, "sprites.motion": "system"})
 
 
 def test_live_sprite_preferences_and_legendary_rotation(app, page):

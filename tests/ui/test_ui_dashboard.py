@@ -293,7 +293,7 @@ def test_live_current_section_then_history(app, page):
     # switching pages and coming back re-renders the timers
     go(page, app, "#/home")
     page.wait_for_selector(".home-live .cur-card")
-    assert "left (estimate)" in page.locator(".home-live .cur-card", has_text="Houndoom").inner_text()
+    assert "left · est." in page.locator(".home-live .cur-card", has_text="Houndoom").inner_text()
     go(page, app, "#/live/reports")
     page.wait_for_selector(".live-cur .cur-estimate[data-tone=ok]")
     page.locator(".cur-card", has_text="Magmortar").click()

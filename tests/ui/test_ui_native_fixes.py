@@ -56,7 +56,7 @@ def test_alpha_swarm_cards_use_the_panel_and_never_clip_sprites(app, browser, n)
     info = cards.evaluate_all("""els => els.map(c => { const b = c.querySelector('.rep-sprite').getBoundingClientRect();
         const i = c.querySelector('.rep-sprite img').getBoundingClientRect();
         return { box: b.width, inside: i.left >= b.left - .5 && i.right <= b.right + .5 && i.top >= b.top - .5 && i.bottom <= b.bottom + .5,
-                 card: c.getBoundingClientRect().width, timer: c.querySelector('.cur-timer').textContent }; })""")
+                 card: c.getBoundingClientRect().width, timer: c.querySelector('.cur-estimate').textContent }; })""")
     panel = pg.locator(".home-live .home-cur").bounding_box()["width"]
     for c in info:
         assert c["inside"], info                      # the visible sprite fits its box (was clipped at 72 px in a 56 px box)
@@ -77,12 +77,13 @@ def test_countdowns_never_show_zero_minutes_or_contradict_the_status(app, page):
     go(page, app, "#/home")
     page.wait_for_selector(".home-live .cur-card")
     page.wait_for_timeout(500)
-    feebas = page.locator(".home-live .cur-card", has_text="Feebas").inner_text()
-    assert not re.search(r"(?<![0-9])0 min", feebas) and "under 1 min" in feebas and "Likely active" in feebas
-    wailmer = page.locator(".home-live .cur-card", has_text="Wailmer")
-    if wailmer.count():
-        txt = wailmer.inner_text()
-        assert not ("Likely active" in txt and "ended" in txt)       # never both
+    feebas = page.locator(".home-live .cur-card", has_text="Feebas").locator(".cur-estimate")
+    assert feebas.get_attribute("data-tone") == "ok"
+    text = feebas.inner_text()
+    assert not re.search(r"(?<![0-9])0 min", text) and "under 1 min" in text
+    wailmer = page.locator(".home-live .cur-card", has_text="Wailmer").locator(".cur-estimate")
+    assert wailmer.get_attribute("data-tone") == "ended"
+    assert wailmer.inner_text() == "Estimate ended"
     assert not page.errors
 
 

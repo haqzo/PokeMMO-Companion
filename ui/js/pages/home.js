@@ -7,8 +7,8 @@ import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDat
 import { go, qaInfo, openPopout } from '../shell.js';
 import { LANGS, lang } from '../i18n.js';
 import { walkthroughReader } from '../walkthrough-loader.js';
-import { animatedIn, scaled } from '../sprites.js';
-import { currentCard, startTimers, likelyActive, roamerArt } from './live.js';
+import { scaled } from '../sprites.js';
+import { currentEncounters, roamerArt } from './live.js';
 import { homePhenomena } from './phenomena.js';
 
 // The snapshot summaries are authored by Companion. Exact source matching prevents stale translations when a news item is revised.
@@ -572,7 +572,7 @@ function liveCard(cur) {
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, translateUI('ui.alpha_swarm')), h('span', { class: 'tiny muted' }, translateUI('ui.home_report_recent')),
       h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, phenomena.section);
-  let stop = null, expiry = null, sprites = new Map();
+  const encounters = currentEncounters(box, { compact: true });
   let disposed = false, refreshing = false, queued = false;
   const draw = (c) => {
     const src = c.source;
@@ -581,28 +581,9 @@ function liveCard(cur) {
       !src.enabled ? (c.current.some(g => !g.community) ? translateUI('ui.home_feed_cached') : translateUI('ui.home_feed_unknown')) : src.status === 'connected' ? translateUI('ui.home_feed_connected', { last })
         : translateUI('ui.home_feed_degraded', { status: uiLabel(src.status), last })));
     const list = c.current.slice(0, 4);
-    const skew = Date.parse(c.now) - Date.now();
-    // Sprites are kept between refreshes (same report group, same animated/still state) so an animation never
-    // restarts because the list or a countdown was refreshed.
-    const keep = new Map();
-    const cards = list.map((g) => {
-      // Active reports and expired ones each follow their own Static/Animated preference (Settings › Pokémon & sprites).
-      const anim = likelyActive(g, Date.now() + skew) ? animatedIn('report_active') : animatedIn('report_expired');
-      const k = `${g.id}:${anim ? 'a' : 's'}`;
-      const old = sprites.get(k);
-      const node = currentCard(g, { compact: true, animate: anim, sprite: old });
-      keep.set(k, old || node.querySelector('.rep-sprite'));
-      return node;
-    });
-    sprites = keep;
-    clearTimeout(expiry);
-    const ends = list.filter((g) => likelyActive(g, Date.now() + skew)).map((g) => Date.parse(g.status.ends_at) - (Date.now() + skew));
-    if (ends.length) expiry = setTimeout(() => refresh(), Math.max(1000, Math.min(...ends) + 1000));   // switch to the still image when the estimate ends
-    box.dataset.count = String(Math.min(list.length, 9));
-    mount(box, list.length ? cards :
+    box.dataset.count = String(list.length);
+    encounters.draw(list, c.now,
       h('div', { class: 'small muted', style: { gridColumn: '1/-1', padding: '6px 2px' } }, src.enabled ? translateUI('ui.home_feed_empty') : translateUI('ui.home_feed_connect')));
-    if (stop) stop();
-    stop = startTimers(box, Date.parse(c.now) - Date.now(), () => refresh());
   };
   const refresh = async () => {
     const visible = () => !disposed && card.isConnected && document.visibilityState !== 'hidden';
@@ -625,10 +606,9 @@ function liveCard(cur) {
   document.addEventListener('visibilitychange', refresh);
   unsub.push(() => {
     disposed = true; queued = false;
-    clearInterval(every); clearTimeout(expiry);
+    clearInterval(every);
     document.removeEventListener('visibilitychange', refresh);
-    if (stop) stop();
-    sprites.clear();
+    encounters.dispose();
   });
   unsub.push(on('live.report', refresh), on('live.phenomena', phenomena.refresh));
   return card;

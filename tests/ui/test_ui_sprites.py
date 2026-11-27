@@ -58,7 +58,7 @@ def test_home_live_card_shows_large_sharp_sprites_with_fallbacks(app, browser): 
     assert g.locator(".rep-sprite.library img").count() == 1
     amb = pg.locator(".home-live .cur-card", has_text="Swarm").filter(has_not_text="Feebas")
     assert amb.locator(".rep-fallback").count() == 1 and amb.locator("img").count() == 0  # two species named → no sprite
-    assert "caught up on reconnect" in g.inner_text() and "left (estimate)" in g.inner_text()
+    assert "caught up on reconnect" in g.inner_text() and "left · est." in g.inner_text()
     assert "feed off" in pg.locator(".home-live").inner_text().lower()
     pg.context.close()
 
@@ -418,16 +418,21 @@ def test_empty_live_countdowns_do_not_schedule_work(app, page):
     go(page, app, "#/tools/calculator")
     page.wait_for_selector(".calc-key")
     result = page.evaluate("""async () => {
-        const {startTimers} = await import('/js/pages/live.js');
-        const interval = window.setInterval, frame = window.requestAnimationFrame;
+        const {currentEncounters} = await import('/js/pages/live.js');
+        const timeout = window.setTimeout, interval = window.setInterval, frame = window.requestAnimationFrame;
         let calls = 0;
+        window.setTimeout = (...args) => { calls++; return timeout(...args); };
         window.setInterval = (...args) => { calls++; return interval(...args); };
         window.requestAnimationFrame = (...args) => { calls++; return frame(...args); };
         try {
-            const stop = startTimers(document.createElement('div'), 0, () => {});
-            stop();
+            const root = document.body.appendChild(document.createElement('div'));
+            const view = currentEncounters(root);
+            view.draw([], new Date().toISOString(), document.createElement('p'));
+            view.dispose();
+            root.remove();
             return calls;
         } finally {
+            window.setTimeout = timeout;
             window.setInterval = interval;
             window.requestAnimationFrame = frame;
         }
