@@ -283,7 +283,7 @@ def test_live_current_section_then_history(app, page):
     assert "reported 2×" in hound.inner_text()
     assert "left · est." in hound.locator(".cur-estimate[data-tone=ok]").inner_text()
     mag = page.locator(".cur-card", has_text="Magmortar")
-    assert "≈ 1 h" in mag.inner_text()  # 75-minute Alpha estimate, 12 min in
+    assert "1 h" in mag.locator(".cur-estimate[data-tone=ok]").inner_text()  # 75-minute Alpha estimate, 12 min in
     assert page.locator(".cur-grid", has_text="TEST").count() == 0 and page.locator(".cur-grid", has_text="Slakoth").count() == 0
     hist = page.locator("h2", has_text="Report history")
     assert hist.count() == 1
