@@ -225,3 +225,7 @@ The unsigned local AppImage passed the fresh, loopback-only profile self-check a
 [Package compatibility QA](04-PACKAGE-COMPATIBILITY-QA.md) records the exact shared source snapshot, checksums, packaged runtime checks and remaining owner acceptance gates. The Ubuntu 22.04 AppImage passed the official dependency validator at glibc 2.35. Offline startup, HTTPS, 0.8.0 migration and native KDE/XWayland and Wayland windows passed. Direct FUSE mounting was denied in the QA environment.
 
 The local Windows diagnostic ZIP passed extracted-package, offline, HTTPS and 0.8.0 upgrade checks under Wine. A native Windows build and Windows 10/11 acceptance remain open. Private candidate files and publication drafts stay local. Feature freeze remains in effect.
+
+## Final owner interface refinements
+
+[Owner UI QA](05-OWNER-UI-QA.md) records the responsive floating Type Chart, Live time indicators and motion-aware encounter and roamer artwork. The private Linux owner candidate passed the Ubuntu 22.04 package checks at glibc 2.35 and the packaged KDE/XWayland and Wayland smoke tests. The earlier package remains available for comparison. Before-and-after captures and the updated publication drafts are kept locally for owner acceptance.
