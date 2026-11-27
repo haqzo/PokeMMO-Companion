@@ -33,9 +33,9 @@ import sys
 from pathlib import Path
 
 package = Path(sys.argv[1])
-with package.open("rb") as stream:
-    digest = hashlib.file_digest(stream, "sha256").hexdigest()
-package.with_name("SHA256SUMS").write_bytes(f"{digest}  {package.name}\n".encode("ascii"))
+with package.open('rb') as stream:
+    digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+package.with_name('SHA256SUMS').write_bytes(f'{digest}  {package.name}\n'.encode('ascii'))
 '@
 Invoke-Checked $python @("-c", $checksumScript, $zip.FullName)
 Write-Host "$($zip.Length) bytes  $($zip.FullName)"
