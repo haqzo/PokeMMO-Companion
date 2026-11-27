@@ -1,6 +1,6 @@
 [project]
 name = "pokemmo-companion"
-version = "0.8.0"
+version = "0.8.1"
 description = "Unofficial desktop companion for PokeMMO (alpha)"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -324,7 +324,7 @@ class TimerService:
 
     def _deliver(self, t: dict, event: str, late: float) -> dict:
         quiet = bool(self.settings.get("notify.quiet"))
-        route = self.settings.get("notify.timer") or "both"
+        route = self.settings.get("notify.timer") or "toast"
         language = self.settings.get('app.language') or 'en'
         tr = lambda source: native_text(source, language)
         late_txt = tr(' (finished {minutes} min {seconds} s ago — the Companion was closed or asleep)').format(minutes=int(late // 60), seconds=int(late % 60)) if late >= 5 else ''

@@ -153,15 +153,18 @@ def smoke(artifact, target, release=False):
         return glibc
 
 
-def build(tag):
+def build(tag, candidate=False):
     sha = source_revision(tag)
     develop = development_source()
+    if candidate and develop is None:
+        raise ValueError("Build candidates from a reviewed source snapshot containing RELEASE-SOURCE.")
+    strict = bool(tag) or candidate
     target = {"win32": "windows", "linux": "linux"}.get(sys.platform)
     if not target:
         raise ValueError("Use a native Linux or Windows build host.")
-    if tag and (sys.version_info[:3] != RELEASE_PYTHON or platform.machine().lower() not in ("x86_64", "amd64")):
+    if strict and (sys.version_info[:3] != RELEASE_PYTHON or platform.machine().lower() not in ("x86_64", "amd64")):
         required = ".".join(map(str, RELEASE_PYTHON))
-        raise ValueError(f"Release builds require Python {required} on x86-64.")
+        raise ValueError(f"Verified builds require Python {required} on x86-64.")
     dist = ROOT / "dist"
     report = dist / REPORT.format(target=target)
     report.unlink(missing_ok=True)
@@ -177,10 +180,10 @@ def build(tag):
             path = os.getenv(key)
             if path:
                 tools[key] = file_info(Path(path))
-                if tag and tools[key]["sha256"] != expected:
+                if strict and tools[key]["sha256"] != expected:
                     raise ValueError(f"{key} does not match the pinned SHA-256.")
-            elif tag:
-                raise ValueError(f"Set {key} to a verified local file for a release build.")
+            elif strict:
+                raise ValueError(f"Set {key} to a verified local file for a verified build.")
         command = ["bash", "packaging/linux/build-appimage.sh"]
         python = ROOT / ".build-venv/bin/python"
     subprocess.run(command, cwd=ROOT, check=True,
@@ -188,8 +191,8 @@ def build(tag):
     info = file_info(artifact)
     if (dist / "SHA256SUMS").read_text(encoding="ascii") != checksum_line(info):
         raise ValueError("The package does not match its build checksum.")
-    glibc = smoke(artifact, target, release=bool(tag))
-    if target == "linux" and not tag:
+    glibc = smoke(artifact, target, release=strict)
+    if target == "linux" and not strict:
         print("Internal Linux build. The release glibc ceiling was not checked.")
     checks = ["checksum", "bundled assets and runtimes", "packaged HTTPS trust store", "fresh-profile backend self-check"]
     if glibc is not None:
@@ -200,6 +203,8 @@ def build(tag):
                   "dependencies": output(str(python), "-m", "pip", "freeze", "--all").splitlines(),
                   "external_tools": tools, "max_required_glibc": glibc, "package": info,
                   "checks": checks}
+    if candidate:
+        provenance["candidate"] = True
     if develop is not None:
         provenance["develop_source"] = develop
     report.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
@@ -233,14 +238,17 @@ def assemble(tag, stage):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
-    commands.add_parser("build").add_argument("--tag")
+    build_mode = commands.add_parser("build").add_mutually_exclusive_group()
+    build_mode.add_argument("--tag")
+    build_mode.add_argument("--candidate", action="store_true",
+                            help="verify an untagged reviewed snapshot with the release build checks")
     staging = commands.add_parser("assemble")
     staging.add_argument("--tag", required=True)
     staging.add_argument("--stage", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.action == "build":
-            build(args.tag)
+            build(args.tag, args.candidate)
         else:
             assemble(args.tag, args.stage.resolve())
     except (OSError, ValueError, subprocess.SubprocessError) as error:

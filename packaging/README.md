@@ -46,6 +46,10 @@ Run the desktop checklist on Windows, then use the same command for the relaunch
 - Make a personal note and a complete backup. Preview the backup and recover a test record. Launch a second instance while the first is running and confirm it focuses the original. Quit from the tray or app menu, confirm the application and its WebEngine helpers exit, and immediately relaunch. Check that the note, window settings and separate data directory survive replacing the application files.
 - Compare packaged asset bytes to the approved source inventory. Inspect bundle contents for ROMs, dumps, personal data, dotenv files, private keys, bot tokens, and webhook configuration. Record SHA-256 and both file sizes before distribution.
 
+## Private package candidates
+
+Create the reviewed source snapshot with the [release snapshot procedure](../docs/release-snapshots.md). Check out that same untagged snapshot on each build host and run `python packaging/package_release.py build --candidate`. Use x86-64 Python 3.13.14 on Ubuntu 22.04 and Windows. On Linux, provide the pinned AppImage tool and runtime as for an official build. Candidate mode runs the same checksum, bundle and self-check validation as the official builder, including dependency resolution and the glibc 2.35 ceiling for Linux. Preserve the per-platform JSON reports with the packages in private storage.
+
 ## Release packages
 
 1. Prepare and validate the release snapshot from the exact reviewed `develop` revision. Get separate approval to publish the snapshot on `main` and to tag it. After the approved branch update, use a clean checkout and compare `git rev-parse origin/main` with the approved release snapshot SHA. Once they agree, create and push the approved tag. [Release snapshot procedure](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/release-snapshots.md)

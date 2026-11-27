@@ -11,7 +11,7 @@ let bindings = {};       // action id -> combo
 let byCombo = {};        // combo -> action id
 let actions = [];
 let recording = false;
-export const guideContext = { run: null, region: null, step: null, refresh: null };
+export const guideContext = { run: null, region: null, step: null, source: null, refresh: null };
 
 const KEYMAP = { ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', Enter: 'Enter', NumpadEnter: 'Enter',
   Space: 'Space', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert', Delete: 'Delete', Backspace: 'Backspace',
@@ -86,14 +86,14 @@ async function guideAction(action) {
   if (busy) return;  // one action at a time: a second press while the first is in flight is dropped
   busy = true;
   try {
-    let run = guideContext.run, region = guideContext.region;
+    let { run, region, step, source, refresh } = guideContext;
     if (!run) { const r = await get('/api/guides/runs'); run = r.active || (r.runs[0] && r.runs[0].id); }
     if (!run) { toast(t('ui.b272_collection_029'), { kind: 'warn' }); return; }
     const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const res = await post(`/api/guides/runs/${run}/action`, { action, region, expect_step: guideContext.step || undefined, nonce });
+    const res = await post(`/api/guides/runs/${run}/action`, { action, region, expect_step: step || undefined, source, nonce });
     if (res.duplicate) return;
     toast(await guideActionMessage(res), { kind: res.ok ? 'info' : 'warn', timeout: 2200 });
-    if (guideContext.refresh) guideContext.refresh();
+    refresh?.();
   } catch (e) { toast(e.message, { kind: 'warn' }); } finally { busy = false; }
 }
 async function togglePopout(tool, hash) {

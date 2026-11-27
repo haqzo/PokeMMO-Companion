@@ -6,6 +6,7 @@ import ipaddress
 import json
 import socket
 import threading
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
 from urllib.request import Request
@@ -14,11 +15,13 @@ from .. import config
 from ..phenomenon_protocol import (
     IMAGE_HOST, MAX_REPORTS, endpoint_url, image_url, merge_report, opener, read_json, timestamp, validate_report,
 )
+from ..phenomenon_reference import reference, relay_location
 from ..storage import utcnow
 
 POLL_SECONDS = 60
 RECENT_MINUTES = 60  # Display age only, never used as an activity or despawn estimate.
 STALE_SECONDS = 180
+MATCH_SECONDS = 120  # Evidence window for linking reports, independent of spawn duration.
 VALID_SOURCE = {"starting", "connected", "offline", "invalid_response", "access_denied", "rate_limited"}
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
 
@@ -185,23 +188,51 @@ class Phenomena:
                     pending.append((rid, route, quiet, {**payload, "route": "#/live/phenomena/" + mid}))
         return pending
 
+    def reference(self):
+        return {"entries": reference(self.live.dex)}
+
+    def _report_row(self, row):
+        report = json.loads(row["phenomenon"])
+        return {**report, **relay_location(self.live.dex, report), "received_at": row["received_at"],
+                "caught_up": bool(row["is_replay"])}
+
     def history(self, mid=None, now=None, *, home=False):
         now = now or datetime.now(timezone.utc)
         source = self.source_status()
-        rows = self.db.query("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' "
+        rows = self.db.query("SELECT phenomenon, is_replay, received_at FROM reports "
+                             "WHERE kind='phenomena' AND provider='discord-relay' "
                              "ORDER BY source_time DESC, message_id DESC LIMIT 300")
-        reports = [{**json.loads(row["phenomenon"]), "caught_up": bool(row["is_replay"])} for row in rows]
+        reports = [self._report_row(row) for row in rows]
         earliest, latest = cutoff(now, RECENT_MINUTES), timestamp(now.isoformat())
         recent = [r for r in reports if earliest <= r["reported_at"] <= latest]
         if home:
             return {"source": source, "recent": recent[:2], "recent_minutes": RECENT_MINUTES}
-        selected = self.report(mid) if mid else None
+        selected = next((r for r in reports if r["message_id"] == mid), None)
+        if mid and selected is None:
+            selected = self.report(mid)
+        observations = self.live.community.phenomena()
+        relay_candidates = defaultdict(list)
+        for report in reports:
+            if report["spot_id"]:
+                relay_candidates[report["spot_id"]].append(report)
+        links = defaultdict(list)
+        for observation in observations:
+            spot = observation["community"].get("spot_id")
+            if not spot or observation["withdrawn_at"]:
+                continue
+            at = datetime.fromisoformat(observation["source_time"].replace("Z", "+00:00"))
+            matches = [r for r in relay_candidates[spot]
+                       if abs((datetime.fromisoformat(r["reported_at"].replace("Z", "+00:00")) - at)
+                              .total_seconds()) <= MATCH_SECONDS]
+            if len(matches) == 1:
+                links[matches[0]["message_id"]].append(observation["id"])
         return {"source": source, "recent": recent, "history": reports, "selected": selected,
-                "recent_minutes": RECENT_MINUTES}
+                "recent_minutes": RECENT_MINUTES, "observations": observations, "links": links}
 
     def report(self, mid):
-        row = self.db.query_one("SELECT phenomenon, is_replay FROM reports WHERE kind='phenomena' AND message_id=?", (mid,))
-        return {**json.loads(row["phenomenon"]), "caught_up": bool(row["is_replay"])} if row else None
+        row = self.db.query_one("SELECT phenomenon, is_replay, received_at FROM reports "
+                                "WHERE kind='phenomena' AND provider='discord-relay' AND message_id=?", (mid,))
+        return self._report_row(row) if row else None
 
 
 class PublicImageConnection(http.client.HTTPSConnection):

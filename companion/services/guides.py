@@ -11,7 +11,6 @@ changed text hash is surfaced for review instead of silently transferring.
 """
 from __future__ import annotations
 
-import itertools
 import json
 import re
 import uuid
@@ -22,7 +21,6 @@ from ..data.reference import REGIONS
 from ..storage import Storage, utcnow
 
 NAME_RX = re.compile(r"^[\w .'\-]{1,24}$", re.UNICODE)
-_batch = itertools.count(1)
 
 
 class GuideError(ValueError):
@@ -144,8 +142,8 @@ class GuideService:
         src = self.get_run(run_id)
         new = self.create_run(src["character_name"], label or (src["run_label"] + " copy").strip(), src["last_region"])
         with self.db.tx() as c:
-            c.execute("INSERT INTO run_regions(run_id, region, source, active_step_id, show_optional, updated_at) "
-                      "SELECT ?, region, source, active_step_id, show_optional, ? FROM run_regions WHERE run_id=?",
+            c.execute("INSERT INTO run_regions(run_id, region, source, active_step_id, show_optional, updated_at, manual_step) "
+                      "SELECT ?, region, source, active_step_id, show_optional, ?, manual_step FROM run_regions WHERE run_id=?",
                       (new["id"], utcnow(), run_id))
             c.execute("INSERT INTO step_status(run_id, step_id, status, text_hash, updated_at) "
                       "SELECT ?, step_id, status, text_hash, updated_at FROM step_status WHERE run_id=?",
@@ -169,6 +167,8 @@ class GuideService:
 
     # --------------------------------------------------------- progress
     def _region_row(self, run_id: str, region: str) -> dict:
+        if region not in REGIONS:
+            raise GuideError("Unknown region")
         row = self.db.query_one("SELECT * FROM run_regions WHERE run_id=? AND region=?", (run_id, region))
         if not row:
             default_source = self.default_source(region)
@@ -178,16 +178,21 @@ class GuideService:
         return row  # type: ignore[return-value]
 
     def state(self, run_id: str, region: str) -> dict:
+        self.get_run(run_id)
+        self._region_row(run_id, region)
+        with self.db.tx():
+            return self._state(run_id, region)
+
+    def _state(self, run_id: str, region: str) -> dict:
         run = self.get_run(run_id)
-        if region not in REGIONS:
-            raise GuideError("Unknown region")
         rr = self._region_row(run_id, region)
         source = rr["source"]
         if source == "imported" and not self.imported(region):
             source = self.default_source(region)
         steps = self.steps(region, source)
         ids = {s["id"] for s in steps}
-        rows = self.db.query("SELECT step_id, status, text_hash FROM step_status WHERE run_id=?", (run_id,))
+        rows = self.db.query("SELECT step_id, status, text_hash FROM step_status WHERE run_id=? AND step_id LIKE ?",
+                             (run_id, region + ":%"))
         status = {r["step_id"]: r for r in rows if r["step_id"] in ids}
         done = {sid for sid, r in status.items() if r["status"] == "done"}
         changed = [s["id"] for s in steps if s["id"] in done and s.get("text_hash")
@@ -195,10 +200,8 @@ class GuideService:
         mandatory = [s for s in steps if s.get("mandatory") is True]
         optional = [s for s in steps if s.get("mandatory") is False]
         unclassified = [s for s in steps if s.get("mandatory") is None]
-        active = rr["active_step_id"] if rr["active_step_id"] in ids else None
-        if not active:
-            pool = mandatory or unclassified or steps
-            active = next((s["id"] for s in pool if s["id"] not in done), pool[-1]["id"] if pool else None)
+        visible = [s for s in steps if rr["show_optional"] or s.get("mandatory") is not False]
+        active = self._objective(steps, visible, done, rr)
         counts = {
             "mandatory": {"done": sum(1 for s in mandatory if s["id"] in done), "total": len(mandatory)},
             "optional": {"done": sum(1 for s in optional if s["id"] in done), "total": len(optional)},
@@ -206,7 +209,29 @@ class GuideService:
         }
         return {"run": run, "region": region, "source": source, "sources": self.sources(region),
                 "active_step_id": active, "show_optional": bool(rr["show_optional"]), "done": sorted(done),
-                "changed": changed, "counts": counts}
+                "changed": changed, "counts": counts,
+                "finished": bool(visible) and all(s["id"] in done for s in visible)}
+
+    @staticmethod
+    def _objective(steps, visible, done, prefs):
+        pointer = prefs["active_step_id"]
+        if pointer:
+            index = next((i for i, step in enumerate(steps) if step["id"] == pointer), None)
+            if index is not None:
+                step = steps[index]
+                if step in visible:
+                    # A completed legacy chapter could leave its pointer stranded.
+                    chapter = step.get("chapter_index", step["chapter"])
+                    legacy_stuck = prefs["manual_step"] is None and pointer in done and all(
+                        s["id"] in done for s in visible if s.get("chapter_index", s["chapter"]) == chapter)
+                    if not legacy_stuck:
+                        return pointer
+                visible_ids = {s["id"] for s in visible}
+                ordered = [s["id"] for s in steps[index + 1:] + steps[:index] if s["id"] in visible_ids]
+                return next((sid for sid in ordered if sid not in done), visible[-1]["id"] if visible else None)
+        required = [s for s in visible if s.get("mandatory") is not False]
+        return next((s["id"] for s in required + visible if s["id"] not in done),
+                    visible[-1]["id"] if visible else None)
 
     def set_region_prefs(self, run_id: str, region: str, source: str | None = None,
                          active_step_id: str | None = None, show_optional: bool | None = None) -> None:
@@ -217,11 +242,10 @@ class GuideService:
             if source is not None:
                 if source not in ("milestones", "imported", "walkthrough"):
                     raise GuideError("Unknown guide source")
-                c.execute("UPDATE run_regions SET source=?, active_step_id=NULL, updated_at=? WHERE run_id=? AND region=?",
+                c.execute("UPDATE run_regions SET source=?, active_step_id=NULL, manual_step=NULL, updated_at=? WHERE run_id=? AND region=?",
                           (source, now, run_id, region))
             if active_step_id is not None:
-                c.execute("UPDATE run_regions SET active_step_id=?, updated_at=? WHERE run_id=? AND region=?",
-                          (active_step_id, now, run_id, region))
+                self._write_objective(c, run_id, region, active_step_id, True)
             if show_optional is not None:
                 c.execute("UPDATE run_regions SET show_optional=?, updated_at=? WHERE run_id=? AND region=?",
                           (1 if show_optional else 0, now, run_id, region))
@@ -236,110 +260,171 @@ class GuideService:
                         return s.get("text_hash")
         return None
 
+    @staticmethod
+    def _write_objective(c, run_id, region, step, manual):
+        c.execute("UPDATE run_regions SET active_step_id=?, manual_step=?, updated_at=? WHERE run_id=? AND region=?",
+                  (step, manual, utcnow(), run_id, region))
+
     def set_steps(self, run_id: str, step_ids: list[str], done: bool) -> dict:
         self.get_run(run_id)
-        token = f"{utcnow()}#{next(_batch)}"
+        with self.db.tx() as c:
+            return self._set_steps(c, run_id, step_ids, done)
+
+    def _set_steps(self, c, run_id, step_ids, done):
+        token = uuid.uuid4().hex
         now = utcnow()
         changed = 0
-        with self.db.tx() as c:
-            for sid in step_ids:
-                if not isinstance(sid, str) or sid.split(":")[0] not in REGIONS:
-                    raise GuideError(f"Invalid step id {sid!r}")
-                prev = c.execute("SELECT status FROM step_status WHERE run_id=? AND step_id=?", (run_id, sid)).fetchone()
-                prev_s = prev[0] if prev else None
-                cur = "done" if done else None
-                if prev_s == cur:
-                    continue
-                if done:
-                    c.execute("INSERT INTO step_status(run_id, step_id, status, text_hash, updated_at) VALUES(?,?,?,?,?) "
-                              "ON CONFLICT(run_id, step_id) DO UPDATE SET status=excluded.status, "
-                              "text_hash=excluded.text_hash, updated_at=excluded.updated_at",
-                              (run_id, sid, "done", self._hash_for(sid), now))
-                else:
-                    c.execute("DELETE FROM step_status WHERE run_id=? AND step_id=?", (run_id, sid))
-                c.execute("INSERT INTO step_history(run_id, step_id, previous, current, at) VALUES(?,?,?,?,?)",
-                          (run_id, sid, prev_s, cur, token))
-                changed += 1
+        for sid in step_ids:
+            if not isinstance(sid, str) or sid.split(":")[0] not in REGIONS:
+                raise GuideError(f"Invalid step id {sid!r}")
+            prev = c.execute("SELECT status FROM step_status WHERE run_id=? AND step_id=?", (run_id, sid)).fetchone()
+            prev_s = prev[0] if prev else None
+            cur = "done" if done else None
+            if prev_s == cur:
+                continue
+            self._set_status(c, run_id, sid, cur, now)
+            c.execute("INSERT INTO step_history(run_id, step_id, previous, current, at) VALUES(?,?,?,?,?)",
+                      (run_id, sid, prev_s, cur, token))
+            changed += 1
+        if changed:
             c.execute("UPDATE runs SET updated_at=? WHERE id=?", (now, run_id))
         return {"changed": changed, "batch": token}
 
-    def step_action(self, run_id: str, region: str | None, action: str, expect_step: str | None = None) -> dict:
-        """Keyboard/guide-control action on the ACTIVE run's current objective (docs/design/20 §B).
+    def _set_status(self, c, run_id, step, status, now):
+        if status == "done":
+            c.execute("INSERT INTO step_status(run_id, step_id, status, text_hash, updated_at) VALUES(?,?,?,?,?) "
+                      "ON CONFLICT(run_id, step_id) DO UPDATE SET status=excluded.status, "
+                      "text_hash=excluded.text_hash, updated_at=excluded.updated_at",
+                      (run_id, step, status, self._hash_for(step), now))
+        else:
+            c.execute("DELETE FROM step_status WHERE run_id=? AND step_id=?", (run_id, step))
 
-        next / prev move the current-step pointer within the visible steps of that region only
-        (never across regions, never completing anything); toggle flips the current step's done
-        state and does not move the pointer. ``expect_step`` guards against acting on a step the
-        user is no longer looking at (another window moved the pointer meanwhile).
-        """
-        if action not in ("next", "prev", "toggle"):
+    def _visible(self, st):
+        return [s for s in self.steps(st["region"], st["source"])
+                if st["show_optional"] or s.get("mandatory") is not False]
+
+    @staticmethod
+    def _next_unfinished(ids, target, done):
+        position = ids.index(target)
+        return next((sid for sid in ids[position + 1:] + ids[:position] if sid not in done), target)
+
+    def _advance(self, c, run_id, st, step, result):
+        region = st["region"]
+        rr = self._region_row(run_id, region)
+        self._write_objective(c, run_id, region, step, False)
+        change = json.dumps({"region": region, "source": rr["source"], "before": rr["active_step_id"],
+                             "manual_before": rr["manual_step"], "after": step})
+        c.execute("UPDATE step_history SET objective_change=? WHERE id=(SELECT MAX(id) FROM step_history "
+                  "WHERE run_id=? AND at=?)", (change, run_id, result["batch"]))
+
+    @staticmethod
+    def _stale(st):
+        return {"ok": False, "stale": True, "message": "The current step changed in another window — nothing was changed.",
+                "message_kind": "stale", "state": st}
+
+    def progress_steps(self, run_id, region, step_ids, done, *, source=None):
+        """Apply checkbox changes against the current state, in the same transaction as advancement."""
+        self.get_run(run_id)
+        self._region_row(run_id, region)
+        with self.db.tx() as c:
+            st = self._state(run_id, region)
+            if source is not None and source != st["source"]:
+                return self._stale(st)
+            valid = {s["id"] for s in self.steps(region, st["source"])}
+            if any(not isinstance(sid, str) or sid not in valid for sid in step_ids):
+                raise GuideError("Step not in this guide")
+            result = self._set_steps(c, run_id, step_ids, done)
+            if not result["changed"]:
+                return result
+            active = st["active_step_id"]
+            ids = [s["id"] for s in self._visible(st)]
+            if done and active in step_ids and active not in st["done"]:
+                target = self._next_unfinished(ids, active, set(st["done"]).union(step_ids))
+                self._advance(c, run_id, st, target, result)
+            elif not done and st["finished"]:
+                target = next((sid for sid in ids if sid in step_ids), None)
+                if target:
+                    self._advance(c, run_id, st, target, result)
+            return result
+
+    def step_action(self, run_id: str, region: str | None, action: str, expect_step: str | None = None,
+                    source: str | None = None, target: str | None = None) -> dict:
+        """Move within the visible regional steps, or toggle without moving the keyboard objective."""
+        if action not in ("next", "prev", "toggle", "current"):
             raise GuideError("Unknown guide action")
         run = self.get_run(run_id)
         region = region or run["last_region"]
-        st = self.state(run_id, region)
-        steps = [x for x in self.steps(region, st["source"]) if st["show_optional"] or x.get("mandatory") is not False]
-        if not steps:
-            return {"ok": False, "message": "This guide has no steps.", "message_kind": "no_steps", "state": st}
-        ids = [x["id"] for x in steps]
-        cur = st["active_step_id"] if st["active_step_id"] in ids else ids[0]
-        if expect_step and expect_step != cur:
-            return {"ok": False, "stale": True, "message": "The current step changed in another window — nothing was changed.", "message_kind": "stale", "state": st}
-        i = ids.index(cur)
-        msg = None
-        if action == "toggle":
-            done = cur in set(st["done"])
-            self.set_region_prefs(run_id, region, active_step_id=cur)  # pin the pointer so ticking never moves it
-            self.set_steps(run_id, [cur], not done)
-            msg = ("Unticked" if done else "Ticked") + f": {steps[i]['text'][:80]}"
-            message_kind = "unticked" if done else "ticked"
-            message_index = i
-        else:
-            j = i + (1 if action == "next" else -1)
-            if j < 0 or j >= len(ids):
-                return {"ok": False, "boundary": "start" if j < 0 else "end",
-                        "message": f"{'First' if j < 0 else 'Last'} step of {region.title()} — nothing changed.",
-                        "message_kind": "first" if j < 0 else "last", "message_region": region, "state": st}
-            self.set_region_prefs(run_id, region, active_step_id=ids[j])
-            msg = f"Step {j + 1} of {len(ids)}: {steps[j]['text'][:80]}"
-            message_kind = "step"
-            message_index = j
-        new = self.state(run_id, region)
-        message_step = {key: steps[message_index].get(key) for key in ("id", "text", "text_hash")}
-        return {"ok": True, "message": msg, "message_kind": message_kind, "message_step": message_step,
-                "message_index": message_index + 1, "message_total": len(ids), "state": new, "step": new["active_step_id"],
-                "done": new["active_step_id"] in set(new["done"])}
+        self._region_row(run_id, region)
+        with self.db.tx() as c:
+            st = self._state(run_id, region)
+            steps = self._visible(st)
+            cur = st["active_step_id"]
+            if not steps:
+                return {"ok": False, "message": "This guide has no steps.", "message_kind": "no_steps", "state": st}
+            if (expect_step and expect_step != cur) or (source is not None and source != st["source"]):
+                return self._stale(st)
+            ids = [x["id"] for x in steps]
+            i = ids.index(cur)
+            if action == "toggle":
+                done = cur in st["done"]
+                self._write_objective(c, run_id, region, cur, True)
+                self._set_steps(c, run_id, [cur], not done)
+                msg = ("Unticked" if done else "Ticked") + f": {steps[i]['text'][:80]}"
+                message_kind = "unticked" if done else "ticked"
+            else:
+                if action == "current" and target not in ids:
+                    raise GuideError("Step not in this guide")
+                i = ids.index(target) if action == "current" else i + (1 if action == "next" else -1)
+                if i < 0 or i >= len(ids):
+                    return {"ok": False, "boundary": "start" if i < 0 else "end",
+                            "message": f"{'First' if i < 0 else 'Last'} step of {region.title()} — nothing changed.",
+                            "message_kind": "first" if i < 0 else "last", "message_region": region, "state": st}
+                self._write_objective(c, run_id, region, ids[i], True)
+                msg = f"Step {i + 1} of {len(ids)}: {steps[i]['text'][:80]}"
+                message_kind = "step"
+            new = self._state(run_id, region)
+            message_step = {key: steps[i].get(key) for key in ("id", "text", "text_hash")}
+            return {"ok": True, "message": msg, "message_kind": message_kind, "message_step": message_step,
+                    "message_index": i + 1, "message_total": len(ids), "state": new, "step": new["active_step_id"],
+                    "done": new["active_step_id"] in new["done"]}
 
-    def mark_through(self, run_id: str, region: str, step_id: str, preview: bool = False) -> dict:
-        st = self.state(run_id, region)
-        steps = self.steps(region, st["source"])
-        ids = [s["id"] for s in steps]
-        if step_id not in ids:
-            raise GuideError("Step not in this guide")
-        target = ids[: ids.index(step_id) + 1]
-        todo = [i for i in target if i not in set(st["done"])]
-        if preview:
-            return {"would_mark": len(todo)}
-        res = self.set_steps(run_id, todo, True)
-        nxt = ids[ids.index(step_id) + 1] if ids.index(step_id) + 1 < len(ids) else step_id
-        self.set_region_prefs(run_id, region, active_step_id=nxt)
-        return res
+    def mark_through(self, run_id: str, region: str, step_id: str, preview: bool = False, source=None) -> dict:
+        self.get_run(run_id)
+        self._region_row(run_id, region)
+        with self.db.tx() as c:
+            st = self._state(run_id, region)
+            if source is not None and (source != st["source"] or step_id != st["active_step_id"]):
+                return self._stale(st)
+            ids = [s["id"] for s in self._visible(st)]
+            if step_id not in ids:
+                raise GuideError("Step not in this guide")
+            marked = set(st["done"])
+            todo = [sid for sid in ids[:ids.index(step_id) + 1] if sid not in marked]
+            if preview:
+                return {"would_mark": len(todo)}
+            result = self._set_steps(c, run_id, todo, True)
+            if result["changed"]:
+                self._advance(c, run_id, st, self._next_unfinished(ids, step_id, marked.union(todo)), result)
+            return result
 
     def undo(self, run_id: str) -> dict:
         self.get_run(run_id)
-        last = self.db.query_one("SELECT at FROM step_history WHERE run_id=? ORDER BY id DESC LIMIT 1", (run_id,))
-        if not last:
-            return {"undone": 0}
-        rows = self.db.query("SELECT * FROM step_history WHERE run_id=? AND at=? ORDER BY id DESC", (run_id, last["at"]))
         now = utcnow()
         with self.db.tx() as c:
-            for r in rows:
-                if r["previous"] == "done":
-                    c.execute("INSERT INTO step_status(run_id, step_id, status, text_hash, updated_at) VALUES(?,?,?,?,?) "
-                              "ON CONFLICT(run_id, step_id) DO UPDATE SET status='done', updated_at=excluded.updated_at",
-                              (run_id, r["step_id"], "done", self._hash_for(r["step_id"]), now))
-                else:
-                    c.execute("DELETE FROM step_status WHERE run_id=? AND step_id=?", (run_id, r["step_id"]))
-                c.execute("DELETE FROM step_history WHERE id=?", (r["id"],))
-        return {"undone": len(rows)}
+            last = c.execute("SELECT at FROM step_history WHERE run_id=? ORDER BY id DESC LIMIT 1", (run_id,)).fetchone()
+            if not last:
+                return {"undone": 0}
+            rows = c.execute("SELECT * FROM step_history WHERE run_id=? AND at=? ORDER BY id DESC", (run_id, last["at"])).fetchall()
+            for row in rows:
+                self._set_status(c, run_id, row["step_id"], row["previous"], now)
+                if row["objective_change"]:
+                    change = json.loads(row["objective_change"])
+                    c.execute("UPDATE run_regions SET active_step_id=?, manual_step=?, updated_at=? "
+                              "WHERE run_id=? AND region=? AND source=? AND active_step_id=? AND manual_step=0",
+                              (change["before"], change["manual_before"], now, run_id, change["region"],
+                               change["source"], change["after"]))
+                c.execute("DELETE FROM step_history WHERE id=?", (row["id"],))
+            return {"undone": len(rows)}
 
     def acknowledge_changes(self, run_id: str, step_ids: list[str]) -> int:
         n = 0

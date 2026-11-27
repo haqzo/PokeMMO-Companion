@@ -8,6 +8,7 @@ import { h, mount, icon, get, post, api, apiErrorText, isShortcutConflict, state
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { createRun } from './guides.js';
+import { communitySourceText, internalReporting } from './community.js';
 import { LANGS, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
@@ -189,9 +190,22 @@ async function notifications(b) {
 }
 
 // -------------------------------------------------------------- sources
+async function internalReportingSettings() {
+  const community = await get('/api/live/community/source');
+  const status = h('span', { class: 'small muted' }, communitySourceText(community));
+  unsub.push(on('live.community', (value) => { status.textContent = communitySourceText(value); }));
+  const permission = (key, label) => h('label', { class: 'row wrap small' }, h('input', { type: 'checkbox', class: 'check',
+    checked: setting(key), 'aria-label': translateUI(label), onchange: (e) => set(key)(e.target.checked) }), translateUI(label));
+  return row(translateUI('community.name'), translateUI('community.test_settings_help'),
+    h('div', { class: 'stack tight' }, status, permission('live.community.enabled', 'community.enable'),
+      permission('live.community.receive', 'community.receive_test'), permission('live.community.share', 'community.allow_sharing')));
+}
+
 async function sources(b) {
-  const [src, n] = await Promise.all([get('/api/live/source'), get('/api/news')]);
-  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')),
+  const [src, n, internal] = await Promise.all([
+    get('/api/live/source'), get('/api/news'), internalReporting() ? internalReportingSettings() : null,
+  ]);
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')), ...(internal ? [internal] : []),
     row(translateUI('ui.b272_settings_065'), translateUI('ui.b272_settings_066'),
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? uiLabel(cap(src.status)) : translateUI('settings.off'),
         src.last_success_at ? h('span', { class: 'small muted' }, translateUI('settings.last_data'), relTime(src.last_success_at)) : null),
@@ -534,6 +548,7 @@ async function backupSec(b) {
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.backup_recovery')),
     st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? translateUI('system.restore_finished') : translateUI('system.restore_interrupted', { reason: apiErrorText(st.recovered.reason) })) : null,
     h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('ui.settings_backup_full')),
+    h('p', { class: 'small muted' }, translateUI('ui.settings_backup_scope')),
     row(translateUI('ui.settings_backup_auto'), auto ? translateUI('system.backup_last', { date: fmtDate(auto.created_at, true) }) : translateUI('system.backup_auto'),
       h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.settings_backup_auto'), onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },
         [[0, translateUI('settings.off')], [6, translateUI('system.every6')], [12, translateUI('system.every12')], [24, translateUI('system.daily')], [72, translateUI('system.every3days')], [168, translateUI('system.weekly')]].map(([v, l]) =>
@@ -573,6 +588,7 @@ async function backupSec(b) {
       pv.newer ? notice('warn', translateUI('system.newer_backup')) : null,
       h('ul', { class: 'small', style: { margin: 0 } }, lines),
       pv.runs_conflicting || pv.documents_conflicting ? h('div', { class: 'small muted' }, translateUI('system.conflicts', { runs: pv.runs_conflicting, items: pv.documents_conflicting })) : null,
+      h('div', { class: 'small muted' }, translateUI('system.restore_scope')),
       h('div', { class: 'small muted' }, translateUI('system.safety_copy'))),
     actions: [{ label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: translateUI('system.replace_data'), value: 'replace', kind: 'danger' }, { label: translateUI('system.merge'), value: 'merge', kind: 'primary' }] });
     if (!mode || pv.newer) return;

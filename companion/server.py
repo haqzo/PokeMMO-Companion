@@ -90,9 +90,17 @@ def build_router(ctx: AppContext) -> Router:
     # ---------------------------------------------------------------- core
     from .services.themes import catalog as _theme_catalog
 
+    internal_reporting = ctx.live.community.available
+
+    def visible_settings(values: dict) -> dict:
+        if internal_reporting:
+            return values
+        return {key: value for key, value in values.items() if not key.startswith("live.community.")}
+
     def bootstrap(req: Request) -> dict:
         return {"version": ctx.version, "mode": ctx.shell.mode, "capabilities": ctx.shell.capabilities,
-                "settings": S.all(), "dex": ctx.dex.status(), "notifier": ctx.notifier.describe(),
+                "settings": visible_settings(S.all()), "dex": ctx.dex.status(), "notifier": ctx.notifier.describe(),
+                "internal_reporting": internal_reporting,
                 "data_dir": str(ctx.paths.root), "now": utcnow(),
                 "storage": {"migrated_from": ctx.storage.migrated_from, "backup": ctx.storage.backup_created},
                 "window_presets": PRESETS, "themes": _theme_catalog(), "community": community_links(),
@@ -100,15 +108,19 @@ def build_router(ctx: AppContext) -> Router:
     r.add("GET", "/api/bootstrap", bootstrap)
 
     def settings_get(req: Request) -> dict:
-        return S.all()
+        return visible_settings(S.all())
 
     def settings_patch(req: Request) -> dict:
         if not isinstance(req.body, dict):
             raise ApiError(400, "Expected an object of settings")
+        if not internal_reporting and any(key.startswith("live.community.") for key in req.body):
+            raise ApiError(403, "Independent reporting is unavailable")
         clean = S.update(req.body)
         ctx.bus.publish("settings", clean, origin=req.q("origin"))
         if any(k.startswith("live.ntfy.") for k in clean):
             ctx.live.apply_settings()
+        if any(k.startswith("live.community.") for k in clean):
+            ctx.live.community.sync.apply_settings()
         return {"ok": True, "applied": clean}
     r.add("GET", "/api/settings", settings_get)
     r.add("PATCH", "/api/settings", settings_patch)
@@ -437,10 +449,14 @@ def build_router(ctx: AppContext) -> Router:
     r.add("POST", "/api/tools/breeding/plan", lambda req: breeding.plan_summary(req.body or {}))
     r.add("GET", "/api/tools/breeding/eggmoves/<sid>",
           lambda req: breeding.egg_move_candidates(ctx.dex, int_param(req.params["sid"], "species")))
-    r.add("GET", "/api/tools/breeding/items", lambda req: {
-        "items": breeding.ITEMS, "braces": breeding.BRACES,
-        "icons": {k: (f"/assets/private/items/{v['icon_id']}.png" if v.get("icon_id") is not None else None)
-                  for k, v in ctx.dex.extras.get("breeding_items", {}).items()}})
+    def breeding_items(req: Request) -> dict:
+        icons = {}
+        for name, item in ctx.dex.extras.get("breeding_items", {}).items():
+            filename = f"{item['icon_id']}.png" if item.get("icon_id") is not None else None
+            imported = filename if filename and (ctx.paths.assets_dir / "items" / filename).is_file() else None
+            icons[name] = ctx.items.icon_url({"icon": imported, "records": [item]})
+        return {"items": breeding.ITEMS, "braces": breeding.BRACES, "icons": icons}
+    r.add("GET", "/api/tools/breeding/items", breeding_items)
 
     # Generic saved documents (breeding plans, pairings, teams, EV plans)
     DOC_KINDS = ("breeding_plan", "pairing", "team", "ev_plan")
@@ -482,7 +498,9 @@ def build_router(ctx: AppContext) -> Router:
         return {"reports": ctx.live.list(req.q("kind"), req.q("q"), req.q("tests", "1") == "1", region=req.q("region")),
                 "source": ctx.live.source_status(), "notifier": ctx.notifier.describe()}
     r.add("GET", "/api/live/reports", live_reports)
+    r.add("GET", "/api/live/seasonal", lambda req: ctx.seasons.view())
     r.add("GET", "/api/live/current", lambda req: ctx.live.current())
+    r.add("GET", "/api/live/phenomena/reference", lambda req: ctx.live.phenomena.reference())
     r.add("GET", "/api/live/phenomena/source", lambda req: ctx.live.phenomena.source_status())
     r.add("GET", "/api/live/phenomena", lambda req: ctx.live.phenomena.history(req.q("id"), home=req.q("view") == "home"))
 
@@ -496,6 +514,28 @@ def build_router(ctx: AppContext) -> Router:
     r.add("POST", "/api/live/seen", lambda req: {"updated": ctx.live.mark_seen(req.json("id"))})
     r.add("POST", "/api/live/clear", lambda req: {"deleted": ctx.live.clear(bool(req.json("tests_only")))})
     r.add("GET", "/api/live/source", lambda req: ctx.live.source_status())
+
+    if internal_reporting:
+        from .services.community import CommunityError
+
+        def community_call(fn):
+            def handle(req):
+                try:
+                    return fn(req)
+                except CommunityError as exc:
+                    raise ApiError(exc.status, str(exc)) from exc
+            return handle
+
+        r.add("GET", "/api/live/community/source", lambda req: ctx.live.community.source_status())
+        r.add("GET", "/api/live/community/options", lambda req: ctx.live.community.options())
+        r.add("GET", "/api/live/community/phenomena", lambda req: {"reports": ctx.live.community.phenomena()})
+        r.add("POST", "/api/live/community/reports", community_call(lambda req: ctx.live.community.submit(req.body)))
+        r.add("POST", "/api/live/community/reports/<rid>/correct",
+              community_call(lambda req: ctx.live.community.submit(req.body, correction=req.params["rid"])))
+        r.add("POST", "/api/live/community/reports/<rid>/actions",
+              community_call(lambda req: ctx.live.community.act(req.params["rid"], req.json("action"))))
+        r.add("POST", "/api/live/community/reports/<rid>/retry-share",
+              community_call(lambda req: ctx.live.community.retry_share(req.params["rid"])))
 
     def legend(req: Request) -> dict:
         return ctx.live.legendaries(req.q("run") or S.get("guides.active_run"))
@@ -585,15 +625,16 @@ def build_router(ctx: AppContext) -> Router:
     def run_steps(req: Request) -> dict:
         rid = req.params["rid"]
         ids = req.json("steps") or ([req.json("step")] if req.json("step") else [])
-        res = G.set_steps(rid, ids, bool(req.json("done")))
-        if req.json("advance") and req.json("region") and req.json("next_active"):
-            G.set_region_prefs(rid, req.json("region"), active_step_id=req.json("next_active"))
+        if region := req.json("region"):
+            res = G.progress_steps(rid, region, ids, bool(req.json("done")), source=req.json("source"))
+        else:
+            res = G.set_steps(rid, ids, bool(req.json("done")))
         ctx.bus.publish("guides", {"run": rid, "steps": ids}, origin=req.q("origin"))
         return res
 
     def run_mark_through(req: Request) -> dict:
         rid = req.params["rid"]
-        res = G.mark_through(rid, req.json("region"), req.json("step"), bool(req.json("preview")))
+        res = G.mark_through(rid, req.json("region"), req.json("step"), bool(req.json("preview")), req.json("source"))
         if not req.json("preview"):
             ctx.bus.publish("guides", {"run": rid})
         return res
@@ -630,7 +671,8 @@ def build_router(ctx: AppContext) -> Router:
         if nonce:
             _recent_actions[nonce] = now
         try:
-            res = G.step_action(req.params["rid"], req.json("region"), str(req.json("action")), req.json("expect_step"))
+            res = G.step_action(req.params["rid"], req.json("region"), str(req.json("action")), req.json("expect_step"),
+                                req.json("source"), req.json("step"))
         except GuideError as exc:
             raise ApiError(400, str(exc))
         if res.get("ok"):

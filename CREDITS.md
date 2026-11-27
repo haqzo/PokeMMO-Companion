@@ -45,3 +45,5 @@ from PokeMMO. Selected location name cross-references come from the
 
 Companion Han is a renamed Simplified Chinese subset of [Noto Sans CJK](https://github.com/notofonts/noto-cjk).
 The SIL Open Font License and copyright notice are packaged in `ui/fonts/ofl.txt`.
+
+- **MaToRiuKo and yuisigamy** contributed the multilingual field reference used for source-reported Unova Phenomena locations. The app includes selected factual summaries and preserves their provenance.

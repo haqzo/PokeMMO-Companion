@@ -92,9 +92,9 @@ def import_all(db: Storage, payload: dict, mode: str = "merge") -> dict:
         def rid(x: str) -> str:
             return id_map.get(x, x)
         for r in tables.get("run_regions", []):
-            c.execute("INSERT OR REPLACE INTO run_regions(run_id, region, source, active_step_id, show_optional, updated_at) "
-                      "VALUES(?,?,?,?,?,?)", (rid(r["run_id"]), r["region"], r["source"], r.get("active_step_id"),
-                                              r.get("show_optional", 1), r["updated_at"]))
+            c.execute("INSERT OR REPLACE INTO run_regions(run_id, region, source, active_step_id, show_optional, updated_at, manual_step) "
+                      "VALUES(?,?,?,?,?,?,?)", (rid(r["run_id"]), r["region"], r["source"], r.get("active_step_id"),
+                                                r.get("show_optional", 1), r["updated_at"], r.get("manual_step")))
         for r in tables.get("step_status", []):
             c.execute("INSERT OR REPLACE INTO step_status(run_id, step_id, status, text_hash, updated_at) VALUES(?,?,?,?,?)",
                       (rid(r["run_id"]), r["step_id"], r["status"], r.get("text_hash"), r["updated_at"]))

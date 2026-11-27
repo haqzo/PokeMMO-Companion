@@ -47,13 +47,18 @@ DEFAULTS: dict[str, Any] = {
     # Home (2026-11-23): storyline run and favourites are opt-in; lists saved by older builds are translated in the UI.
     "home.sections": ["roamers", "live", "update", "news", "events", "quick"],
     "home.shortcuts": ["guide", "pokedex_last", "breeding"],
+    "typechart.header_orientation": "vertical",
     # Pokédex
     "pokedex.last_species": None,
     "pokedex.filters": {},
     # Guides
     "guides.active_run": None,
-    "guides.extras_open": True,              # storyline: "Timers & team for this region" panel expanded
+    "guides.extras_open": False,
+    "guides.popout_extras_open": False,
     # Live / notifications
+    "live.community.enabled": False,         # local structured observations
+    "live.community.receive": False,         # optional loopback test feed
+    "live.community.share": False,           # permission to explicitly share to the test feed
     "live.phenomena.enabled": None,  # Legacy profiles used a non-empty override as opt-in.
     "live.phenomena.endpoint": "",
     "notify.phenomena": "off",
@@ -63,11 +68,11 @@ DEFAULTS: dict[str, Any] = {
     "live.ntfy.consented": False,
     "live.ntfy.server": "https://ntfy.pokemmotools.org",
     "live.ntfy.topic": "alphapings,swarmpings",   # Alphapedia publishes Alphas and Swarms on separate topics
-    "notify.alpha": "both",
-    "notify.swarm": "both",
+    "notify.alpha": "toast",
+    "notify.swarm": "toast",
     "notify.other": "toast",
-    "notify.timer": "both",                  # Tools › Timers completions
-    "notify.test": "both",
+    "notify.timer": "toast",                 # Tools › Timers completions
+    "notify.test": "toast",
     "notify.toast_corner": "top-right",      # owner default (video review); all four corners remain selectable
     "notify.toast_screen": "primary",        # primary | main-window | <index>
     "notify.toast_duration": 8,              # seconds
@@ -135,6 +140,7 @@ _ENUMS = {
     "locations.style": ("game", "companion"),
     "locations.region": ("kanto", "johto", "hoenn", "sinnoh", "unova"),
     "appearance.nav": ("vertical", "horizontal"),
+    "typechart.header_orientation": ("vertical", "horizontal"),
     "appearance.sidebar": ("auto", "icons", "full"),
     "app_updates.channel": ("stable", "prerelease"),
     "appearance.stat_bars": ("soft", "accent"),

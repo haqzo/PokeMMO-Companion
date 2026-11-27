@@ -1,13 +1,14 @@
+import { bindSeasonal } from './seasonal.js';
 import { locale, number, uiLabel } from '../i18n.js';
 import { plural, t as translateUI } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
 // Home + in-app official news / changelog / event reader (docs/design/03).
-import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
+import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { LANGS, lang } from '../i18n.js';
 import { walkthroughReader } from '../walkthrough-loader.js';
-import { animatedIn, scaled } from '../sprites.js';
-import { currentCard, startTimers, likelyActive } from './live.js';
+import { scaled } from '../sprites.js';
+import { currentEncounters, reportViaAlphapedia, roamerArt } from './live.js';
 import { homePhenomena } from './phenomena.js';
 
 // The snapshot summaries are authored by Companion. Exact source matching prevents stale translations when a news item is revised.
@@ -488,6 +489,9 @@ async function renderHome(el) {
     h('div', { class: 'actions' }, communityLink(), h('button', { class: 'btn ghost small', onclick: () => go('#/settings/home') }, icon('gear'), translateUI('ui.customize_home')))));
   if (!setting('app.onboarded')) page.append(getStarted(data, runs, rerender));
   else if (data.update_available) page.append(installBanner(data, rerender, true));
+  const seasonal = h('section', { class: 'stack tight', hidden: true });
+  page.append(seasonal);
+  unsub.push(bindSeasonal(seasonal, { open: go }));
   const grid = h('div', { class: 'home-v3' });
   page.append(grid);
 
@@ -546,22 +550,6 @@ function greeting() {
 }
 
 // ------------------------------------------------------------ roaming Legendaries
-const motionOK = () => animatedIn('roamers');
-/** Animated Gen V sprite from your sprite library (only these two on Home), else the still; large tier, never stretched. */
-function roamerArt(m, size) {
-  if (m.ani && motionOK()) {
-    const img = h('img', { class: 'pixel', src: m.ani, alt: speciesLabel(m.id, m.name), decoding: 'async', style: { visibility: 'hidden' } });
-    const box = h('div', { class: 'still-art roamer-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier: 'l' } }, img);
-    img.addEventListener('load', () => {
-      const f = fitSprite(img.naturalWidth, img.naturalHeight, null, 'l', size, size);
-      Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
-      box.classList.toggle('smooth', f.smooth);
-    });
-    img.addEventListener('error', () => box.replaceWith(sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' })));
-    return box;
-  }
-  return sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' });
-}
 function roamersCard(leg) {
   const cur = leg.current, nxt = leg.next;
   const month = (mm, y) => new Date(y, mm - 1, 1).toLocaleString(locale(), { month: 'long' });
@@ -580,40 +568,23 @@ function roamersCard(leg) {
 function liveCard(cur) {
   const box = h('div', { class: 'cur-grid home-cur' });
   const head = h('div', { class: 'row small home-feed' });
+  const reporting = h('div', { class: 'small' }, reportViaAlphapedia());
+  const phenomena = homePhenomena();
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, translateUI('ui.alpha_swarm')), h('span', { class: 'tiny muted' }, translateUI('ui.home_report_recent')),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, homePhenomena());
-  let stop = null, expiry = null, sprites = new Map();
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, reporting, phenomena.section);
+  const encounters = currentEncounters(box, { compact: true });
   let disposed = false, refreshing = false, queued = false;
   const draw = (c) => {
     const src = c.source;
     const last = src.last_success_at ? translateUI('ui.home_feed_last', { age: relTime(src.last_success_at) }) : '';
     mount(head, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), h('span', { class: 'muted' },
-      !src.enabled ? (c.current.length ? translateUI('ui.home_feed_cached') : translateUI('ui.home_feed_unknown')) : src.status === 'connected' ? translateUI('ui.home_feed_connected') + last
+      !src.enabled ? (c.current.some(g => !g.community) ? translateUI('ui.home_feed_cached') : translateUI('ui.home_feed_unknown')) : src.status === 'connected' ? translateUI('ui.home_feed_connected', { last })
         : translateUI('ui.home_feed_degraded', { status: uiLabel(src.status), last })));
     const list = c.current.slice(0, 4);
-    const skew = Date.parse(c.now) - Date.now();
-    // Sprites are kept between refreshes (same report group, same animated/still state) so an animation never
-    // restarts because the list or a countdown was refreshed.
-    const keep = new Map();
-    const cards = list.map((g) => {
-      // Active reports and expired ones each follow their own Static/Animated preference (Settings › Pokémon & sprites).
-      const anim = likelyActive(g, Date.now() + skew) ? animatedIn('report_active') : animatedIn('report_expired');
-      const k = `${g.id}:${anim ? 'a' : 's'}`;
-      const old = sprites.get(k);
-      const node = currentCard(g, { compact: true, animate: anim, sprite: old });
-      keep.set(k, old || node.querySelector('.rep-sprite'));
-      return node;
-    });
-    sprites = keep;
-    clearTimeout(expiry);
-    const ends = list.filter((g) => likelyActive(g, Date.now() + skew)).map((g) => Date.parse(g.status.ends_at) - (Date.now() + skew));
-    if (ends.length) expiry = setTimeout(() => refresh(), Math.max(1000, Math.min(...ends) + 1000));   // switch to the still image when the estimate ends
-    box.dataset.count = String(Math.min(list.length, 9));
-    mount(box, list.length ? cards :
+    box.dataset.count = String(list.length);
+    encounters.draw(list, c.now,
       h('div', { class: 'small muted', style: { gridColumn: '1/-1', padding: '6px 2px' } }, src.enabled ? translateUI('ui.home_feed_empty') : translateUI('ui.home_feed_connect')));
-    if (stop) stop();
-    stop = startTimers(box, Date.parse(c.now) - Date.now(), () => refresh());
   };
   const refresh = async () => {
     const visible = () => !disposed && card.isConnected && document.visibilityState !== 'hidden';
@@ -632,16 +603,15 @@ function liveCard(cur) {
     }
   };
   draw(cur);
-  const every = setInterval(refresh, 60000);
+  const every = setInterval(() => { refresh(); phenomena.refresh(); }, 60000);
   document.addEventListener('visibilitychange', refresh);
   unsub.push(() => {
     disposed = true; queued = false;
-    clearInterval(every); clearTimeout(expiry);
+    clearInterval(every);
     document.removeEventListener('visibilitychange', refresh);
-    if (stop) stop();
-    sprites.clear();
+    encounters.dispose();
   });
-  unsub.push(on('live.report', refresh));
+  unsub.push(on('live.report', refresh), on('live.phenomena', phenomena.refresh));
   return card;
 }
 

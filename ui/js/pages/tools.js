@@ -6,7 +6,7 @@ import { teamEditor, purposeLabel } from '../team-editor.js';
 import { t as tr } from '../i18n.js';
 import * as calcPage from './calculator.js';
 import { legacyRoute } from './collection.js';
-import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on } from '../core.js';
+import { h, mount, icon, get, post, api, state, badge, notice, typeChip, typeChips, cap, seg, toast, extLink, confirmDialog, on, setting, saveSettings } from '../core.js';
 import { go, popoutButton, pinButton, makePinDraggable, openPopout, isPinned, pinToSidebar } from '../shell.js';
 import { speciesPicker, speciesIndex, natureSelect } from '../components.js';
 import * as breeding from './breeding.js';
@@ -169,14 +169,18 @@ export function typeChartReadout(a, d) {
   const m = (tc.matrix[tc.types.indexOf(a)] || [])[tc.types.indexOf(d)];
   return { m, text: translateUI('ui.b272_chart_readout', { attack: gameTerm('type', cap(a)), defender: gameTerm('type', cap(d)), multiplier: multLabel(m), effect: translateUI(MULT_TEXT[m]) }) };
 }
-export async function renderTypeChart(el, route, { compact = false, compare = false } = {}) {
+export async function renderTypeChart(el, route, { compact = false, compare = false, popoutView = null } = {}) {
   tc = tc || await get('/api/tools/typechart');
   const T = tc.types;
+  const orientationKey = 'typechart.header_orientation';
+  let orientation = setting(orientationKey) === 'horizontal' ? 'horizontal' : 'vertical';
+  let orientationPending = false;
   let lock = null;          // {r, c} locked cell
-  let focusView = compact;  // compact windows start in the focused row/column view
+  if (popoutView) popoutView.focus ??= compact;
+  let focusView = popoutView?.focus ?? compact;
   let focusAxis = 'attacker', focusType = 'flying';
   let defTypes = [], offType = null;
-  const out = h('div', { class: 'stack' });
+  const out = h('div', { class: popoutView ? 'stack tc-popout' : 'stack' });
   // Main page only: the comparison panel sits right of the chart (below it on narrow windows). Popouts never get it.
   if (compare) {
     const side = h('div', { class: 'tc-compare-slot' });
@@ -185,11 +189,12 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     import('./compare.js').then((m) => m.comparePanel(tc, { movesSlot })).then((p) => side.append(p)).catch((e) => side.append(h('div', { class: 'notice warn small' }, translateUI('ui.b272_chart_comparison_error', { error: e.message }))));
   } else el.append(out);
 
-  const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, translateUI('ui.b272_chart_hover'));
+  const readoutText = (text) => popoutView ? h('span', { class: 'tc-readout-value', title: text }, text) : text;
+  const readout = h('div', { class: 'tc-readout', 'aria-live': 'polite' }, readoutText(translateUI('ui.b272_chart_hover')));
   const setReadout = (r, c, locked) => {
-    if (r == null) { readout.replaceChildren(translateUI('ui.b272_chart_hover')); return; }
+    if (r == null) { mount(readout, readoutText(translateUI('ui.b272_chart_hover'))); return; }
     const { m, text } = typeChartReadout(T[r], T[c]);
-    readout.replaceChildren(h('span', { class: 'mult ' + ({ 2: 'm2', 0.5: 'm05', 0: 'm0', 1: 'm1' }[m]) }, multLabel(m)), ' ', text,
+    mount(readout, h('span', { class: 'mult ' + ({ 2: 'm2', 0.5: 'm05', 0: 'm0', 1: 'm1' }[m]) }, multLabel(m)), ' ', readoutText(text),
       locked ? h('button', { class: 'btn ghost small', style: { marginLeft: '8px' }, onclick: () => { lock = null; paint(null, null); setReadout(null); } }, translateUI('ui.b272_chart_unlock')) : null);
   };
   let table;
@@ -201,11 +206,27 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
     const cell = table.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
     if (cell) cell.classList.add('hl-x');
   };
+  const typeLabels = popoutView ? T.map(type => Array.from(gameTerm('type', type))) : [];
+  const headerChip = (type) => {
+    const chip = typeChip(type, true);
+    if (popoutView) {
+      const label = chip.textContent;
+      chip.title = label;
+      chip.setAttribute('aria-label', label);
+      const letters = typeLabels[T.indexOf(type)];
+      const prefix = letters.slice(0, 2).join('');
+      const repeated = typeLabels.filter(other => other.slice(0, 2).join('') === prefix).length > 1;
+      const short = repeated && letters[2] ? letters[0] + letters[2] : prefix;
+      mount(chip, h('span', { class: 'tc-label' }, label),
+        h('span', { class: 'tc-label-short', 'aria-hidden': 'true' }, short));
+    }
+    return chip;
+  };
   const buildMatrix = () => {
-    table = h('table', { class: 'typechart', role: 'grid', 'aria-label': translateUI('ui.b272_chart_aria') },
+    table = h('table', { class: 'typechart', dataset: { headerOrientation: orientation }, role: 'grid', 'aria-label': translateUI('ui.b272_chart_aria') },
       h('thead', null, h('tr', null, h('th', { class: 'corner', scope: 'col' }, h('div', null, translateUI('ui.b272_chart_defender')), h('div', null, translateUI('ui.b272_chart_attacker'))),
-        T.map((t, j) => h('th', { scope: 'col', dataset: { c: j }, class: 'colhead' }, h('span', { class: 'tc' }, typeChip(t, true)))))),
-      h('tbody', null, T.map((a, i) => h('tr', null, h('th', { scope: 'row', dataset: { r: i }, class: 'rowhead' }, typeChip(a, true)), T.map((d, j) => {
+        T.map((t, j) => h('th', { scope: 'col', dataset: { c: j }, class: 'colhead' }, h('span', { class: 'tc' }, headerChip(t)))))),
+      h('tbody', null, T.map((a, i) => h('tr', null, h('th', { scope: 'row', dataset: { r: i }, class: 'rowhead' }, headerChip(a)), T.map((d, j) => {
         const m = tc.matrix[i][j];
         return h('td', { class: m === 2 ? 'x2' : m === 0.5 ? 'x05' : m === 0 ? 'x0' : '', dataset: { r: i, c: j }, tabindex: i === 0 && j === 0 ? '0' : '-1', role: 'gridcell',
           'aria-label': typeChartReadout(a, d).text }, m === 1 ? '' : m === 0.5 ? '½' : String(m));
@@ -284,12 +305,46 @@ export async function renderTypeChart(el, route, { compact = false, compare = fa
         [[2, '2×', 'm2'], [0.5, '½×', 'm05'], [0, '0×', 'm0']].map(([m, l, cls]) => by(m).length ? h('div', { class: 'row wrap' },
           h('span', { class: 'mult ' + cls, style: { minWidth: '40px' } }, l), by(m).map((t) => typeChip(t, true))) : null)) : null);
   };
+  const orientations = [['vertical', translateUI('typechart.vertical')], ['horizontal', translateUI('typechart.horizontal')]];
+  let orientationSwitch;
+  const updateOrientation = () => {
+    if (table) table.dataset.headerOrientation = orientation;
+    [...orientationSwitch.children].forEach((button, i) => {
+      const active = orientations[i][0] === orientation;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-checked', String(active));
+    });
+  };
+  const changeOrientation = async (next) => {
+    if (next === orientation || orientationPending) {
+      updateOrientation();
+      return;
+    }
+    const previous = orientation;
+    orientationPending = true;
+    orientation = next;
+    updateOrientation();
+    try {
+      await saveSettings({ [orientationKey]: next });
+    } catch (e) {
+      state.settings[orientationKey] = orientation = previous;
+      updateOrientation();
+      toast(e.message, { kind: 'warn' });
+    } finally { orientationPending = false; }
+  };
   const draw = () => {
-    const viewSwitch = seg([['matrix', translateUI('ui.b272_chart_full')], ['focus', translateUI('ui.b272_chart_focus')]], focusView ? 'focus' : 'matrix', (v) => { focusView = v === 'focus'; draw(); }, translateUI('ui.b272_chart_view'));
+    const viewSwitch = seg([['matrix', translateUI('ui.b272_chart_full')], ['focus', translateUI('ui.b272_chart_focus')]], focusView ? 'focus' : 'matrix', (v) => {
+      focusView = v === 'focus';
+      if (popoutView) popoutView.focus = focusView;
+      draw();
+    }, translateUI('ui.b272_chart_view'));
+    orientationSwitch = seg(orientations, orientation, changeOrientation, translateUI('typechart.header_orientation'));
     lock = null;
-    mount(out, h('div', { class: 'row wrap' }, viewSwitch, h('span', { class: 'grow' }), legend),
+    mount(out, h('div', { class: popoutView ? 'row wrap tc-controls' : 'row wrap' }, viewSwitch, orientationSwitch,
+      popoutView ? null : [h('span', { class: 'grow' }), legend]),
       focusView ? focusPanel() : h('div', { class: 'stack tight' }, readout, h('div', { class: 'tc-scroll' }, buildMatrix())),
-      h('div', { class: compact ? 'stack' : 'grid-2' }, defensive(), offensive()),
+      popoutView ? legend : null,
+      h('div', { class: popoutView ? 'stack tc-checkers' : compact ? 'stack' : 'grid-2' }, defensive(), offensive()),
       h('p', { class: 'small muted', style: { margin: 0 } }, calcMessage(tc.note)));
     setReadout(null);
   };

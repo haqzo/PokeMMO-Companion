@@ -411,7 +411,7 @@ export function applyAppearance() {
   if (POPOUT) root.classList.toggle('text-outline', !!s[`window.${POPOUT}.text_outline`]);
   if (POPOUT) root.style.setProperty('--panel-alpha', String((s[`window.${POPOUT}.bg_opacity`] || 92) / 100));
   const stack = document.getElementById('toasts');
-  if (stack) stack.className = 'toast-stack ' + (s['notify.toast_corner'] || 'bottom-right');
+  if (stack) stack.className = 'toast-stack ' + (s['notify.toast_corner'] || 'top-right');
 }
 
 // ------------------------------------------------------------- toasts

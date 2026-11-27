@@ -7,12 +7,13 @@ ntfy adapter (docs/design/11, 13):
     reports show the provider's own title/message text (sanitised plain text).
     Alpha/Swarm kind and species are *detected from text* and labelled as such.
   * ``expires`` is ntfy cache retention — never shown as a despawn time.
-  * De-duplicated by (provider, message id). Messages older than the moment of
-    (re)connection are replayed into history without toasts.
+  * Deduplicated by (provider, message id) and correlated across observations
+    of the same verified species and place. Catch-up messages stay silent.
 """
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import re
 import threading
@@ -30,11 +31,13 @@ from ..events import EventBus
 from ..settings import Settings
 from ..localization import native_text
 from ..storage import Storage, utcnow
-from .dex import DexService
+from .community import Community, PROVIDER
+from .community_sync import SHARED
+from .dex import DexService, normalize_location_text
 from .notify import Notifier
 from .phenomena import Phenomena
 
-PARSER_VERSION = "alphapedia-ntfy-2"
+PARSER_VERSION = "alphapedia-ntfy-3"
 TOPIC_KIND = {"alphapings": "alpha", "swarmpings": "swarm"}
 REGION_NAMES = {"kanto", "johto", "hoenn", "sinnoh", "unova"}
 # Payload shape recorded from real messages on 2026-11-17 (owner project notes, companion/STATUS.md):
@@ -51,6 +54,16 @@ _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 # possible end, never a confirmation that the Pokémon is still there, and there is no next-spawn countdown.
 ALPHA_MINUTES = 75
 FUTURE_TOLERANCE = timedelta(minutes=2)
+DUPLICATE_NOTICE = "Same Alpha/Swarm already reported — saved to history, not notified again"
+EXPIRED_NOTICE = "The estimated report window has passed — saved to history only"
+REPORTS_WITH_ANCHOR = """
+    SELECT r.*, a.source_time AS anchor_source_time, a.received_at AS anchor_received_at,
+        a.is_replay AS anchor_is_replay, a.community AS anchor_community
+    FROM reports r
+    LEFT JOIN reports a ON a.rowid = (
+        SELECT rowid FROM reports WHERE event_id=r.event_id ORDER BY event_at, rowid LIMIT 1
+    )
+"""
 
 
 def _parse_iso(v: str | None) -> datetime | None:
@@ -68,7 +81,7 @@ def report_status(r: dict, now: datetime, swarm_minutes: int = 20) -> dict:
     received = _parse_iso(r.get("received_at")) or now
     reported = _parse_iso(r.get("source_time"))
     notes = []
-    start, basis = reported, "report time"
+    start, basis = reported, "observation time" if r.get("community") else "report time"
     if reported is None:
         start, basis = received, "time received"
         notes.append("The report has no timestamp; the time it reached the Companion is used.")
@@ -84,7 +97,10 @@ def report_status(r: dict, now: datetime, swarm_minutes: int = 20) -> dict:
            "duration_min": minutes, "ends_at": (start + timedelta(minutes=minutes)).isoformat(timespec="seconds") if minutes else None,
            "estimate": None if not minutes else ("Alpha duration 75 min (official changelog)" if kind == "alpha"
                                                  else f"Swarm duration ~{minutes} min (community estimate, not official)")}
-    if kind == "test":
+    if r.get("is_replay") and basis == "time received" and minutes:
+        state = "replayed"
+        out.update(ends_at=None, duration_min=None, estimate=None)
+    elif kind == "test":
         state = "test"
     elif not minutes:
         state = "info"
@@ -110,24 +126,36 @@ def sanitize(text: object, limit: int = 2000) -> str:
 def iso_from_epoch(ts: object) -> str | None:
     try:
         return datetime.fromtimestamp(int(ts), timezone.utc).isoformat().replace("+00:00", "Z")
-    except (TypeError, ValueError, OSError):
+    except (TypeError, ValueError, OSError, OverflowError):
         return None
 
 
+def reported_location(body: str) -> tuple[str | None, str | None]:
+    # Keep the provider's spelling in the observation, including any floor or qualifier.
+    parts = re.split(r"[,，\n\r]", body, maxsplit=1)
+    region = normalize_location_text(parts[0])
+    if region not in REGION_NAMES:
+        return None, None
+    place = parts[1].strip() if len(parts) > 1 else ""
+    return region, place or None
+
+
 class LiveService:
-    def __init__(self, storage: Storage, settings: Settings, bus: EventBus, dex: DexService, notifier: Notifier):
+    def __init__(self, storage: Storage, settings: Settings, bus: EventBus, dex: DexService, notifier: Notifier,
+                 *, internal_reporting: bool = False):
         self.db = storage
         self.settings = settings
         self.bus = bus
         self.dex = dex
         self.notifier = notifier
         self.phenomena = Phenomena(self)
+        self.community = Community(self, available=internal_reporting)
         self.toast_backend: Callable[[dict], bool] | None = None  # set by the Qt shell
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
-        self._connected_at: float | None = None
         self.legend = json.loads((BUNDLED_DATA_DIR / "legendaries.json").read_text(encoding="utf-8"))
         self._names = sorted(((s["name"], sid) for sid, s in dex.index.items()), key=lambda x: -len(x[0]))
+        self._index_saved_events()
 
     # --------------------------------------------------------- source health
     def _health(self, status: str, detail: str = "", success: bool = False) -> None:
@@ -173,10 +201,7 @@ class LiveService:
                 if re.search(r"(?<![\w])" + re.escape(name.lower()) + r"(?![\w])", hay):
                     out["species"], out["species_basis"] = sid, "text"
                     break
-        parts = [p.strip() for p in re.split(r"[,\n]", body or "", maxsplit=1) if p.strip()]
-        if parts and parts[0].lower() in REGION_NAMES:
-            out["region"] = parts[0].lower()
-            out["location"] = parts[1] if len(parts) > 1 else None
+        out["region"], out["location"] = reported_location(body)
         return out
 
     def ingest(self, msg: dict, provider: str = "ntfy", replay: bool = False) -> dict | None:
@@ -188,45 +213,114 @@ class LiveService:
         body = sanitize(msg.get("message"))
         if not title and not body:
             return None
-        tags = [sanitize(t, 40) for t in (msg.get("tags") or []) if isinstance(t, (str, int))][:10]
+        raw_tags = msg.get("tags")
+        tags = [sanitize(t, 40) for t in raw_tags if isinstance(t, (str, int))][:10] if isinstance(raw_tags, list) else []
         topic = sanitize(msg.get("topic"), 64) or None
         det = self.detect(title, body, tags, topic)
         kind, basis, species = det["kind"], det["basis"], det["species"]
         source_url = None
-        for a in (msg.get("actions") or []):
+        actions = msg.get("actions")
+        for a in actions if isinstance(actions, list) else ():
             url = a.get("url") if isinstance(a, dict) else None
             if isinstance(url, str) and url.startswith(ALPHAPEDIA_URL):
                 source_url = url[:300]
                 break
         raw_hash = hashlib.sha256(json.dumps(msg, sort_keys=True, default=str).encode()).hexdigest()[:16]
         rid = uuid.uuid4().hex[:16]
+        received = utcnow()
+        source_time = iso_from_epoch(msg.get("time"))
+        swarm_minutes = self.swarm_minutes()
+        deliver = not replay
         with self.db.tx() as c:
             cur = c.execute(
                 "INSERT OR IGNORE INTO reports(id, provider, topic, message_id, kind, kind_basis, title, body, tags, "
                 "species_id, source_time, received_at, is_replay, raw_hash, parser_version, region, location, source_url) "
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (rid, provider, topic, mid, kind, basis, title, body, json.dumps(tags),
-                 species, iso_from_epoch(msg.get("time")), utcnow(), 1 if replay else 0, raw_hash, PARSER_VERSION,
-                 det["region"], sanitize(det["location"], 120) or None, source_url))
+                 species, source_time, received, int(replay), raw_hash, PARSER_VERSION,
+                 det["region"], det["location"], source_url))
             if cur.rowcount == 0:
                 return None
+            if kind in ("alpha", "swarm"):
+                row = dict(c.execute("SELECT * FROM reports WHERE id=?", (rid,)).fetchone())
+                event_id, status = self._assign_event(c, row, swarm_minutes)
+                if deliver and (event_id != rid or status["state"] != "recent"):
+                    self._store_suppression(c, rid, event_id, received)
+                    deliver = False
         report = self.get(rid)
-        if not replay:
-            earlier = self.earlier_report_of_same_event(report)
-            if earlier:
-                # Already notified for this event: keep the report in history, don't ping again.
-                self.db.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(
-                    {"suppressed": "Same Alpha/Swarm already reported — saved to history, not notified again",
-                     "same_as": earlier["id"], "at": utcnow()}), rid))
-            else:
-                self.deliver(report)
+        if deliver:
+            report["delivery"] = self.deliver(report)
         self.bus.publish("live.report", {"id": rid, "replay": replay})
         return report
 
+    @staticmethod
+    def _store_suppression(conn, rid, event_id, received, *, correction=False):
+        reason = "community.correction_silent" if correction else DUPLICATE_NOTICE if event_id != rid else EXPIRED_NOTICE
+        result = {"suppressed": reason, "at": received}
+        if event_id != rid:
+            result["same_as"] = event_id
+        conn.execute("UPDATE reports SET delivery=? WHERE id=?", (json.dumps(result), rid))
+
     # ------------------------------------------------------------ queries
-    def _row(self, r: dict) -> dict:
+    def _location_match(self, r: dict) -> dict:
+        if r.get("community"):
+            meta = r["community"]
+            if isinstance(meta, str):
+                meta = json.loads(meta)
+            if meta["location_id"]:
+                return {"status": "verified", "id": meta["location_id"], "name": r["location"]}
+            return {"status": "unverified"}
+        region, place = reported_location(r.get("body") or "")
+        return self.dex.match_location(region or r.get("region"), place or r.get("location"))
+
+    def _event_key(self, r: dict) -> str | None:
+        sid = r.get("species_id")
+        match = self._location_match(r)
+        if match["status"] == "verified" and sid and self.species_match(r.get("title") or "", "", sid) != "ambiguous":
+            return json.dumps([r["kind"], sid, match["id"]])
+        return None
+
+    def _index_saved_events(self) -> None:
+        """Index pre-v6 observations in receipt order, preserving their original fields and delivery."""
+        swarm_minutes = self.swarm_minutes()
+        with self.db.tx() as c:
+            rows = c.execute("SELECT * FROM reports WHERE is_test=0 AND kind IN ('alpha','swarm') "
+                             "AND event_id IS NULL ORDER BY rowid").fetchall()
+            for row in rows:
+                self._assign_event(c, dict(row), swarm_minutes)
+
+    def _assign_event(self, c, row: dict, swarm_minutes: int, *, preferred=None) -> tuple[str, dict]:
+        """Assign one observation atomically. A window never grows past one estimated duration."""
+        status = report_status(row, _parse_iso(row["received_at"]), swarm_minutes)
+        trustworthy_time = status["start_basis"] in ("report time", "observation time")
+        at = int(_parse_iso(status["start"]).timestamp()) if trustworthy_time or not row["is_replay"] else None
+        key = self._event_key(row) if trustworthy_time else None
+        event_id = preferred or row["id"]
+        if key and not preferred:
+            seconds = status["duration_min"] * 60
+            lower, upper = at - seconds, at + seconds
+            # Check both ends, so an out-of-order report cannot chain two windows together.
+            # If more than one window fits, favor the latest one already open at this report time.
+            candidate = c.execute("""
+                SELECT event_id FROM reports
+                WHERE event_id IN (
+                    SELECT event_id FROM reports WHERE event_key=? AND event_at>? AND event_at<?
+                )
+                GROUP BY event_id
+                HAVING MIN(event_at)>? AND MAX(event_at)<? AND SUM(withdrawn_at IS NULL)>0
+                ORDER BY MIN(event_at)>?, MIN(event_at) DESC, event_id LIMIT 1
+            """, (key, lower, upper, lower, upper, at)).fetchone()
+            if candidate:
+                event_id = candidate["event_id"]
+        c.execute("UPDATE reports SET event_id=?, event_key=?, event_at=? WHERE id=?", (event_id, key, at, row["id"]))
+        return event_id, status
+
+    def _row(self, r: dict, *, status: dict | None = None) -> dict:
+        r["is_own"] = r["provider"] == PROVIDER
+        r["sources"] = [r["provider"].split(":")[0] if r["provider"].startswith(SHARED + ":") else r["provider"]]
         r["tags"] = json.loads(r["tags"] or "[]")
         r["delivery"] = json.loads(r["delivery"]) if r.get("delivery") else None
+        r["community"] = json.loads(r["community"]) if r.get("community") else None
         sid = r.get("species_id")
         r["species_name"] = self.dex.name(sid) if sid else None
         # Sprites are shown only when the report names its species unambiguously (display-only check; the
@@ -239,35 +333,11 @@ class LiveService:
         r["species_still"] = self.dex.still(sid) if ok else None
         lib = self.dex.library
         r["species_ani"] = (lib.urls(str(sid)).get("ani") if ok and lib is not None and lib.installed else None)
-        r["status"] = report_status(r, datetime.now(timezone.utc), self.swarm_minutes())
+        r["location_match"] = self._location_match(r)
+        r["status"] = status or report_status(r, datetime.now(timezone.utc), self.swarm_minutes())
+        r.pop("event_key", None)
+        r.pop("event_at", None)
         return r
-
-    @staticmethod
-    def event_key(r: dict) -> tuple:
-        """Same Pokémon (or same title), same kind, same region and place = the same game event."""
-        who = r.get("species_id") if r.get("species_match") in ("title", "single-mention") else None
-        return (r["kind"], who or (r.get("title") or "").strip().lower(), (r.get("region") or "").lower(),
-                (r.get("location") or "").lower())
-
-    def earlier_report_of_same_event(self, report: dict) -> dict | None:
-        """An earlier, still-running report of the same event (another player's call, a re-sent or corrected
-        notification under a new message id). Used to avoid notifying twice; it never changes the event's timer."""
-        if report.get("is_test") or report.get("kind") not in ("alpha", "swarm"):
-            return None
-        st = report.get("status") or {}
-        start = _parse_iso(st.get("start")) if st.get("start") else None
-        if start is None or not st.get("duration_min"):
-            return None
-        z = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")      # stored timestamps use this exact form  # noqa: E731
-        since, until = z(start - timedelta(minutes=st["duration_min"])), z(start)
-        key = self.event_key(report)
-        for r in self.db.query("SELECT * FROM reports WHERE is_test=0 AND kind=? AND id<>? AND COALESCE(source_time, received_at) >= ? "
-                               "AND COALESCE(source_time, received_at) <= ? ORDER BY COALESCE(source_time, received_at) ASC",
-                               (report["kind"], report["id"], since, until)):
-            r = self._row(r)
-            if self.event_key(r) == key:
-                return r
-        return None
 
     def swarm_minutes(self) -> int:
         try:
@@ -282,39 +352,37 @@ class LiveService:
         Reports caught up after (re)connecting count by their own timestamp and are labelled as such."""
         now = now or datetime.now(timezone.utc)
         sw = self.swarm_minutes()
-        horizon = (now - timedelta(minutes=max(ALPHA_MINUTES, sw) * 3)).isoformat(timespec="seconds")
-        rows = [self._row(r) for r in self.db.query(
-            "SELECT * FROM reports WHERE is_test=0 AND kind IN ('alpha','swarm') AND COALESCE(source_time, received_at) >= ? "
-            "ORDER BY COALESCE(source_time, received_at) ASC", (horizon,))]
+        # Include older anchors when a group's latest observation is still within view.
+        # Correlation can have used a larger Swarm estimate before a settings change.
+        horizon = int((now - timedelta(minutes=max(ALPHA_MINUTES, sw) * 2)).timestamp())
+        rows = self.db.query(
+            "SELECT * FROM reports WHERE event_id IN (SELECT event_id FROM reports WHERE event_at >= ?) "
+            "ORDER BY event_at, rowid", (horizon,))
         include_catchup = self.settings.get("live.current_include_catchup") is not False
-        groups: list[dict] = []
-        for r in rows:
-            st = r["status"]
-            if st["state"] not in ("recent", "uncertain") or (r["is_replay"] and not include_catchup):
-                continue
-            key = self.event_key(r)
-            start = _parse_iso(st["start"])
-            g = next((g for g in groups if g["key"] == key and start - g["_start"] < timedelta(minutes=st["duration_min"])), None)
-            if g:
-                g["count"] += 1
-                g["report_ids"].append(r["id"])
-                g["latest"] = r
-                continue
-            groups.append({"key": key, "_start": start, "first": r, "latest": r, "count": 1, "report_ids": [r["id"]]})
+        groups: dict[str, list[dict]] = {}
+        for row in rows:
+            groups.setdefault(row["event_id"], []).append(row)
         out = []
-        for g in groups:
-            first = g["first"]
-            st = report_status(first, now, sw)  # the timer runs from the earliest report of the group
+        for observations in groups.values():
+            visible = [row for row in observations if not row["withdrawn_at"] and (include_catchup or not row["is_replay"])]
+            if not visible:
+                continue
+            first = observations[0]
+            st = report_status(first, now, sw)
             if st["state"] not in ("recent", "uncertain"):
                 continue
-            out.append({**first, "status": st, "duplicates": g["count"] - 1, "report_ids": g["report_ids"],
-                        "latest_id": g["latest"]["id"], "caught_up": bool(first["is_replay"])})
+            out.append({**self._row(visible[0], status=st), "duplicates": len(visible) - 1,
+                        "report_ids": [row["id"] for row in visible], "latest_id": visible[-1]["id"],
+                        "caught_up": bool(visible[0]["is_replay"]),
+                        "sources": list(dict.fromkeys(row["provider"].split(":")[0] if row["provider"].startswith(SHARED + ":")
+                                                      else row["provider"] for row in visible)),
+                        "own_report_id": next((row["id"] for row in reversed(visible) if row["provider"] == PROVIDER), None)})
         out.sort(key=lambda x: (x["status"]["state"] != "recent", -_parse_iso(x["status"]["start"]).timestamp()))
         src = self.source_status()
-        return {"now": now.isoformat(timespec="seconds"), "current": out, "source": src,
+        return {"now": now.isoformat(timespec="seconds"), "current": self.community.decorate(out), "source": src,
                 "estimates": {"alpha_minutes": ALPHA_MINUTES, "alpha_basis": "official PokeMMO changelog",
                               "swarm_minutes": sw, "swarm_basis": "provisional community estimate (reports say ~15, 20 or 30 min)"},
-                "complete": bool(src.get("enabled")) and src.get("status") == "connected"}
+                "complete": False}
 
     def species_match(self, title: str, body: str, sid: int) -> str:
         """How reliably a report identifies species `sid`: 'title' (the title is exactly the name),
@@ -331,29 +399,36 @@ class LiveService:
         return "single-mention" if found == {sid} else "ambiguous"
 
     def get(self, rid: str) -> dict:
-        r = self.db.query_one("SELECT * FROM reports WHERE id=?", (rid,))
+        r = self.db.query_one(REPORTS_WITH_ANCHOR + " WHERE r.id=?", (rid,))
         if not r:
             raise KeyError(rid)
-        return self._row(r)
+        report = self._event_row(r, datetime.now(timezone.utc), self.swarm_minutes())
+        return self.community.decorate([report], history=True)[0]
+
+    def _event_row(self, row: dict, now: datetime, swarm_minutes: int) -> dict:
+        anchor = {key: row.pop(f"anchor_{key}") for key in ("source_time", "received_at", "is_replay", "community")}
+        timeline = {**row, **anchor} if anchor["received_at"] else row
+        return self._row(row, status=report_status(timeline, now, swarm_minutes))
 
     def list(self, kind: str | None = None, q: str | None = None, include_tests: bool = True,
              limit: int = 300, region: str | None = None) -> list[dict]:
-        sql = "SELECT * FROM reports WHERE kind<>'phenomena'"
+        sql = REPORTS_WITH_ANCHOR + " WHERE r.kind NOT IN ('phenomena','seasonal')"
         args: list = []
         if region in REGION_NAMES:
-            sql += " AND region=?"
+            sql += " AND r.region=?"
             args.append(region)
         if kind in ("alpha", "swarm", "other", "test"):
-            sql += " AND kind=?"
+            sql += " AND r.kind=?"
             args.append(kind)
         if not include_tests:
-            sql += " AND is_test=0"
+            sql += " AND r.is_test=0"
         if q:
-            sql += " AND (title LIKE ? OR body LIKE ?)"
+            sql += " AND (r.title LIKE ? OR r.body LIKE ?)"
             args += [f"%{q}%", f"%{q}%"]
-        sql += " ORDER BY COALESCE(source_time, received_at) DESC LIMIT ?"
+        sql += " ORDER BY COALESCE(r.source_time, r.received_at) DESC, r.received_at DESC, r.rowid DESC LIMIT ?"
         args.append(limit)
-        return [self._row(r) for r in self.db.query(sql, args)]
+        now, swarm_minutes = datetime.now(timezone.utc), self.swarm_minutes()
+        return self.community.decorate([self._event_row(r, now, swarm_minutes) for r in self.db.query(sql, args)])
 
     def mark_seen(self, rid: str | None = None) -> int:
         if rid:
@@ -361,14 +436,16 @@ class LiveService:
         return self.db.execute("UPDATE reports SET seen=1 WHERE seen=0")
 
     def clear(self, tests_only: bool = False) -> int:
-        n = self.db.execute("DELETE FROM reports WHERE kind<>'phenomena'" + (" AND is_test=1" if tests_only else ""))
+        n = self.db.execute("DELETE FROM reports WHERE kind NOT IN ('phenomena','seasonal')" + (" AND is_test=1" if tests_only else ""))
         self.bus.publish("live.report", {"cleared": n})
         return n
 
     def prune(self) -> int:
         days = int(self.settings.get("notify.retention_days") or 30)
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-        return self.db.execute("DELETE FROM reports WHERE kind<>'phenomena' AND received_at < ?", (cutoff,))
+        # Preserve observations from dormant reporting in older profiles.
+        scope = "(kind<>'phenomena' OR community IS NOT NULL)" if self.community.available else "kind<>'phenomena' AND community IS NULL"
+        return self.db.execute("DELETE FROM reports WHERE " + scope + " AND received_at < ?", (cutoff,))
 
     # ------------------------------------------------------------ delivery
     def deliver(self, report: dict) -> dict:
@@ -449,12 +526,8 @@ class LiveService:
 
     def stop(self) -> None:
         self._stop.set()
+        self.community.sync.stop()
         self.phenomena.stop()
-
-    def _last_message_id(self) -> str | None:
-        r = self.db.query_one("SELECT message_id FROM reports WHERE provider='ntfy' AND is_test=0 "
-                              "ORDER BY COALESCE(source_time, received_at) DESC LIMIT 1")
-        return r["message_id"] if r else None
 
     def _run(self) -> None:
         backoff = 5
@@ -464,13 +537,14 @@ class LiveService:
             if not re.match(r"^https://[\w.\-]+(:\d+)?$", server) or not re.match(r"^[\w\-]{1,64}(,[\w\-]{1,64}){0,4}$", topic):
                 self._health("error", "Invalid server or topic (HTTPS host and simple topic name required)")
                 return
-            since = self._last_message_id() or "12h"
-            url = f"{server}/{urllib.parse.quote(topic, safe=',')}/json?since={urllib.parse.quote(since)}"
+            # A bounded catch-up also works when the last cached ID belongs to another topic
+            # or has expired from the provider's cache. The database deduplicates overlap.
+            url = f"{server}/{urllib.parse.quote(topic, safe=',')}/json?since=12h"
             self._health("connecting", url)
+            requested_at = time.time()
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": f"PokeMMO-Companion/{__version__} (read-only)"})
                 with urllib.request.urlopen(req, timeout=75) as resp:
-                    self._connected_at = time.time()
                     self._health("connected", "Listening (read-only)", success=True)
                     backoff = 5
                     for line in resp:
@@ -482,6 +556,8 @@ class LiveService:
                         try:
                             msg = json.loads(line)
                         except ValueError:
+                            msg = None
+                        if not isinstance(msg, dict):
                             self._health("connected", "Ignored a malformed line from the feed", success=True)
                             continue
                         ev = msg.get("event")
@@ -490,12 +566,12 @@ class LiveService:
                             continue
                         if ev != "message":
                             continue  # message_delete/clear semantics unverified for this provider
-                        try:
-                            replay = int(msg.get("time", 0)) < (self._connected_at or 0) - 30
-                        except (TypeError, ValueError):
-                            replay = True
+                        reported = _parse_iso(iso_from_epoch(msg.get("time")))
+                        replay = reported is None or reported.timestamp() < requested_at
                         self.ingest(msg, "ntfy", replay=replay)
-            except (urllib.error.URLError, OSError, ValueError) as exc:
+                    if not self._stop.is_set():
+                        self._health("offline", f"Feed connection closed — retrying in {backoff}s")
+            except (OSError, ValueError, http.client.HTTPException) as exc:
                 if self._stop.is_set():          # closing: the connection was cut on purpose; nothing to record
                     return
                 self._health("offline", f"{type(exc).__name__}: {str(exc)[:160]} — retrying in {backoff}s")
