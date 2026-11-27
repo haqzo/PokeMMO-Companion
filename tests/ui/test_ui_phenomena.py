@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 from companion import __version__
-from tests.ui.test_ui_flows import app, browser, data_dir, go, page  # noqa: F401
+from tests.ui.test_ui_flows import Running, app, browser, data_dir, go, page, pw  # noqa: F401
+from test_community import observation
 from test_phenomena import LOCAL, fixture_at, read, snapshot
 
 pytestmark = pytest.mark.ui
@@ -110,3 +111,47 @@ def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(
     page.locator(".loc-page").wait_for()
     assert page.url.endswith("#/tools/locations/unova%3A255")
     assert not page.errors
+
+
+def test_local_reports_keep_species_and_spot_precision_after_restart(tmp_path, page):
+    app = Running(tmp_path)
+    app.ctx.settings.update({"app.onboarded": True, "app.language": "en",
+                             "live.community.enabled": True, "live.ntfy.enabled": False})
+    try:
+        for note, spot in [("Area only", ""), ("Documented spot", "village-bridge-southwest")]:
+            go(page, app, "#/live/phenomena")
+            page.get_by_role("searchbox", name="Search location").fill("Village Bridge")
+            reference = page.locator(".phenomenon-card", has_text="Lower left of Village Bridge")
+            reference.get_by_role("button", name="Report here").click()
+            dialog = page.get_by_role("dialog")
+            dialog.get_by_label("Exact spot").select_option(spot)
+            dialog.get_by_role("combobox", name="When observed").select_option("already_active")
+            dialog.get_by_role("combobox", name="Source of observation").select_option("firsthand")
+            dialog.get_by_role("textbox", name="Short details (optional)").fill(note)
+            dialog.get_by_role("button", name="Save report").click()
+            pw.expect(dialog).to_have_count(0)
+        reports = {row["body"]: row["id"] for row in app.ctx.live.community.phenomena()}
+        assert set(reports) == {"Area only", "Documented spot"}
+        encounters = {
+            kind: app.ctx.live.community.submit(observation(app.ctx, kind=kind))["id"]
+            for kind in ("alpha", "swarm")
+        }
+    finally:
+        app.stop()
+
+    restarted = Running(tmp_path)
+    try:
+        for kind, report_id in encounters.items():
+            row = restarted.ctx.live.get(report_id)
+            assert row["kind"] == kind and row["species_id"] == 25 and row["is_own"]
+        area, exact = (restarted.ctx.live.get(reports[note]) for note in ("Area only", "Documented spot"))
+        assert area["community"]["location_id"] == exact["community"]["location_id"] == "unova:255"
+        assert not area["community"].get("spot_id")
+        assert exact["community"]["spot_id"] == "village-bridge-southwest"
+        assert area["status"]["ends_at"] is None and exact["status"]["ends_at"] is None
+        go(page, restarted, "#/live/phenomena/" + exact["id"])
+        pw.expect(page.get_by_text("Documented spot", exact=True).first).to_be_visible()
+        if folder := os.environ.get("POKEMMO_COMMUNITY_SCREENSHOTS"):
+            page.screenshot(path=Path(folder) / "qa02-phenomena-restart.png", animations="disabled")
+    finally:
+        restarted.stop()

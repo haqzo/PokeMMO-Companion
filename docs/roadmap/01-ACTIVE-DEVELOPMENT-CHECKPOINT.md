@@ -200,3 +200,14 @@ Alpha and Swarm forms use an explicit searchable species list with prefix rankin
 The native Qt WebEngine 6.10.2 smoke test ran the actual Companion shell and a compact Reports popout with an isolated profile, using the offscreen Qt platform and software rendering. It verified wheel scrolling, Enter, Escape, Swarm submission and the Type Chart intersection and readout. [Native horizontal chart](qa01/qa01-native-typechart.png) · [Native species picker](qa01/qa01-native-species.png)
 
 Linux recorded **498 backend passes and 31 skips** and **225 Chromium passes and 20 skips**. Skips require optional local dumps or ROMs. The first full Chromium run hit a timing failure in a compact Storyline scroll assertion. All three Storyline popout variants passed in isolation, and the complete rerun passed without a Storyline change. Windows Server 2025 x64 recorded **224 selected passes** and passed the offline clean install. Native Windows interaction remains open. [Windows regression run](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45910670726)
+
+## QA Correction 02 — Reporting verification
+
+Started at research-only develop `31f3391d53006db951f841ac1f7f3b5fa514b6b6`, after the owner accepted the corrected Type Chart and species picker from `1108e24fa64461a4af9010012624a2e3472e0ac0`. This checkpoint adds verification and one restart regression test. Application code is unchanged.
+
+- **76 focused tests passed** across the local report, Phenomena, sharing, and Chromium UI suites. The UI covered Alpha and Swarm, invalid species and explicit keyboard or mouse selection, region and location restoration, correction with selected species intact, withdrawal, personal completion and Not Found. Compact, Standard and Expanded reports were exercised across English, Spanish and Simplified Chinese.
+- A fresh instance reopened the same temporary profile. Both local encounter types retained the species ID and ownership. The two Village Bridge observations retained their distinct area and exact-spot precision and unknown expiry.
+- Two isolated profiles exercised current relay sharing, ownership, deduplication, personal feedback and restart recovery. The archived Batch 03 relay and protocol at `ac74614d1db6e6dbc9e94aa2ed90b9cf312511c1` also passed create, correction, withdrawal, area-only delivery, owner precision and non-owner rejection.
+- The actual Companion shell and Qt WebEngine 6.10.2 passed the compact report dialog with wheel scrolling, invalid-species validation, keyboard and mouse picking, region restoration, and saving a synthetic Alpha. The Qt check used Linux offscreen rendering. Native Windows interaction remains open. All reports and relay traffic used isolated profiles and local services.
+
+[Native compact species results](qa02/qa02-native-compact-results.png) · [Exact-spot report reopened after restart](qa02/qa02-phenomena-restart.png)
