@@ -602,8 +602,8 @@ svg.inline-ic { width: 12px; height: 12px; vertical-align: -1px; }
   .mode-expanded .tc-checkers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container page (max-width: 600px) {
-  .tc-popout .typechart[data-header-orientation="horizontal"] .tc-label { display: none; }
-  .tc-popout .typechart[data-header-orientation="horizontal"] .tc-label-short { display: inline; white-space: nowrap; }
+  .tc-popout .typechart[data-header-orientation="horizontal"] .colhead .tc-label { display: none; }
+  .tc-popout .typechart[data-header-orientation="horizontal"] .colhead .tc-label-short { display: inline; white-space: nowrap; }
 }
 
 .tc-readout { min-height: 38px; padding: 8px 12px; border-radius: var(--radius); background: var(--bg-inset); border: var(--bw) solid var(--border-subtle); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 500; }
