@@ -233,3 +233,7 @@ The local Windows diagnostic ZIP passed extracted-package, offline, HTTPS and 0.
 ## Final release-readiness verification
 
 [Final release verification](06-FINAL-RELEASE-VERIFICATION.md) records the shared Home and Live estimate indicators, the full Linux regression run, the native Windows Server candidate and the private review materials for the proposed v0.8.1 Alpha. Both packages were built from candidate snapshot `bbd0a4e98327bd4a5d21fb0f32c5b64122cc57b5`. Linux passed 782 tests with the optional inputs and the Ubuntu 22.04 package checks. Windows Server passed package, offline startup, HTTPS, published-package upgrade and Chromium checks. Interactive Windows 10 and 11 desktop acceptance and direct Linux FUSE acceptance remain open. The next checkpoint is owner approval.
+
+## Final reporting scope correction
+
+[Final reporting scope verification](07-REPORTING-SCOPE-QA.md) records the public configuration, both candidate checksums and the private review materials. Independent reporting is dormant in the public app. Existing report history stays readable and the external links open Alphapedia’s current publishing instructions. Both packages used snapshot `841f22291f8b4f607be42b36722fa24b25d008a5`. Linux passed 783 tests and the glibc 2.35 package checks. Native Windows Server passed package verification and 289 regression tests, with eight skips for optional local dump fixtures. Direct Linux FUSE and interactive Windows 10/11 desktop testing remain open for owner acceptance.
