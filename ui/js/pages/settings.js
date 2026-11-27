@@ -542,6 +542,7 @@ async function backupSec(b) {
   b.append(h('div', null, h('h2', { style: { marginTop: 0 } }, translateUI('ui.backup_recovery')),
     st.recovered ? notice(st.recovered.recovered ? 'info' : 'warn', st.recovered.recovered ? translateUI('system.restore_finished') : translateUI('system.restore_interrupted', { reason: apiErrorText(st.recovered.reason) })) : null,
     h('p', { class: 'small muted', style: { marginTop: 0 } }, translateUI('ui.settings_backup_full')),
+    h('p', { class: 'small muted' }, translateUI('ui.settings_backup_scope')),
     row(translateUI('ui.settings_backup_auto'), auto ? translateUI('system.backup_last', { date: fmtDate(auto.created_at, true) }) : translateUI('system.backup_auto'),
       h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': translateUI('ui.settings_backup_auto'), onchange: (e) => saveSettings({ 'backup.auto_hours': Number(e.target.value) }) },
         [[0, translateUI('settings.off')], [6, translateUI('system.every6')], [12, translateUI('system.every12')], [24, translateUI('system.daily')], [72, translateUI('system.every3days')], [168, translateUI('system.weekly')]].map(([v, l]) =>
@@ -581,6 +582,7 @@ async function backupSec(b) {
       pv.newer ? notice('warn', translateUI('system.newer_backup')) : null,
       h('ul', { class: 'small', style: { margin: 0 } }, lines),
       pv.runs_conflicting || pv.documents_conflicting ? h('div', { class: 'small muted' }, translateUI('system.conflicts', { runs: pv.runs_conflicting, items: pv.documents_conflicting })) : null,
+      h('div', { class: 'small muted' }, translateUI('system.restore_scope')),
       h('div', { class: 'small muted' }, translateUI('system.safety_copy'))),
     actions: [{ label: translateUI('ui.cancel'), value: null, kind: 'ghost' }, { label: translateUI('system.replace_data'), value: 'replace', kind: 'danger' }, { label: translateUI('system.merge'), value: 'merge', kind: 'primary' }] });
     if (!mode || pv.newer) return;

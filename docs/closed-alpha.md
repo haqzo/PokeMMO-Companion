@@ -17,7 +17,7 @@ The candidate identifies itself as **0.8.0 Alpha**. Once the owner approves dist
 
 ## Back up, update or recover
 
-1. In **Settings → Backup & recovery**, create a complete backup ZIP and copy it to a separate location. The ZIP includes personal content and images such as Box photos.
+1. In **Settings → Backup & recovery**, create a complete backup ZIP and copy it to a separate location. The ZIP includes supported personal data, settings and images such as Box photos. Portable ZIP backups and JSON exports exclude local report history. SQLite safety copies created before a database migration preserve that history. Merge keeps your current settings. Replace restores the archived settings and supported data. Both modes keep the report history already in your profile.
 2. Quit Companion, including from the tray if you enabled that behavior. On Linux, open the new AppImage. On Windows, extract the new ZIP to a fresh folder and launch the executable from there. The new application uses the same data folder as before when you use the same OS account and data-folder setting.
 3. Confirm your notes, guides and settings after launch. To recover from the backup, open **Settings → Backup & recovery**, select the ZIP and preview it. Use **Merge** to add or combine records, or **Replace** to restore the contents of the backup over your current data. Companion makes a safety copy before restoring.
 
