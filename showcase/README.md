@@ -1,6 +1,42 @@
-# PokeMMO Companion — Showcase
+# PokeMMO Companion Showcase
 
-Real captures of the 0.8.0 Alpha interface. The gameplay image shows a floating Companion window alongside PokeMMO; the captured game is not part of Companion. Live reports and news reflect the time of recording.
+## v0.8.1 Alpha
+
+| Horizontal Type Chart | Compact Alpha and Swarm window |
+| --- | --- |
+| ![Fire attacking Grass in the 17-type matrix](type-chart-horizontal.png) | ![Alpha and Swarm history with the Alphapedia reporting link](reports-compact.png) |
+
+| Spanish Storyline | Simplified Chinese Pokédex |
+| --- | --- |
+| ![Compact Storyline in Spanish](storyline-compact-es.png) | ![Expanded Pokédex in Simplified Chinese](pokedex-expanded-zh.png) |
+
+![Documented Village Bridge spot in the offline Phenomena reference](phenomena-reference.png)
+
+The encounter screenshots use synthetic Alphapedia reports in disposable profiles. [Alphapedia by FlaProGmr and LordDuskk](https://alpha.pokemmotools.org/) provides the live Alpha and Swarm feeds. MaToRiuKo and yuisigamy contributed the multilingual field notes behind the bundled Unova reference.
+
+## Floating Type Chart and Live
+
+| Compact | Standard | Expanded |
+| --- | --- | --- |
+| ![Compact Type Chart](after-typechart-compact.png) | ![Standard Type Chart](after-typechart-standard.png) | ![Expanded Type Chart](after-typechart-expanded.png) |
+
+| Alpha and Swarm time estimates | Current roaming Legendaries |
+| --- | --- |
+| ![Live encounter cards with likely-active, uncertain and elapsed estimates](after-live-reports.png) | ![Current Kanto and Johto roamer cards](after-live-legendaries.png) |
+
+The encounter cards use synthetic reports in an isolated QA profile.
+
+## Home and Live estimate indicators
+
+| Home dashboard | Live encounters |
+| --- | --- |
+| ![Home estimate indicators](after-home.png) | ![Live estimate indicators](after-live.png) |
+
+Matched synthetic encounters show likely-active, uncertain and elapsed states.
+
+## v0.8.0 Alpha gallery
+
+The gallery preserves the original alpha captures, including Companion’s floating window alongside PokeMMO gameplay.
 
 ## Overview
 

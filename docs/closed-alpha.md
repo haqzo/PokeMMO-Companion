@@ -1,11 +1,11 @@
-# Friends-only closed alpha
+# Installation, backups and feedback
 
-The candidate identifies itself as **0.8.0 Alpha**. Once the owner approves distribution, use the package for your platform and verify it against the release’s `SHA256SUMS`. [0.8.0 release and install notes](releases/0.8.0.md)
+Use the package for your platform and verify it against the signed release checksums. [0.8.1 release and install notes](releases/0.8.1.md)
 
 ## Install and start
 
-- **Linux x86-64.** Save the AppImage somewhere writable. In your file manager, enable **Allow executing file as a program**, then open it. From a terminal, make it executable with `chmod +x ./PokeMMO-Companion-0.8.0-x86_64.AppImage`, using the filename supplied to you. Then open it. If the system cannot mount it with FUSE, run `./PokeMMO-Companion-0.8.0-x86_64.AppImage --appimage-extract-and-run` with the same filename.
-- **Windows x86-64.** Right-click `PokeMMO-Companion-0.8.0-windows-x86_64.zip` and select **Extract All**. Open the extracted `pokemmo-companion` folder and run `pokemmo-companion.exe`. Keep the files and folders beside the executable together. The portable package includes Python and Qt.
+- **Linux x86-64.** Save the AppImage somewhere writable. In your file manager, enable **Allow executing file as a program**, then open it. From a terminal, make it executable with `chmod +x ./PokeMMO-Companion-0.8.1-x86_64.AppImage`, using the filename supplied to you. Then open it. If the system cannot mount it with FUSE, run `./PokeMMO-Companion-0.8.1-x86_64.AppImage --appimage-extract-and-run` with the same filename.
+- **Windows x86-64.** Right-click `PokeMMO-Companion-0.8.1-windows-x86_64.zip` and select **Extract All**. Open the extracted `pokemmo-companion` folder and run `pokemmo-companion.exe`. Keep the files and folders beside the executable together. The portable package includes Python and Qt.
 - **First launch.** The Welcome panel on Home can help you pick a language and configure optional features. You can also dismiss it and start with the Pokédex, Item Library or a regional walkthrough. The installed reference data, icons and sprites are available offline without importing game files. To track a walkthrough, start a storyline run under Guides.
 
 ## Settings and floating tools
@@ -31,10 +31,6 @@ The default profile is `~/.local/share/pokemmo-companion` on Linux and `%APPDATA
 
 Send feedback in the project Discord. **Settings → About & credits** can save diagnostics. Review diagnostics, screenshots and log excerpts for personal information before sharing. [Companion community Discord](https://discord.gg/5Wbh28M3gu)
 
-## Readiness and distribution
-
-The active checkpoint records technical verification and remaining platform tests. The owner handles invited testers, asset permissions and distribution. Report the specific OS version and desktop you tried, especially for Windows 10, Windows 11 or Linux AppImage launch. [Active development checkpoint](https://github.com/haqzo/PokeMMO-Companion/blob/develop/docs/roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md)
-
 ## Update and signing status
 
-Under **Settings → Updates**, this alpha defaults to **Alpha, beta & prereleases** when you have no saved channel. The app keeps an explicit choice. Choose **Stable** to see only regular stable releases. The app verifies signed `SHA256SUMS` and package bytes when using its verified download. Install the update manually when ready. [Release notes](releases/0.8.0.md)
+Under **Settings → Updates**, this alpha defaults to **Alpha, beta & prereleases** when you have no saved channel. The app keeps an explicit choice. Choose **Stable** to see only regular stable releases. The app verifies signed `SHA256SUMS` and package bytes when using its verified download. Install the update manually when ready. [Release notes](releases/0.8.1.md)
