@@ -229,3 +229,7 @@ The local Windows diagnostic ZIP passed extracted-package, offline, HTTPS and 0.
 ## Final owner interface refinements
 
 [Owner UI QA](05-OWNER-UI-QA.md) records the responsive floating Type Chart, Live time indicators and motion-aware encounter and roamer artwork. The private Linux owner candidate passed the Ubuntu 22.04 package checks at glibc 2.35 and the packaged KDE/XWayland and Wayland smoke tests. The earlier package remains available for comparison. Before-and-after captures and the updated publication drafts are kept locally for owner acceptance.
+
+## Final release-readiness verification
+
+[Final release verification](06-FINAL-RELEASE-VERIFICATION.md) records the shared Home and Live estimate indicators, the full Linux regression run, the native Windows Server candidate and the private review materials for the proposed v0.8.1 Alpha. Both packages were built from candidate snapshot `bbd0a4e98327bd4a5d21fb0f32c5b64122cc57b5`. Linux passed 782 tests with the optional inputs and the Ubuntu 22.04 package checks. Windows Server passed package, offline startup, HTTPS, published-package upgrade and Chromium checks. Interactive Windows 10 and 11 desktop acceptance and direct Linux FUSE acceptance remain open. The next checkpoint is owner approval.
