@@ -216,6 +216,6 @@ Started at research-only develop `31f3391d53006db951f841ac1f7f3b5fa514b6b6`, aft
 
 The full QA matrix, migration and restore evidence, packaging results, native performance comparison and remaining release gates are in [Comprehensive release QA](03-RELEASE-QA.md). The tested application is the QA Correction 02 runtime at `59946c4c4937969b69c945d6514c0ac8dc19f050`. Packaging corrections are at `384d956817ac471c25301fd0dbf1cd3058c58480`.
 
-Linux recorded 775 suite passes. Native KDE/XWayland and Wayland recorded 51 mode/tool passes each. Windows Server recorded 225 selected passes. The actual published 0.8.0 Linux package upgraded into the local QA package with a single pre-migration SQLite backup. Authored report history survives the upgrade but is outside portable ZIP backup scope.
+Linux recorded 775 suite passes. Native KDE/XWayland and Wayland recorded 51 mode/tool passes each. Windows Server recorded 225 selected passes. The actual published 0.8.0 Linux package upgraded into the local QA package with a single pre-migration SQLite backup. Local demo report history survives the upgrade but is outside portable ZIP backup scope.
 
 The unsigned local AppImage passed the fresh, loopback-only profile self-check and packaged HTTPS verification. Its glibc 2.44 requirement exceeds the distribution ceiling. The supported Linux build, a current Windows portable ZIP and interactive platform acceptance remain outstanding. The proposed README, release notes, showcase and announcements are held locally for owner review.
