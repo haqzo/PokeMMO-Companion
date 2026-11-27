@@ -375,7 +375,10 @@ def test_live_countdown_expires_locally_and_preserves_duplicate_timing(app, page
     assert page.locator(".live-cur .cur-card", has_text="Wailmer").locator(".cur-estimate").inner_text() == "Estimate ended"
     assert page.locator(".live-cur .cur-card:not(:has(.cur-estimate[data-tone=ok])) img.rep-ani").count() == 0
     assert page.locator(".live-cur .cur-card", has_text="TEST").count() == 0
+    refreshes = []
+    page.on("request", lambda request: refreshes.append(request.url) if request.url.endswith("/api/live/current") else None)
     page.clock.fast_forward(12_000)
+    assert not refreshes
     assert pill.inner_text() == "Estimate ended" and pill.get_attribute("data-tone") == "ended"
     assert active.locator("img.rep-ani").count() == 0
     assert active.get_attribute("data-state") == "recent"  # timer leaves server evidence classification intact

@@ -52,7 +52,13 @@ def test_reporting_and_own_report_actions_on_live(reporter, page):
     pw.expect(inspector).to_contain_text("Synthetic first-floor sighting")
     pw.expect(inspector).to_contain_text("Firsthand observation")
     card = page.locator(".cur-card.kind-alpha")
-    before = card.locator("[data-ends]").get_attribute("data-ends")
+    pw.expect(card.locator(".cur-estimate")).to_have_text("Time uncertain")
+    def estimate_end():
+        report, = reporter.ctx.live.current()["current"]
+        return report["status"]["ends_at"]
+
+    before = estimate_end()
+    assert before
 
     card_actions = page.locator(".community-encounter .community-actions-wrap").first
     card_actions.get_by_text("Local actions", exact=True).click()
@@ -62,7 +68,7 @@ def test_reporting_and_own_report_actions_on_live(reporter, page):
     pw.expect(card).to_contain_text("Your check · Not found")
     inspector.get_by_role("button", name="Mark personally completed").click()
     pw.expect(card).to_contain_text("Personally completed")
-    assert card.locator("[data-ends]").get_attribute("data-ends") == before
+    assert estimate_end() == before
     assert card.get_attribute("data-state") == "recent"
 
     inspector.get_by_role("button", name="Correct own report").click()
@@ -74,7 +80,7 @@ def test_reporting_and_own_report_actions_on_live(reporter, page):
     pw.expect(inspector).to_contain_text("Corrected synthetic note")
     inspector.get_by_text("Local activity and corrections", exact=True).click()
     pw.expect(inspector.get_by_role("link", name="Previous report")).to_have_count(1)
-    assert card.locator("[data-ends]").get_attribute("data-ends") == before
+    assert estimate_end() == before
     inspector.get_by_role("button", name="Withdraw own report").click()
     page.get_by_role("dialog", name="Withdraw own report").get_by_role("button", name="Withdraw own report").click()
     pw.expect(card).to_have_count(0)
