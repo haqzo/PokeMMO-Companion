@@ -237,3 +237,11 @@ The local Windows diagnostic ZIP passed extracted-package, offline, HTTPS and 0.
 ## Final reporting scope correction
 
 [Final reporting scope verification](07-REPORTING-SCOPE-QA.md) records the public configuration, both candidate checksums and the private review materials. Independent reporting is dormant in the public app. Existing report history stays readable and the external links open Alphapedia’s current publishing instructions. Both packages used snapshot `841f22291f8b4f607be42b36722fa24b25d008a5`. Linux passed 783 tests and the glibc 2.35 package checks. Native Windows Server passed package verification and 289 regression tests, with eight skips for optional local dump fixtures. Direct Linux FUSE and interactive Windows 10/11 desktop testing remain open for owner acceptance.
+
+## Published v0.8.1 Alpha
+
+The public prerelease went live on 27 November 2026. Annotated tag `v0.8.1` points to `52a7dacb6a9a603c2ddf8cea824036608970d69b`, a release snapshot with the previous main tip as its only parent. The owner-approved runtime from `ab5c7a15331ee6bcb00c89a42d5e3373a2c2d948` received the version metadata and public documentation in `b05c4cda4ac7d090ae9b995e31007c47959caf91`. The release retains Alphapedia feeds and external reporting links while independent reporting remains dormant. [Published release](https://github.com/haqzo/PokeMMO-Companion/releases/tag/v0.8.1)
+
+The official Windows Server 2025 and Ubuntu 22.04 x86-64 builds passed on Python 3.13.14. Linux requires glibc 2.35. Windows checks were automated on the server runner. The owner signed the combined checksums. Both public packages, checksums, signature and provenance matched the signed staging files. The released 0.8.0 AppImage detected v0.8.1 on the prerelease channel and downloaded the verified package through the updater. [Official builds](https://github.com/haqzo/PokeMMO-Companion/actions/runs/46070224753) · [Signed checksums](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.1/SHA256SUMS)
+
+The approved automatic Discord announcement was posted. The updated forum opening post, spoiler changelog and forum update are saved for the owner. [Discord workflow](https://github.com/haqzo/PokeMMO-Companion/actions/runs/46073647535)
