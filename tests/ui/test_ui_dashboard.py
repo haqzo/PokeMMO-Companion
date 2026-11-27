@@ -280,7 +280,8 @@ def test_live_current_section_then_history(app, page):
     cards = page.locator(".cur-grid .cur-card")
     assert cards.count() == 2
     hound = page.locator(".cur-card", has_text="Houndoom")
-    assert "reported 2×" in hound.inner_text() and "left (estimate)" in hound.inner_text() and "Likely active" in hound.inner_text()
+    assert "reported 2×" in hound.inner_text()
+    assert "left · est." in hound.locator(".cur-estimate[data-tone=ok]").inner_text()
     mag = page.locator(".cur-card", has_text="Magmortar")
     assert "≈ 1 h" in mag.inner_text()  # 75-minute Alpha estimate, 12 min in
     assert page.locator(".cur-grid", has_text="TEST").count() == 0 and page.locator(".cur-grid", has_text="Slakoth").count() == 0
@@ -294,7 +295,7 @@ def test_live_current_section_then_history(app, page):
     page.wait_for_selector(".home-live .cur-card")
     assert "left (estimate)" in page.locator(".home-live .cur-card", has_text="Houndoom").inner_text()
     go(page, app, "#/live/reports")
-    page.wait_for_selector(".cur-grid .cur-card .cur-timer:not(:empty)")
+    page.wait_for_selector(".live-cur .cur-estimate[data-tone=ok]")
     page.locator(".cur-card", has_text="Magmortar").click()
     page.wait_for_selector(".card dl.kv")
     assert "Alpha duration 75 min (official changelog)" in page.locator(".card dl.kv").inner_text()
@@ -304,12 +305,10 @@ def test_live_current_section_then_history(app, page):
 def test_live_timer_counts_down_and_reclassifies(app, page):
     app.ctx.storage.execute("DELETE FROM reports")
     now = int(time.time())
-    app.ctx.live.ingest({"id": "q1", "event": "message", "time": now - 20 * 60 + 2, "topic": "swarmpings", "title": "Zubat", "message": "Kanto\nRoute 3"})
+    app.ctx.live.ingest({"id": "q1", "event": "message", "time": now - 20 * 60 + 10, "topic": "swarmpings", "title": "Zubat", "message": "Kanto\nRoute 3"})
+    page.clock.install()
     go(page, app, "#/live/reports")
-    page.wait_for_selector(".cur-card")
-    assert "Likely active" in page.locator(".cur-card").inner_text()
-    page.wait_for_timeout(3500)
-    page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")  # e.g. after sleep/resume
-    page.wait_for_timeout(1200)
-    assert "Status uncertain" in page.locator(".cur-card").inner_text() and "Estimated window ended" in page.locator(".cur-card").inner_text()
+    page.wait_for_selector(".live-cur .cur-estimate[data-tone=ok]")
+    page.clock.fast_forward(12_000)
+    assert page.locator(".live-cur .cur-estimate[data-tone=ended]").inner_text() == "Estimate ended"
     app.ctx.storage.execute("DELETE FROM reports")
