@@ -38,6 +38,8 @@
   },
   "exclude": {
     "Development documentation and snapshot policy": [
+      "AGENTS.md",
+      "CLAUDE.md",
       "DEVELOPMENT.md",
       "docs/release-snapshots.md",
       "docs/build/",
@@ -63,6 +65,7 @@
     "companion/__main__.py",
     "companion/services/appupdate.py",
     "companion/data/reference/manifest.json",
+    "companion/data/reference/seasonal.json",
     "companion/data/item-icons/manifest.json",
     "companion/data/sprites/index.json",
     "companion/data/themes.json",

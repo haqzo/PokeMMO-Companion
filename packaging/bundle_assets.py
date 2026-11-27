@@ -12,7 +12,7 @@ asset_patterns = (
     r"companion/data/item-icons/(?:[0-9]+\.png|manifest\.json)",
     r"companion/data/sprites/(?:(?:static(?:-shiny)?|ani(?:-shiny)?)/[A-Za-z0-9_-]+\.(?:png|gif)|index\.json)",
     r"companion/data/maps/(?:[a-z0-9-]+\.svg|geometry\.json|game/[a-z0-9-]+\.png)",
-    r"companion/data/reference/(?:manifest\.json|(?:extras|items|species)\.json\.gz)",
+    r"companion/data/reference/(?:(?:manifest|seasonal)\.json|(?:extras|items|species)\.json\.gz)",
     r"companion/data/walkthroughs/(?:kanto|johto|hoenn|sinnoh|unova)\.json",
 )
 allow = re.compile("|".join(asset_patterns))
