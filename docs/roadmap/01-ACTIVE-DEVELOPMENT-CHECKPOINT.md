@@ -219,3 +219,9 @@ The full QA matrix, migration and restore evidence, packaging results, native pe
 Linux recorded 775 suite passes. Native KDE/XWayland and Wayland recorded 51 mode/tool passes each. Windows Server recorded 225 selected passes. The actual published 0.8.0 Linux package upgraded into the local QA package with a single pre-migration SQLite backup. Local demo report history survives the upgrade but is outside portable ZIP backup scope.
 
 The unsigned local AppImage passed the fresh, loopback-only profile self-check and packaged HTTPS verification. Its glibc 2.44 requirement exceeds the distribution ceiling. The supported Linux build, a current Windows portable ZIP and interactive platform acceptance remain outstanding. The proposed README, release notes, showcase and announcements are held locally for owner review.
+
+## Final package compatibility QA
+
+[Package compatibility QA](04-PACKAGE-COMPATIBILITY-QA.md) records the exact shared source snapshot, checksums, packaged runtime checks and remaining owner acceptance gates. The Ubuntu 22.04 AppImage passed the official dependency validator at glibc 2.35. Offline startup, HTTPS, 0.8.0 migration and native KDE/XWayland and Wayland windows passed. Direct FUSE mounting was denied in the QA environment.
+
+The local Windows diagnostic ZIP passed extracted-package, offline, HTTPS and 0.8.0 upgrade checks under Wine. A native Windows build and Windows 10/11 acceptance remain open. Private candidate files and publication drafts stay local. Feature freeze remains in effect.
