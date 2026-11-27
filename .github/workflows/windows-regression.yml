@@ -78,16 +78,22 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           git config core.autocrlf false
+          reviewed=$(git show -s --format='%(trailers:key=Reviewed-Candidate,valueonly)' HEAD)
+          reviewed=${reviewed:-$GITHUB_SHA}
+          [[ "$reviewed" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$reviewed" "$GITHUB_SHA"
+          git diff --exit-code "$reviewed" "$GITHUB_SHA" -- . \
+            ':(exclude)tests/**' ':(exclude)tools/windows_candidate_check.py' ':(exclude).github/workflows/windows-regression.yml'
           export GIT_AUTHOR_NAME='PokeMMO Companion QA' GIT_COMMITTER_NAME='PokeMMO Companion QA'
           export GIT_AUTHOR_EMAIL='companion-qa@users.noreply.github.com' GIT_COMMITTER_EMAIL='companion-qa@users.noreply.github.com'
-          export GIT_AUTHOR_DATE="@$(git show -s --format=%ct HEAD) +0000"
+          export GIT_AUTHOR_DATE="@$(git show -s --format=%ct "$reviewed") +0000"
           export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
           parent=$(git rev-parse refs/remotes/origin/main)
-          snapshot=$(python tools/release_snapshot.py --source "$GITHUB_SHA" --base "$parent" \
+          snapshot=$(python tools/release_snapshot.py --source "$reviewed" --base "$parent" \
             --message 'Private Companion release-readiness candidate' --inventory "$RUNNER_TEMP/candidate-inventory.json")
           git worktree add --detach "$RUNNER_TEMP/companion-candidate" "$snapshot"
-          git diff --exit-code "$GITHUB_SHA" "$snapshot" -- companion ui
-          printf 'Candidate snapshot %s from develop %s and main parent %s\n' "$snapshot" "$GITHUB_SHA" "$parent"
+          git diff --exit-code "$reviewed" "$snapshot" -- companion ui
+          printf 'Candidate snapshot %s from develop %s and main parent %s\n' "$snapshot" "$reviewed" "$parent"
       - name: Build and verify the extracted Windows x64 candidate
         shell: bash
         working-directory: ${{ runner.temp }}/companion-candidate

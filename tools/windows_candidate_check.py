@@ -57,7 +57,7 @@ def schema(path):
 def packaged_checks(candidate, work):
     with ZipFile(candidate) as archive:
         archive.extractall(work / "candidate")
-    exe = work / "candidate/pokemmo-companion/pokemmo-companion.exe"
+    exe = (work / "candidate/pokemmo-companion/pokemmo-companion.exe").resolve(strict=True)
     profile = work / "offline profile"
     rule = "Companion isolated candidate offline self-check"
     # Deny the fresh profile's HTTP/HTTPS destinations without touching its ephemeral loopback API.
@@ -128,6 +128,8 @@ if __name__ == "__main__":
     if sys.platform != "win32":
         raise SystemExit("Run on the native Windows Server candidate runner.")
     os.environ["COMPANION_NO_SPAWN"] = "1"
-    with tempfile.TemporaryDirectory(prefix="Companion Windows acceptance ") as directory:
+    # netsh's program parser requires a canonical path. The hosted runner's temp
+    # directory also avoids the abbreviated user-profile path returned by Windows.
+    with tempfile.TemporaryDirectory(prefix="companion-candidate-", dir=os.getenv("RUNNER_TEMP")) as directory:
         work = Path(directory)
         verify_upgrade(packaged_checks(Path(sys.argv[1]).resolve(), work), work)

@@ -158,15 +158,18 @@ def test_guides_two_runs_progress_independent_and_survive_restart(data_dir, brow
             page.locator(".run-pill").click()
             page.get_by_role("button", name="New run…", exact=True).click()
         _create_run(page, "Haqzo", "Main")
-        page.locator(".step input.check").nth(0).check()
-        page.wait_for_timeout(500)
+        with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?", 1)[0].endswith("/steps")) as saved:
+            page.locator(".step input.check").nth(0).check()
+        assert saved.value.ok
         page.locator(".run-pill").click()
         page.get_by_role("button", name="New run…", exact=True).click()
         _create_run(page, "Haqzo", "Alt")
-        page.wait_for_timeout(300)
-        assert page.locator(".step input.check:checked").count() == 0  # new run starts empty
-        page.locator(".step input.check").nth(2).check()
-        page.wait_for_timeout(500)
+        pw.expect(page.locator(".run-pill")).to_contain_text("Alt")
+        page.locator(".step input.check").first.wait_for()
+        pw.expect(page.locator(".step input.check:checked")).to_have_count(0)
+        with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?", 1)[0].endswith("/steps")) as saved:
+            page.locator(".step input.check").nth(2).check()
+        assert saved.value.ok
         page.evaluate("location.hash = '#/guides/storyline'")
     finally:
         a.stop()
@@ -174,14 +177,14 @@ def test_guides_two_runs_progress_independent_and_survive_restart(data_dir, brow
     b = Running(data_dir)
     try:
         page.goto(b.url("#/guides/storyline"))
-        page.wait_for_selector(".run-pill")
-        assert "Alt" in page.locator(".run-pill").inner_text()
-        assert page.locator(".step input.check:checked").count() == 1
+        pw.expect(page.locator(".run-pill")).to_contain_text("Alt")
+        pw.expect(page.locator(".step input.check").nth(2)).to_be_checked()
+        pw.expect(page.locator(".step input.check:checked")).to_have_count(1)
         page.locator(".run-pill").click()
         page.locator(".menu button", has_text="Haqzo · Main").click()
-        page.wait_for_timeout(600)
-        assert page.locator(".step input.check:checked").count() == 1
-        assert page.locator(".step").nth(0).locator("input.check").is_checked()
+        pw.expect(page.locator(".run-pill")).to_contain_text("Main")
+        pw.expect(page.locator(".step input.check").nth(0)).to_be_checked()
+        pw.expect(page.locator(".step input.check:checked")).to_have_count(1)
     finally:
         b.stop()
         ctxb.close()
@@ -239,33 +242,38 @@ def test_breeding_preview_brace_and_everstone(app, page):
 
 # ------------------------------------------------ video correction pass (2026-11-22)
 def test_hide_species_you_marked_not_listed(app, page):
+    import json
+    import urllib.request
+
+    def mark(value):
+        request = urllib.request.Request(app.srv.base_url + "api/dex/roster/640",
+            data=json.dumps({"in_dex": value}).encode(), method="PUT",
+            headers={"X-Companion-Token": app.ctx.token, "Content-Type": "application/json"})
+        with urllib.request.urlopen(request) as response:
+            assert response.status == 200
+
     app.ctx.dex.user_checks = {}
-    import urllib.request, json as _j
-    req = urllib.request.Request(app.srv.base_url + "api/dex/roster/640", data=_j.dumps({"in_dex": "no"}).encode(), method="PUT",
-                                 headers={"X-Companion-Token": app.ctx.token, "Content-Type": "application/json"})
-    urllib.request.urlopen(req).read()
-    go(page, app, "#/pokedex")
-    page.wait_for_selector('.dex-card[data-entry="640"]')
-    assert "absent" in page.locator('.dex-card[data-entry="640"]').get_attribute("class")
-    page.get_by_role("button", name="Filters").click()
-    page.get_by_role("button", name="Hide species I marked “Not listed”").click()
-    page.wait_for_timeout(500)
-    assert page.locator('.dex-card[data-entry="640"]').count() == 0
-    app.ctx.settings.update({"pokedex.scope": "reference"})
-    req = urllib.request.Request(app.srv.base_url + "api/dex/roster/640", data=_j.dumps({"in_dex": "clear"}).encode(), method="PUT",
-                                 headers={"X-Companion-Token": app.ctx.token, "Content-Type": "application/json"})
-    urllib.request.urlopen(req).read()
+    mark("no")
+    try:
+        go(page, app, "#/pokedex")
+        tile = page.locator('.dex-card[data-entry="640"]')
+        pw.expect(tile).to_have_class(re.compile("absent"))
+        page.get_by_role("button", name="Filters").click()
+        page.get_by_role("button", name="Hide species I marked “Not listed”").click()
+        pw.expect(tile).to_have_count(0)
+    finally:
+        app.ctx.settings.update({"pokedex.scope": "reference"})
+        mark("clear")
 
 
 @pytest.mark.parametrize("mode", ["compact", "standard", "expanded"])
 def test_pokedex_popout_has_no_cap_in_any_mode(app, browser, mode):
     pop = browser.new_context(viewport={"width": 460, "height": 600}).new_page()
     pop.goto(app.srv.base_url + f"?token={app.ctx.token}&popout=pokedex&mode={mode}&shell=browser")
-    pop.wait_for_selector(".dex-card")
-    pop.wait_for_timeout(400)
-    n = pop.locator(".popout-body .dex-card").count()
-    assert n == 649 and "649 of 649" in pop.locator(".popout-body").inner_text()
-    last = pop.locator(".popout-body .dex-card").last
+    cards = pop.locator(".popout-body .dex-card")
+    pw.expect(cards).to_have_count(649)
+    pw.expect(pop.locator(".popout-body")).to_contain_text("649 of 649")
+    last = cards.last
     last.scroll_into_view_if_needed()
     assert last.get_attribute("data-entry") == "649" and last.is_visible()
     pop.fill("input[aria-label='Search Pokémon']", "pi")
