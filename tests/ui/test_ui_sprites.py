@@ -320,18 +320,27 @@ def test_popout_settings_avoid_unrelated_body_redraws(app, page):
 def test_current_report_reuses_sprite_without_allocating_an_observer(app, page):
     go(page, app, "#/home")
     result = page.evaluate("""async () => {
-        const { currentCard } = await import('/js/pages/live.js');
+        const { currentEncounters } = await import('/js/pages/live.js');
         const Native = window.ResizeObserver;
         let allocated = 0;
         window.ResizeObserver = class extends Native { constructor(cb) { super(cb); allocated++; } };
+        const root = document.body.appendChild(document.createElement('div'));
+        const view = currentEncounters(root, {compact: true});
         try {
-            const sprite = document.createElement('div'); sprite.className = 'rep-sprite';
             const g = { id: 'probe', kind: 'alpha', title: 'Probe', provider: 'ntfy',
                 species_still: {url: '/probe.png', w: 16, h: 16},
                 status: {state: 'recent', label: 'Recent', start: new Date().toISOString(), notes: []} };
-            const card = currentCard(g, {compact: true, sprite});
-            return { same: card.querySelector('.rep-sprite') === sprite, allocated };
-        } finally { window.ResizeObserver = Native; }
+            const now = new Date().toISOString();
+            view.draw([g], now);
+            const sprite = root.querySelector('.rep-sprite');
+            const before = allocated;
+            view.draw([{...g, duplicates: 1}], now);
+            return { same: root.querySelector('.rep-sprite') === sprite, allocated: allocated - before };
+        } finally {
+            view.dispose();
+            root.remove();
+            window.ResizeObserver = Native;
+        }
     }""")
     assert result == {"same": True, "allocated": 0}
 
