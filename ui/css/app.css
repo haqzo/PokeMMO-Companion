@@ -568,7 +568,7 @@ svg.inline-ic { width: 12px; height: 12px; vertical-align: -1px; }
   --tc-cell-min: max(13px, .8rem);
   --tc-gap: clamp(1px, .26cqw, 2px);
   --tc-font: clamp(.66rem, 1.65cqw, .82rem);
-  --tc-row: clamp(max(13px, .9rem), calc((100vh - 238px) / 17), 31px);
+  --tc-row: clamp(max(12px, .85rem), calc((100vh - 238px) / 17), 31px);
   gap: 8px;
 }
 .tc-popout .tc-controls { gap: 4px; }
@@ -604,6 +604,10 @@ svg.inline-ic { width: 12px; height: 12px; vertical-align: -1px; }
 @container page (max-width: 600px) {
   .tc-popout .typechart[data-header-orientation="horizontal"] .colhead .tc-label { display: none; }
   .tc-popout .typechart[data-header-orientation="horizontal"] .colhead .tc-label-short { display: inline; white-space: nowrap; }
+}
+@media (max-height: 420px) {
+  .tc-popout .typechart[data-header-orientation="vertical"] .colhead .tc-label { display: none; }
+  .tc-popout .typechart[data-header-orientation="vertical"] .colhead .tc-label-short { display: inline; }
 }
 
 .tc-readout { min-height: 38px; padding: 8px 12px; border-radius: var(--radius); background: var(--bg-inset); border: var(--bw) solid var(--border-subtle); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 500; }
