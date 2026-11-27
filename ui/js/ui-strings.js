@@ -1290,6 +1290,8 @@ export const UI_STRINGS = {
   'ui.live_title': ["Live","En vivo","实时"],
   'ui.live_subtitle': ["Time-sensitive information — each item shows its source and age. Nothing here reads the game.","Información que cambia con el tiempo. Cada entrada indica su fuente y antigüedad. Companion no lee los datos del juego.","信息会随时间变化。每条信息都标有来源和距今时间。Companion 不会读取正在运行的游戏。"],
   'ui.live_sections': ["Live sections","Secciones de En vivo","实时页面分区"],
+  'ui.live_time_left_est': ["{duration} left · est.", "Quedan {duration} · est.", "预计还剩 {duration}"],
+  'ui.live_time_uncertain': ["Time uncertain", "Tiempo incierto", "时间不确定"],
   'ui.live_under_minute': ["under 1 min","menos de 1 min","不到 1 分钟"],
   'ui.live_ends_soon': ["Estimated window ends in under 1 min","El intervalo estimado termina en menos de 1 min","预计时段将在不到 1 分钟后结束"],
   'ui.live_no_title': ["(no title)","(sin título)","（无标题）"],

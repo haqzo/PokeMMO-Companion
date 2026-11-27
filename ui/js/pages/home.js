@@ -3,12 +3,12 @@ import { locale, number, uiLabel } from '../i18n.js';
 import { plural, t as translateUI } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
 // Home + in-app official news / changelog / event reader (docs/design/03).
-import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, fitSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
+import { h, mount, icon, get, post, apiErrorText, badge, notice, relTime, fmtDate, extLink, setting, saveSettings, state, on, cap, typeChips, toast, spriteOrFallback, sizedSprite, seg, pad3, sourceInfo, sourceText } from '../core.js';
 import { go, qaInfo, openPopout } from '../shell.js';
 import { LANGS, lang } from '../i18n.js';
 import { walkthroughReader } from '../walkthrough-loader.js';
 import { animatedIn, scaled } from '../sprites.js';
-import { currentCard, startTimers, likelyActive } from './live.js';
+import { currentCard, startTimers, likelyActive, roamerArt } from './live.js';
 import { homePhenomena } from './phenomena.js';
 
 // The snapshot summaries are authored by Companion. Exact source matching prevents stale translations when a news item is revised.
@@ -550,22 +550,6 @@ function greeting() {
 }
 
 // ------------------------------------------------------------ roaming Legendaries
-const motionOK = () => animatedIn('roamers');
-/** Animated Gen V sprite from your sprite library (only these two on Home), else the still; large tier, never stretched. */
-function roamerArt(m, size) {
-  if (m.ani && motionOK()) {
-    const img = h('img', { class: 'pixel', src: m.ani, alt: speciesLabel(m.id, m.name), decoding: 'async', style: { visibility: 'hidden' } });
-    const box = h('div', { class: 'still-art roamer-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier: 'l' } }, img);
-    img.addEventListener('load', () => {
-      const f = fitSprite(img.naturalWidth, img.naturalHeight, null, 'l', size, size);
-      Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
-      box.classList.toggle('smooth', f.smooth);
-    });
-    img.addEventListener('error', () => box.replaceWith(sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' })));
-    return box;
-  }
-  return sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' });
-}
 function roamersCard(leg) {
   const cur = leg.current, nxt = leg.next;
   const month = (mm, y) => new Date(y, mm - 1, 1).toLocaleString(locale(), { month: 'long' });

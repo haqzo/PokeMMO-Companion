@@ -356,7 +356,7 @@ def test_type_chart_badges_and_optional_unlock_in_each_language(app, page, lang,
                 body.get_by_role("radio", name=full, exact=True).click()
             assert body.locator("th.colhead").count() == 17 and body.locator("td").count() == 289
             assert body.locator("table.typechart").get_attribute("data-header-orientation") == "horizontal"
-            assert body.locator(".tc-scroll").evaluate("el => el.scrollWidth > el.clientWidth")
+            assert body.locator(".tc-scroll").evaluate("el => el.scrollWidth <= el.clientWidth + 1")
             assert body.locator("thead th.colhead").first.evaluate("el => getComputedStyle(el).position") == "sticky"
             assert body.locator("tbody th.rowhead").first.evaluate("el => getComputedStyle(el).position") == "sticky"
             assert body.locator(".compare-panel").count() == 0
@@ -368,6 +368,34 @@ def test_type_chart_badges_and_optional_unlock_in_each_language(app, page, lang,
     finally:
         app.ctx.settings.update({"typechart.header_orientation": "vertical", "appearance.text_scale": 100, "appearance.high_contrast": False, "appearance.theme": None})
         app.ctx.settings.update({"app.language": "en"})
+
+
+def test_type_chart_popout_keeps_the_selected_view_and_sizes_the_same_grid(app, page):
+    page.set_viewport_size({"width": 360, "height": 440})
+    page.goto(app.srv.url("", popout="typechart", mode="compact"))
+    page.get_by_role("radio", name="Full chart").click()
+    grid = page.locator("table.typechart")
+    scroll = page.locator(".tc-scroll")
+    cell = grid.locator('td[data-r="1"][data-c="4"]')
+    cell.evaluate("el => { el.dataset.gridMarker = 'retained'; }")
+    compact = cell.bounding_box()
+    assert scroll.evaluate("el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1")
+    for mode, width, height in [("Standard", 600, 600), ("Expanded", 780, 740)]:
+        page.get_by_title(mode + " view", exact=True).click()
+        page.set_viewport_size({"width": width, "height": height})
+        pw.expect(page.locator(".popout-root")).to_have_class(re.compile("mode-" + mode.lower()))
+        pw.expect(page.get_by_role("radio", name="Full chart")).to_have_attribute("aria-checked", "true")
+        assert scroll.evaluate("el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1")
+        assert cell.get_attribute("data-grid-marker") == "retained"
+        assert cell.bounding_box()["width"] > compact["width"] and cell.bounding_box()["height"] > compact["height"]
+    page.set_viewport_size({"width": 260, "height": 180})
+    assert scroll.evaluate("el => el.scrollWidth > el.clientWidth && el.scrollHeight > el.clientHeight")
+    assert cell.evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 9
+    page.get_by_role("radio", name="Focus one type").click()
+    for mode in ("Compact", "Standard", "Expanded"):
+        page.get_by_title(mode + " view", exact=True).click()
+        pw.expect(page.get_by_role("radio", name="Focus one type")).to_have_attribute("aria-checked", "true")
+        assert grid.count() == 0
 
 
 def test_live_and_home_show_partial_coverage_and_keep_cached_reports(app, page):

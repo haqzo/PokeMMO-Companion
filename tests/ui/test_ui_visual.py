@@ -2,6 +2,7 @@
 CSS custom properties, the 17 type badges, stat bars in both Appearance modes, proportion-aware artwork
 scaling in the Summary and popouts, Gen V grid stills, and library art in Home/Live."""
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -297,9 +298,9 @@ def _reports(app):
     return ing("g1", "Gyarados", "Kanto, Route 12", "alphapings"), ing("x1", "Swarm", "Unova, Route 6 — Deerling and Emolga reported", "swarmpings")
 
 
-def test_home_animates_likely_active_reports_and_live_stays_still(app, browser, library):  # noqa: F811
+def test_home_and_live_animate_likely_active_reports(app, browser, library):  # noqa: F811
     """2026-11-24: Home animates Alpha/Swarm sprites while the estimated window is open (counted from the earliest
-    report); Live always shows still images; a report naming several Pokémon gets the neutral icon."""
+    report). Both pages keep a neutral icon for an ambiguous species. Live history remains static."""
     g, amb = _reports(app)
     t = app.ctx.live.create_test("alpha")
     ctx = browser.new_context(viewport={"width": 1600, "height": 1000})
@@ -320,7 +321,11 @@ def test_home_animates_likely_active_reports_and_live_stays_still(app, browser, 
     assert pg.locator(".home-live img.rep-ani[data-mark=kept]").count() == 1
     pg.goto(app.url("#/live/reports/" + g["id"]))
     pg.wait_for_selector(".rep-detail-head .still-art img")
-    assert pg.locator("img[src*='.gif']").count() == 0          # Live never animates
+    live_card = pg.locator(".live-cur .cur-card", has_text="Gyarados")
+    live_card.locator("img.rep-ani").wait_for()
+    assert live_card.locator(".cur-estimate").get_attribute("data-tone") == "ok"
+    assert pg.locator(".report-row img.rep-ani, .rep-detail-head img.rep-ani").count() == 0
+    assert pg.locator(".live-cur .cur-card", has_text="Swarm").locator(".rep-fallback").count() == 1
     assert "TEST · NOT REAL" in pg.locator(".report-row", has_text="TEST — demo").inner_text().upper()
     ctx.close()
     rm = browser.new_context(viewport={"width": 1600, "height": 1000}, reduced_motion="reduce")
@@ -339,3 +344,75 @@ def test_home_animates_likely_active_reports_and_live_stays_still(app, browser, 
     assert pg.locator(".home-live img[src*='.gif']").count() == 0
     pg.context.close()
     app.ctx.storage.execute("DELETE FROM reports")
+
+
+def test_live_countdown_expires_locally_and_preserves_duplicate_timing(app, page):
+    app.ctx.settings.update({"live.swarm_estimate_minutes": 20, "sprites.motion": "on"})
+    now = int(time.time())
+    def swarm(identifier, title, location, timestamp=None):
+        raw = {"id": identifier, "event": "message", "title": title, "message": location, "topic": "swarmpings"}
+        if timestamp is not None:
+            raw["time"] = timestamp
+        return app.ctx.live.ingest(raw)
+
+    swarm("swarm", "Feebas", "Hoenn, Route 119", now - 1190)
+    swarm("untimed", "Houndoom", "Johto, Burned Tower")
+    swarm("elapsed", "Wailmer", "Hoenn, Route 105", now - 1210)
+    app.ctx.live.create_test("swarm")
+    page.clock.install()
+    go(page, app, "#/live/reports")
+    active = page.locator(".live-cur .cur-card", has_text="Feebas")
+    active.locator("img.rep-ani").wait_for()
+    pill = active.locator(".cur-estimate")
+    initial_end = pill.get_attribute("data-ends")
+    assert initial_end and "under 1 min" in pill.inner_text()
+    active.locator("img.rep-ani").evaluate("e => { e.dataset.animationProbe = 'kept'; }")
+    swarm("dup", "Feebas", "Hoenn, Route 119", now - 3)
+    active.get_by_text("reported 2×", exact=False).wait_for()
+    assert pill.get_attribute("data-ends") == initial_end
+    assert active.locator("img.rep-ani[data-animation-probe=kept]").count() == 1
+    assert page.locator(".live-cur .cur-card", has_text="Houndoom").locator(".cur-estimate").inner_text() == "Time uncertain"
+    assert page.locator(".live-cur .cur-card", has_text="Wailmer").locator(".cur-estimate").inner_text() == "Estimate ended"
+    assert page.locator(".live-cur .cur-card:not(:has(.cur-estimate[data-tone=ok])) img.rep-ani").count() == 0
+    assert page.locator(".live-cur .cur-card", has_text="TEST").count() == 0
+    page.clock.fast_forward(12_000)
+    assert pill.inner_text() == "Estimate ended" and pill.get_attribute("data-tone") == "ended"
+    assert active.locator("img.rep-ani").count() == 0
+    assert active.get_attribute("data-state") == "recent"  # timer leaves server evidence classification intact
+
+
+def test_live_sprite_preferences_and_legendary_rotation(app, page):
+    run = app.ctx.guides.create_run("QA Tracker")
+    app.ctx.settings.update({"guides.active_run": run["id"], "performance.profile": "balanced", "sprites.motion": "on"})
+    now = int(time.time())
+    app.ctx.live.ingest({"id":"qa-alpha","event":"message","time":now-30,"topic":"alphapings",
+                         "title":"Gyarados","message":"Kanto, Route 12"})
+    go(page, app, "#/live/reports")
+    animated = page.locator(".live-cur .cur-card", has_text="Gyarados").locator("img.rep-ani")
+    animated.wait_for()
+    def prefs(values):
+        page.evaluate("patch => import('/js/core.js').then(m => m.saveSettings(patch))", values)
+
+    prefs({"performance.profile":"lightweight"})
+    animated.wait_for(state="detached")
+    prefs({"sprites.animation":{"report_active":"animated"}})
+    animated.wait_for()
+    prefs({"sprites.motion":"off"})
+    animated.wait_for(state="detached")
+    prefs({"sprites.motion":"on","performance.profile":"balanced","sprites.animation":{}})
+    go(page, app, "#/live/legendaries")
+    cards = page.locator(".legend-card")
+    cards.nth(1).locator("img[src*='.gif']").wait_for()
+    assert cards.locator("img[src*='.gif']").count() == 2
+    cards.first.get_by_role("checkbox").check()
+    species = app.ctx.live.legendaries(run["id"])["current"]["kanto"]["id"]
+    _until(page, "() => document.querySelector('.toast')?.textContent.includes('QA Tracker')")
+    assert app.ctx.live.legendaries(run["id"])["caught"][species]
+    assert not app.ctx.live.legendaries(None)["caught"]
+    page.get_by_role("button", name="Show 12-month calendar").click()
+    page.locator(".cal .m").first.wait_for()
+    assert page.locator(".cal img[src*='.gif']").count() == 0
+    for mode in ("compact", "standard", "expanded"):
+        page.goto(app.srv.url("", popout="legendaries", mode=mode))
+        page.locator(f".mode-{mode} .legend-card").nth(1).locator("img[src*='.gif']").wait_for()
+        assert page.locator(".legend-card img[src*='.gif']").count() == 2

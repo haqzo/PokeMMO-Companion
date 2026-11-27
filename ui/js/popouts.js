@@ -51,7 +51,7 @@ export function startPopout(el) {
     if (impact.filters) import('./pages/pokedex.js').then(m => m.currentFilters(true));
     const m = setting(`window.${POPOUT}.mode`);
     applyAppearance();
-    if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(); return; }
+    if (m && m !== savedMode) { savedMode = m; mode = m; applyBrowserSize(); draw(true); return; }
     if (impact.body) refresh();
     if (keys.some(k => k === `window.${POPOUT}.bg_opacity` || k === `window.${POPOUT}.text_scale`)) drawBar();
   });
@@ -75,7 +75,7 @@ function switchMode(m) {
   mode = m; savedMode = m;
   saveSettings({ [`window.${POPOUT}.mode`]: m });
   applyBrowserSize();
-  draw();
+  draw(true);
 }
 function applyBrowserSize() {
   // Browser popups opened by the Companion may be resized by script; the native shell does this itself.
@@ -91,12 +91,17 @@ const rememberSize = debounce(() => {
   sizes[mode] = { w: window.outerWidth, h: window.outerHeight };
   saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).catch(() => {});
 }, 700);
-function draw() {
+function draw(modeChanged = false) {
+  if (modeChanged && POPOUT === 'typechart') {
+    root.firstElementChild.className = `popout-root mode-${mode}`;
+    drawBar();
+    return;
+  }
   const def = POPOUT_TOOLS[POPOUT] || { title: POPOUT };
   document.title = (def.i18n ? t(def.i18n) : uiLabel(def.title)) + ' — PokeMMO Companion';
   barEl = h('div');
   fitStory = null;
-  footEl = h('div', { class: ['popout-foot', POPOUT === 'storyline' && 'story-pop-foot'] });
+  footEl = h('div', { class: ['popout-foot', POPOUT === 'storyline' && 'story-pop-foot', POPOUT === 'typechart' && 'tc-pop-foot'] });
   mount(root, h('div', { class: `popout-root mode-${mode}` }, barEl, bodyEl, footEl));
   drawBar();
   renderBody();
@@ -116,10 +121,11 @@ function drawBar() {
   const bg = setting(`window.${POPOUT}.bg_opacity`);
   const ts = setting(`window.${POPOUT}.text_scale`);
   const story = POPOUT === 'storyline';
-  const footLabel = (label, symbol) => story ? [icon(symbol), h('span', { class: 'story-foot-text' }, label)] : label;
+  const compactFooter = story || POPOUT === 'typechart';
+  const footLabel = (label, symbol) => compactFooter ? [icon(symbol), h('span', { class: 'popout-foot-text' }, label)] : label;
   mount(footEl,
     h('label', { class: 'row', title: translateUI('ui.pop_bg') }, icon('opacity'),
-      h('input', { type: 'range', min: 20, max: 100, step: 5, value: bg, style: story ? null : { width: '90px' }, 'aria-label': translateUI('ui.background_opacity'),
+      h('input', { type: 'range', min: 20, max: 100, step: 5, value: bg, style: compactFooter ? null : { width: '90px' }, 'aria-label': translateUI('ui.background_opacity'),
         oninput: (e) => document.documentElement.style.setProperty('--panel-alpha', String(e.target.value / 100)),
         onchange: (e) => saveSettings({ [`window.${POPOUT}.bg_opacity`]: Number(e.target.value) }) }), h('span', { class: 'tiny muted' }, bg + '%')),
     textSizeButton(ts),
@@ -128,7 +134,7 @@ function drawBar() {
       'aria-label': translateUI('ui.reset_size'),
       onclick: () => { const sizes = { ...(setting(`window.${POPOUT}.sizes`) || {}) }; delete sizes[mode]; saveSettings({ [`window.${POPOUT}.sizes`]: sizes }).then(applyBrowserSize); } },
     footLabel(translateUI('ui.reset_size'), 'undo')),
-    h('button', { class: 'btn ghost small', title: story ? translateUI('ui.open_main') : null,
+    h('button', { class: 'btn ghost small', title: compactFooter ? translateUI('ui.open_main') : null,
       'aria-label': translateUI('ui.open_main'), onclick: () => openInMain(mainRoute()) }, footLabel(translateUI('ui.open_main'), 'popout')));
 }
 // Text size: one button → popover with a 60–200 % slider (live), quick presets, readability
@@ -394,8 +400,13 @@ async function reports(el) {
   releaseSeasonal = bindSeasonal(seasonal, { compact: mode === 'compact', open: openInMain });
 }
 
-async function typechart(el) { const m = await import('./pages/tools.js'); clear(el); await m.renderTypeChart(el, null, { compact: mode !== 'expanded' }); }
+const typechartView = {};
+async function typechart(el) {
+  const m = await import('./pages/tools.js');
+  clear(el);
+  await m.renderTypeChart(el, null, { compact: mode !== 'expanded', popoutView: typechartView });
+}
 async function natures(el) { const m = await import('./pages/tools.js'); clear(el); await m.renderNatures(el, null, { compact: mode === 'compact' }); }
 async function breeding(el) { const m = await import('./pages/breeding.js'); await m.render(el, null, { popout: true, mode }); }
-async function legendaries(el) { const m = await import('./pages/live.js'); await m.renderLegendaries(el, { compact: mode !== 'expanded' }); }
+async function legendaries(el) { const m = await import('./pages/live.js'); await m.renderLegendaries(el, { compact: mode !== 'expanded', open: openInMain }); }
 async function cave(el) { const m = await import('./pages/live.js'); await m.renderCave(el, { compact: mode !== 'expanded' }); }

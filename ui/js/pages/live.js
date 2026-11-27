@@ -2,9 +2,9 @@ import { bindSeasonal } from './seasonal.js';
 import { locale, number, t as translateUI, uiLabel } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
 // Live workspace (docs/design/10–13): Reports, Legendaries, Altering Cave.
-import { animatedIn, motionGlobal } from '../sprites.js';
+import { animatedIn, motionGlobal, scaled } from '../sprites.js';
 import { h, mount, icon, get, post, api, state, setting, saveSettings, badge, notice, relTime, fmtDate, cap, tabs, seg, toast, confirmDialog, modal,
-  on, extLink, debounce, typeChips, spriteOrFallback, stillArt, fitSprite, sourceInfo } from '../core.js';
+  on, extLink, debounce, typeChips, sizedSprite, stillArt, fitSprite, sourceInfo } from '../core.js';
 import { go, popoutButton } from '../shell.js';
 import { renderPhenomena } from './phenomena.js';
 import { communityActions, communityBar, communityEvidence, communityHistory, communitySavedRoute, localFeedback, sharedSources } from './community.js';
@@ -53,34 +53,42 @@ export function timerText(st, nowMs) {
   if (left <= 0 && (st.state === 'recent' || st.state === 'uncertain')) return translateUI('ui.live_timer_ended', { duration: durText(-left) });
   return '';
 }
-export function startTimers(root, skewMs, onExpire) {
+export function startTimers(root, skewMs, onExpire, update = null) {
   // No countdowns: no recurring work. The caller starts a new timer after replacing the report list.
   if (!root.querySelector('[data-ends]')) return () => {};
   let seen = false, stopped = false, id = null, early = null, frame = null;
   const stop = () => {
-    stopped = true; clearInterval(id); clearInterval(early);
+    stopped = true; clearTimeout(id); clearInterval(early);
     if (frame !== null) cancelAnimationFrame(frame);
   };
   const tick = () => {
+    clearTimeout(id);
     if (stopped) return;
-    if (!root.isConnected) { if (seen) stop(); return; }
-    seen = true;
-    if (document.visibilityState === 'hidden') return;
-    const now = Date.now() + skewMs;
-    let expired = false;
-    root.querySelectorAll('[data-ends]').forEach((el) => {
-      const st = { state: el.dataset.state, duration_min: 1, ends_at: el.dataset.ends };
-      const text = timerText(st, now);
-      if (el.textContent !== text) el.textContent = text;
-      if (el.dataset.state === 'recent' && Date.parse(el.dataset.ends) <= now) {
-        expired = true;
-        const chip = el.closest('.cur-card') && el.closest('.cur-card').querySelector('.cur-state');
-        if (chip && chip.className !== 'cur-state warn') { chip.textContent = translateUI('ui.estimated_ended'); chip.className = 'cur-state warn'; }
-      }
-    });
-    if (expired && onExpire) onExpire();
+    if (!root.isConnected && seen) { stop(); return; }
+    let delay = 15000;
+    if (root.isConnected && document.visibilityState !== 'hidden') {
+      seen = true;
+      const now = Date.now() + skewMs;
+      let expired = false;
+      root.querySelectorAll('[data-ends]').forEach((el) => {
+        const end = Date.parse(el.dataset.ends);
+        if (el.dataset.state === 'recent' && end > now) delay = Math.min(delay, end - now);
+        const elapsed = el.dataset.state === 'recent' && end <= now;
+        if (elapsed) expired = true;
+        if (update) { update(el, now); return; }
+        const text = timerText({ state: el.dataset.state, duration_min: 1, ends_at: el.dataset.ends }, now);
+        if (el.textContent !== text) el.textContent = text;
+        const chip = elapsed && el.closest('.cur-card')?.querySelector('.cur-state');
+        if (chip && chip.className !== 'cur-state warn') {
+          chip.textContent = translateUI('ui.estimated_ended');
+          chip.className = 'cur-state warn';
+        }
+      });
+      if (expired && onExpire) onExpire();
+      if (update && !root.querySelector('[data-ends]')) { stop(); return; }
+    }
+    if (!stopped) id = setTimeout(tick, delay);
   };
-  id = setInterval(tick, 15000);
   tick();
   // Home builds sections before attaching them. Bound the attachment probe;
   // an abandoned section must not retain a recurring timer indefinitely.
@@ -98,7 +106,7 @@ const timeOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-di
 const locationStatus = (match) => match?.status === 'ambiguous' ? translateUI('ui.live_location_ambiguous')
   : match?.status === 'unverified' ? translateUI('ui.live_location_unverified') : '';
 /** Card for one current Alpha/Swarm (several identical reports are one card, timed from the earliest). */
-export function currentCard(g, { compact = false, animate = false, sprite = null } = {}) {
+export function currentCard(g, { compact = false, animate = false, sprite = null, featured = false } = {}) {
   const st = g.status;
   const sure = g.species_name && g.species_match !== 'ambiguous';  // a report naming several Pokémon shows its own title
   const name = (sure ? speciesLabel(g.species_id, g.species_name) : g.title) || translateUI('ui.live_no_title');
@@ -107,12 +115,12 @@ export function currentCard(g, { compact = false, animate = false, sprite = null
   const reported = g.source_time && st.start_basis === 'report time';
   const time = reported ? g.source_time : g.received_at;
   return h('button', { class: `cur-card kind-${g.kind}${compact ? ' compact' : ''}`, dataset: { report: g.id, state: st.state },
-    onclick: () => go('#/live/reports/' + g.id), 'aria-label': [reportKind(g.kind), name, where, uiLabel(st.label)].filter(Boolean).join(', ') },
+    onclick: () => go('#/live/reports/' + g.id), 'aria-label': featured ? null : [reportKind(g.kind), name, where, uiLabel(st.label)].filter(Boolean).join(', ') },
   sprite || reportSprite(g, { animate }),
   h('div', { class: 'cur-text' },
     h('div', { class: 'row tight' }, h('span', { class: `kind-label kind-${g.kind}` }, reportKind(g.kind)),
       // "Likely active" only while the estimate really runs (the server's state can be a minute old)
-      st.state === 'recent' && st.ends_at && Date.parse(st.ends_at) <= Date.now() ? h('span', { class: 'cur-state warn' }, translateUI('ui.estimated_ended'))
+      featured ? null : st.state === 'recent' && st.ends_at && Date.parse(st.ends_at) <= Date.now() ? h('span', { class: 'cur-state warn' }, translateUI('ui.estimated_ended'))
         : h('span', { class: `cur-state ${STATE_CLASS[st.state]}` }, st.state === 'recent' ? translateUI('ui.active_likely') : uiLabel(st.label))),
     h('div', { class: 'cur-name ellipsis' }, name),
     sure || !g.species_name ? null : h('div', { class: 'tiny muted ellipsis' }, translateUI('ui.live_ambiguous')),
@@ -121,11 +129,39 @@ export function currentCard(g, { compact = false, animate = false, sprite = null
       { time: timeOf(time), relative: relTime(time) }),
     g.duplicates ? translateUI(g.own_report_id ? 'community.observation_count' : 'ui.live_duplicates', { count: number(g.duplicates + 1) }) : '',
     g.caught_up ? translateUI('ui.live_caught_up') : ''),
-    h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
+    featured ? h('span', { class: 'cur-estimate' }) : h('div', { class: 'tiny cur-timer', dataset: { ends: st.ends_at, state: st.state } }, st.ends_at ? timerText({ state: st.state, duration_min: 1, ends_at: st.ends_at }, Date.now()) : ''),
     localFeedback(g),
     sharedSources(g),
     g.community ? communityEvidence(g) : g.own_report_id ? h('div', { class: 'tiny muted' }, translateUI('community.also_local')) : null,
     compact || g.community || g.sources?.includes('companion-shared') ? null : h('div', { class: 'tiny muted' }, translateUI('ui.live_provider', { provider: g.provider === 'ntfy' ? 'Alphapedia ntfy' : g.provider }), st.notes.length ? ' · ⚠ ' + uiLabel(st.notes[0]) : '')));
+}
+function syncCurrentEncounter(card, g, now) {
+  const st = g.status;
+  const active = likelyActive(g, now);
+  const elapsed = !g.is_test && (st.state === 'ended' ||
+    (st.start_basis === 'report time' && Date.parse(st.ends_at) <= now));
+  const tone = active ? 'ok' : elapsed ? 'ended' : 'warn';
+  const text = active ? translateUI('ui.live_time_left_est', {
+    duration: durText(Math.ceil((Date.parse(st.ends_at) - now) / 1000)),
+  }) : elapsed ? translateUI('ui.estimated_ended')
+    : g.is_test ? uiLabel(st.label) : translateUI('ui.live_time_uncertain');
+  const pill = card.querySelector('.cur-estimate');
+  if (pill.textContent !== text) pill.textContent = text;
+  pill.dataset.tone = tone;
+  if (active) {
+    pill.dataset.ends = st.ends_at;
+    pill.dataset.state = st.state;
+  } else delete pill.dataset.ends;
+
+  const animate = !g.is_test && animatedIn(active ? 'report_active' : 'report_expired');
+  const key = JSON.stringify([animate, g.species_match, g.species_id, g.species_name,
+    g.species_ani, g.species_still, g.species_front, g.species_icon]);
+  const sprite = card.querySelector('.rep-sprite');
+  if (sprite.dataset.art !== key) {
+    const next = reportSprite(g, { battle: true, animate });
+    next.dataset.art = key;
+    sprite.replaceWith(next);
+  }
 }
 export function estimatesNote(est) {
   return h('p', { class: 'tiny muted', style: { margin: 0 } }, translateUI('ui.live_estimate_note', { alpha: number(est.alpha_minutes), swarm: number(est.swarm_minutes) }));
@@ -151,7 +187,16 @@ export async function render(el, route) {
     sub, (t) => go('#/live/' + t), translateUI('ui.live_sections'))));
   const body = h('div');
   page.append(body);
-  if (sub === 'legendaries') return renderLegendaries(body);
+  if (sub === 'legendaries') {
+    const redraw = ({ detail }) => {
+      if (Object.keys(detail || {}).some(k => k.startsWith('sprites.') || k.startsWith('performance.') || k === 'guides.active_run')) {
+        renderLegendaries(body);
+      }
+    };
+    document.addEventListener('settings-changed', redraw);
+    unsub.push(() => document.removeEventListener('settings-changed', redraw));
+    return renderLegendaries(body);
+  }
   if (sub === 'cave') return renderCave(body);
   if (sub === 'phenomena') {
     const draw = () => renderPhenomena(body, { selectedId: route.parts[1] });
@@ -239,9 +284,10 @@ async function renderReports(el, selectedId, src, epoch) {
     } else mount(inspector, h('div', { class: 'card muted small' }, translateUI('ui.live_select_report')));
   };
   const notifier = state.boot.notifier;
-  const curBox = h('div', { class: 'cur-grid' });
+  const curBox = h('div', { class: 'cur-grid live-cur' });
   const curNote = h('div');
   let stopTimers = null, refreshing = false, queued = false;
+  let currentGroups = new Map(), skew = 0;
   const loadCurrent = async () => {
     if (!active()) return;
     if (refreshing) { queued = true; return; }
@@ -249,19 +295,27 @@ async function renderReports(el, selectedId, src, epoch) {
     try {
     const c = await get('/api/live/current');
     if (!active()) return;
-    const skew = Date.parse(c.now) - Date.now();
+    skew = Date.parse(c.now) - Date.now();
+    const now = Date.now() + skew;
+    const previous = new Map([...curBox.querySelectorAll('.cur-card')].map(card => [card.dataset.report, card]));
+    currentGroups = new Map(c.current.map(g => [g.id, g]));
     const warn = !c.source.enabled ? (c.current.some(g => !g.community) ? notice('info', translateUI('ui.live_cached_feed')) : null)
       : c.source.status === 'connected' ? notice('info', translateUI('ui.live_feed_partial'))
         : notice('warn', translateUI('ui.live_feed_incomplete', { state: sourceStatus(c.source), last: c.source.last_success_at ? translateUI('ui.live_last_data', { relative: relTime(c.source.last_success_at) }) : '' }));
     mount(curBox, c.current.length ? c.current.map((g) => {
-      const card = currentCard(g);
+      const sprite = previous.get(g.id)?.querySelector('.rep-sprite') || h('div', { class: 'rep-sprite' });
+      const card = currentCard(g, { sprite, featured: true });
+      syncCurrentEncounter(card, g, now);
       const actions = communityActions(g, { compact: true, onSaved: openSaved });
       return actions ? h('div', { class: 'community-encounter' }, card, actions) : card;
     }) :
       h('div', { class: 'empty small', style: { gridColumn: '1/-1' } }, c.source.enabled ? translateUI('ui.live_none_recent') : translateUI('ui.live_enable_feed')));
     mount(curNote, h('div', { class: 'stack tight' }, warn, estimatesNote(c.estimates)));
     if (stopTimers) stopTimers();
-    stopTimers = startTimers(curBox, skew, refreshCurrent);
+    stopTimers = startTimers(curBox, skew, null, (pill, now) => {
+      const card = pill.closest('.cur-card');
+      syncCurrentEncounter(card, currentGroups.get(card.dataset.report), now);
+    });
     } finally {
       refreshing = false;
       if (queued) { queued = false; if (active()) refreshCurrent(); }
@@ -297,6 +351,19 @@ async function renderReports(el, selectedId, src, epoch) {
   unsub.push(on('live.community', (s) => {
     if (active()) el.querySelector('.community-source')?.replaceWith(communityBar('alpha', openSaved, s));
   }));
+  const updateArt = () => {
+    if (!active()) return;
+    const now = Date.now() + skew;
+    curBox.querySelectorAll('.cur-card').forEach(card => syncCurrentEncounter(card, currentGroups.get(card.dataset.report), now));
+  };
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  motion.addEventListener('change', updateArt);
+  unsub.push(() => motion.removeEventListener('change', updateArt));
+  const motionSettings = ({ detail }) => {
+    if (Object.keys(detail || {}).some(k => k.startsWith('sprites.') || k.startsWith('performance.'))) updateArt();
+  };
+  document.addEventListener('settings-changed', motionSettings);
+  unsub.push(() => document.removeEventListener('settings-changed', motionSettings));
   unsub.push(on('settings', (d) => {
     if (!active() || !Object.hasOwn(d || {}, 'live.community.enabled')) return;
     el.querySelector('.community-source')?.replaceWith(communityBar('alpha', openSaved));
@@ -308,7 +375,7 @@ async function renderReports(el, selectedId, src, epoch) {
 /** Pokémon sprite for a report, or a neutral fallback when the report doesn't name one species clearly.
  *  Box icons are 36 px art and battle sprites 96 px; CSS shows them at whole-number scales so pixels stay sharp. */
 /**
- * Home only: a report is "likely active" while its estimated window is still open — counted from the EARLIEST report
+ * A report is "likely active" while its estimated window is still open — counted from the EARLIEST report
  * of the group (duplicates never restart it) and only when the report carries its own time (a report time is still
  * not a confirmed spawn time). Reports without a usable time, expired ones and test entries are not.
  */
@@ -321,8 +388,7 @@ export function reportSprite(r, { battle = false, animate = false } = {}) {
   const wrap = (child, cls = '') => h('div', { class: 'rep-sprite' + (battle ? ' battle' : '') + cls }, child);
   // A report naming several Pokémon gets the neutral icon, never a guessed sprite.
   if (r.species_match === 'ambiguous') return wrap(spriteFallback(r, kind));
-  // Animated Gen V sprite (your sprite library) only where asked (Home, likely-active reports) and motion is allowed.
-  // Live itself always shows still images.
+  // Use the same animation and fit rules for Home and Live.
   if (animate && r.species_ani && motionAllowed()) {
     const holder = wrap(null, ' library animated');
     const img = h('img', { class: 'pixel rep-ani', src: r.species_ani, alt: r.species_name || '', decoding: 'async', style: { visibility: 'hidden' } });
@@ -340,7 +406,11 @@ export function reportSprite(r, { battle = false, animate = false } = {}) {
     };
     onBoxSize(holder, fit);
     img.addEventListener('load', () => fit(holder.clientWidth));
-    img.addEventListener('error', () => holder.replaceWith(reportSprite(r, { battle })));
+    img.addEventListener('error', () => {
+      const fallback = reportSprite(r, { battle });
+      if (holder.dataset.art) fallback.dataset.art = holder.dataset.art;
+      holder.replaceWith(fallback);
+    });
     return holder;
   }
   if (r.species_still) {
@@ -446,19 +516,33 @@ function notificationResult(kind, result) {
 }
 
 // ----------------------------------------------------------- legendaries
-export async function renderLegendaries(el, { compact = false } = {}) {
-  const L = await get('/api/live/legendaries');
-  const runs = await get('/api/guides/runs');
+/** Animated Gen V sprite from your sprite library, else the still; large tier, never stretched. */
+export function roamerArt(m, size) {
+  if (m.ani && animatedIn('roamers')) {
+    const img = h('img', { class: 'pixel', src: m.ani, alt: speciesLabel(m.id, m.name), decoding: 'async', style: { visibility: 'hidden' } });
+    const box = h('div', { class: 'still-art roamer-art', style: { width: size + 'px', height: size + 'px' }, dataset: { tier: 'l' } }, img);
+    img.addEventListener('load', () => {
+      const f = fitSprite(img.naturalWidth, img.naturalHeight, null, 'l', size, size);
+      Object.assign(img.style, { width: f.width + 'px', height: f.height + 'px', left: f.left + 'px', top: f.top + 'px', visibility: '' });
+      box.classList.toggle('smooth', f.smooth);
+    });
+    img.addEventListener('error', () => box.replaceWith(sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' })));
+    return box;
+  }
+  return sizedSprite(m, size, { still: m.still, url: m.icon, tier: 'l' });
+}
+export async function renderLegendaries(el, { compact = false, open = go } = {}) {
+  const [L, runs] = await Promise.all([get('/api/live/legendaries'), get('/api/guides/runs')]);
   const run = runs.runs.find((r) => r.id === runs.active);
   const card = (region, mon) => {
     const caught = !!L.caught[mon.id];
-    return h('div', { class: 'legend-card' }, h('div', { style: { width: '72px', height: '72px', display: 'grid', placeItems: 'center' } }, spriteOrFallback(mon.icon, mon, compact ? 48 : 72)),
+    return h('div', { class: 'legend-card' }, h('div', { class: 'legend-art' }, roamerArt(mon, scaled('roamers', compact ? 76 : 116))),
       h('div', { class: 'grow' }, h('div', { class: 'tiny muted', style: { textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 600 } }, translateUI('ui.live_roamer', { region: gameTerm('region', cap(region)) })),
-        h('div', { style: { fontWeight: 700, fontSize: '1.15rem' } }, speciesLabel(mon.id, mon.name)), typeChips(mon.types, true),
+        h('div', { class: 'roamer-name' }, speciesLabel(mon.id, mon.name)), typeChips(mon.types, true),
         compact ? null : h('div', { class: 'row', style: { marginTop: '6px' } }, run ? h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: caught,
           onchange: async (e) => { await post('/api/live/legendaries/caught', { species: mon.id, caught: e.target.checked }); toast(translateUI(e.target.checked ? 'ui.live_mark_caught' : 'ui.live_mark_uncaught', { pokemon: speciesLabel(mon.id, mon.name), character: run.display })); } }),
         h('span', { class: 'small' }, translateUI('ui.live_caught_by', { character: run.display }))) : h('span', { class: 'tiny muted' }, translateUI('ui.live_create_run')),
-        h('button', { class: 'btn small ghost', onclick: () => go('#/pokedex/' + mon.id) }, translateUI('nav.pokedex')))));
+        h('button', { class: 'btn small ghost', onclick: () => open('#/pokedex/' + mon.id) }, translateUI('nav.pokedex')))));
   };
   const monthName = (m, y) => new Date(y, m - 1, 1).toLocaleString(locale(), { month: 'long', year: 'numeric' });
   const cur = L.current, nxt = L.next;
@@ -468,7 +552,7 @@ export async function renderLegendaries(el, { compact = false } = {}) {
     h('div', { class: 'legend-pair' }, card('kanto', cur.kanto), card('johto', cur.johto)),
     h('div', { class: 'small muted' }, uiLabel(L.status_note))),
     compact ? null : h('div', { class: 'card' }, h('div', { class: 'row wrap' }, h('strong', null, translateUI('ui.live_next_month', { month: monthName(nxt.month, nxt.year) })), h('span', { style: { marginLeft: '6px' } }, `${speciesLabel(nxt.kanto.id, nxt.kanto.name)} (${gameTerm('region', 'Kanto')}) · ${speciesLabel(nxt.johto.id, nxt.johto.name)} (${gameTerm('region', 'Johto')})`),
-      h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => { ui.calendar = !ui.calendar; renderLegendaries(el); } }, ui.calendar ? translateUI('ui.live_hide_cal') : translateUI('ui.live_show_cal'))),
+      h('span', { class: 'grow' }), h('button', { class: 'btn small', onclick: () => { ui.calendar = !ui.calendar; renderLegendaries(el, { compact, open }); } }, ui.calendar ? translateUI('ui.live_hide_cal') : translateUI('ui.live_show_cal'))),
     ui.calendar ? h('div', { class: 'cal', style: { marginTop: '12px' } }, L.calendar.map((m, i) => h('div', { class: 'm' + (i === 0 ? ' now' : '') },
       h('div', { class: 'small muted' }, monthName(m.month, m.year)), h('div', null, speciesLabel(m.kanto.id, m.kanto.name)), h('div', null, speciesLabel(m.johto.id, m.johto.name))))) : null),
     compact ? null : h('div', { class: 'grid-2' },
@@ -478,7 +562,6 @@ export async function renderLegendaries(el, { compact = false } = {}) {
       h('div', { class: 'card stack tight' }, h('h3', { style: { margin: 0 } }, translateUI('ui.live_non_monthly')), L.not_roamers.map((n) => h('div', { class: 'small' }, h('strong', null, speciesLabel(n.species, n.label)), ' — ', uiLabel(n.note))),
         h('div', { class: 'small muted' }, translateUI('ui.live_acquisition')))),
     compact ? null : h('div', { class: 'small muted' }, translateUI('ui.live_source_prefix'), extLink(L.source_url, translateUI('ui.live_roamer_faq')), translateUI('ui.live_checked', { date: fmtDate(L.checked_at) }))));
-  unsub.push(on('legendaries', () => {}));
 }
 
 // ------------------------------------------------------------- cave
