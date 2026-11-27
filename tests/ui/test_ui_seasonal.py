@@ -11,7 +11,7 @@ pytestmark = pytest.mark.ui
 
 
 def test_seasonal_panel_reports_and_manual_timer(tmp_path, page, monkeypatch):
-    app = Running(tmp_path)
+    app = Running(tmp_path, internal_reporting=True)
     try:
         app.ctx.settings.update({"app.onboarded": True, "live.community.enabled": True})
         go(page, app, "#/home")

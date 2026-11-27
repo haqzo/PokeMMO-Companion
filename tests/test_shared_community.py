@@ -47,7 +47,7 @@ class SharedLab:
         ctx.live.community.sync.config = Connection(self.server.server_port, READ, actor, WRITERS.get(actor, ""))
 
     def profile(self, actor, path=None):
-        ctx = AppContext(str(self.root / (path or actor)))
+        ctx = AppContext(str(self.root / (path or actor)), internal_reporting=True)
         self.profiles.append((ctx, actor))
         ctx.settings.update({"live.community.enabled": True, "live.community.receive": True,
                              "live.community.share": bool(WRITERS.get(actor))})

@@ -17,8 +17,8 @@ DUMPS = os.environ.get("POKEMMO_DUMPS_DIR")
 
 
 @pytest.fixture
-def ctx(tmp_path):
-    c = AppContext(str(tmp_path / "data"))
+def ctx(tmp_path, request):
+    c = AppContext(str(tmp_path / "data"), internal_reporting=getattr(request, "param", False))
     yield c
     c.shutdown()
 

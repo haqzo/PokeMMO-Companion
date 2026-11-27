@@ -83,7 +83,7 @@ class CommunitySync:
         self.community = community
         self.live = community.live
         self.db = community.db
-        self.config = TestConnection.from_env()
+        self.config = TestConnection.from_env() if community.available else None
         self.connection = "unavailable"
         self.service_id = None
         self.seq = 0
@@ -96,14 +96,17 @@ class CommunitySync:
 
     def receiving(self):
         settings = self.live.settings
-        return bool(settings.get("live.community.enabled") and settings.get("live.community.receive"))
+        return bool(self._enabled() and settings.get("live.community.receive"))
 
     def sharing(self):
         return bool(self.receiving() and self.config and self.config.write_token and
                     self.live.settings.get("live.community.share"))
 
+    def _enabled(self):
+        return self.community.available and self.live.settings.get("live.community.enabled")
+
     def status(self):
-        enabled = self.live.settings.get("live.community.enabled")
+        enabled = self._enabled()
         base = {"enabled": enabled, "status": "local-test" if enabled else "disabled", "connection": "unavailable"}
         if self.receiving():
             base.update(connection=self.connection, receive_enabled=True,

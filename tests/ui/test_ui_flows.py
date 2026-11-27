@@ -21,8 +21,8 @@ CHROME = os.environ.get("CHROME_PATH") or (shutil.which("google-chrome") or shut
 
 
 class Running:
-    def __init__(self, data_dir):
-        self.ctx = AppContext(str(data_dir))
+    def __init__(self, data_dir, *, internal_reporting=False):
+        self.ctx = AppContext(str(data_dir), internal_reporting=internal_reporting)
         self.srv = CompanionServer(self.ctx, 0).start()
 
     def url(self, route="#/home"):

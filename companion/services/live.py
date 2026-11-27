@@ -141,14 +141,15 @@ def reported_location(body: str) -> tuple[str | None, str | None]:
 
 
 class LiveService:
-    def __init__(self, storage: Storage, settings: Settings, bus: EventBus, dex: DexService, notifier: Notifier):
+    def __init__(self, storage: Storage, settings: Settings, bus: EventBus, dex: DexService, notifier: Notifier,
+                 *, internal_reporting: bool = False):
         self.db = storage
         self.settings = settings
         self.bus = bus
         self.dex = dex
         self.notifier = notifier
         self.phenomena = Phenomena(self)
-        self.community = Community(self)
+        self.community = Community(self, available=internal_reporting)
         self.toast_backend: Callable[[dict], bool] | None = None  # set by the Qt shell
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -442,7 +443,9 @@ class LiveService:
     def prune(self) -> int:
         days = int(self.settings.get("notify.retention_days") or 30)
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-        return self.db.execute("DELETE FROM reports WHERE (kind<>'phenomena' OR community IS NOT NULL) AND received_at < ?", (cutoff,))
+        # Preserve observations from dormant reporting in older profiles.
+        scope = "(kind<>'phenomena' OR community IS NOT NULL)" if self.community.available else "kind<>'phenomena' AND community IS NULL"
+        return self.db.execute("DELETE FROM reports WHERE " + scope + " AND received_at < ?", (cutoff,))
 
     # ------------------------------------------------------------ delivery
     def deliver(self, report: dict) -> dict:

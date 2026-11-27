@@ -1442,6 +1442,7 @@ export const UI_STRINGS = {
   'ui.live_reported_prefix': ["Reported ","Reportado ","报告于 "],
   'ui.live_test_notification': ["TEST notification","Notificación de PRUEBA","测试通知"],
   'ui.live_test_badge_full': ["Local test — not a real report","Prueba local simulada","本机模拟测试"],
+  'ui.live_report_via_alphapedia': ["Report via Alphapedia","Reportar en Alphapedia","通过 Alphapedia 报告"],
   'ui.live_community_report': ["Community report.","Aviso de la comunidad.","社区报告。"],
   'ui.live_detail_ambiguous': [" — the report names several Pokémon, so no sprite is shown"," · el aviso menciona a varios Pokémon y no se muestra ningún sprite"," · 报告中提到多只宝可梦，因此不显示图像"],
   'ui.live_mentioned': ["Species mentioned (detected from text):","Especie mencionada (detectada en el texto):","报告中提及的种类（从文中识别）："],

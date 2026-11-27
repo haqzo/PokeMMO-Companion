@@ -18,10 +18,12 @@ PHENOMENA_RELAY_URL = ""  # Reserved for internal relay testing.
 ALPHAPEDIA_URL = "https://alpha.pokemmotools.org/"
 ALPHAPEDIA_DISCORD_URL = "https://discord.gg/Qeuc9k4yMw"
 ALPHAPEDIA_PHENOMENA_URL = ALPHAPEDIA_URL + "pheno-list"
+ALPHAPEDIA_REPORTING_URL = ALPHAPEDIA_URL + "publisher-signup"
 
 
 def alphapedia_links() -> dict:
-    return {"website": ALPHAPEDIA_URL, "discord": ALPHAPEDIA_DISCORD_URL, "phenomena": ALPHAPEDIA_PHENOMENA_URL}
+    return {"website": ALPHAPEDIA_URL, "discord": ALPHAPEDIA_DISCORD_URL,
+            "phenomena": ALPHAPEDIA_PHENOMENA_URL, "reporting": ALPHAPEDIA_REPORTING_URL}
 
 
 def default_data_dir() -> Path:

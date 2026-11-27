@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
@@ -18,6 +19,7 @@ PUBLISHED = (
     "PokeMMO-Companion-0.8.0-windows-x86_64.zip"
 )
 PUBLISHED_SHA256 = "f5a32ed069b28a7c3457007ecfd9c437db5339154e9ea0c27d9e6d692466afa2"
+OLD_REPORTING_SETTINGS = ("live.community.enabled", "live.community.receive", "live.community.share")
 
 
 @contextmanager
@@ -54,6 +56,23 @@ def schema(path):
         return int(db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0])
 
 
+def verify_reporting_scope(api):
+    boot = api("GET", "/api/bootstrap")
+    assert boot["internal_reporting"] is False
+    assert boot["alphapedia"]["reporting"] == "https://alpha.pokemmotools.org/publisher-signup"
+    assert not set(OLD_REPORTING_SETTINGS).intersection(boot["settings"])
+    for method, path, body, code in (
+        ("POST", "/api/live/community/reports", {}, 404),
+        ("PATCH", "/api/settings", dict.fromkeys(OLD_REPORTING_SETTINGS, True), 403),
+    ):
+        try:
+            api(method, path, body)
+        except HTTPError as error:
+            assert error.code == code
+        else:
+            raise AssertionError(f"{method} {path} did not return HTTP {code}")
+
+
 def packaged_checks(candidate, work):
     with ZipFile(candidate) as archive:
         archive.extractall(work / "candidate")
@@ -73,6 +92,7 @@ def packaged_checks(candidate, work):
         subprocess.run(["netsh", "advfirewall", "firewall", "delete", "rule", f"name={rule}", f"program={exe}"],
                        check=True, timeout=30)
     with running(exe, work / "fresh HTTPS and data") as api:
+        verify_reporting_scope(api)
         assert len(api("GET", "/api/dex/species")["species"]) >= 649
         assert api("GET", "/api/live/phenomena/reference")["entries"]
         for region in ("kanto", "johto", "hoenn", "sinnoh", "unova"):
@@ -108,9 +128,14 @@ def verify_upgrade(exe, work):
         api("POST", f"/api/guides/runs/{run}/steps", {"steps": [step], "done": True})
         report = api("POST", "/api/live/test", {"kind": "alpha"})["id"]
     assert schema(database) == 5
+    with closing(sqlite3.connect(database)) as db:
+        db.executemany("INSERT INTO settings(key, value, updated_at) VALUES (?, 'true', CURRENT_TIMESTAMP)",
+                       [(key,) for key in OLD_REPORTING_SETTINGS])
+        db.commit()
 
     for _ in range(2):
         with running(exe, profile) as api:
+            verify_reporting_scope(api)
             assert api("GET", f"/api/notes/{note}")["title"] == "Synthetic release QA note"
             assert step in api("GET", f"/api/guides/runs/{run}/state?region=kanto")["done"]
             assert api("GET", f"/api/live/reports/{report}")["is_test"]
@@ -122,6 +147,10 @@ def verify_upgrade(exe, work):
                 assert safety.execute("SELECT COUNT(*) FROM reports WHERE id=?", (report,)).fetchone()[0] == 1
     print("Published Windows 0.8.0 upgraded from SQLite v5 to v9. Settings, note, progress and local report survived restart.")
     print("One pre-migration safety copy retained the local report.")
+    with closing(sqlite3.connect(database)) as db:
+        retained = {key: value for key, value in db.execute("SELECT key, value FROM settings")}
+        assert all(retained[key] == "true" for key in OLD_REPORTING_SETTINGS)
+    print("Independent reporting stayed disabled on clean and migrated profiles with old reporting settings retained.")
 
 
 if __name__ == "__main__":

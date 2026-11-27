@@ -314,6 +314,7 @@ def test_stored_phenomenon_settings_do_not_start_relay_or_remove_history(ctx, cl
     assert client.call("GET", f'/api/live/phenomena/{report["message_id"]}/image')[0] == 404
 
 
+@pytest.mark.parametrize("ctx", [True], indirect=True)
 def test_batch04_reference_and_conservative_relay_matching(ctx, client):
     from companion.phenomenon_reference import match_area, relay_location
     from test_community import observation

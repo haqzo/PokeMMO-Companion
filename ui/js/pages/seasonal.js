@@ -1,7 +1,7 @@
 import { h, mount, get, post, on, extLink, fmtDate, modal, toast, saveSettings } from '../core.js';
 import { lang, t } from '../i18n.js';
 import { gameTerm, speciesLabel } from '../game-locale.js';
-import { communityActions, communityEnabled, communityEvidence, localFeedback } from './community.js';
+import { communityActions, communityEnabled, communityEvidence, internalReporting, localFeedback } from './community.js';
 
 const local = value => value[lang()] || value.en;
 const option = (value, label, selected) => h('option', { value, selected: value === selected }, label);
@@ -46,7 +46,7 @@ function activityView(event, activity, open) {
         gameTerm('location', place.name)))),
     activity.pokemon.length ? h('div', { class: 'small muted' }, activity.pokemon.map(p => speciesLabel(p.id, p.name)).join(', ')) : null,
     h('div', { class: 'row wrap' },
-      activity.report ? h('button', { class: 'btn ghost small', onclick: async () => {
+      activity.report && internalReporting() ? h('button', { class: 'btn ghost small', onclick: async () => {
         if (!communityEnabled()) await saveSettings({ 'live.community.enabled': true });
         await reportDialog(event, activity);
       } }, communityEnabled() ? t('community.new') : t('seasonal.enable_report')) : null,

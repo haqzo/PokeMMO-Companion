@@ -12,7 +12,7 @@ pytestmark = pytest.mark.ui
 
 @pytest.fixture
 def reporter(tmp_path):
-    app = Running(tmp_path)
+    app = Running(tmp_path, internal_reporting=True)
     app.ctx.settings.update({"app.onboarded": True, "notify.alpha": "off", "notify.swarm": "off"})
     yield app
     app.stop()
@@ -192,3 +192,102 @@ def test_species_results_scroll_and_keep_report_fields(reporter, page):
     species.press("ArrowDown")
     species.press("Enter")
     assert species.input_value() == "Hitmontop"
+
+
+def test_public_reporting_scope_with_existing_profile(tmp_path, page, monkeypatch):
+    from companion.app import AppContext
+    from companion.services.community import CommunityError
+    from conftest import Client
+    from test_community import observation
+
+    setting_keys = ("live.community.enabled", "live.community.receive", "live.community.share")
+    with_settings = dict.fromkeys(setting_keys, True)
+    internal = AppContext(str(tmp_path), internal_reporting=True)
+    try:
+        internal.settings.update({"app.onboarded": True, "app.language": "en", "notify.alpha": "off",
+                                  "notify.phenomena": "off", **with_settings})
+        encounter = internal.live.community.submit(observation(internal, details="Existing local encounter"))
+        pheno = internal.live.community.submit(observation(
+            internal, kind="phenomena", region="unova", location_id="unova:255", species_id=None,
+            phenomenon_type="grass", spot_id="village-bridge-southwest", details="Existing spot observation",
+        ))
+        # Exercise startup retention with an aged report, including its separately stored feedback.
+        internal.live.community.act(encounter["id"], "still_here")
+        internal.storage.execute("UPDATE reports SET received_at=? WHERE id=?",
+                                 ("2000-01-01T00:00:00Z", encounter["id"]))
+    finally:
+        internal.shutdown()
+
+    monkeypatch.setenv("COMPANION_COMMUNITY_URL", "http://127.0.0.1:34567")
+    monkeypatch.setenv("COMPANION_COMMUNITY_READ_TOKEN", "test-read-token-for-public-check")
+    app = Running(tmp_path)
+    requests = []
+    page.on("request", lambda req: requests.append(req.url) if "/api/live/community" in req.url else None)
+    try:
+        client = Client(app.srv, app.ctx.token)
+        assert client.call("GET", "/api/bootstrap")[1]["internal_reporting"] is False
+        assert not (set(setting_keys) & client.call("GET", "/api/settings")[1].keys())
+        assert client.call("PATCH", "/api/settings", with_settings)[0] == 403
+        assert all(app.ctx.settings.get(key) is True for key in setting_keys)
+        community = app.ctx.live.community
+        assert community.sync.config is None and not community.sync.receiving()
+        assert community.sync._thread is None
+        with pytest.raises(CommunityError, match="community.disabled"):
+            community.submit(observation(app.ctx))
+
+        root = "/api/live/community"
+        own = root + "/reports/" + encounter["id"]
+        for suffix in ("source", "options", "phenomena"):
+            assert client.call("GET", f"{root}/{suffix}")[0] == 404
+        for path, body in [
+            (root + "/reports", observation(app.ctx)), (own + "/correct", observation(app.ctx)),
+            (own + "/actions", {"action": "withdraw"}), (own + "/actions", {"action": "not_found"}),
+            (own + "/retry-share", {}),
+        ]:
+            assert client.call("POST", path, body)[0] == 404
+        history = client.call("GET", "/api/live/reports/" + encounter["id"])[1]
+        assert history["body"] == "Existing local encounter"
+        assert history["local_feedback"]["sighting"]["action"] == "still_here"
+
+        def no_reporting_controls():
+            assert page.locator(".community-source, .community-actions").count() == 0
+            assert page.get_by_role("button", name=re.compile(
+                r"^(Enable local reporting|Report an encounter|Report here|Correct own report|Withdraw own report|"
+                r"Retry shar.*|Still here|Not found|Mark personally completed|Undo personal completion)$"
+            )).count() == 0
+
+        def reporting_link():
+            link = page.get_by_role("link", name="Report via Alphapedia")
+            pw.expect(link).to_have_attribute("href", "https://alpha.pokemmotools.org/publisher-signup")
+            pw.expect(link).to_have_attribute("target", "_blank")
+
+        for route in ("#/home", "#/live/reports", "#/live/reports/" + encounter["id"]):
+            go(page, app, route)
+            reporting_link()
+            if route.endswith(encounter["id"]):
+                page.get_by_text("Existing local encounter", exact=True).last.wait_for()
+            no_reporting_controls()
+
+        go(page, app, "#/live/phenomena/" + pheno["id"])
+        page.get_by_text("Existing spot observation", exact=True).first.wait_for()
+        page.get_by_role("link", name="Alphapedia Pheno List").wait_for()
+        page.get_by_role("searchbox", name="Search location").fill("Village Bridge")
+        page.get_by_text("Lower left of Village Bridge", exact=False).last.wait_for()
+        no_reporting_controls()
+
+        for tool in ("reports", "phenomena"):
+            for mode in ("compact", "standard", "expanded"):
+                page.goto(app.srv.url("", popout=tool, mode=mode))
+                if tool == "reports":
+                    reporting_link()
+                else:
+                    page.get_by_role("heading", name="Unova Phenomena").wait_for()
+                no_reporting_controls()
+
+        go(page, app, "#/settings/sources")
+        page.get_by_text("Alpha/Swarm report feed", exact=True).wait_for()
+        assert page.get_by_text("Companion Community", exact=True).count() == 0
+        assert not requests
+        assert not page.errors
+    finally:
+        app.stop()

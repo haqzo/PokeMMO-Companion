@@ -8,7 +8,7 @@ import { go, qaInfo, openPopout } from '../shell.js';
 import { LANGS, lang } from '../i18n.js';
 import { walkthroughReader } from '../walkthrough-loader.js';
 import { scaled } from '../sprites.js';
-import { currentEncounters, roamerArt } from './live.js';
+import { currentEncounters, reportViaAlphapedia, roamerArt } from './live.js';
 import { homePhenomena } from './phenomena.js';
 
 // The snapshot summaries are authored by Companion. Exact source matching prevents stale translations when a news item is revised.
@@ -568,10 +568,11 @@ function roamersCard(leg) {
 function liveCard(cur) {
   const box = h('div', { class: 'cur-grid home-cur' });
   const head = h('div', { class: 'row small home-feed' });
+  const reporting = h('div', { class: 'small' }, reportViaAlphapedia());
   const phenomena = homePhenomena();
   const card = h('section', { class: 'card home-live half', 'aria-labelledby': 'live-h' },
     h('div', { class: 'card-head' }, h('h2', { id: 'live-h' }, translateUI('ui.alpha_swarm')), h('span', { class: 'tiny muted' }, translateUI('ui.home_report_recent')),
-      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, phenomena.section);
+      h('div', { class: 'right' }, h('button', { class: 'btn ghost small', onclick: () => go('#/live/reports') }, translateUI('ui.history'), icon('chev')))), head, box, reporting, phenomena.section);
   const encounters = currentEncounters(box, { compact: true });
   let disposed = false, refreshing = false, queued = false;
   const draw = (c) => {

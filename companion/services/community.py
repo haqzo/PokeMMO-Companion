@@ -14,8 +14,10 @@ PERSONAL = ("complete", "reopen")
 
 
 class Community:
-    def __init__(self, live):
+    def __init__(self, live, *, available: bool):
         self.live = live
+        # Explicit internal entry point, never enabled by profile settings.
+        self.available = available
         self.db = live.db
         self.dex = live.dex
         self.sync = CommunitySync(self)

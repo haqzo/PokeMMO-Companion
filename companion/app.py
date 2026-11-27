@@ -58,7 +58,7 @@ class ShellBridge:
 
 
 class AppContext:
-    def __init__(self, data_dir: str | None = None):
+    def __init__(self, data_dir: str | None = None, *, internal_reporting: bool = False):
         self.paths: Paths = make_paths(data_dir)
         self.storage = Storage(self.paths.db, self.paths.backups)
         from .services import backup as _backup
@@ -95,7 +95,8 @@ class AppContext:
         self._cleanup_removed_features()
         self.news = NewsService(self.storage)
         self.notifier = Notifier()
-        self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier)
+        self.live = LiveService(self.storage, self.settings, self.bus, self.dex, self.notifier,
+                                internal_reporting=internal_reporting)
         from .services.seasonal import Seasons
         self.seasons = Seasons(self.refdata, self.live)
         self.live.community.seasons = self.seasons
@@ -172,7 +173,8 @@ class AppContext:
         for t in self._oneoff:
             t.start()
         self.live.apply_settings()
-        self.live.community.sync.apply_settings()
+        if self.live.community.available:
+            self.live.community.sync.apply_settings()
         self.news.start_auto(self.settings, self.bus)
         self.timers.start()
         self.refdata.start_auto()

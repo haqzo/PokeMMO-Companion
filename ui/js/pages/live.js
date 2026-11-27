@@ -225,14 +225,19 @@ function sourceStatus(src) {
   return !src.enabled ? translateUI('ui.live_feed_off') : { connected: translateUI('ui.live_listening'), connecting: translateUI('ui.live_connecting'), offline: translateUI('ui.live_feed_unavailable'), error: translateUI('ui.live_feed_error'), disabled: translateUI('ui.live_off') }[src.status] || src.status;
 }
 
+export function reportViaAlphapedia() {
+  return extLink(state.boot.alphapedia.reporting, translateUI('ui.live_report_via_alphapedia'));
+}
+
 export function sourceBar(src, { compact = false } = {}) {
   const label = sourceStatus(src);
   return h('div', { class: 'source-bar' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }),
     h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Alphapedia · ', label),
       compact ? null : h('div', { class: 'small muted' }, src.enabled ? `${src.server}/${src.topic} · ${liveText(src.detail) || ''}` : translateUI('ui.live_opt_in'),
         src.last_success_at ? translateUI('ui.live_last_data_short', { relative: relTime(src.last_success_at) }) : ''),
-      compact ? null : h('div', { class: 'row wrap small' }, extLink(state.boot.alphapedia.website, 'Alphapedia'),
-        extLink(state.boot.alphapedia.discord, 'Alphapedia Discord'))),
+      h('div', { class: 'row wrap small' }, reportViaAlphapedia(),
+        compact ? null : extLink(state.boot.alphapedia.website, 'Alphapedia'),
+        compact ? null : extLink(state.boot.alphapedia.discord, 'Alphapedia Discord'))),
     compact ? null : (src.enabled ? h('button', { class: 'btn', onclick: async () => { await saveSettings({ 'live.ntfy.enabled': false }); toast(translateUI('ui.live_turned_off')); go('#/live/reports'); } }, translateUI('ui.live_turn_off'))
       : h('button', { class: 'btn primary', onclick: consentDialog }, translateUI('ui.live_connect'))));
 }

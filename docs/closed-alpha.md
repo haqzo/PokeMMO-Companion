@@ -13,7 +13,7 @@ The candidate identifies itself as **0.8.0 Alpha**. Once the owner approves dist
 - **Settings → Performance** offers **Balanced** by default. **Lightweight** uses smaller item batches and static artwork by default. **Full quality** uses larger batches and animates the Pokédex grid by default. **Custom** lets you choose the batch size and motion defaults. Individual sprite preferences are under **Settings → Pokémon & sprites**.
 - **Settings → Language** lets you choose English, Spanish or Simplified Chinese. The language and Chinese font are available offline.
 - In **Tools**, use a tool’s separate-window icon or open the tool and choose **Open as a separate window**. Use the floating window’s mode control for **Compact**, **Standard** or **Expanded**. Themes are under **Settings → Appearance & themes**, and text size under **Settings → Layout & scaling**. KDE users who need pinning, opacity or position restoration can select XWayland in **Settings → Windows & popouts → Window backend (Linux)** and restart.
-- Community **Alpha & Swarm reports** are optional under **Live**. The **Phenomena** reference and floating window work offline. First-sync and reconnect report history stay silent. [Companion community Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
+- **Live** offers an optional Alphapedia feed for **Alpha & Swarm** reports and a link to [report via Alphapedia](https://alpha.pokemmotools.org/publisher-signup). The **Phenomena** reference and floating window work offline. First-sync and reconnect report history stay silent. [Companion community Discord](https://discord.gg/5Wbh28M3gu) · [Alphapedia](https://alpha.pokemmotools.org/)
 
 ## Back up, update or recover
 

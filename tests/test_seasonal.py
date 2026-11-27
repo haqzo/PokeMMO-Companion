@@ -68,6 +68,7 @@ def test_unsupported_schema_and_duplicate_revision():
         validate_catalog(doc)
 
 
+@pytest.mark.parametrize("ctx", [True], indirect=True)
 def test_reports_stay_local_and_reopen_with_profile(ctx, client, monkeypatch):
     assert client.call("GET", "/api/live/seasonal")[1]["events"] == []
     doc = fixture()
@@ -93,7 +94,7 @@ def test_reports_stay_local_and_reopen_with_profile(ctx, client, monkeypatch):
     assert len(client.call("GET", "/api/live/seasonal")[1]["reports"]) == 4
     assert ctx.live.list() == []
     # SQLite records survive a restart even while the currently installed catalog is empty.
-    copy = AppContext(str(ctx.paths.root))
+    copy = AppContext(str(ctx.paths.root), internal_reporting=True)
     try:
         assert copy.live.get(corrected["id"])["body"] == "Corrected"
         assert copy.seasons.view()["events"] == []

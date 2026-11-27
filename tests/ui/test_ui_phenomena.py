@@ -89,7 +89,15 @@ def test_verified_provider_links_and_no_relay_setup(app, page):
     assert page.get_by_role("link", name="Alphapedia Discord").get_attribute("href") == ALPHAPEDIA_DISCORD
 
 
-def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(app, page):
+@pytest.fixture
+def reporting_app(data_dir):
+    running = Running(data_dir, internal_reporting=True)
+    yield running
+    running.stop()
+
+
+def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(reporting_app, page):
+    app = reporting_app
     app.ctx.settings.update({"live.community.enabled": True, "app.language": "en"})
     go(page, app, "#/live/phenomena")
     search = page.get_by_role("searchbox", name="Search location")
@@ -114,7 +122,7 @@ def test_reference_prefills_exact_spot_and_keeps_location_search_during_refresh(
 
 
 def test_local_reports_keep_species_and_spot_precision_after_restart(tmp_path, page):
-    app = Running(tmp_path)
+    app = Running(tmp_path, internal_reporting=True)
     app.ctx.settings.update({"app.onboarded": True, "app.language": "en",
                              "live.community.enabled": True, "live.ntfy.enabled": False})
     try:

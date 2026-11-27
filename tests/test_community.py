@@ -8,6 +8,7 @@ from companion.services.community import CommunityError
 from companion.storage import utcnow
 
 ROOT = "/api/live/community"
+pytestmark = pytest.mark.parametrize("ctx", [True], indirect=True)
 
 
 def place(ctx, name, region="kanto"):

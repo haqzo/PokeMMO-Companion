@@ -8,7 +8,7 @@ import { h, mount, icon, get, post, api, apiErrorText, isShortcutConflict, state
 import { go, openPopout, POPOUT_TOOLS } from '../shell.js';
 import { downloadJson, pickJsonFile } from '../components.js';
 import { createRun } from './guides.js';
-import { communitySourceText } from './community.js';
+import { communitySourceText, internalReporting } from './community.js';
 import { LANGS, t } from '../i18n.js';
 import { comboFromEvent, displayCombo, setRecording, loadShortcuts } from '../shortcuts.js';
 
@@ -190,16 +190,22 @@ async function notifications(b) {
 }
 
 // -------------------------------------------------------------- sources
-async function sources(b) {
-  const [src, n, community] = await Promise.all([get('/api/live/source'), get('/api/news'), get('/api/live/community/source')]);
-  const communityStatus = h('span', { class: 'small muted' }, communitySourceText(community));
-  unsub.push(on('live.community', (value) => { communityStatus.textContent = communitySourceText(value); }));
+async function internalReportingSettings() {
+  const community = await get('/api/live/community/source');
+  const status = h('span', { class: 'small muted' }, communitySourceText(community));
+  unsub.push(on('live.community', (value) => { status.textContent = communitySourceText(value); }));
   const permission = (key, label) => h('label', { class: 'row wrap small' }, h('input', { type: 'checkbox', class: 'check',
     checked: setting(key), 'aria-label': translateUI(label), onchange: (e) => set(key)(e.target.checked) }), translateUI(label));
-  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')),
-    row(translateUI('community.name'), translateUI('community.test_settings_help'),
-      h('div', { class: 'stack tight' }, communityStatus, permission('live.community.enabled', 'community.enable'),
-        permission('live.community.receive', 'community.receive_test'), permission('live.community.share', 'community.allow_sharing'))),
+  return row(translateUI('community.name'), translateUI('community.test_settings_help'),
+    h('div', { class: 'stack tight' }, status, permission('live.community.enabled', 'community.enable'),
+      permission('live.community.receive', 'community.receive_test'), permission('live.community.share', 'community.allow_sharing')));
+}
+
+async function sources(b) {
+  const [src, n, internal] = await Promise.all([
+    get('/api/live/source'), get('/api/news'), internalReporting() ? internalReportingSettings() : null,
+  ]);
+  b.append(h('h2', { style: { marginTop: 0 } }, translateUI('ui.live_news')), ...(internal ? [internal] : []),
     row(translateUI('ui.b272_settings_065'), translateUI('ui.b272_settings_066'),
       h('div', { class: 'stack tight' }, h('div', { class: 'row' }, h('span', { class: 'dot ' + (src.enabled ? src.status : '') }), src.enabled ? uiLabel(cap(src.status)) : translateUI('settings.off'),
         src.last_success_at ? h('span', { class: 'small muted' }, translateUI('settings.last_data'), relTime(src.last_success_at)) : null),

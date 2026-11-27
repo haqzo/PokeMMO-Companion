@@ -1,4 +1,4 @@
-import { h, mount, get, post, setting, saveSettings, modal, confirmDialog, toast, fmtDate } from '../core.js';
+import { h, mount, get, post, setting, saveSettings, modal, confirmDialog, toast, fmtDate, state } from '../core.js';
 import { reportSpeciesPicker } from '../components.js';
 import { compareLabels, gameTerm, searchText } from '../game-locale.js';
 import { t } from '../i18n.js';
@@ -11,7 +11,8 @@ const PHENOMENA = { grass: 'ui.grass_rustling', water: 'ui.water_rippling', dust
 const errorText = (e) => e.rawMessage?.startsWith('community.') ? t(e.rawMessage) : e.message;
 
 export const phenomenonType = (value) => PHENOMENA[value] ? t(PHENOMENA[value]) : value;
-export const communityEnabled = () => setting(ENABLED) === true;
+export const internalReporting = () => state.boot?.internal_reporting === true;
+export const communityEnabled = () => internalReporting() && setting(ENABLED) === true;
 
 function select(name, options, value) {
   return h('select', { class: 'input', 'aria-label': name },
@@ -29,6 +30,7 @@ export function communitySourceText(source = {}) {
 }
 
 export function communityBar(kind, onSaved, initialSource) {
+  if (!internalReporting()) return null;
   const box = h('div', { class: 'community-source' });
   let source = initialSource;
   const draw = () => mount(box, h('div', { class: 'grow' }, h('strong', null, t('community.name')),
@@ -58,7 +60,7 @@ export const locationSearchTerms = (name) => ['en', 'es', 'zh'].map(id => gameTe
 export const spotLabel = (id) => t('phenomena.spot.' + id);
 
 async function reportDialog(kind, report, defaults) {
-  if (dialogOpen) return null;
+  if (!communityEnabled() || dialogOpen) return null;
   dialogOpen = true;
   try {
     const observed = new Date().toISOString();
