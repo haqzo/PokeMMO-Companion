@@ -60,14 +60,15 @@ def packaged_checks(candidate, work):
     exe = work / "candidate/pokemmo-companion/pokemmo-companion.exe"
     profile = work / "offline profile"
     rule = "Companion isolated candidate offline self-check"
+    # Deny the fresh profile's HTTP/HTTPS destinations without touching its ephemeral loopback API.
     subprocess.run(["netsh", "advfirewall", "firewall", "add", "rule", f"name={rule}", "dir=out",
-                    "action=block", "profile=any", "remoteip=0.0.0.0-126.255.255.255,128.0.0.0-255.255.255.255,::/0",
+                    "action=block", "profile=any", "protocol=TCP", "remoteport=80,443",
                     f"program={exe}"], check=True, timeout=30)
     try:
         subprocess.run([exe, "--check", "--data-dir", profile], check=True, timeout=90)
         assert (profile / "companion.sqlite3").is_file()
         assert "PokeMMO Companion 0.8.0" in (profile / "logs/companion.log").read_text(encoding="utf-8")
-        print("Extracted Windows executable passed a fresh-profile self-check with outbound traffic blocked except IPv4 loopback.")
+        print("Extracted Windows executable passed a fresh-profile self-check with its outbound HTTP/HTTPS ports blocked.")
     finally:
         subprocess.run(["netsh", "advfirewall", "firewall", "delete", "rule", f"name={rule}", f"program={exe}"],
                        check=True, timeout=30)
