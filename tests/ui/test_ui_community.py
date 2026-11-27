@@ -256,9 +256,9 @@ def test_public_reporting_scope_with_existing_profile(tmp_path, page, monkeypatc
                 r"Retry shar.*|Still here|Not found|Mark personally completed|Undo personal completion)$"
             )).count() == 0
 
-        def reporting_link():
+        def reporting_link(section="tab-publish"):
             link = page.get_by_role("link", name="Report via Alphapedia")
-            pw.expect(link).to_have_attribute("href", "https://alpha.pokemmotools.org/publisher-signup")
+            pw.expect(link).to_have_attribute("href", f"https://alpha.pokemmotools.org/help#{section}")
             pw.expect(link).to_have_attribute("target", "_blank")
 
         for route in ("#/home", "#/live/reports", "#/live/reports/" + encounter["id"]):
@@ -271,6 +271,7 @@ def test_public_reporting_scope_with_existing_profile(tmp_path, page, monkeypatc
         go(page, app, "#/live/phenomena/" + pheno["id"])
         page.get_by_text("Existing spot observation", exact=True).first.wait_for()
         page.get_by_role("link", name="Alphapedia Pheno List").wait_for()
+        reporting_link("publish-pheno-panel")
         page.get_by_role("searchbox", name="Search location").fill("Village Bridge")
         page.get_by_text("Lower left of Village Bridge", exact=False).last.wait_for()
         no_reporting_controls()
@@ -278,10 +279,7 @@ def test_public_reporting_scope_with_existing_profile(tmp_path, page, monkeypatc
         for tool in ("reports", "phenomena"):
             for mode in ("compact", "standard", "expanded"):
                 page.goto(app.srv.url("", popout=tool, mode=mode))
-                if tool == "reports":
-                    reporting_link()
-                else:
-                    page.get_by_role("heading", name="Unova Phenomena").wait_for()
+                reporting_link("publish-pheno-panel" if tool == "phenomena" else "tab-publish")
                 no_reporting_controls()
 
         go(page, app, "#/settings/sources")

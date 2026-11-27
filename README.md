@@ -17,7 +17,7 @@ An unofficial desktop companion for PokeMMO — Pokémon reference data, regiona
 - **Pokédex & Location Explorer** — Normal and shiny sprites, Pokémon summaries, advanced filters, over 33,000 encounter records across five regions, and a searchable Item Library.
 - **Storyline & Guides** — Five regional walkthroughs, independent character runs, custom guides, progress and timers.
 - **Planning tools** — Team Builder, Breeding Planner, Type Matchups, Pokémon comparison, EV and horde planning, catch and stat calculators.
-- **Live information** — Optional Alpha and Swarm feeds from [Alphapedia](https://alpha.pokemmotools.org/), report history, Legendary rotations, Phenomena, Altering Cave and official news. [Report via Alphapedia](https://alpha.pokemmotools.org/publisher-signup).
+- **Live information** — Optional Alpha and Swarm feeds from [Alphapedia](https://alpha.pokemmotools.org/), report history, Legendary rotations, Phenomena, Altering Cave and official news. [Report via Alphapedia](https://alpha.pokemmotools.org/help#tab-publish).
 - **Personal workspace** — Notes, My Pokémon, Shiny Showcase and reusable timers.
 - **Floating windows & customization** — Resizable tools, pinning where supported, opacity, themes, scaling and performance profiles.
 

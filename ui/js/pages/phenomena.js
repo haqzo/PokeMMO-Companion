@@ -147,7 +147,8 @@ async function refreshReports(view, selectedId, compact, open, saved) {
     mount(sourceBox, h('strong', null, t('phenomena.relay')),
       h('div', { class: 'small muted' }, t('phenomena.status.' + source.status),
         source.last_success_at ? ' · ' + t('phenomena.last_refresh', { at: fmtDate(source.last_success_at, true) }) : ''),
-      h('div', { class: 'small muted' }, t('phenomena.coverage')));
+      h('div', { class: 'small muted' }, t('phenomena.coverage')),
+      h('div', { class: 'small' }, extLink(state.boot.alphapedia.phenomena_reporting, t('ui.live_report_via_alphapedia'))));
     const drawObservation = r => h('article', { class: 'card stack tight', dataset: { observation: r.id } },
       h('strong', null, phenomenonType(r.community.phenomenon_type)), communityEvidence(r),
       h('div', { class: 'small' }, gameTerm('region', cap(r.region)), ' · ',

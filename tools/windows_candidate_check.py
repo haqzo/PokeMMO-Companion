@@ -59,7 +59,8 @@ def schema(path):
 def verify_reporting_scope(api):
     boot = api("GET", "/api/bootstrap")
     assert boot["internal_reporting"] is False
-    assert boot["alphapedia"]["reporting"] == "https://alpha.pokemmotools.org/publisher-signup"
+    assert boot["alphapedia"]["reporting"] == "https://alpha.pokemmotools.org/help#tab-publish"
+    assert boot["alphapedia"]["phenomena_reporting"] == "https://alpha.pokemmotools.org/help#publish-pheno-panel"
     assert not set(OLD_REPORTING_SETTINGS).intersection(boot["settings"])
     for method, path, body, code in (
         ("POST", "/api/live/community/reports", {}, 404),
