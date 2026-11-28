@@ -26,7 +26,7 @@ def configure_linux_ca_store():
             return
 
 
-def check_live_https():
+def check_live_https(report):
     """Exercise the live provider from the verified package build."""
     import json
     from companion.tls import open_live_feed
@@ -42,11 +42,10 @@ def check_live_https():
                     frame = json.loads(response.readline(65536))
                     if frame.get("event") not in ("open", "keepalive", "message"):
                         raise ValueError("Unexpected Alphapedia stream frame")
-        except (OSError, ValueError, AttributeError):
-            # The Windows executable is windowed, so these stage-specific exit
-            # codes also identify a failure on runners without a console.
+        except (OSError, ValueError, AttributeError) as error:
+            report(f"Packaged Alphapedia HTTPS {path}: {type(error).__name__}: {error}")
             raise SystemExit(code) from None
-        print(f"Packaged Alphapedia HTTPS HTTP 200 {path}")
+        report(f"Packaged Alphapedia HTTPS HTTP 200 {path}")
 
 
 def packaged_main():
@@ -67,8 +66,10 @@ def packaged_main():
             if (not isinstance(live_context, truststore.SSLContext)
                     or live_context.verify_mode != ssl.CERT_REQUIRED or not live_context.check_hostname):
                 raise SystemExit("Packaged Windows live HTTPS verification unavailable")
-        if os.environ.get("COMPANION_VERIFY_LIVE_HTTPS") == "1":
-            check_live_https()
+        if probe_report := os.environ.get("COMPANION_LIVE_HTTPS_REPORT"):
+            # The frozen Windows app has no console attached.
+            with Path(probe_report).open("w", encoding="utf-8") as stream:
+                check_live_https(lambda message: print(message, file=stream))
         print("Packaged HTTPS trust store: OK")
         return 0
     from companion.__main__ import main
