@@ -1,0 +1,19 @@
+# Recovered historical QA and design notes — 28 November 2026
+
+This is a historical recovery note, not the current development checkpoint or authorization to implement older plans. Most recovered build, design, localization and roadmap documents already match files in this repository; retain the newer [active checkpoint](../roadmap/01-ACTIVE-DEVELOPMENT-CHECKPOINT.md) and [automatic update roadmap](../roadmap/08-AUTOMATIC-APPLICATION-UPDATES.md). Do not roll back v0.8.1 behavior or reopen historical community-reporting scope.
+
+## Localization lessons
+
+The recovered intermediate Spanish/Simplified Chinese audit recorded 1,237/2,845 walkthrough steps per language, with all 318 chapter headings represented. This is a historical incomplete checkpoint, not current coverage. The audit identified catalog coverage as different from rendered UI coverage: literal scanners flag dynamic keys and intentional external text, and repeated identical text across routes does not prove a missing translation. Preserve canonical IDs, source hashes, quantities, ordered movement instructions and exact puzzle direction/quantity association. Use glossary-aligned item names and distinguish Owned from Caught. User notes, official external messages and names retain their original wording. Compare with current localization tests and [Build 28 audit](../build/28-LOCALIZATION-AUDIT.md) before any new work.
+
+## Packaging regression evidence (v0.8.0 historical)
+
+- Initial official Actions run [45694789909](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45694789909): Windows build and fresh-profile smoke passed; Ubuntu AppImage dependency check stopped at unresolved libpulse.so.0. The Ubuntu runner subsequently added libpulse0.
+- Replacement package run [45697908262](https://github.com/haqzo/PokeMMO-Companion/actions/runs/45697908262): both jobs passed. Windows Server 2025 x64 packaging, CRC/PE checks, extraction into path with spaces and fresh-profile smoke; not proof of interactive Windows 10/11 QA. Ubuntu 22.04 resolved libraries and GLIBC ceiling 2.35. Local KDE Wayland/XWayland extraction-fallback smoke included languages/fonts, guides, sprites, appearance, floating calculator, backup/restore, single-instance relaunch and process cleanup; direct mounted launch hit fusermount3 permission denial on that test host.
+- Keep dependency checks, isolated profiles, platform-native interaction gates, and signed-package provenance separate. Historical reports predate final signing and v0.8.1. Never use these old hashes or package status as current update metadata.
+
+## Earlier UX handoff — regression considerations only
+
+Recovered 20–21 November UX handoff documents describe single title hierarchy, predictable popout size/layout and persistence, launcher preferences, search, shared sprite resolution and freshness. Some belong to an earlier prototype: verify the current implementation rather than adopting its old four-by-four layout matrix or old badge terminology. Still-useful regression considerations: avoid duplicate titles; preserve settings and personal records on upgrades; ensure manual geometry isn't overwritten by placement heuristics; avoid false species matches, fake form art and sample names as live data; do not infer active status from fetch time; avoid duplicate provider polling and conflicting history. Keep current design and privacy rules (no counter, no game automation, no automatic private collection logging), and current reporting scope. Any absent or conflicting feature is a candidate for owner review, not approved work.
+
+Sources: locally recovered historical localization audit, v0.8.0 prior-tag and release QA reports, and older delivery/Alpha-Swarm/handoff notes. Original reports and evidence stay in the local archive. No raw ROMs, private screenshots, logs or credentials included. No code, version, release or implementation changes.
