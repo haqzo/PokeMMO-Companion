@@ -41,3 +41,5 @@ Two long-lived branches only:
 - `develop`: research, planning, implementation and testing. Claude works here.
 
 No encounter counter, game memory reading, automated gameplay, or injected client code. The app should complement the game via independent floating windows on Windows and Linux.
+
+- [Recovered historical QA and design notes (2026-11-28)](2026-11-28-RECOVERED-HISTORICAL-QA.md) — archival regression lessons, not current requirements.
