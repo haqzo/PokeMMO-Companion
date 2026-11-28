@@ -123,6 +123,9 @@ jobs:
           sed -i '/^from companion.services import live/a from companion import tls' tests/test_live_provider.py
           sed -i 's/monkeypatch.setattr(live, "live_https_context"/monkeypatch.setattr(tls, "live_https_context"/' tests/test_live_provider.py
           sed -i "s/def hanging_urlopen(req, timeout=0):/def hanging_urlopen(req, timeout=0, *, context=None):/" tests/test_shutdown.py
+          # Windows reports synthetic POSIX mode bits. Keep all instance-lock
+          # assertions, and check mode 0600 only on POSIX.
+          sed -i '/^    assert oct(os.stat.*instance.json/s/^    /    if sys.platform != "win32":\n        /' tests/test_startup_integration.py
           python -m pytest -q -rs tests/test_tls.py tests/test_packaged_tls.py tests/test_live_provider.py \
             tests/test_core.py tests/test_phenomena.py tests/test_timers_news.py tests/test_updates.py \
             tests/test_startup_integration.py tests/test_shutdown.py \
