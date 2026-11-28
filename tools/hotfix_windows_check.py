@@ -157,11 +157,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix="Companion hotfix QA ") as directory:
         folder = Path(directory)
         exe = unpack(Path(sys.argv[1]).resolve(), folder / "candidate")
+        verify_release_upgrade(exe, folder)
+        verify_certificates(exe, folder)
         with running(exe, folder / "live profile") as api:
             assert check_source(api)["last_success_at"], api("GET", "/api/live/source")
         print("Frozen 0.8.2 Windows live service connected to the actual combined Alphapedia feed")
-        verify_release_upgrade(exe, folder)
-        verify_certificates(exe, folder)
 
 
 if __name__ == "__main__":

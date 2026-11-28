@@ -34,12 +34,13 @@ jobs:
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = "31a84c37c0e2129cdf53cb3cac655f16b8ae76e2"
-          git merge-base --is-ancestor 52a7dacb6a9a603c2ddf8cea824036608970d69b HEAD^
-          git diff --exit-code 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c HEAD^ -- companion ui \
+          candidate="a3f179935c57a7c5317a685c89f6df45613e9efd"
+          git merge-base --is-ancestor "$candidate" HEAD
+          git merge-base --is-ancestor 52a7dacb6a9a603c2ddf8cea824036608970d69b "$candidate"
+          git diff --exit-code 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c "$candidate" -- companion ui \
             ':(exclude)companion/__init__.py' ':(exclude)companion/services/live.py' ':(exclude)companion/tls.py'
           git config core.autocrlf false
-          git worktree add --detach "$RUNNER_TEMP/companion-candidate" HEAD^
+          git worktree add --detach "$RUNNER_TEMP/companion-candidate" "$candidate"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13.14'
@@ -59,6 +60,31 @@ jobs:
             printf 'COMPANION_APPIMAGETOOL=%s\n' "$RUNNER_TEMP/appimagetool"
             printf 'COMPANION_APPIMAGE_RUNTIME=%s\n' "$RUNNER_TEMP/runtime-x86_64"
           } >> "$GITHUB_ENV"
+      - name: Compare Windows native and Python trust on the same Alpha endpoint
+        if: matrix.target == 'windows'
+        shell: bash
+        working-directory: ${{ runner.temp }}/companion-candidate
+        run: |
+          python -m pip install 'truststore==0.10.5'
+          python - <<'PYCODE'
+          import ssl
+          import urllib.request
+          from companion.tls import live_https_context
+
+          request = urllib.request.Request(
+              "https://ntfy.pokemmotools.org/alphapings/json?poll=1",
+              headers={"User-Agent": "PokeMMO-Companion/0.8.2 (read-only)"},
+          )
+          for name, context in (("Python/OpenSSL", ssl.create_default_context()),
+                                ("Windows/CryptoAPI", live_https_context())):
+              try:
+                  with urllib.request.urlopen(request, context=context, timeout=20) as response:
+                      print(f"{name}: HTTP {response.status}", flush=True)
+              except OSError as error:
+                  reason = getattr(error, "reason", error)
+                  print(f"{name}: {type(reason).__name__}: {reason} "
+                        f"(verification code {getattr(reason, 'verify_code', None)})", flush=True)
+          PYCODE
       - name: Build and verify the native candidate and Alphapedia HTTPS
         shell: bash
         working-directory: ${{ runner.temp }}/companion-candidate
@@ -66,12 +92,13 @@ jobs:
           COMPANION_VERIFY_LIVE_HTTPS: '1'
         run: python packaging/package_release.py build --candidate
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ !cancelled() }}
         with:
           ref: 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c
           path: regression
           persist-credentials: false
       - name: Run frozen Windows live, certificate and upgrade checks
-        if: matrix.target == 'windows'
+        if: ${{ !cancelled() && matrix.target == 'windows' }}
         shell: pwsh
         run: |
           python -m pip install cryptography==50.0.2
