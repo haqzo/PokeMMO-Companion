@@ -16,14 +16,22 @@ def test_linux_keeps_default_verification(monkeypatch):
 def test_windows_selects_native_verification(monkeypatch):
     calls = []
 
-    def native_context(protocol):
-        calls.append(protocol)
-        return ssl.SSLContext(protocol)
+    class NativeContext:
+        verify_mode = ssl.CERT_REQUIRED
+        check_hostname = True
+        post_handshake_auth = False
+
+        def __init__(self, protocol):
+            calls.append(protocol)
+
+        def set_alpn_protocols(self, protocols):
+            calls.append(protocols)
 
     monkeypatch.setattr(tls, "sys", SimpleNamespace(platform="win32"))
-    monkeypatch.setitem(sys.modules, "truststore", SimpleNamespace(SSLContext=native_context))
+    monkeypatch.setitem(sys.modules, "truststore", SimpleNamespace(SSLContext=NativeContext))
     context = tls.live_https_context()
-    assert calls == [ssl.PROTOCOL_TLS_CLIENT]
+    assert calls == [ssl.PROTOCOL_TLS_CLIENT, ["http/1.1"]]
+    assert context.post_handshake_auth
     assert context.verify_mode == ssl.CERT_REQUIRED
     assert context.check_hostname
 

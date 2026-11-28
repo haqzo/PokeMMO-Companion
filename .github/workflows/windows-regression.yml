@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   candidate:
-    if: ${{ !contains(github.event.head_commit.message, '[windows-alpn-probe]') }}
     name: Verify 0.8.2 on ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -18,6 +17,9 @@ jobs:
           - runner: windows-2025
             target: windows
             suffix: windows-x86_64.zip
+          - runner: ubuntu-22.04
+            target: linux
+            suffix: x86_64.AppImage
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     env:
@@ -32,7 +34,7 @@ jobs:
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          candidate="e4dd2157d7d34ee7666f577b5389cfa677ad2f52"
+          candidate="ee8d6e55a95266e2cd067d5c1813e1238989f038"
           git merge-base --is-ancestor "$candidate" HEAD
           git merge-base --is-ancestor 52a7dacb6a9a603c2ddf8cea824036608970d69b "$candidate"
           git diff --exit-code 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c "$candidate" -- companion ui \
@@ -43,14 +45,28 @@ jobs:
         with:
           python-version: '3.13.14'
           architecture: x64
-      - name: Compare Windows native and Python trust on the same Alpha endpoint
+      - name: Install Linux dependencies and download pinned AppImage tools
+        if: matrix.target == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils libegl1 libgl1 libnss3 libpulse0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/runtime-x86_64" \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          {
+            printf 'COMPANION_APPIMAGETOOL=%s\n' "$RUNNER_TEMP/appimagetool"
+            printf 'COMPANION_APPIMAGE_RUNTIME=%s\n' "$RUNNER_TEMP/runtime-x86_64"
+          } >> "$GITHUB_ENV"
+      - name: Verify Windows HTTP/1.1 with the actual 0.8.2 User-Agent
         if: matrix.target == 'windows'
         shell: bash
         working-directory: ${{ runner.temp }}/companion-candidate
         run: |
           python -m pip install 'truststore==0.10.5'
           python - <<'PYCODE'
-          import ssl
           import urllib.request
           from companion.tls import live_https_context
 
@@ -58,8 +74,8 @@ jobs:
               "https://ntfy.pokemmotools.org/alphapings/json?poll=1",
               headers={"User-Agent": "PokeMMO-Companion/0.8.2 (read-only)"},
           )
-          for name, context in (("Python/OpenSSL", ssl.create_default_context()),
-                                ("Windows/CryptoAPI", live_https_context())):
+          for name, context in (("urllib default", None),
+                                ("Windows/CryptoAPI with urllib HTTP/1.1", live_https_context())):
               try:
                   with urllib.request.urlopen(request, context=context, timeout=20) as response:
                       print(f"{name}: HTTP {response.status}", flush=True)
@@ -68,9 +84,11 @@ jobs:
                   print(f"{name}: {type(reason).__name__}: {reason} "
                         f"(verification code {getattr(reason, 'verify_code', None)})", flush=True)
           PYCODE
-      - name: Build the native candidate and pass release package checks
+      - name: Build and verify the native candidate and Alphapedia HTTPS
         shell: bash
         working-directory: ${{ runner.temp }}/companion-candidate
+        env:
+          COMPANION_VERIFY_LIVE_HTTPS: '1'
         run: python packaging/package_release.py build --candidate
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ !cancelled() }}
@@ -78,7 +96,7 @@ jobs:
           ref: 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c
           path: regression
           persist-credentials: false
-      - name: Verify frozen certificate policy and upgrade, and record provider access
+      - name: Verify frozen Windows provider access, certificate policy and upgrade
         if: ${{ !cancelled() && matrix.target == 'windows' }}
         shell: pwsh
         run: |
@@ -129,41 +147,3 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
-
-  windows-protocol:
-    if: ${{ contains(github.event.head_commit.message, '[windows-alpn-probe]') }}
-    name: Compare HTTP/1.1 TLS negotiation with the actual 0.8.2 User-Agent
-    runs-on: windows-2025
-    timeout-minutes: 5
-    steps:
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.13.14'
-          architecture: x64
-      - name: Check urllib defaults and Truststore with standard HTTP/1.1 negotiation
-        shell: bash
-        run: |
-          python -m pip install truststore==0.10.5
-          python - <<'PY'
-          import ssl
-          from urllib.error import HTTPError, URLError
-          from urllib.request import Request, urlopen
-          import truststore
-
-          native = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-          http11 = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-          http11.set_alpn_protocols(["http/1.1"])
-          if http11.post_handshake_auth is not None:
-              http11.post_handshake_auth = True
-          origin = "https://ntfy.pokemmotools.org/alphapings,swarmpings/json?since=12h"
-          for label, context in (("urllib default", None), ("current Truststore", native),
-                                 ("Truststore with urllib HTTP/1.1 defaults", http11)):
-              request = Request(origin, headers={"User-Agent": "PokeMMO-Companion/0.8.2 (read-only)"})
-              try:
-                  with urlopen(request, timeout=20, context=context) as response:
-                      print(f"{label}: HTTP {response.status}")
-              except HTTPError as error:
-                  print(f"{label}: HTTP {error.code}")
-              except URLError as error:
-                  print(f"{label}: {type(error.reason).__name__}: {error.reason}")
-          PY

@@ -55,6 +55,7 @@ def check_source(api, origin=ORIGIN):
 class StreamHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path == "/alphapings,swarmpings/json?since=12h"
+        assert self.connection.selected_alpn_protocol() == "http/1.1"
         assert self.headers["User-Agent"] == "PokeMMO-Companion/0.8.2 (read-only)"
         self.send_response(200)
         self.end_headers()
@@ -88,6 +89,7 @@ def local_https(folder, cert, key, issuer):
                                          serialization.PrivateFormat.PKCS8,
                                          serialization.NoEncryption()))
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.set_alpn_protocols(["http/1.1"])
     context.load_cert_chain(certfile, keyfile)
     with ThreadingHTTPServer(("127.0.0.1", 0), StreamHandler) as http:
         http.socket = context.wrap_socket(http.socket, server_side=True)
@@ -157,26 +159,22 @@ def verify_release_upgrade(exe, folder):
 
 def record_alphapedia(exe, folder):
     probe = folder / "frozen https report.txt"
-    completed = subprocess.run([exe, "--check-tls-trust"], timeout=120,
-                               env={**os.environ, "COMPANION_LIVE_HTTPS_REPORT": str(probe)})
+    subprocess.run([exe, "--check-tls-trust"], check=True, timeout=120,
+                   env={**os.environ, "COMPANION_LIVE_HTTPS_REPORT": str(probe)})
     lines = probe.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 5, lines
     statuses = {}
     for line in lines:
-        match = re.fullmatch(r"Packaged Alphapedia HTTPS HTTP (200|403) (/\S+)", line)
+        match = re.fullmatch(r"Packaged Alphapedia HTTPS HTTP (200) (/\S+)", line)
         assert match, line
         code, path = match.groups()
         statuses[path] = int(code)
         print(line, flush=True)
     assert len(statuses) == 5, statuses
-    assert completed.returncode in (0, 13, 14, 15), completed.returncode
     with running(exe, folder / "live profile") as api:
         state = check_source(api)
-    if state["last_success_at"]:
-        print("Frozen 0.8.2 Windows live service connected to the actual combined Alphapedia feed")
-    else:
-        assert state["status"] == "offline" and "HTTP Error 403: Forbidden" in state["detail"], state
-        print("RELEASE BLOCKER: the frozen Windows live service received HTTP 403 from Alphapedia.")
+    assert state["last_success_at"], state
+    print("Frozen 0.8.2 Windows live service connected to the actual combined Alphapedia feed")
     return {"probe_status": statuses, "combined_live_connected": bool(state["last_success_at"]),
             "combined_live_detail": state["detail"]}
 
