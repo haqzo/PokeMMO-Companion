@@ -167,7 +167,12 @@ def test_reconnect_replays_overlap_and_eof_goes_offline(ctx, delivered, monkeypa
     streams = iter(([None, seen, cached, fresh], [fresh, cached, _msg("alpha", "undated", time=None)]))
     requests, states = [], []
 
+    context = object()
+    monkeypatch.setattr(live, "live_https_context", lambda: context)
+
     def open_stream(request, **kwargs):
+        assert kwargs["context"] is context
+        assert kwargs["timeout"] == 75
         requests.append(request.full_url)
         return BytesIO(b"\n".join(json.dumps(line).encode() for line in next(streams)))
 

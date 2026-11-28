@@ -35,6 +35,11 @@ def packaged_main():
         if (context.verify_mode != ssl.CERT_REQUIRED or not context.check_hostname
                 or not context.cert_store_stats()["x509_ca"]):
             raise SystemExit("Packaged HTTPS trust store unavailable or verification disabled")
+        from companion.tls import live_https_context
+
+        live_context = live_https_context()
+        if live_context.verify_mode != ssl.CERT_REQUIRED or not live_context.check_hostname:
+            raise SystemExit("Packaged live HTTPS verification disabled")
         print("Packaged HTTPS trust store: OK")
         return 0
     from companion.__main__ import main

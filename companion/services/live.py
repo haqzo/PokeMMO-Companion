@@ -31,6 +31,7 @@ from ..events import EventBus
 from ..settings import Settings
 from ..localization import native_text
 from ..storage import Storage, utcnow
+from ..tls import live_https_context
 from .community import Community, PROVIDER
 from .community_sync import SHARED
 from .dex import DexService, normalize_location_text
@@ -544,7 +545,7 @@ class LiveService:
             requested_at = time.time()
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": f"PokeMMO-Companion/{__version__} (read-only)"})
-                with urllib.request.urlopen(req, timeout=75) as resp:
+                with urllib.request.urlopen(req, timeout=75, context=live_https_context()) as resp:
                     self._health("connected", "Listening (read-only)", success=True)
                     backoff = 5
                     for line in resp:

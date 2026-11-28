@@ -1,2 +1,3 @@
 # Optional: native windows (pinned/translucent popouts, toasts, tray). Includes QtWebEngine.
 PySide6>=6.6
+truststore==0.10.5; sys_platform == "win32"
