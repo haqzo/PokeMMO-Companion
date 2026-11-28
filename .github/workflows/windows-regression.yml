@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          candidate="a3f179935c57a7c5317a685c89f6df45613e9efd"
+          candidate="e4dd2157d7d34ee7666f577b5389cfa677ad2f52"
           git merge-base --is-ancestor "$candidate" HEAD
           git merge-base --is-ancestor 52a7dacb6a9a603c2ddf8cea824036608970d69b "$candidate"
           git diff --exit-code 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c "$candidate" -- companion ui \

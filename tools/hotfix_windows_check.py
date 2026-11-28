@@ -104,8 +104,10 @@ def verify_certificates(exe, folder):
     root = folder / "ca.cer"
     root.write_bytes(trusted[0].public_bytes(serialization.Encoding.DER))
     root_id = trusted[0].fingerprint(hashes.SHA1()).hex()
-    subprocess.run(["certutil", "-user", "-f", "-addstore", "Root", str(root)], check=True, timeout=30)
     try:
+        # The current-user Root store opens a confirmation dialog. The disposable
+        # administrator runner can use the machine Root store without a UI.
+        subprocess.run(["certutil", "-f", "-addstore", "Root", str(root)], check=True, timeout=30)
         for label, name, issuer, expired, reason in (
             ("valid", "localhost", trusted, False, None),
             ("expired", "localhost", trusted, True, r"expired|validity period|0x800b0101"),
@@ -123,7 +125,7 @@ def verify_certificates(exe, folder):
                 assert re.search(reason, status["detail"], re.IGNORECASE), status
                 print(f"Frozen Windows runtime rejected {label}: {status['detail']}")
     finally:
-        subprocess.run(["certutil", "-user", "-delstore", "Root", root_id], check=True, timeout=30)
+        subprocess.run(["certutil", "-delstore", "Root", root_id], check=True, timeout=30)
 
 
 def verify_release_upgrade(exe, folder):
