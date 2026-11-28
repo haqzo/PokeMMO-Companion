@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   candidate:
+    if: ${{ !contains(github.event.head_commit.message, '[windows-alpn-probe]') }}
     name: Verify 0.8.2 on ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -128,3 +129,41 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+
+  windows-protocol:
+    if: ${{ contains(github.event.head_commit.message, '[windows-alpn-probe]') }}
+    name: Compare HTTP/1.1 TLS negotiation with the actual 0.8.2 User-Agent
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13.14'
+          architecture: x64
+      - name: Check urllib defaults and Truststore with standard HTTP/1.1 negotiation
+        shell: bash
+        run: |
+          python -m pip install truststore==0.10.5
+          python - <<'PY'
+          import ssl
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+          import truststore
+
+          native = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+          http11 = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+          http11.set_alpn_protocols(["http/1.1"])
+          if http11.post_handshake_auth is not None:
+              http11.post_handshake_auth = True
+          origin = "https://ntfy.pokemmotools.org/alphapings,swarmpings/json?since=12h"
+          for label, context in (("urllib default", None), ("current Truststore", native),
+                                 ("Truststore with urllib HTTP/1.1 defaults", http11)):
+              request = Request(origin, headers={"User-Agent": "PokeMMO-Companion/0.8.2 (read-only)"})
+              try:
+                  with urlopen(request, timeout=20, context=context) as response:
+                      print(f"{label}: HTTP {response.status}")
+              except HTTPError as error:
+                  print(f"{label}: HTTP {error.code}")
+              except URLError as error:
+                  print(f"{label}: {type(error.reason).__name__}: {error.reason}")
+          PY
