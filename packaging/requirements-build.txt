@@ -7,6 +7,7 @@ cryptography==50.0.2
 cffi==2.1.1
 pycparser==3.12
 pyinstaller==6.19.0
+truststore==0.10.5; sys_platform == "win32"
 pyinstaller-hooks-contrib==2026.10
 altgraph==0.17.5
 packaging==26.4

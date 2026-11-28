@@ -26,6 +26,29 @@ def configure_linux_ca_store():
             return
 
 
+def check_live_https():
+    """Exercise the live provider from the verified package build."""
+    import json
+    from companion.tls import open_live_feed
+
+    origin = "https://ntfy.pokemmotools.org"
+    for code, path in ((11, "/alphapings/json?poll=1"), (12, "/swarmpings/json?poll=1"),
+                       (13, "/alphapings,swarmpings/json?since=12h")):
+        try:
+            with open_live_feed(origin + path, timeout=30) as response:
+                if response.status != 200:
+                    raise ValueError(f"Expected HTTP 200, got {response.status}")
+                if path.endswith("since=12h"):
+                    frame = json.loads(response.readline(65536))
+                    if frame.get("event") not in ("open", "keepalive", "message"):
+                        raise ValueError("Unexpected Alphapedia stream frame")
+        except (OSError, ValueError, AttributeError):
+            # The Windows executable is windowed, so these stage-specific exit
+            # codes also identify a failure on runners without a console.
+            raise SystemExit(code) from None
+        print(f"Packaged Alphapedia HTTPS HTTP 200 {path}")
+
+
 def packaged_main():
     configure_linux_ca_store()
     if sys.argv[1:] == ["--check-tls-trust"]:
@@ -35,6 +58,17 @@ def packaged_main():
         if (context.verify_mode != ssl.CERT_REQUIRED or not context.check_hostname
                 or not context.cert_store_stats()["x509_ca"]):
             raise SystemExit("Packaged HTTPS trust store unavailable or verification disabled")
+        from companion.tls import live_https_context
+
+        if sys.platform == "win32":
+            import truststore
+
+            live_context = live_https_context()
+            if (not isinstance(live_context, truststore.SSLContext)
+                    or live_context.verify_mode != ssl.CERT_REQUIRED or not live_context.check_hostname):
+                raise SystemExit("Packaged Windows live HTTPS verification unavailable")
+        if os.environ.get("COMPANION_VERIFY_LIVE_HTTPS") == "1":
+            check_live_https()
         print("Packaged HTTPS trust store: OK")
         return 0
     from companion.__main__ import main
