@@ -145,6 +145,7 @@ def smoke(artifact, target, release=False):
         for key in ("SSL_CERT_FILE", "SSL_CERT_DIR"):
             tls_env.pop(key, None)
         tls_report = work / "https-report.txt"
+        https_results = []
         tls_env.pop("COMPANION_LIVE_HTTPS_REPORT", None)
         if tls_env.get("COMPANION_VERIFY_LIVE_HTTPS") == "1":
             tls_env["COMPANION_LIVE_HTTPS_REPORT"] = str(tls_report)
@@ -153,14 +154,15 @@ def smoke(artifact, target, release=False):
                            env=tls_env, check=True, timeout=120)
         finally:
             if tls_report.is_file():
-                print(tls_report.read_text(encoding="utf-8"), end="", flush=True)
+                https_results = tls_report.read_text(encoding="utf-8").splitlines()
+                print("\n".join(https_results), flush=True)
         subprocess.run([*command, "--check", "--data-dir", str(profile)], cwd=work,
                        env=env, check=True, timeout=120)
         expected = f"{APP_NAME} {__version__} — data dir "
         if not (profile / "companion.sqlite3").is_file() or expected not in (
                 profile / "logs/companion.log").read_text(encoding="utf-8"):
             raise ValueError("Fresh-profile self-check did not log the expected version or create its database.")
-        return glibc
+        return glibc, https_results
 
 
 def build(tag, candidate=False):
@@ -201,14 +203,14 @@ def build(tag, candidate=False):
     info = file_info(artifact)
     if (dist / "SHA256SUMS").read_text(encoding="ascii") != checksum_line(info):
         raise ValueError("The package does not match its build checksum.")
-    glibc = smoke(artifact, target, release=strict)
+    glibc, https_results = smoke(artifact, target, release=strict)
     if target == "linux" and not strict:
         print("Internal Linux build. The release glibc ceiling was not checked.")
     checks = ["checksum", "bundled assets and runtimes", "packaged HTTPS trust store", "fresh-profile backend self-check"]
     if target == "windows":
         checks += ["bundled Truststore and MIT license notice"]
-    if os.getenv("COMPANION_VERIFY_LIVE_HTTPS") == "1":
-        checks += ["packaged Alphapedia Alpha and Swarm HTTPS polls", "packaged Alphapedia HTTPS combined stream"]
+    if https_results:
+        checks += ["packaged Alphapedia Alpha, Swarm and combined HTTPS subscription streams"]
     if glibc is not None:
         checks += ["dynamic ELF dependencies", "maximum GLIBC requirement"]
     provenance = {"commit": sha, "tag": tag, "version": __version__, "platform": target,
@@ -217,6 +219,8 @@ def build(tag, candidate=False):
                   "dependencies": output(str(python), "-m", "pip", "freeze", "--all").splitlines(),
                   "external_tools": tools, "max_required_glibc": glibc, "package": info,
                   "checks": checks}
+    if https_results:
+        provenance["alphapedia_https"] = https_results
     if candidate:
         provenance["candidate"] = True
     if develop is not None:

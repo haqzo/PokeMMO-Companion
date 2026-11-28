@@ -29,23 +29,40 @@ def configure_linux_ca_store():
 def check_live_https(report):
     """Exercise the live provider from the verified package build."""
     import json
+    from urllib.error import HTTPError
     from companion.tls import open_live_feed
 
     origin = "https://ntfy.pokemmotools.org"
-    for code, path in ((11, "/alphapings/json?poll=1"), (12, "/swarmpings/json?poll=1"),
-                       (13, "/alphapings,swarmpings/json?since=12h")):
+    checks = (
+        (13, "/alphapings,swarmpings/json?since=12h", True),
+        (14, "/alphapings/json?since=12h", True),
+        (15, "/swarmpings/json?since=12h", True),
+        (11, "/alphapings/json?poll=1", False),
+        (12, "/swarmpings/json?poll=1", False),
+    )
+    failure = 0
+    for code, path, streaming in checks:
         try:
-            with open_live_feed(origin + path, timeout=30) as response:
+            with open_live_feed(origin + path, timeout=20) as response:
                 if response.status != 200:
                     raise ValueError(f"Expected HTTP 200, got {response.status}")
-                if path.endswith("since=12h"):
+                if streaming:
                     frame = json.loads(response.readline(65536))
                     if frame.get("event") not in ("open", "keepalive", "message"):
                         raise ValueError("Unexpected Alphapedia stream frame")
+        except HTTPError as error:
+            report(f"Packaged Alphapedia HTTPS HTTP {error.code} {path}")
+            # The Windows runner is denied polling by the provider. All three
+            # subscription streams remain required and are tested independently.
+            if error.code != 403 or streaming or sys.platform != "win32":
+                failure = failure or code
         except (OSError, ValueError, AttributeError) as error:
             report(f"Packaged Alphapedia HTTPS {path}: {type(error).__name__}: {error}")
-            raise SystemExit(code) from None
-        report(f"Packaged Alphapedia HTTPS HTTP 200 {path}")
+            failure = failure or code
+        else:
+            report(f"Packaged Alphapedia HTTPS HTTP 200 {path}")
+    if failure:
+        raise SystemExit(failure)
 
 
 def packaged_main():
