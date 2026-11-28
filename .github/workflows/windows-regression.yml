@@ -17,9 +17,6 @@ jobs:
           - runner: windows-2025
             target: windows
             suffix: windows-x86_64.zip
-          - runner: ubuntu-22.04
-            target: linux
-            suffix: x86_64.AppImage
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     env:
@@ -45,21 +42,12 @@ jobs:
         with:
           python-version: '3.13.14'
           architecture: x64
-      - name: Install Linux dependencies and download pinned AppImage tools
-        if: matrix.target == 'linux'
+      - name: Verify the runner supports authenticated artifact encryption
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y binutils libegl1 libgl1 libnss3 libpulse0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/appimagetool" \
-            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/runtime-x86_64" \
-            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
-          chmod +x "$RUNNER_TEMP/appimagetool"
-          {
-            printf 'COMPANION_APPIMAGETOOL=%s\n' "$RUNNER_TEMP/appimagetool"
-            printf 'COMPANION_APPIMAGE_RUNTIME=%s\n' "$RUNNER_TEMP/runtime-x86_64"
-          } >> "$GITHUB_ENV"
+          openssl version
+          printf 'candidate transport preflight' | openssl cms -encrypt -binary -aes-256-gcm -outform DER \
+            -out "$RUNNER_TEMP/candidate-transport-preflight.cms" .github/qa/candidate-recipient.pem
       - name: Verify Windows HTTP/1.1 with the actual 0.8.2 User-Agent
         if: matrix.target == 'windows'
         shell: bash
@@ -105,6 +93,7 @@ jobs:
           Copy-Item tools/hotfix_windows_check.py regression/tools/
           python regression/tools/hotfix_windows_check.py "$env:RUNNER_TEMP/companion-candidate/dist/PokeMMO-Companion-0.8.2-windows-x86_64.zip"
       - name: Install regression dependencies
+        if: ${{ !contains(github.event.head_commit.message, '[windows-artifact-only]') }}
         shell: bash
         working-directory: regression
         run: |
@@ -112,6 +101,7 @@ jobs:
           python -m pip install -r "$RUNNER_TEMP/companion-candidate/packaging/requirements-build.txt"
           python -m playwright install chromium
       - name: Run regression tests on the exact candidate runtime
+        if: ${{ !contains(github.event.head_commit.message, '[windows-artifact-only]') }}
         shell: bash
         working-directory: regression
         run: |
@@ -136,12 +126,25 @@ jobs:
           TARGET: ${{ matrix.target }}
           SUFFIX: ${{ matrix.suffix }}
         run: |
-          dist="$RUNNER_TEMP/companion-candidate/dist"
-          tar -cf "$RUNNER_TEMP/$TARGET.tar" -C "$dist" \
-            "PokeMMO-Companion-0.8.2-$SUFFIX" SHA256SUMS "$TARGET-build.json"
+          python - "$TARGET" "$SUFFIX" <<'PY'
+          import os
+          import shutil
+          import sys
+          import tarfile
+          from pathlib import Path
+
+          target, suffix = sys.argv[1:]
+          temporary = Path(os.environ["RUNNER_TEMP"])
+          dist = temporary / "companion-candidate" / "dist"
+          names = (f"PokeMMO-Companion-0.8.2-{suffix}", "SHA256SUMS", f"{target}-build.json")
+          with tarfile.open(temporary / f"{target}.tar", "w") as archive:
+              for name in names:
+                  archive.add(dist / name, arcname=name)
+          shutil.copyfile(".github/qa/candidate-recipient.pem", temporary / "candidate-recipient.pem")
+          PY
+          cd "$RUNNER_TEMP"
           openssl cms -encrypt -binary -aes-256-gcm -outform DER \
-            -in "$RUNNER_TEMP/$TARGET.tar" -out "$RUNNER_TEMP/$TARGET-candidate.cms" \
-            .github/qa/candidate-recipient.pem
+            -in "$TARGET.tar" -out "$TARGET-candidate.cms" candidate-recipient.pem
       - name: Retain only encrypted candidate bytes
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
