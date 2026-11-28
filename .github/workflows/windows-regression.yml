@@ -1,0 +1,123 @@
+name: Windows develop regression
+
+on:
+  push:
+    branches: [hotfix/0.8.2-windows-tls]
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Verify 0.8.2 on ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            target: windows
+            suffix: windows-x86_64.zip
+          - runner: ubuntu-22.04
+            target: linux
+            suffix: x86_64.AppImage
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      COMPANION_NO_SPAWN: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the exact package snapshot
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "31a84c37c0e2129cdf53cb3cac655f16b8ae76e2"
+          git merge-base --is-ancestor 52a7dacb6a9a603c2ddf8cea824036608970d69b HEAD^
+          git diff --exit-code 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c HEAD^ -- companion ui \
+            ':(exclude)companion/__init__.py' ':(exclude)companion/services/live.py' ':(exclude)companion/tls.py'
+          git config core.autocrlf false
+          git worktree add --detach "$RUNNER_TEMP/companion-candidate" HEAD^
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13.14'
+          architecture: x64
+      - name: Install Linux dependencies and download pinned AppImage tools
+        if: matrix.target == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils libegl1 libgl1 libnss3 libpulse0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/runtime-x86_64" \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          {
+            printf 'COMPANION_APPIMAGETOOL=%s\n' "$RUNNER_TEMP/appimagetool"
+            printf 'COMPANION_APPIMAGE_RUNTIME=%s\n' "$RUNNER_TEMP/runtime-x86_64"
+          } >> "$GITHUB_ENV"
+      - name: Build and verify the native candidate and Alphapedia HTTPS
+        shell: bash
+        working-directory: ${{ runner.temp }}/companion-candidate
+        env:
+          COMPANION_VERIFY_LIVE_HTTPS: '1'
+        run: python packaging/package_release.py build --candidate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 8c155e895c70f0c32c1aa4e16593e47d8a55dd5c
+          path: regression
+          persist-credentials: false
+      - name: Run frozen Windows live, certificate and upgrade checks
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          python -m pip install cryptography==50.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item tools/hotfix_windows_check.py regression/tools/
+          python regression/tools/hotfix_windows_check.py "$env:RUNNER_TEMP/companion-candidate/dist/PokeMMO-Companion-0.8.2-windows-x86_64.zip"
+      - name: Install regression dependencies
+        shell: bash
+        working-directory: regression
+        run: |
+          python -m pip install -r requirements-dev.txt playwright==1.65.2 cryptography==50.0.2
+          python -m pip install -r "$RUNNER_TEMP/companion-candidate/packaging/requirements-build.txt"
+          python -m playwright install chromium
+      - name: Run regression tests on the exact candidate runtime
+        shell: bash
+        working-directory: regression
+        run: |
+          candidate="$RUNNER_TEMP/companion-candidate"
+          for path in companion/__init__.py companion/services/live.py companion/tls.py packaging/entry.py; do
+            cp "$candidate/$path" "$path"
+          done
+          cp "$GITHUB_WORKSPACE/.github/qa/test_hotfix_tls.py" tests/test_tls.py
+          sed -i '/^from companion.services import live/a from companion import tls' tests/test_live_provider.py
+          sed -i 's/monkeypatch.setattr(live, "live_https_context"/monkeypatch.setattr(tls, "live_https_context"/' tests/test_live_provider.py
+          sed -i "s/def hanging_urlopen(req, timeout=0):/def hanging_urlopen(req, timeout=0, *, context=None):/" tests/test_shutdown.py
+          python -m pytest -q -rs tests/test_tls.py tests/test_packaged_tls.py tests/test_live_provider.py \
+            tests/test_core.py tests/test_phenomena.py tests/test_timers_news.py tests/test_updates.py \
+            tests/test_startup_integration.py tests/test_shutdown.py \
+            tests/ui/test_ui_dashboard.py tests/ui/test_ui_flows.py tests/ui/test_ui_native_fixes.py
+      - name: Encrypt the verified candidate for owner-approved local staging
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          SUFFIX: ${{ matrix.suffix }}
+        run: |
+          dist="$RUNNER_TEMP/companion-candidate/dist"
+          tar -cf "$RUNNER_TEMP/$TARGET.tar" -C "$dist" \
+            "PokeMMO-Companion-0.8.2-$SUFFIX" SHA256SUMS "$TARGET-build.json"
+          openssl cms -encrypt -binary -aes-256-gcm -outform DER \
+            -in "$RUNNER_TEMP/$TARGET.tar" -out "$RUNNER_TEMP/$TARGET-candidate.cms" \
+            .github/qa/candidate-recipient.pem
+      - name: Retain only encrypted candidate bytes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: companion-0.8.2-${{ matrix.target }}-encrypted
+          path: ${{ runner.temp }}/${{ matrix.target }}-candidate.cms
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
