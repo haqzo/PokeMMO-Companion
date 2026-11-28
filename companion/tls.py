@@ -11,7 +11,12 @@ def live_https_context():
     if sys.platform == "win32":
         import truststore
 
-        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        # A caller-supplied context must set urllib's HTTPS protocol options.
+        context.set_alpn_protocols(["http/1.1"])
+        if context.post_handshake_auth is not None:
+            context.post_handshake_auth = True
+        return context
     # urllib applies its normal defaults when it owns the OpenSSL context.
     return None
 

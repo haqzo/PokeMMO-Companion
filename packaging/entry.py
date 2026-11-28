@@ -52,10 +52,7 @@ def check_live_https(report):
                         raise ValueError("Unexpected Alphapedia stream frame")
         except HTTPError as error:
             report(f"Packaged Alphapedia HTTPS HTTP {error.code} {path}")
-            # The Windows runner is denied polling by the provider. All three
-            # subscription streams remain required and are tested independently.
-            if error.code != 403 or streaming or sys.platform != "win32":
-                failure = failure or code
+            failure = failure or code
         except (OSError, ValueError, AttributeError) as error:
             report(f"Packaged Alphapedia HTTPS {path}: {type(error).__name__}: {error}")
             failure = failure or code
