@@ -144,10 +144,16 @@ def smoke(artifact, target, release=False):
         tls_env = env.copy()
         for key in ("SSL_CERT_FILE", "SSL_CERT_DIR"):
             tls_env.pop(key, None)
-        subprocess.run([*command, "--check-tls-trust"], cwd=work,
-                       env=tls_env, check=True, timeout=120)
+        tls_report = work / "https-report.txt"
+        tls_env.pop("COMPANION_LIVE_HTTPS_REPORT", None)
         if tls_env.get("COMPANION_VERIFY_LIVE_HTTPS") == "1":
-            print("Frozen runtime verified Alpha poll, Swarm poll and combined stream (HTTP 200 and valid stream frame).")
+            tls_env["COMPANION_LIVE_HTTPS_REPORT"] = str(tls_report)
+        try:
+            subprocess.run([*command, "--check-tls-trust"], cwd=work,
+                           env=tls_env, check=True, timeout=120)
+        finally:
+            if tls_report.is_file():
+                print(tls_report.read_text(encoding="utf-8"), end="", flush=True)
         subprocess.run([*command, "--check", "--data-dir", str(profile)], cwd=work,
                        env=env, check=True, timeout=120)
         expected = f"{APP_NAME} {__version__} — data dir "
