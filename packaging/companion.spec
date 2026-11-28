@@ -8,6 +8,12 @@ bundle_assets = run_path(str(root / "packaging" / "bundle_assets.py"))["bundle_a
 datas = [(str(root / file), file.parent.as_posix()) for file in bundle_assets(root)]
 
 hidden = ["companion.shell.qt_shell", "cryptography.hazmat.primitives.asymmetric.ed25519"]
+if sys.platform == "win32":
+    from PyInstaller.utils.hooks import copy_metadata
+
+    hidden.append("truststore._windows")
+    # The wheel's dist-info includes the upstream MIT license notice.
+    datas += copy_metadata("truststore")
 excludes = ["tkinter", "pytest", "playwright"]
 a = Analysis([str(root / "packaging" / "entry.py")], pathex=[str(root)], datas=datas,
              hiddenimports=hidden, excludes=excludes)

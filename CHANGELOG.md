@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.8.2 Alpha
+
+### Fixed
+
+- Fixed Windows certificate verification compatibility affecting Alphapedia Alpha and Swarm reports.
+- Improved HTTPS compatibility with the Alphapedia notification service.
+
+### Compatibility
+
+- Existing user data and settings are preserved.
+- Linux functionality remains unchanged.
+- No new features or manual configuration required.
+
+Verified packaged connectivity on Windows Server 2025 and Linux.
+
+[Installation and platform notes](docs/releases/0.8.2.md)
+
 ## v0.8.1 Alpha
 
 ### Storyline and planning

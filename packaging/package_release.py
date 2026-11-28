@@ -133,6 +133,8 @@ def smoke(artifact, target, release=False):
         for name in qt_files:
             if not any(internal.rglob(name)):
                 raise ValueError(f"Missing bundled Qt file: {name}")
+        if target == "windows" and not any(internal.glob("truststore-*.dist-info/licenses/LICENSE")):
+            raise ValueError("Missing bundled Truststore MIT license notice.")
         glibc = verify_linux_dependencies(artifact, work / "squashfs-root", internal) if target == "linux" and release else None
 
         env = os.environ.copy()
@@ -142,15 +144,25 @@ def smoke(artifact, target, release=False):
         tls_env = env.copy()
         for key in ("SSL_CERT_FILE", "SSL_CERT_DIR"):
             tls_env.pop(key, None)
-        subprocess.run([*command, "--check-tls-trust"], cwd=work,
-                       env=tls_env, check=True, timeout=120)
+        tls_report = work / "https-report.txt"
+        https_results = []
+        tls_env.pop("COMPANION_LIVE_HTTPS_REPORT", None)
+        if tls_env.get("COMPANION_VERIFY_LIVE_HTTPS") == "1":
+            tls_env["COMPANION_LIVE_HTTPS_REPORT"] = str(tls_report)
+        try:
+            subprocess.run([*command, "--check-tls-trust"], cwd=work,
+                           env=tls_env, check=True, timeout=120)
+        finally:
+            if tls_report.is_file():
+                https_results = tls_report.read_text(encoding="utf-8").splitlines()
+                print("\n".join(https_results), flush=True)
         subprocess.run([*command, "--check", "--data-dir", str(profile)], cwd=work,
                        env=env, check=True, timeout=120)
         expected = f"{APP_NAME} {__version__} — data dir "
         if not (profile / "companion.sqlite3").is_file() or expected not in (
                 profile / "logs/companion.log").read_text(encoding="utf-8"):
             raise ValueError("Fresh-profile self-check did not log the expected version or create its database.")
-        return glibc
+        return glibc, https_results
 
 
 def build(tag, candidate=False):
@@ -191,10 +203,14 @@ def build(tag, candidate=False):
     info = file_info(artifact)
     if (dist / "SHA256SUMS").read_text(encoding="ascii") != checksum_line(info):
         raise ValueError("The package does not match its build checksum.")
-    glibc = smoke(artifact, target, release=strict)
+    glibc, https_results = smoke(artifact, target, release=strict)
     if target == "linux" and not strict:
         print("Internal Linux build. The release glibc ceiling was not checked.")
     checks = ["checksum", "bundled assets and runtimes", "packaged HTTPS trust store", "fresh-profile backend self-check"]
+    if target == "windows":
+        checks += ["bundled Truststore and MIT license notice"]
+    if https_results:
+        checks += ["packaged Alphapedia Alpha, Swarm and combined HTTPS subscription streams"]
     if glibc is not None:
         checks += ["dynamic ELF dependencies", "maximum GLIBC requirement"]
     provenance = {"commit": sha, "tag": tag, "version": __version__, "platform": target,
@@ -203,6 +219,8 @@ def build(tag, candidate=False):
                   "dependencies": output(str(python), "-m", "pip", "freeze", "--all").splitlines(),
                   "external_tools": tools, "max_required_glibc": glibc, "package": info,
                   "checks": checks}
+    if https_results:
+        provenance["alphapedia_https"] = https_results
     if candidate:
         provenance["candidate"] = True
     if develop is not None:
@@ -212,7 +230,7 @@ def build(tag, candidate=False):
     print(report.read_text(encoding="utf-8"), end="")
 
 
-def assemble(tag, stage):
+def assemble(tag, stage, candidate=False):
     sha = source_revision(tag)
     develop = development_source()
     reports = {}
@@ -223,16 +241,22 @@ def assemble(tag, stage):
         if (report["commit"], report["tag"], report["version"], report["platform"], report["package"]) != (
                 sha, tag, __version__, target, actual):
             raise ValueError(f"The {target} package and report do not match this release source.")
+        if candidate and (not report.get("candidate") or develop is None):
+            raise ValueError(f"The {target} report lacks reviewed candidate verification.")
         if report.get("develop_source") != develop:
             raise ValueError(f"The {target} report does not match the recorded development source.")
         reports[target] = report
         checksums.append(checksum_line(actual))
     (stage / "SHA256SUMS").write_bytes("".join(checksums).encode("ascii"))
-    provenance = {"commit": sha, "tag": tag, "channel": release_channel(tag), "builds": reports}
+    channel = release_channel(tag or __version__)
+    provenance = {"commit": sha, "tag": tag, "channel": channel, "builds": reports}
+    if candidate:
+        provenance["candidate"] = True
     if develop is not None:
         provenance["develop_source"] = develop
     (stage / "build-provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
-    print(f"Prepared {tag} ({release_channel(tag)}) at {sha} in {stage}")
+    label = f"v{__version__} candidate" if candidate else tag
+    print(f"Prepared {label} ({channel}) at {sha} in {stage}")
 
 
 def main():
@@ -243,14 +267,17 @@ def main():
     build_mode.add_argument("--candidate", action="store_true",
                             help="verify an untagged reviewed snapshot with the release build checks")
     staging = commands.add_parser("assemble")
-    staging.add_argument("--tag", required=True)
+    staging_mode = staging.add_mutually_exclusive_group(required=True)
+    staging_mode.add_argument("--tag")
+    staging_mode.add_argument("--candidate", action="store_true",
+                              help="assemble verified packages from this untagged candidate")
     staging.add_argument("--stage", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.action == "build":
             build(args.tag, args.candidate)
         else:
-            assemble(args.tag, args.stage.resolve())
+            assemble(args.tag, args.stage.resolve(), args.candidate)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         parser.exit(1, f"{error}\n")
 
