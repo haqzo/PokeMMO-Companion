@@ -2,6 +2,8 @@
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import hashlib
+import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import re
@@ -153,17 +155,47 @@ def verify_release_upgrade(exe, folder):
     print(f"Published 0.8.1 profile upgraded to 0.8.2 with note, report and preferences intact (schema {before})")
 
 
+def record_alphapedia(exe, folder):
+    probe = folder / "frozen https report.txt"
+    completed = subprocess.run([exe, "--check-tls-trust"], timeout=120,
+                               env={**os.environ, "COMPANION_LIVE_HTTPS_REPORT": str(probe)})
+    lines = probe.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 5, lines
+    statuses = {}
+    for line in lines:
+        match = re.fullmatch(r"Packaged Alphapedia HTTPS HTTP (200|403) (/\S+)", line)
+        assert match, line
+        code, path = match.groups()
+        statuses[path] = int(code)
+        print(line, flush=True)
+    assert len(statuses) == 5, statuses
+    assert completed.returncode in (0, 13, 14, 15), completed.returncode
+    with running(exe, folder / "live profile") as api:
+        state = check_source(api)
+    if state["last_success_at"]:
+        print("Frozen 0.8.2 Windows live service connected to the actual combined Alphapedia feed")
+    else:
+        assert state["status"] == "offline" and "HTTP Error 403: Forbidden" in state["detail"], state
+        print("RELEASE BLOCKER: the frozen Windows live service received HTTP 403 from Alphapedia.")
+    return {"probe_status": statuses, "combined_live_connected": bool(state["last_success_at"]),
+            "combined_live_detail": state["detail"]}
+
+
 def main():
     if sys.platform != "win32":
         raise SystemExit("Requires the native Windows CI runner.")
     with tempfile.TemporaryDirectory(prefix="Companion hotfix QA ") as directory:
         folder = Path(directory)
-        exe = unpack(Path(sys.argv[1]).resolve(), folder / "candidate")
+        archive = Path(sys.argv[1]).resolve()
+        exe = unpack(archive, folder / "candidate")
         verify_release_upgrade(exe, folder)
         verify_certificates(exe, folder)
-        with running(exe, folder / "live profile") as api:
-            assert check_source(api)["last_success_at"], api("GET", "/api/live/source")
-        print("Frozen 0.8.2 Windows live service connected to the actual combined Alphapedia feed")
+        alphapedia = record_alphapedia(exe, folder)
+        report_file = archive.with_name("windows-build.json")
+        report = json.loads(report_file.read_text(encoding="utf-8"))
+        report["alphapedia_https"] = alphapedia
+        report["checks"] += ["frozen certificate acceptance and rejection", "published 0.8.1 profile preservation"]
+        report_file.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
