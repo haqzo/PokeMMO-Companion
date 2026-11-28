@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from companion import tls
 from companion.app import AppContext
 from companion.services import live
 from companion.storage import MIGRATIONS
@@ -168,7 +169,7 @@ def test_reconnect_replays_overlap_and_eof_goes_offline(ctx, delivered, monkeypa
     requests, states = [], []
 
     context = object()
-    monkeypatch.setattr(live, "live_https_context", lambda: context)
+    monkeypatch.setattr(tls, "live_https_context", lambda: context)
 
     def open_stream(request, **kwargs):
         assert kwargs["context"] is context
@@ -176,7 +177,7 @@ def test_reconnect_replays_overlap_and_eof_goes_offline(ctx, delivered, monkeypa
         requests.append(request.full_url)
         return BytesIO(b"\n".join(json.dumps(line).encode() for line in next(streams)))
 
-    monkeypatch.setattr(live.urllib.request, "urlopen", open_stream)
+    monkeypatch.setattr(tls.urllib.request, "urlopen", open_stream)
     monkeypatch.setattr(live.time, "time", lambda: started + (4 if requests else 0))
     ctx.settings.update({"live.ntfy.enabled": True, "live.ntfy.consented": True})
     monkeypatch.setattr(ctx.live._stop, "wait", lambda seconds: states.append(ctx.live.source_status()["status"]) or len(states) == 2)

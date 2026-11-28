@@ -122,14 +122,13 @@ def test_real_database_errors_are_not_hidden(running, caplog):
 def test_shutdown_waits_for_workers_including_a_connecting_live_provider(tmp_path, caplog, monkeypatch):
     """The ntfy worker blocked while connecting must not write its status into a closed database."""
     import urllib.request
-    from companion.services import live as live_mod
     caplog.set_level(logging.INFO, logger="companion")
     release = threading.Event()
 
-    def hanging_urlopen(req, timeout=0):
+    def hanging_urlopen(req, timeout=0, *, context=None):
         release.wait(timeout=3)                        # connecting… until the network gives up
         raise urllib.error.URLError("connection reset during shutdown")
-    monkeypatch.setattr(live_mod.urllib.request, "urlopen", hanging_urlopen)
+    monkeypatch.setattr(urllib.request, "urlopen", hanging_urlopen)
     ctx = AppContext(tmp_path / "w")
     ctx.settings.update({"live.ntfy.enabled": True, "live.ntfy.consented": True})
     srv = CompanionServer(ctx, 0).start()

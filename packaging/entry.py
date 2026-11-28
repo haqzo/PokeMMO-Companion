@@ -26,6 +26,42 @@ def configure_linux_ca_store():
             return
 
 
+def check_live_https(report):
+    """Exercise the live provider from the verified package build."""
+    import json
+    from urllib.error import HTTPError
+    from companion.tls import open_live_feed
+
+    origin = "https://ntfy.pokemmotools.org"
+    checks = (
+        (13, "/alphapings,swarmpings/json?since=12h", True),
+        (14, "/alphapings/json?since=12h", True),
+        (15, "/swarmpings/json?since=12h", True),
+        (11, "/alphapings/json?poll=1", False),
+        (12, "/swarmpings/json?poll=1", False),
+    )
+    failure = 0
+    for code, path, streaming in checks:
+        try:
+            with open_live_feed(origin + path, timeout=20) as response:
+                if response.status != 200:
+                    raise ValueError(f"Expected HTTP 200, got {response.status}")
+                if streaming:
+                    frame = json.loads(response.readline(65536))
+                    if frame.get("event") not in ("open", "keepalive", "message"):
+                        raise ValueError("Unexpected Alphapedia stream frame")
+        except HTTPError as error:
+            report(f"Packaged Alphapedia HTTPS HTTP {error.code} {path}")
+            failure = failure or code
+        except (OSError, ValueError, AttributeError) as error:
+            report(f"Packaged Alphapedia HTTPS {path}: {type(error).__name__}: {error}")
+            failure = failure or code
+        else:
+            report(f"Packaged Alphapedia HTTPS HTTP 200 {path}")
+    if failure:
+        raise SystemExit(failure)
+
+
 def packaged_main():
     configure_linux_ca_store()
     if sys.argv[1:] == ["--check-tls-trust"]:
@@ -37,9 +73,17 @@ def packaged_main():
             raise SystemExit("Packaged HTTPS trust store unavailable or verification disabled")
         from companion.tls import live_https_context
 
-        live_context = live_https_context()
-        if live_context.verify_mode != ssl.CERT_REQUIRED or not live_context.check_hostname:
-            raise SystemExit("Packaged live HTTPS verification disabled")
+        if sys.platform == "win32":
+            import truststore
+
+            live_context = live_https_context()
+            if (not isinstance(live_context, truststore.SSLContext)
+                    or live_context.verify_mode != ssl.CERT_REQUIRED or not live_context.check_hostname):
+                raise SystemExit("Packaged Windows live HTTPS verification unavailable")
+        if probe_report := os.environ.get("COMPANION_LIVE_HTTPS_REPORT"):
+            # The frozen Windows app has no console attached.
+            with Path(probe_report).open("w", encoding="utf-8") as stream:
+                check_live_https(lambda message: print(message, file=stream))
         print("Packaged HTTPS trust store: OK")
         return 0
     from companion.__main__ import main

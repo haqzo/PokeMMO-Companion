@@ -176,7 +176,8 @@ def test_single_instance_lock(tmp_path):
     b = InstanceLock(tmp_path)
     assert not b.acquire()
     assert b.is_held_elsewhere()
-    assert oct(os.stat(tmp_path / "instance.json").st_mode)[-3:] == "600"
+    if sys.platform != "win32":
+        assert oct(os.stat(tmp_path / "instance.json").st_mode)[-3:] == "600"
     assert b.signal_running({"action": "focus_main"}, timeout=0.5) is False   # nothing listening there: no crash
     a.release()
     assert not (tmp_path / "instance.json").exists()

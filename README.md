@@ -8,7 +8,7 @@ An unofficial desktop companion for PokeMMO — Pokémon reference data, regiona
 
 [Downloads](https://github.com/haqzo/PokeMMO-Companion/releases) · [Installation](#installation) · [Showcase](showcase/) · [PokeMMO Forums](https://forums.pokemmo.com/index.php?/topic/201960-tools-pokemmo-companion-your-all-in-one-pokemmo-companion-tool-080-alpha/) · [Discord](https://discord.gg/5Wbh28M3gu)
 
-> **v0.8.1 Alpha** · [Release notes and downloads](https://github.com/haqzo/PokeMMO-Companion/releases/tag/v0.8.1).
+> **v0.8.2 Alpha** · [Release notes and downloads](https://github.com/haqzo/PokeMMO-Companion/releases/tag/v0.8.2).
 
 ![Companion home dashboard](showcase/after-home.png)
 
@@ -54,22 +54,22 @@ The floating Type Chart adjusts the 17-type matrix as you resize, with scrolling
 
 ## Installation
 
-Choose your x86-64 package from [the v0.8.1 release](https://github.com/haqzo/PokeMMO-Companion/releases/tag/v0.8.1).
+Choose your x86-64 package from [the v0.8.2 release](https://github.com/haqzo/PokeMMO-Companion/releases/tag/v0.8.2).
 
 | Windows x86-64 | Linux x86-64 |
 | --- | --- |
-| Download the [Windows portable ZIP](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.1/PokeMMO-Companion-0.8.1-windows-x86_64.zip), choose **Extract All**, then open `pokemmo-companion.exe` from the extracted folder. Keep the extracted files together. | Download the [Linux AppImage](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.1/PokeMMO-Companion-0.8.1-x86_64.AppImage), allow it to execute in your file manager, then open it. |
+| Download the [Windows portable ZIP](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.2/PokeMMO-Companion-0.8.2-windows-x86_64.zip), choose **Extract All**, then open `pokemmo-companion.exe` from the extracted folder. Keep the extracted files together. | Download the [Linux AppImage](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.2/PokeMMO-Companion-0.8.2-x86_64.AppImage), allow it to execute in your file manager, then open it. |
 
 From a Linux terminal, run the following in the download folder.
 
 ```bash
-chmod +x PokeMMO-Companion-0.8.1-x86_64.AppImage
-./PokeMMO-Companion-0.8.1-x86_64.AppImage
+chmod +x PokeMMO-Companion-0.8.2-x86_64.AppImage
+./PokeMMO-Companion-0.8.2-x86_64.AppImage
 ```
 
 If FUSE is unavailable, launch with `--appimage-extract-and-run`.
 
-Verify downloaded packages against [SHA256SUMS](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.1/SHA256SUMS) and its [Ed25519 signature](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.1/SHA256SUMS.sig). See the [release notes](docs/releases/0.8.1.md) for tested systems and known limitations. Companion creates a SQLite safety copy before upgrading an older database. Portable ZIP backups and JSON exports exclude local report history. Keep the full profile or a SQLite safety copy to preserve it. Merge keeps your current settings. Replace restores archived settings and supported data. Both modes keep existing local report history.
+Verify downloaded packages against [SHA256SUMS](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.2/SHA256SUMS) and its [Ed25519 signature](https://github.com/haqzo/PokeMMO-Companion/releases/download/v0.8.2/SHA256SUMS.sig). See the [release notes](docs/releases/0.8.2.md) for tested systems and known limitations. Companion creates a SQLite safety copy before upgrading an older database. Portable ZIP backups and JSON exports exclude local report history. Keep the full profile or a SQLite safety copy to preserve it. Merge keeps your current settings. Replace restores archived settings and supported data. Both modes keep existing local report history.
 
 ## Getting started
 
