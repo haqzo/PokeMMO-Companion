@@ -21,3 +21,5 @@ The owner's latest explicit instructions supersede older plans. Ask before any r
 - End substantive work with a concise handoff: changes, tests, known limitations, source references, pending decisions and locations of preserved artifacts. Keep ChatGPT, Codex and Claude aligned through the same repository documentation rather than relying on a chat session.
 
 Use `docs/roadmap/`, `docs/research/`, `docs/design/` and `docs/build/` as the existing knowledge base; review the automatic-update roadmap before any approved update work. Keep live catch-rate/OCR, Android and cross-device research separate from approved implementation. Preserve offline-first behavior, owner approval gates and release signing.
+
+Owner ROM preservation rule: never delete or deduplicate any of the owner's ROM files or ROM archives, including exact duplicates, all languages, editions, revisions, clean, modified and experimental ROMs. Do not include ROM collections in automated cleanup. Keep them private.
